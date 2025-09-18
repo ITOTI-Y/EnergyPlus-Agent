@@ -1,0 +1,16 @@
+# 这是我们用来测试转换流程的、手写的输入数据。
+# 它的结构必须与 schemas/pydantic_models.py 中定义的模型匹配。
+
+user_input:
+  project_name: "My_First_YAML_to_IDF_Project"  # <-- 这是测试BuildingConverter的关键数据
+  model_file_path: "placeholder/model.3dm"      # <-- 这个路径在当前测试中不会被使用
+  city: "TestCity"
+  building_type: "Office"
+
+geometry_data:
+  # 在这个测试阶段，我们不需要真实的几何数据，
+  # 但为了保证数据结构完整，让Pydantic模型能验证通过，我们保留这个结构。
+  zones:
+    - id: "temp-zone-01"
+      name: "Temporary_Zone_for_Testing"
+  surfaces: [] # 留一个空列表，表示我们暂时不处理表面
