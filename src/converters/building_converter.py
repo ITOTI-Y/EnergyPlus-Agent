@@ -1,7 +1,7 @@
 from eppy.modeleditor import IDF
 
 from src.converters.base_converter import BaseConverter
-from validator.data_model import BuildingSchema
+from src.validator.data_model import BuildingSchema
 
 class BuildingConverter(BaseConverter):
     
