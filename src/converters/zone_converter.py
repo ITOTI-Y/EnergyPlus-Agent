@@ -1,7 +1,7 @@
 from eppy.modeleditor import IDF
 
 from src.converters.base_converter import BaseConverter
-from validator.data_model import ZoneSchema
+from src.validator.data_model import ZoneSchema
 
 class ZoneConverter(BaseConverter):
 
