@@ -63,63 +63,6 @@ Site:GroundTemperature:BuildingSurface:
     December Ground Temperature {C}: 20.5
 
 # ==================================================================
-# 设计日
-# ==================================================================
-SizingPeriod:DesignDay:
-  - Name: Shenzhen Ann Clg 1% Condns DB=>MCWB
-    Month: 7
-    Day of Month: 21
-    Day Type: SummerDesignDay
-    Maximum Dry-Bulb Temperature {C}: 32.8
-    Daily Dry-Bulb Temperature Range {deltaC}: 3.0
-    Dry-Bulb Temperature Range Modifier Type: null
-    Dry-Bulb Temperature Range Modifier Day Schedule Name: null
-    Humidity Condition Type: Wetbulb
-    Wetbulb or DewPoint at Maximum Dry-Bulb {C}: 27.4
-    Humidity Condition Day Schedule Name: null
-    Humidity Ratio at Maximum Dry-Bulb {kgWater/kgDryAir}: null
-    Enthalpy at Maximum Dry-Bulb {J/kg}: null
-    Daily Wet-Bulb Temperature Range {deltaC}: null
-    Barometric Pressure {Pa}: 100632
-    Wind Speed {m/s}: 4.5
-    Wind Direction {deg}: 135
-    Rain Indicator: No
-    Snow Indicator: No
-    Daylight Saving Time Indicator: No
-    Solar Model Indicator: ASHRAEClearSky
-    Beam Solar Day Schedule Name: null
-    Diffuse Solar Day Schedule Name: null
-    ASHRAE Clear Sky Optical Depth for Beam Irradiance (taub) {dimensionless}: 0.0
-    ASHRAE Clear Sky Optical Depth for Diffuse Irradiance (taud) {dimensionless}: 0.0
-    Sky Clearness: 1.0
-  - Name: Shenzhen Ann Htg 99.6% Condns DB
-    Month: 1
-    Day of Month: 21
-    Day Type: WinterDesignDay
-    Minimum Dry-Bulb Temperature {C}: 7.6
-    Daily Dry-Bulb Temperature Range {deltaC}: null
-    Dry-Bulb Temperature Range Modifier Type: null
-    Dry-Bulb Temperature Range Modifier Day Schedule Name: null
-    Humidity Condition Type: Wetbulb
-    Wetbulb or DewPoint at Minimum Dry-Bulb {C}: 5.4
-    Humidity Condition Day Schedule Name: null
-    Humidity Ratio at Minimum Dry-Bulb {kgWater/kgDryAir}: null
-    Enthalpy at Minimum Dry-Bulb {J/kg}: null
-    Daily Wet-Bulb Temperature Range {deltaC}: null
-    Barometric Pressure {Pa}: 101833
-    Wind Speed {m/s}: 4.2
-    Wind Direction {deg}: 360
-    Rain Indicator: No
-    Snow Indicator: No
-    Daylight Saving Time Indicator: No
-    Solar Model Indicator: ASHRAEClearSky
-    Beam Solar Day Schedule Name: null
-    Diffuse Solar Day Schedule Name: null
-    ASHRAE Clear Sky Optical Depth for Beam Irradiance (taub) {dimensionless}: 0.0
-    ASHRAE Clear Sky Optical Depth for Diffuse Irradiance (taud) {dimensionless}: 0.0
-    Sky Clearness: 0.0
-
-# ==================================================================
 # 运行周期
 # ==================================================================
 RunPeriod:
@@ -415,3 +358,4 @@ Output:Variable:
   - Key Value: "*"
     Variable Name: Surface Inside Face Temperature
     Reporting Frequency: Hourly
+
