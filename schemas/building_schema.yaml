@@ -1,16 +1,417 @@
-# 这是我们用来测试转换流程的、手写的输入数据。
-# 它的结构必须与 schemas/pydantic_models.py 中定义的模型匹配。
+# ==================================================================
+# 版本信息
+# ==================================================================
+Version:
+  - Version Identifier: 24.2
 
-user_input:
-  project_name: "My_First_YAML_to_IDF_Project"  # <-- 这是测试BuildingConverter的关键数据
-  model_file_path: "placeholder/model.3dm"      # <-- 这个路径在当前测试中不会被使用
-  city: "TestCity"
-  building_type: "Office"
+# ==================================================================
+# 模拟控制
+# ==================================================================
+SimulationControl:
+  - Do Zone Sizing Calculation: No
+    Do System Sizing Calculation: No
+    Do Plant Sizing Calculation: No
+    Run Simulation for Sizing Periods: No
+    Run Simulation for Weather File Run Periods: Yes
+    Do HVAC Sizing Simulation for Sizing Periods: Yes
+    Maximum Number of HVAC Sizing Simulation Passes: 1
 
-geometry_data:
-  # 在这个测试阶段，我们不需要真实的几何数据，
-  # 但为了保证数据结构完整，让Pydantic模型能验证通过，我们保留这个结构。
-  zones:
-    - id: "temp-zone-01"
-      name: "Temporary_Zone_for_Testing"
-  surfaces: [] # 留一个空列表，表示我们暂时不处理表面
+# ==================================================================
+# 建筑概况
+# ==================================================================
+Building:
+  - Name: Two Zone Building
+    North Axis {deg}: 0
+    Terrain: Suburbs
+    Loads Convergence Tolerance Value {W}: 0.04
+    Temperature Convergence Tolerance Value {deltaC}: 0.40
+    Solar Distribution: FullInteriorAndExterior
+    Maximum Number of Warmup Days: 25
+    Minimum Number of Warmup Days: 6
+
+# ==================================================================
+# 时间步长
+# ==================================================================
+Timestep:
+  - Number of Timesteps per Hour: 4
+
+# ==================================================================
+# 场地区位
+# ==================================================================
+Site:Location:
+  - Name: Shenzhen_GD_CHN Design_Conditions
+    Latitude {deg}: 22.54
+    Longitude {deg}: 114.00
+    Time Zone {hr}: 8.00
+    Elevation {m}: 4.00
+
+# ==================================================================
+# 地面温度
+# ==================================================================
+Site:GroundTemperature:BuildingSurface:
+  - January Ground Temperature {C}: 19.0
+    February Ground Temperature {C}: 19.2
+    March Ground Temperature {C}: 20.5
+    April Ground Temperature {C}: 22.8
+    May Ground Temperature {C}: 25.5
+    June Ground Temperature {C}: 27.5
+    July Ground Temperature {C}: 28.5
+    August Ground Temperature {C}: 28.4
+    September Ground Temperature {C}: 27.5
+    October Ground Temperature {C}: 25.5
+    November Ground Temperature {C}: 23.0
+    December Ground Temperature {C}: 20.5
+
+# ==================================================================
+# 设计日
+# ==================================================================
+SizingPeriod:DesignDay:
+  - Name: Shenzhen Ann Clg 1% Condns DB=>MCWB
+    Month: 7
+    Day of Month: 21
+    Day Type: SummerDesignDay
+    Maximum Dry-Bulb Temperature {C}: 32.8
+    Daily Dry-Bulb Temperature Range {deltaC}: 3.0
+    Dry-Bulb Temperature Range Modifier Type: null
+    Dry-Bulb Temperature Range Modifier Day Schedule Name: null
+    Humidity Condition Type: Wetbulb
+    Wetbulb or DewPoint at Maximum Dry-Bulb {C}: 27.4
+    Humidity Condition Day Schedule Name: null
+    Humidity Ratio at Maximum Dry-Bulb {kgWater/kgDryAir}: null
+    Enthalpy at Maximum Dry-Bulb {J/kg}: null
+    Daily Wet-Bulb Temperature Range {deltaC}: null
+    Barometric Pressure {Pa}: 100632
+    Wind Speed {m/s}: 4.5
+    Wind Direction {deg}: 135
+    Rain Indicator: No
+    Snow Indicator: No
+    Daylight Saving Time Indicator: No
+    Solar Model Indicator: ASHRAEClearSky
+    Beam Solar Day Schedule Name: null
+    Diffuse Solar Day Schedule Name: null
+    ASHRAE Clear Sky Optical Depth for Beam Irradiance (taub) {dimensionless}: 0.0
+    ASHRAE Clear Sky Optical Depth for Diffuse Irradiance (taud) {dimensionless}: 0.0
+    Sky Clearness: 1.0
+  - Name: Shenzhen Ann Htg 99.6% Condns DB
+    Month: 1
+    Day of Month: 21
+    Day Type: WinterDesignDay
+    Minimum Dry-Bulb Temperature {C}: 7.6
+    Daily Dry-Bulb Temperature Range {deltaC}: null
+    Dry-Bulb Temperature Range Modifier Type: null
+    Dry-Bulb Temperature Range Modifier Day Schedule Name: null
+    Humidity Condition Type: Wetbulb
+    Wetbulb or DewPoint at Minimum Dry-Bulb {C}: 5.4
+    Humidity Condition Day Schedule Name: null
+    Humidity Ratio at Minimum Dry-Bulb {kgWater/kgDryAir}: null
+    Enthalpy at Minimum Dry-Bulb {J/kg}: null
+    Daily Wet-Bulb Temperature Range {deltaC}: null
+    Barometric Pressure {Pa}: 101833
+    Wind Speed {m/s}: 4.2
+    Wind Direction {deg}: 360
+    Rain Indicator: No
+    Snow Indicator: No
+    Daylight Saving Time Indicator: No
+    Solar Model Indicator: ASHRAEClearSky
+    Beam Solar Day Schedule Name: null
+    Diffuse Solar Day Schedule Name: null
+    ASHRAE Clear Sky Optical Depth for Beam Irradiance (taub) {dimensionless}: 0.0
+    ASHRAE Clear Sky Optical Depth for Diffuse Irradiance (taud) {dimensionless}: 0.0
+    Sky Clearness: 0.0
+
+# ==================================================================
+# 运行周期
+# ==================================================================
+RunPeriod:
+  - Name: Run Period 1
+    Begin Month: 1
+    Begin Day of Month: 1
+    Begin Year: null
+    End Month: 12
+    End Day of Month: 31
+    End Year: null
+    Day of Week for Start Day: Tuesday
+    Use Weather File Holidays and Special Days: Yes
+    Use Weather File Daylight Saving Period: Yes
+    Apply Weekend Holiday Rule: No
+    Use Weather File Rain Indicators: Yes
+    Use Weather File Snow Indicators: Yes
+
+# ==================================================================
+# 材料
+# ==================================================================
+Material:
+  - Name: Concrete_20cm
+    Roughness: MediumRough
+    Thickness {m}: 0.2
+    Conductivity {W/m-K}: 1.729
+    Density {kg/m3}: 2240
+    Specific Heat {J/kg-K}: 837
+  - Name: Gypsum_1.3cm
+    Roughness: Smooth
+    Thickness {m}: 0.0127
+    Conductivity {W/m-K}: 0.16
+    Density {kg/m3}: 785
+    Specific Heat {J/kg-K}: 830
+
+# ==================================================================
+# 构造
+# ==================================================================
+Construction:
+  - Name: Exterior_Wall_Const
+    Layers:
+      - Concrete_20cm
+  - Name: Interior_Wall_Const
+    Layers:
+      - Gypsum_1.3cm
+      - Gypsum_1.3cm
+  - Name: Roof_Const
+    Layers:
+      - Concrete_20cm
+  - Name: Floor_Const
+    Layers:
+      - Concrete_20cm
+
+# ==================================================================
+# 全局几何规则
+# ==================================================================
+GlobalGeometryRules:
+  - Starting Vertex Position: UpperLeftCorner
+    Vertex Entry Direction: CounterClockWise
+    Coordinate System: World
+
+# ==================================================================
+# 热区定义
+# ==================================================================
+Zone:
+  - Name: Zone_West
+    Direction of Relative North {deg}: null
+    X Origin {m}: 0
+    Y Origin {m}: 5
+    Z Origin {m}: 0
+    Type: 1
+    Multiplier: 1
+    Ceiling Height {m}: autocalculate
+    Volume {m3}: autocalculate
+    Floor Area {m2}: autocalculate
+  - Name: Zone_East
+    Direction of Relative North {deg}: null
+    X Origin {m}: 5
+    Y Origin {m}: 5
+    Z Origin {m}: 0
+    Type: 1
+    Multiplier: 1
+    Ceiling Height {m}: autocalculate
+    Volume {m3}: autocalculate
+    Floor Area {m2}: autocalculate
+
+# ==================================================================
+# 建筑表面细则
+# ==================================================================
+BuildingSurface:Detailed:
+  # West Zone Surfaces (Corrected and Verified)
+  - Name: Zone_West_Floor
+    Surface Type: Floor
+    Construction Name: Floor_Const
+    Zone Name: Zone_West
+    Space Name: null
+    Outside Boundary Condition: Ground
+    Outside Boundary Condition Object: null
+    Sun Exposure: NoSun
+    Wind Exposure: NoWind
+    View Factor to Ground: 0
+    # Vertices defined Clockwise for a floor to face down
+    Vertices:
+      - {X: 0, Y: 5, Z: 0}
+      - {X: 5, Y: 5, Z: 0}
+      - {X: 5, Y: 0, Z: 0}
+      - {X: 0, Y: 0, Z: 0}
+  - Name: Zone_West_Roof
+    Surface Type: Roof
+    Construction Name: Roof_Const
+    Zone Name: Zone_West
+    Space Name: null
+    Outside Boundary Condition: Outdoors
+    Outside Boundary Condition Object: null
+    Sun Exposure: SunExposed
+    Wind Exposure: WindExposed
+    View Factor to Ground: 0
+    # Vertices defined Counter-Clockwise for a roof to face up
+    Vertices:
+      - {X: 0, Y: 0, Z: 3}
+      - {X: 5, Y: 0, Z: 3}
+      - {X: 5, Y: 5, Z: 3}
+      - {X: 0, Y: 5, Z: 3}
+  - Name: Zone_West_Wall_North
+    Surface Type: Wall
+    Construction Name: Exterior_Wall_Const
+    Zone Name: Zone_West
+    Space Name: null
+    Outside Boundary Condition: Outdoors
+    Outside Boundary Condition Object: null
+    Sun Exposure: SunExposed
+    Wind Exposure: WindExposed
+    View Factor to Ground: 0
+    Vertices:
+      - {X: 0, Y: 5, Z: 3}
+      - {X: 5, Y: 5, Z: 3}
+      - {X: 5, Y: 5, Z: 0}
+      - {X: 0, Y: 5, Z: 0}
+  - Name: Zone_West_Wall_South
+    Surface Type: Wall
+    Construction Name: Exterior_Wall_Const
+    Zone Name: Zone_West
+    Space Name: null
+    Outside Boundary Condition: Outdoors
+    Outside Boundary Condition Object: null
+    Sun Exposure: SunExposed
+    Wind Exposure: WindExposed
+    View Factor to Ground: 0
+    Vertices:
+      - {X: 0, Y: 0, Z: 0}
+      - {X: 5, Y: 0, Z: 0}
+      - {X: 5, Y: 0, Z: 3}
+      - {X: 0, Y: 0, Z: 3}
+  - Name: Zone_West_Wall_West
+    Surface Type: Wall
+    Construction Name: Exterior_Wall_Const
+    Zone Name: Zone_West
+    Space Name: null
+    Outside Boundary Condition: Outdoors
+    Outside Boundary Condition Object: null
+    Sun Exposure: SunExposed
+    Wind Exposure: WindExposed
+    View Factor to Ground: 0
+    Vertices:
+      - {X: 0, Y: 0, Z: 3}
+      - {X: 0, Y: 5, Z: 3}
+      - {X: 0, Y: 5, Z: 0}
+      - {X: 0, Y: 0, Z: 0}
+  # East Zone Surfaces (Corrected and Verified)
+  - Name: Zone_East_Floor
+    Surface Type: Floor
+    Construction Name: Floor_Const
+    Zone Name: Zone_East
+    Space Name: null
+    Outside Boundary Condition: Ground
+    Outside Boundary Condition Object: null
+    Sun Exposure: NoSun
+    Wind Exposure: NoWind
+    View Factor to Ground: 0
+    # Vertices defined Clockwise for a floor to face down
+    Vertices:
+      - {X: 5, Y: 5, Z: 0}
+      - {X: 10, Y: 5, Z: 0}
+      - {X: 10, Y: 0, Z: 0}
+      - {X: 5, Y: 0, Z: 0}
+  - Name: Zone_East_Roof
+    Surface Type: Roof
+    Construction Name: Roof_Const
+    Zone Name: Zone_East
+    Space Name: null
+    Outside Boundary Condition: Outdoors
+    Outside Boundary Condition Object: null
+    Sun Exposure: SunExposed
+    Wind Exposure: WindExposed
+    View Factor to Ground: 0
+    # Vertices defined Counter-Clockwise for a roof to face up
+    Vertices:
+      - {X: 5, Y: 0, Z: 3}
+      - {X: 10, Y: 0, Z: 3}
+      - {X: 10, Y: 5, Z: 3}
+      - {X: 5, Y: 5, Z: 3}
+  - Name: Zone_East_Wall_North
+    Surface Type: Wall
+    Construction Name: Exterior_Wall_Const
+    Zone Name: Zone_East
+    Space Name: null
+    Outside Boundary Condition: Outdoors
+    Outside Boundary Condition Object: null
+    Sun Exposure: SunExposed
+    Wind Exposure: WindExposed
+    View Factor to Ground: 0
+    Vertices:
+      - {X: 5, Y: 5, Z: 3}
+      - {X: 10, Y: 5, Z: 3}
+      - {X: 10, Y: 5, Z: 0}
+      - {X: 5, Y: 5, Z: 0}
+  - Name: Zone_East_Wall_South
+    Surface Type: Wall
+    Construction Name: Exterior_Wall_Const
+    Zone Name: Zone_East
+    Space Name: null
+    Outside Boundary Condition: Outdoors
+    Outside Boundary Condition Object: null
+    Sun Exposure: SunExposed
+    Wind Exposure: WindExposed
+    View Factor to Ground: 0
+    Vertices:
+      - {X: 5, Y: 0, Z: 0}
+      - {X: 10, Y: 0, Z: 0}
+      - {X: 10, Y: 0, Z: 3}
+      - {X: 5, Y: 0, Z: 3}
+  - Name: Zone_East_Wall_East
+    Surface Type: Wall
+    Construction Name: Exterior_Wall_Const
+    Zone Name: Zone_East
+    Space Name: null
+    Outside Boundary Condition: Outdoors
+    Outside Boundary Condition Object: null
+    Sun Exposure: SunExposed
+    Wind Exposure: WindExposed
+    View Factor to Ground: 0
+    Vertices:
+      - {X: 10, Y: 0, Z: 0}
+      - {X: 10, Y: 5, Z: 0}
+      - {X: 10, Y: 5, Z: 3}
+      - {X: 10, Y: 0, Z: 3}
+  # Internal Walls (Verified)
+  - Name: Zone_West_Wall_Internal # East wall of West Zone
+    Surface Type: Wall
+    Construction Name: Interior_Wall_Const
+    Zone Name: Zone_West
+    Space Name: null
+    Outside Boundary Condition: Surface
+    Outside Boundary Condition Object: Zone_East_Wall_Internal
+    Sun Exposure: NoSun
+    Wind Exposure: NoWind
+    View Factor to Ground: 0
+    # Normal points to +X direction
+    Vertices:
+      - {X: 5, Y: 5, Z: 3}
+      - {X: 5, Y: 0, Z: 3}
+      - {X: 5, Y: 0, Z: 0}
+      - {X: 5, Y: 5, Z: 0}
+  - Name: Zone_East_Wall_Internal # West wall of East Zone
+    Surface Type: Wall
+    Construction Name: Interior_Wall_Const
+    Zone Name: Zone_East
+    Space Name: null
+    Outside Boundary Condition: Surface
+    Outside Boundary Condition Object: Zone_West_Wall_Internal
+    Sun Exposure: NoSun
+    Wind Exposure: NoWind
+    View Factor to Ground: 0
+    # Normal points to -X direction
+    Vertices:
+      - {X: 5, Y: 0, Z: 3}
+      - {X: 5, Y: 5, Z: 3}
+      - {X: 5, Y: 5, Z: 0}
+      - {X: 5, Y: 0, Z: 0}
+
+# ==================================================================
+# 输出设置
+# ==================================================================
+Output:VariableDictionary:
+  - Key Field: Regular
+Output:Table:SummaryReports:
+  - Report 1 Name: AllSummary
+OutputControl:Table:Style:
+  - Column Separator: HTML
+Output:Variable:
+  - Key Value: "*"
+    Variable Name: Zone Mean Air Temperature
+    Reporting Frequency: Hourly
+  - Key Value: "*"
+    Variable Name: Surface Inside Face Temperature
+    Reporting Frequency: Hourly
