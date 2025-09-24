@@ -145,7 +145,7 @@ BuildingSurface:Detailed:
     Outside Boundary Condition Object: null
     Sun Exposure: NoSun
     Wind Exposure: NoWind
-    autocalculate
+    View Factor to Ground：autocalculate
 
 : 0
     # Vertices defined counterclockwise for a floor to face down
@@ -163,7 +163,7 @@ BuildingSurface:Detailed:
     Outside Boundary Condition Object: null
     Sun Exposure: SunExposed
     Wind Exposure: WindExposed
-    View Factor to Ground: 0
+    View Factor to Ground：autocalculate
     # Vertices defined Counter-Clockwise for a roof to face up
     Vertices:
       - {X: 0, Y: 0, Z: 3}
@@ -179,7 +179,7 @@ BuildingSurface:Detailed:
     Outside Boundary Condition Object: null
     Sun Exposure: SunExposed
     Wind Exposure: WindExposed
-    View Factor to Ground: 0
+    View Factor to Ground：autocalculate
     Vertices:
 +      - {X: 5, Y: 5, Z: 3}  
 +      - {X: 5, Y: 5, Z: 0}  
@@ -194,7 +194,7 @@ BuildingSurface:Detailed:
     Outside Boundary Condition Object: null
     Sun Exposure: SunExposed
     Wind Exposure: WindExposed
-    View Factor to Ground: 0
+    View Factor to Ground：autocalculate
     Vertices:
       - {X: 0, Y: 0, Z: 0}
       - {X: 5, Y: 0, Z: 0}
@@ -209,7 +209,7 @@ BuildingSurface:Detailed:
     Outside Boundary Condition Object: null
     Sun Exposure: SunExposed
     Wind Exposure: WindExposed
-    View Factor to Ground: 0
+    View Factor to Ground：autocalculate
     Vertices:
       - {X: 0, Y: 0, Z: 3}
       - {X: 0, Y: 5, Z: 3}
@@ -225,7 +225,7 @@ BuildingSurface:Detailed:
     Outside Boundary Condition Object: null
     Sun Exposure: NoSun
     Wind Exposure: NoWind
-    View Factor to Ground: 0
+    View Factor to Ground：autocalculate
     # Vertices defined Clockwise for a floor to face down
     Vertices:
       - {X: 5, Y: 5, Z: 0}
@@ -241,7 +241,7 @@ BuildingSurface:Detailed:
     Outside Boundary Condition Object: null
     Sun Exposure: SunExposed
     Wind Exposure: WindExposed
-    View Factor to Ground: 0
+    View Factor to Ground：autocalculate
     # Vertices defined Counter-Clockwise for a roof to face up
     Vertices:
       - {X: 5, Y: 0, Z: 3}
@@ -257,7 +257,7 @@ BuildingSurface:Detailed:
     Outside Boundary Condition Object: null
     Sun Exposure: SunExposed
     Wind Exposure: WindExposed
-    View Factor to Ground: 0
+    View Factor to Ground：autocalculate
     Vertices:
       - {X: 10, Y: 5, Z: 3}
       - {X: 10, Y: 5, Z: 0}
@@ -272,7 +272,7 @@ BuildingSurface:Detailed:
     Outside Boundary Condition Object: null
     Sun Exposure: SunExposed
     Wind Exposure: WindExposed
-    View Factor to Ground: 0
+    View Factor to Ground：autocalculate
     Vertices:
       - {X: 5, Y: 0, Z: 0}
       - {X: 10, Y: 0, Z: 0}
@@ -287,7 +287,7 @@ BuildingSurface:Detailed:
     Outside Boundary Condition Object: null
     Sun Exposure: SunExposed
     Wind Exposure: WindExposed
-    View Factor to Ground: 0
+    View Factor to Ground：autocalculate
     Vertices:
       - {X: 10, Y: 0, Z: 0}
       - {X: 10, Y: 5, Z: 0}
@@ -303,7 +303,7 @@ BuildingSurface:Detailed:
     Outside Boundary Condition Object: Zone_East_Wall_Internal
     Sun Exposure: NoSun
     Wind Exposure: NoWind
-    View Factor to Ground: 0
+    View Factor to Ground：autocalculate
     # Normal points to +X direction
     Vertices:
       - {X: 5, Y: 5, Z: 3}
@@ -319,7 +319,7 @@ BuildingSurface:Detailed:
     Outside Boundary Condition Object: Zone_West_Wall_Internal
     Sun Exposure: NoSun
     Wind Exposure: NoWind
-    View Factor to Ground: 0
+    View Factor to Ground：autocalculate
     # Normal points to -X direction
     Vertices:
       - {X: 5, Y: 0, Z: 3}
