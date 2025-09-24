@@ -2,7 +2,7 @@
 # 版本信息
 # ==================================================================
 Version:
-  - Version Identifier: 24.2
+  - Version Identifier: 25.1.0
 
 # ==================================================================
 # 模拟控制
@@ -21,10 +21,10 @@ SimulationControl:
 # ==================================================================
 Building:
   - Name: Two Zone Building
-    North Axis {deg}: 0
+    North Axis: 0
     Terrain: Suburbs
-    Loads Convergence Tolerance Value {W}: 0.04
-    Temperature Convergence Tolerance Value {deltaC}: 0.40
+    Loads Convergence Tolerance Value: 0.04
+    Temperature Convergence Tolerance Value: 0.40
     Solar Distribution: FullInteriorAndExterior
     Maximum Number of Warmup Days: 25
     Minimum Number of Warmup Days: 6
@@ -44,23 +44,6 @@ Site:Location:
     Longitude {deg}: 114.00
     Time Zone {hr}: 8.00
     Elevation {m}: 4.00
-
-# ==================================================================
-# 地面温度
-# ==================================================================
-Site:GroundTemperature:BuildingSurface:
-  - January Ground Temperature {C}: 19.0
-    February Ground Temperature {C}: 19.2
-    March Ground Temperature {C}: 20.5
-    April Ground Temperature {C}: 22.8
-    May Ground Temperature {C}: 25.5
-    June Ground Temperature {C}: 27.5
-    July Ground Temperature {C}: 28.5
-    August Ground Temperature {C}: 28.4
-    September Ground Temperature {C}: 27.5
-    October Ground Temperature {C}: 25.5
-    November Ground Temperature {C}: 23.0
-    December Ground Temperature {C}: 20.5
 
 # ==================================================================
 # 运行周期
@@ -162,8 +145,10 @@ BuildingSurface:Detailed:
     Outside Boundary Condition Object: null
     Sun Exposure: NoSun
     Wind Exposure: NoWind
-    View Factor to Ground: 0
-    # Vertices defined Clockwise for a floor to face down
+    autocalculate
+
+: 0
+    # Vertices defined counterclockwise for a floor to face down
     Vertices:
       - {X: 0, Y: 5, Z: 0}
       - {X: 5, Y: 5, Z: 0}
@@ -196,10 +181,10 @@ BuildingSurface:Detailed:
     Wind Exposure: WindExposed
     View Factor to Ground: 0
     Vertices:
-      - {X: 0, Y: 5, Z: 3}
-      - {X: 5, Y: 5, Z: 3}
-      - {X: 5, Y: 5, Z: 0}
-      - {X: 0, Y: 5, Z: 0}
++      - {X: 5, Y: 5, Z: 3}  
++      - {X: 5, Y: 5, Z: 0}  
++      - {X: 0, Y: 5, Z: 0}  
++      - {X: 0, Y: 5, Z: 3}  
   - Name: Zone_West_Wall_South
     Surface Type: Wall
     Construction Name: Exterior_Wall_Const
@@ -274,10 +259,10 @@ BuildingSurface:Detailed:
     Wind Exposure: WindExposed
     View Factor to Ground: 0
     Vertices:
-      - {X: 5, Y: 5, Z: 3}
       - {X: 10, Y: 5, Z: 3}
       - {X: 10, Y: 5, Z: 0}
       - {X: 5, Y: 5, Z: 0}
+      - {X: 5, Y: 5, Z: 3}
   - Name: Zone_East_Wall_South
     Surface Type: Wall
     Construction Name: Exterior_Wall_Const
@@ -347,6 +332,8 @@ BuildingSurface:Detailed:
 # ==================================================================
 Output:VariableDictionary:
   - Key Field: Regular
+Output:Diagnostics:  
+    Key 1: DisplayExtraWarning  
 Output:Table:SummaryReports:
   - Report 1 Name: AllSummary
 OutputControl:Table:Style:
