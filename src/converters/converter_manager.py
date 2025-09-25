@@ -17,13 +17,13 @@ class ConverterManager:
         self.yaml_data : Dict = self._load_yaml(file_to_convert)
         self.converters = {
             'building': BuildingConverter(self.idf),
-            'zones': ZoneConverter(self.idf)
+            #'zones': ZoneConverter(self.idf)
         }
 
     def convert_all(self) -> IDF:
         for name, converter in self.converters.items():
             self.logger.info(f"Converting {name}...")
-            converter.convert()
+            converter.convert(self.yaml_data)
         
         return self.idf
 

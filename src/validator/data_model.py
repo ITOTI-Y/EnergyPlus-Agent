@@ -10,7 +10,7 @@ class PydanticConfig:
     )
 
 class BuildingSchema(BaseModel, PydanticConfig):
-    name: str = Field(..., description="Building name")
+    name: str = Field(..., alias="Name", description="Building name")
     
 
     @field_validator('name')

@@ -1,5 +1,29 @@
 from eppy.modeleditor import IDF
-from typing import Dict
+from typing import Dict, Any
+import sys
+import os
+from pathlib import Path
+
+try:
+    from src.validator.data_model import BuildingSchema
+except ModuleNotFoundError:
+    project_root = Path(__file__).resolve().parents[2]
+    if str(project_root) not in sys.path:
+        sys.path.insert(0, str(project_root))
+        
+    # 再次尝试导入
+    try:
+        from src.validator.data_model import BuildingSchema
+        print(f"--- Dynamically added '{project_root}' to path and imported BuildingSchema successfully. ---")
+    except ImportError as e:
+        print(f"FATAL: Could not import BuildingSchema even after modifying sys.path. Error: {e}")
+        # 如果还是失败，就定义一个临时的空类，避免程序完全崩溃
+        class BuildingSchema:
+            @staticmethod
+            def model_validate(data):
+                return data
+
+# --- 正常的导入 ---
 from .base_converter import BaseConverter
 from src.utils.logging import get_logger
 
@@ -12,11 +36,10 @@ class BuildingConverter(BaseConverter):
 
     def convert(self, data: Dict) -> None:
         """
-        这是转换的唯一入口。
+        主转换方法，接收从Manager传来的完整YAML数据。
         """
         self.logger.info("  > [BuildingConverter] Running convert method...")
         
-        # 从总数据中提取 'Building' 部分
         building_data_list = data.get('Building', [])
         
         if not building_data_list:
@@ -25,75 +48,49 @@ class BuildingConverter(BaseConverter):
             return
 
         building_data_to_process = building_data_list[0]
-
-        # 调用 validate (虽然它暂时什么都不做)
+        
         if self.validate(building_data_to_process):
             try:
-                self.add_to_idf(building_data_to_process)
+                self.add_to_idf(building_data_to_process, full_data=data)
                 self.state['success'] += 1
                 self.logger.info("    - Building object conversion successful.")
             except Exception as e:
                 self.state['failed'] += 1
-                self.logger.error(f"    - 错误: 在创建Building对象时失败: {e}", exc_info=True)
+                self.logger.error(f"    - 错误: 在创建对象时失败: {e}", exc_info=True)
         else:
             self.state['failed'] += 1
             self.logger.warning("    - Building data validation failed. Skipping conversion.")
 
-    def add_to_idf(self, building_data: Dict) -> None:
+    def add_to_idf(self, building_data: Dict, full_data: Dict) -> None:
         """
-        将building数据添加到IDF。在添加前，会手动修正字段名。
+        将数据添加到IDF。
         """
         self.logger.info("    - Adding Building object to IDF...")
-
-        def clean_key(key: str) -> str:
-            # 1. 替换空格为下划线
-            key = key.replace(' ', '_')
-            # 2. 移除花括号内容
-            key = key.split('{')[0]
-            # 3. 【新增】移除可能出现在末尾的下划线
-            key = key.rstrip('_')
-            # 4. 移除首尾空格（作为保险）
-            key = key.strip()
-            return key
-
-        # 使用字典推导式，遍历原始数据，生成一个键名干净的新字典
-        # 例如： "North Axis {deg}" -> "North_Axis"
-        cleaned_building_data = {clean_key(key): value for key, value in building_data.items()}
         
-        self.logger.info(f"      - Cleaned data keys: {list(cleaned_building_data.keys())}")
+        def clean_key(key: str) -> str:
+            key = str(key).replace(' ', '_')
+            key = key.split('{')[0]
+            key = key.rstrip('_')
+            return key.strip()
 
+        cleaned_building_data = {clean_key(k): v for k, v in building_data.items()}
+        
+        if not self.idf.getobject('VERSION', '25.1.0'):
+            version_obj = self.idf.newidfobject('VERSION')
+            version_obj.Version_Identifier = '25.1.0'
+        
+        self.idf.newidfobject('BUILDING', **cleaned_building_data)
+        self.logger.info(f"      - Building '{cleaned_building_data.get('Name')}' created.")
 
-        # --- 现在，使用这个“干净”的字典来创建IDF对象 ---
-        try:
-            # 添加Version等样板对象
-            if not self.idf.getobject('VERSION', '9.5'):
-                version_obj = self.idf.newidfobject('VERSION')
-                version_obj.Version_Identifier = '9.5'
-                self.logger.info("      - Default Version object created.")
-            
-            # 使用修正后的 cleaned_building_data 进行解包
-            building_obj = self.idf.newidfobject(
-                'BUILDING',
-                **cleaned_building_data
-            )
-            self.logger.info(f"      - Building '{building_obj.Name}' created.")
-
-        except Exception as e:
-            # 如果这里的eppy报错，可以直接抛出，让外层的convert方法捕获
-            self.logger.error(f"      - Eppy failed to create object with cleaned data. Error: {e}")
-            raise # 抛出异常，让convert知道失败了
-
-    # ===============================================================
-    # 【核心修复3】: 实现父类要求的 validate 方法
-    # ===============================================================
     def validate(self, data: Dict) -> bool:
         """
-        一个临时的、总是返回True的验证方法，以满足抽象基类的要求。
+        使用从src.validator.data_model导入的BuildingSchema进行验证。
         """
-        self.logger.info("    - Running placeholder validate method (always returns True).")
-        # 在这个阶段，我们不进行复杂的Pydantic验证，只是确保方法存在
-        if 'Name' in data:
+        self.logger.info("    - Validating building data using BuildingSchema...")
+        try:
+            BuildingSchema.model_validate(data)
+            self.logger.info("    - Building data validation successful.")
             return True
-        else:
-            self.logger.error("    - Validation failed: 'Name' field is missing in Building data.")
+        except Exception as e:
+            self.logger.error(f"    - Building data validation failed: {e}")
             return False
