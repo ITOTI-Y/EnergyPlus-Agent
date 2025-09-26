@@ -90,7 +90,7 @@ class ZoneSchema(BaseModel, PydanticConfig):
         return v
     @field_validator('direction_of_relative_north')
     def validate_direction_of_relative_north(cls, v):
-        if v is not None and not (0 <= v <= 360):
+        if v is not None and not (0 <= v < 360):
             raise ValueError("Direction of Relative North must be in [0, 360).")
         elif v is None:
             return 0.0
