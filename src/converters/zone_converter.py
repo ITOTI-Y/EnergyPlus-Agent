@@ -13,7 +13,7 @@ class ZoneConverter(BaseConverter):
         zone_datas: Dict = data.get('Zone', {})
         self.logger.info("Converting zone data...")
         # 完成该部分的转换逻辑
-        val_data = [self.validate(data) for data in zone_datas]
+        val_data = [self.validate(zd) for zd in zone_datas]
         for vd in val_data:
             try:
                 self._add_to_idf(vd)
