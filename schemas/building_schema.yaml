@@ -1,14 +1,8 @@
 # ==================================================================
-# 版本信息
-# ==================================================================
-Version:
-  - Version Identifier: 25.1.0
-
-# ==================================================================
 # 模拟控制
 # ==================================================================
 SimulationControl:
-  - Do Zone Sizing Calculation: No
+    Do Zone Sizing Calculation: No
     Do System Sizing Calculation: No
     Do Plant Sizing Calculation: No
     Run Simulation for Sizing Periods: No
@@ -20,7 +14,7 @@ SimulationControl:
 # 建筑概况
 # ==================================================================
 Building:
-  - Name: Two Zone Building
+    Name: Two Zone Building
     North Axis: 0
     Terrain: Suburbs
     Loads Convergence Tolerance Value: 0.04
@@ -33,13 +27,13 @@ Building:
 # 时间步长
 # ==================================================================
 Timestep:
-  - Number of Timesteps per Hour: 4
+    Number of Timesteps per Hour: 4
 
 # ==================================================================
 # 场地区位
 # ==================================================================
 Site:Location:
-  - Name: Shenzhen_GD_CHN Design_Conditions
+    Name: Shenzhen_GD_CHN Design_Conditions
     Latitude {deg}: 22.54
     Longitude {deg}: 114.00
     Time Zone {hr}: 8.00
@@ -49,7 +43,7 @@ Site:Location:
 # 运行周期
 # ==================================================================
 RunPeriod:
-  - Name: Run Period 1
+    Name: Run Period 1
     Begin Month: 1
     Begin Day of Month: 1
     Begin Year: null
@@ -102,7 +96,7 @@ Construction:
 # 全局几何规则
 # ==================================================================
 GlobalGeometryRules:
-  - Starting Vertex Position: UpperLeftCorner
+    Starting Vertex Position: UpperLeftCorner
     Vertex Entry Direction: CounterClockWise
     Coordinate System: World
 
@@ -330,13 +324,13 @@ BuildingSurface:Detailed:
 # 输出设置
 # ==================================================================
 Output:VariableDictionary:
-  - Key Field: Regular
+    Key Field: Regular
 Output:Diagnostics:  
     Key 1: DisplayExtraWarning  
 Output:Table:SummaryReports:
-  - Report 1 Name: AllSummary
+    Report 1 Name: AllSummary
 OutputControl:Table:Style:
-  - Column Separator: HTML
+    Column Separator: HTML
 Output:Variable:
   - Key Value: "*"
     Variable Name: Zone Mean Air Temperature
