@@ -1,0 +1,340 @@
+# ==================================================================
+# 模拟控制
+# ==================================================================
+SimulationControl:
+    Do Zone Sizing Calculation: No
+    Do System Sizing Calculation: No
+    Do Plant Sizing Calculation: No
+    Run Simulation for Sizing Periods: No
+    Run Simulation for Weather File Run Periods: Yes
+    Do HVAC Sizing Simulation for Sizing Periods: Yes
+    Maximum Number of HVAC Sizing Simulation Passes: 1
+
+# ==================================================================
+# 建筑概况
+# ==================================================================
+Building:
+    Name: Two Zone Building
+    North Axis: 0
+    Terrain: Suburbs
+    Loads Convergence Tolerance Value: 0.04
+    Temperature Convergence Tolerance Value: 0.40
+    Solar Distribution: FullInteriorAndExterior
+    Maximum Number of Warmup Days: 25
+    Minimum Number of Warmup Days: 6
+
+# ==================================================================
+# 时间步长
+# ==================================================================
+Timestep:
+    Number of Timesteps per Hour: 4
+
+# ==================================================================
+# 场地区位
+# ==================================================================
+Site:Location:
+    Name: Shenzhen_GD_CHN Design_Conditions
+    Latitude {deg}: 22.54
+    Longitude {deg}: 114.00
+    Time Zone {hr}: 8.00
+    Elevation {m}: 4.00
+
+# ==================================================================
+# 运行周期
+# ==================================================================
+RunPeriod:
+    Name: Run Period 1
+    Begin Month: 1
+    Begin Day of Month: 1
+    Begin Year: null
+    End Month: 12
+    End Day of Month: 31
+    End Year: null
+    Day of Week for Start Day: Tuesday
+    Use Weather File Holidays and Special Days: Yes
+    Use Weather File Daylight Saving Period: Yes
+    Apply Weekend Holiday Rule: No
+    Use Weather File Rain Indicators: Yes
+    Use Weather File Snow Indicators: Yes
+
+# ==================================================================
+# 材料
+# ==================================================================
+Material:
+  - Name: Concrete_20cm
+    Roughness: MediumRough
+    Thickness {m}: 0.2
+    Conductivity {W/m-K}: 1.729
+    Density {kg/m3}: 2240
+    Specific Heat {J/kg-K}: 837
+  - Name: Gypsum_1.3cm
+    Roughness: Smooth
+    Thickness {m}: 0.0127
+    Conductivity {W/m-K}: 0.16
+    Density {kg/m3}: 785
+    Specific Heat {J/kg-K}: 830
+
+# ==================================================================
+# 构造
+# ==================================================================
+Construction:
+  - Name: Exterior_Wall_Const
+    Layers:
+      - Concrete_20cm
+  - Name: Interior_Wall_Const
+    Layers:
+      - Gypsum_1.3cm
+      - Gypsum_1.3cm
+  - Name: Roof_Const
+    Layers:
+      - Concrete_20cm
+  - Name: Floor_Const
+    Layers:
+      - Concrete_20cm
+
+# ==================================================================
+# 全局几何规则
+# ==================================================================
+GlobalGeometryRules:
+    Starting Vertex Position: UpperLeftCorner
+    Vertex Entry Direction: CounterClockWise
+    Coordinate System: World
+
+# ==================================================================
+# 热区定义
+# ==================================================================
+Zone:
+  - Name: Zone_West
+    Direction of Relative North {deg}: null
+    X Origin {m}: 0
+    Y Origin {m}: 5
+    Z Origin {m}: 0
+    Type: 1
+    Multiplier: 1
+    Ceiling Height {m}: autocalculate
+    Volume {m3}: autocalculate
+    Floor Area {m2}: autocalculate
+  - Name: Zone_East
+    Direction of Relative North {deg}: null
+    X Origin {m}: 5
+    Y Origin {m}: 5
+    Z Origin {m}: 0
+    Type: 1
+    Multiplier: 1
+    Ceiling Height {m}: autocalculate
+    Volume {m3}: autocalculate
+    Floor Area {m2}: autocalculate
+
+# ==================================================================
+# 建筑表面细则
+# ==================================================================
+BuildingSurface:Detailed:
+  # West Zone Surfaces (Corrected and Verified)
+  - Name: Zone_West_Floor
+    Surface Type: Floor
+    Construction Name: Floor_Const
+    Zone Name: Zone_West
+    Space Name: null
+    Outside Boundary Condition: Ground
+    Outside Boundary Condition Object: null
+    Sun Exposure: NoSun
+    Wind Exposure: NoWind
+    View Factor to Ground: autocalculate
+
+    # Vertices defined counterclockwise for a floor to face down
+    Vertices:
+      - {X: 0, Y: 5, Z: 0}
+      - {X: 5, Y: 5, Z: 0}
+      - {X: 5, Y: 0, Z: 0}
+      - {X: 0, Y: 0, Z: 0}
+  - Name: Zone_West_Roof
+    Surface Type: Roof
+    Construction Name: Roof_Const
+    Zone Name: Zone_West
+    Space Name: null
+    Outside Boundary Condition: Outdoors
+    Outside Boundary Condition Object: null
+    Sun Exposure: SunExposed
+    Wind Exposure: WindExposed
+    View Factor to Ground: autocalculate
+    # Vertices defined Counter-Clockwise for a roof to face up
+    Vertices:
+      - {X: 0, Y: 0, Z: 3}
+      - {X: 5, Y: 0, Z: 3}
+      - {X: 5, Y: 5, Z: 3}
+      - {X: 0, Y: 5, Z: 3}
+  - Name: Zone_West_Wall_North
+    Surface Type: Wall
+    Construction Name: Exterior_Wall_Const
+    Zone Name: Zone_West
+    Space Name: null
+    Outside Boundary Condition: Outdoors
+    Outside Boundary Condition Object: null
+    Sun Exposure: SunExposed
+    Wind Exposure: WindExposed
+    View Factor to Ground: autocalculate
+    Vertices:
+      - {X: 5, Y: 5, Z: 3}  
+      - {X: 5, Y: 5, Z: 0}  
+      - {X: 0, Y: 5, Z: 0}  
+      - {X: 0, Y: 5, Z: 3}  
+  - Name: Zone_West_Wall_South
+    Surface Type: Wall
+    Construction Name: Exterior_Wall_Const
+    Zone Name: Zone_West
+    Space Name: null
+    Outside Boundary Condition: Outdoors
+    Outside Boundary Condition Object: null
+    Sun Exposure: SunExposed
+    Wind Exposure: WindExposed
+    View Factor to Ground: autocalculate
+    Vertices:
+      - {X: 0, Y: 0, Z: 0}
+      - {X: 5, Y: 0, Z: 0}
+      - {X: 5, Y: 0, Z: 3}
+      - {X: 0, Y: 0, Z: 3}
+  - Name: Zone_West_Wall_West
+    Surface Type: Wall
+    Construction Name: Exterior_Wall_Const
+    Zone Name: Zone_West
+    Space Name: null
+    Outside Boundary Condition: Outdoors
+    Outside Boundary Condition Object: null
+    Sun Exposure: SunExposed
+    Wind Exposure: WindExposed
+    View Factor to Ground: autocalculate
+    Vertices:
+      - {X: 0, Y: 0, Z: 3}
+      - {X: 0, Y: 5, Z: 3}
+      - {X: 0, Y: 5, Z: 0}
+      - {X: 0, Y: 0, Z: 0}
+  # East Zone Surfaces (Corrected and Verified)
+  - Name: Zone_East_Floor
+    Surface Type: Floor
+    Construction Name: Floor_Const
+    Zone Name: Zone_East
+    Space Name: null
+    Outside Boundary Condition: Ground
+    Outside Boundary Condition Object: null
+    Sun Exposure: NoSun
+    Wind Exposure: NoWind
+    View Factor to Ground: autocalculate
+    # Vertices defined Clockwise for a floor to face down
+    Vertices:
+      - {X: 5, Y: 5, Z: 0}
+      - {X: 10, Y: 5, Z: 0}
+      - {X: 10, Y: 0, Z: 0}
+      - {X: 5, Y: 0, Z: 0}
+  - Name: Zone_East_Roof
+    Surface Type: Roof
+    Construction Name: Roof_Const
+    Zone Name: Zone_East
+    Space Name: null
+    Outside Boundary Condition: Outdoors
+    Outside Boundary Condition Object: null
+    Sun Exposure: SunExposed
+    Wind Exposure: WindExposed
+    View Factor to Ground: autocalculate
+    # Vertices defined Counter-Clockwise for a roof to face up
+    Vertices:
+      - {X: 5, Y: 0, Z: 3}
+      - {X: 10, Y: 0, Z: 3}
+      - {X: 10, Y: 5, Z: 3}
+      - {X: 5, Y: 5, Z: 3}
+  - Name: Zone_East_Wall_North
+    Surface Type: Wall
+    Construction Name: Exterior_Wall_Const
+    Zone Name: Zone_East
+    Space Name: null
+    Outside Boundary Condition: Outdoors
+    Outside Boundary Condition Object: null
+    Sun Exposure: SunExposed
+    Wind Exposure: WindExposed
+    View Factor to Ground: autocalculate
+    Vertices:
+      - {X: 10, Y: 5, Z: 3}
+      - {X: 10, Y: 5, Z: 0}
+      - {X: 5, Y: 5, Z: 0}
+      - {X: 5, Y: 5, Z: 3}
+  - Name: Zone_East_Wall_South
+    Surface Type: Wall
+    Construction Name: Exterior_Wall_Const
+    Zone Name: Zone_East
+    Space Name: null
+    Outside Boundary Condition: Outdoors
+    Outside Boundary Condition Object: null
+    Sun Exposure: SunExposed
+    Wind Exposure: WindExposed
+    View Factor to Ground: autocalculate
+    Vertices:
+      - {X: 5, Y: 0, Z: 0}
+      - {X: 10, Y: 0, Z: 0}
+      - {X: 10, Y: 0, Z: 3}
+      - {X: 5, Y: 0, Z: 3}
+  - Name: Zone_East_Wall_East
+    Surface Type: Wall
+    Construction Name: Exterior_Wall_Const
+    Zone Name: Zone_East
+    Space Name: null
+    Outside Boundary Condition: Outdoors
+    Outside Boundary Condition Object: null
+    Sun Exposure: SunExposed
+    Wind Exposure: WindExposed
+    View Factor to Ground: autocalculate
+    Vertices:
+      - {X: 10, Y: 0, Z: 0}
+      - {X: 10, Y: 5, Z: 0}
+      - {X: 10, Y: 5, Z: 3}
+      - {X: 10, Y: 0, Z: 3}
+  # Internal Walls (Verified)
+  - Name: Zone_West_Wall_Internal # East wall of West Zone
+    Surface Type: Wall
+    Construction Name: Interior_Wall_Const
+    Zone Name: Zone_West
+    Space Name: null
+    Outside Boundary Condition: Surface
+    Outside Boundary Condition Object: Zone_East_Wall_Internal
+    Sun Exposure: NoSun
+    Wind Exposure: NoWind
+    View Factor to Ground: autocalculate
+    # Normal points to +X direction
+    Vertices:
+      - {X: 5, Y: 5, Z: 3}
+      - {X: 5, Y: 0, Z: 3}
+      - {X: 5, Y: 0, Z: 0}
+      - {X: 5, Y: 5, Z: 0}
+  - Name: Zone_East_Wall_Internal # West wall of East Zone
+    Surface Type: Wall
+    Construction Name: Interior_Wall_Const
+    Zone Name: Zone_East
+    Space Name: null
+    Outside Boundary Condition: Surface
+    Outside Boundary Condition Object: Zone_West_Wall_Internal
+    Sun Exposure: NoSun
+    Wind Exposure: NoWind
+    View Factor to Ground: autocalculate
+    # Normal points to -X direction
+    Vertices:
+      - {X: 5, Y: 0, Z: 3}
+      - {X: 5, Y: 5, Z: 3}
+      - {X: 5, Y: 5, Z: 0}
+      - {X: 5, Y: 0, Z: 0}
+
+# ==================================================================
+# 输出设置
+# ==================================================================
+Output:VariableDictionary:
+    Key Field: Regular
+Output:Diagnostics:  
+    Key 1: DisplayExtraWarning  
+Output:Table:SummaryReports:
+    Report 1 Name: AllSummary
+OutputControl:Table:Style:
+    Column Separator: HTML
+Output:Variable:
+  - Key Value: "*"
+    Variable Name: Zone Mean Air Temperature
+    Reporting Frequency: Hourly
+  - Key Value: "*"
+    Variable Name: Surface Inside Face Temperature
+    Reporting Frequency: Hourly
