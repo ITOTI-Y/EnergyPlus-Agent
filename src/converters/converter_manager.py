@@ -23,7 +23,7 @@ class ConverterManager:
     def convert_all(self) -> IDF:
         for name, converter in self.converters.items():
             self.logger.info(f"Converting {name}...")
-            converter.convert()
+            converter.convert(self.yaml_data)
         
         return self.idf
 
