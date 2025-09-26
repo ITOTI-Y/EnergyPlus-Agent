@@ -26,6 +26,17 @@ class ConverterManager:
             converter.convert(self.yaml_data)
         
         return self.idf
+    
+    def save_idf(self, output_path: Path) -> None:
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        self.logger.info(f"Saving IDF to {output_path}...")
+        self.idf.saveas(str(output_path))
+
+    def load_idf(self, idf_path: Path) -> None:
+        self.logger.info(f"Loading IDF from {idf_path}...")
+        self.idf = IDF(str(idf_path))
+        for converter in self.converters.values():
+            converter.idf = self.idf
 
     def _create_blank_idf(self) -> IDF:
         self.logger.info("Creating a blank IDF instance.")
