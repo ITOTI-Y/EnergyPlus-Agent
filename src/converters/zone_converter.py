@@ -1,5 +1,5 @@
 from eppy.modeleditor import IDF
-from typing import Dict
+from typing import Dict, Any, List
 
 from src.converters.base_converter import BaseConverter
 from src.validator.data_model import ZoneSchema
@@ -10,24 +10,45 @@ class ZoneConverter(BaseConverter):
         super().__init__(idf)
 
     def convert(self, data: Dict) -> None:
-        zone_datas: Dict = data.get('Zone', {})
         self.logger.info("Converting zone data...")
-        # 完成该部分的转换逻辑
-        val_data = [self.validate(zd) for zd in zone_datas]
-        for vd in val_data:
-            try:
-                self._add_to_idf(vd)
-                self.state['success'] += 1
-            except Exception as e:
-                self.state['failed'] += 1
-                self.logger.error(f"Error Convert Zone Data: {e}", exc_info=True)
+        try:
+            val_data_list: List = [self.validate(zd) for zd in data.get('Zone', [])]
+        except Exception as e:
+            self.state['failed'] += 1
+            self.logger.error(f"Error Validate Zone Data: {e}", exc_info=True)
+            return
+        
+        for vd in val_data_list:
+            self._add_to_idf(vd)
 
-    def _add_to_idf(self, data: Dict) -> None:
-        self.logger.info("Adding zone data to IDF...")
-        # 完成将数据添加到 IDF 的逻辑
-        pass
+    def _add_to_idf(self, data:Any) -> None:
+        if self.idf.getobject("Zone", name=data.name):
+            self.logger.warning(f"Zone with name {data.name} already exists in IDF. Skipping addition.")
+            self.state['skipped'] += 1
+            return
+        try:
+            self.idf.newidfobject(
+                "Zone",
+                Name=data.name,
+                Direction_of_Relative_North=data.direction_of_relative_north,
+                X_Origin=data.x_origin,
+                Y_Origin=data.y_origin,
+                Z_Origin=data.z_origin,
+                Type=data.type,
+                Multiplier=data.multiplier,
+                Ceiling_Height=data.ceiling_height,
+                Volume=data.volume,
+                Floor_Area=data.floor_area,
+                Zone_Inside_Convection_Algorithm=data.zone_inside_convection_algorithm,
+                Zone_Outside_Convection_Algorithm=data.zone_outside_convection_algorithm,
+                Part_of_Total_Floor_Area=data.part_of_total_floor_area
+            )
+            self.state['success'] += 1
+            self.logger.info(f"Zone with name {data.name} added to IDF.")
+        except Exception as e:
+            self.state['failed'] += 1
+            self.logger.error(f"Error Adding Zone Data to IDF: {e}", exc_info=True)
 
-    def validate(self, data) -> Dict:
-        if data := ZoneSchema.model_validate(data):
-            return {"zone_data": data}
-        return {}
+    def validate(self, data: Dict) -> Any:
+        val_data = ZoneSchema.model_validate(data)
+        return val_data

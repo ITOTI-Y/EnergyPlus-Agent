@@ -1,4 +1,4 @@
-from typing import Tuple, List
+from typing import Tuple, List, Optional
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 class PydanticConfig:
@@ -70,9 +70,72 @@ class SettingsSchema(BaseModel, PydanticConfig):
 
 class ZoneSchema(BaseModel, PydanticConfig):
     name: str = Field(..., alias="Name", description="Zone name")
+    direction_of_relative_north: Optional[float] = Field(0.0, alias="Direction of Relative North", description="Direction of relative north in degrees")
+    x_origin: float = Field(0.0, alias="X Origin", description="X origin coordinate")
+    y_origin: float = Field(0.0, alias="Y Origin", description="Y origin coordinate")
+    z_origin: float = Field(0.0, alias="Z Origin", description="Z origin coordinate")
+    type: int = Field(1, alias="Type", description="Zone type is currently unused in EnergyPlus")
+    multiplier: int = Field(1, alias="Multiplier", description="Zone multiplier", ge=1)
+    ceiling_height: str | float = Field("autocalculate", alias="Ceiling Height", description="Ceiling height in meters or 'autocalculate'")
+    volume: str | float = Field("autocalculate", alias="Volume", description="Zone volume in cubic meters or 'autocalculate'")
+    floor_area: str | float = Field("autocalculate", alias="Floor Area", description="Zone floor area in square meters or 'autocalculate'")
+    zone_inside_convection_algorithm: str = Field("TARP", alias="Zone Inside Convection Algorithm", description="Zone inside convection algorithm")
+    zone_outside_convection_algorithm: str = Field("DOE-2", alias="Zone Outside Convection Algorithm", description="Zone outside convection algorithm")
+    part_of_total_floor_area: str = Field("Yes", alias="Part of Total Floor Area", description="Part of total floor area")
     
     @field_validator('name')
     def validate_name(cls, v):
         if not v:
             raise ValueError("Name must not be empty.")
+        return v
+    @field_validator('direction_of_relative_north')
+    def validate_direction_of_relative_north(cls, v):
+        if v is not None and not (0 <= v < 360):
+            raise ValueError("Direction of Relative North must be in [0, 360).")
+        elif v is None:
+            return 0.0
+        return v
+    @field_validator('x_origin', 'y_origin', 'z_origin')
+    def validate_origin(cls, v):
+        if not isinstance(v, (int, float)):
+            raise ValueError("Origin coordinates must be numeric.")
+        return v
+    @field_validator('type')
+    def validate_type(cls, v):
+        if v < 0:
+            raise ValueError("Zone Type must be non-negative.")
+        return v
+    @field_validator('multiplier')
+    def validate_multiplier(cls, v):
+        if v < 1:
+            raise ValueError("Multiplier must be at least 1.")
+        return v
+    @field_validator('ceiling_height', 'volume', 'floor_area')
+    def validate_autocalculate_or_positive(cls, v):
+        if isinstance(v, str) and v.lower() == "autocalculate":
+            return "autocalculate"
+        try:
+            fv = float(v)
+            if fv <= 0:
+                raise ValueError("Value must be positive or 'autocalculate'.")
+            return fv
+        except (TypeError, ValueError):
+            raise ValueError("Value must be a number or 'autocalculate'.")
+    @field_validator('zone_inside_convection_algorithm')
+    def validate_zone_inside_convection_algorithm(cls, v):
+        valid_algorithms = {"Simple", "TARP", "CeilingDiffuser", "AdaptiveConvectionAlgorithm", "TrombeWall", "ASTMC1340"}
+        if v not in valid_algorithms:
+            raise ValueError(f"Zone Inside Convection Algorithm must be one of {valid_algorithms}.")
+        return v
+    @field_validator('zone_outside_convection_algorithm')
+    def validate_zone_outside_convection_algorithm(cls, v):
+        valid_algorithms = {"Simple", "TARP", "DOE-2", "MoWiTT", "AdaptiveConvectionAlgorithm"}
+        if v not in valid_algorithms:
+            raise ValueError(f"Zone Outside Convection Algorithm must be one of {valid_algorithms}.")
+        return v
+    @field_validator('part_of_total_floor_area')
+    def validate_part_of_total_floor_area(cls, v):
+        valid_options = {"Yes", "No"}
+        if v not in valid_options:
+            raise ValueError(f"Part of Total Floor Area must be one of {valid_options}.")
         return v

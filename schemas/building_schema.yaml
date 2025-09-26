@@ -15,7 +15,7 @@ SimulationControl:
 # ==================================================================
 Building:
     Name: Two Zone Building
-    North Axis: 0
+    North Axis: 0 # degrees
     Terrain: Suburbs
     Loads Convergence Tolerance Value: 0.04
     Temperature Convergence Tolerance Value: 0.40
@@ -34,10 +34,10 @@ Timestep:
 # ==================================================================
 Site:Location:
     Name: Shenzhen_GD_CHN Design_Conditions
-    Latitude {deg}: 22.54
-    Longitude {deg}: 114.00
-    Time Zone {hr}: 8.00
-    Elevation {m}: 4.00
+    Latitude : 22.54 # degrees
+    Longitude : 114.00 # degrees
+    Time Zone : 8.00 # hours
+    Elevation : 4.00 # meters
 
 # ==================================================================
 # 运行周期
@@ -63,16 +63,16 @@ RunPeriod:
 Material:
   - Name: Concrete_20cm
     Roughness: MediumRough
-    Thickness {m}: 0.2
-    Conductivity {W/m-K}: 1.729
-    Density {kg/m3}: 2240
-    Specific Heat {J/kg-K}: 837
+    Thickness : 0.2 # meters
+    Conductivity : 1.729 # W/m-K
+    Density : 2240 # kg/m3
+    Specific Heat : 837 # J/kg-K
   - Name: Gypsum_1.3cm
     Roughness: Smooth
-    Thickness {m}: 0.0127
-    Conductivity {W/m-K}: 0.16
-    Density {kg/m3}: 785
-    Specific Heat {J/kg-K}: 830
+    Thickness : 0.0127 # meters
+    Conductivity : 0.16 # W/m-K
+    Density : 785 # kg/m3
+    Specific Heat : 830 # J/kg-K
 
 # ==================================================================
 # 构造
@@ -105,31 +105,30 @@ GlobalGeometryRules:
 # ==================================================================
 Zone:
   - Name: Zone_West
-    Direction of Relative North {deg}: null
-    X Origin {m}: 0
-    Y Origin {m}: 5
-    Z Origin {m}: 0
+    Direction of Relative North : null
+    X Origin : 0 # meters
+    Y Origin : 5 # meters
+    Z Origin : 0 # meters
     Type: 1
     Multiplier: 1
-    Ceiling Height {m}: autocalculate
-    Volume {m3}: autocalculate
-    Floor Area {m2}: autocalculate
+    Ceiling Height : autocalculate
+    Volume : autocalculate
+    Floor Area : autocalculate
   - Name: Zone_East
-    Direction of Relative North {deg}: null
-    X Origin {m}: 5
-    Y Origin {m}: 5
-    Z Origin {m}: 0
+    Direction of Relative North : null
+    X Origin : 5 # meters
+    Y Origin : 5 # meters
+    Z Origin : 0 # meters
     Type: 1
     Multiplier: 1
-    Ceiling Height {m}: autocalculate
-    Volume {m3}: autocalculate
-    Floor Area {m2}: autocalculate
+    Ceiling Height : autocalculate
+    Volume : autocalculate
+    Floor Area : autocalculate
 
 # ==================================================================
 # 建筑表面细则
 # ==================================================================
 BuildingSurface:Detailed:
-  # West Zone Surfaces (Corrected and Verified)
   - Name: Zone_West_Floor
     Surface Type: Floor
     Construction Name: Floor_Const
@@ -140,8 +139,6 @@ BuildingSurface:Detailed:
     Sun Exposure: NoSun
     Wind Exposure: NoWind
     View Factor to Ground: autocalculate
-
-    # Vertices defined counterclockwise for a floor to face down
     Vertices:
       - {X: 0, Y: 5, Z: 0}
       - {X: 5, Y: 5, Z: 0}
@@ -157,7 +154,6 @@ BuildingSurface:Detailed:
     Sun Exposure: SunExposed
     Wind Exposure: WindExposed
     View Factor to Ground: autocalculate
-    # Vertices defined Counter-Clockwise for a roof to face up
     Vertices:
       - {X: 0, Y: 0, Z: 3}
       - {X: 5, Y: 0, Z: 3}
@@ -208,7 +204,6 @@ BuildingSurface:Detailed:
       - {X: 0, Y: 5, Z: 3}
       - {X: 0, Y: 5, Z: 0}
       - {X: 0, Y: 0, Z: 0}
-  # East Zone Surfaces (Corrected and Verified)
   - Name: Zone_East_Floor
     Surface Type: Floor
     Construction Name: Floor_Const
@@ -219,7 +214,6 @@ BuildingSurface:Detailed:
     Sun Exposure: NoSun
     Wind Exposure: NoWind
     View Factor to Ground: autocalculate
-    # Vertices defined Clockwise for a floor to face down
     Vertices:
       - {X: 5, Y: 5, Z: 0}
       - {X: 10, Y: 5, Z: 0}
@@ -235,7 +229,6 @@ BuildingSurface:Detailed:
     Sun Exposure: SunExposed
     Wind Exposure: WindExposed
     View Factor to Ground: autocalculate
-    # Vertices defined Counter-Clockwise for a roof to face up
     Vertices:
       - {X: 5, Y: 0, Z: 3}
       - {X: 10, Y: 0, Z: 3}
@@ -286,8 +279,7 @@ BuildingSurface:Detailed:
       - {X: 10, Y: 5, Z: 0}
       - {X: 10, Y: 5, Z: 3}
       - {X: 10, Y: 0, Z: 3}
-  # Internal Walls (Verified)
-  - Name: Zone_West_Wall_Internal # East wall of West Zone
+  - Name: Zone_West_Wall_Internal
     Surface Type: Wall
     Construction Name: Interior_Wall_Const
     Zone Name: Zone_West
@@ -303,7 +295,7 @@ BuildingSurface:Detailed:
       - {X: 5, Y: 0, Z: 3}
       - {X: 5, Y: 0, Z: 0}
       - {X: 5, Y: 5, Z: 0}
-  - Name: Zone_East_Wall_Internal # West wall of East Zone
+  - Name: Zone_East_Wall_Internal
     Surface Type: Wall
     Construction Name: Interior_Wall_Const
     Zone Name: Zone_East
@@ -313,7 +305,6 @@ BuildingSurface:Detailed:
     Sun Exposure: NoSun
     Wind Exposure: NoWind
     View Factor to Ground: autocalculate
-    # Normal points to -X direction
     Vertices:
       - {X: 5, Y: 0, Z: 3}
       - {X: 5, Y: 5, Z: 3}
