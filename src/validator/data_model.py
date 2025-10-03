@@ -139,3 +139,70 @@ class ZoneSchema(BaseModel, PydanticConfig):
         if v not in valid_options:
             raise ValueError(f"Part of Total Floor Area must be one of {valid_options}.")
         return v
+
+class SurfaceSchema(BaseModel, PydanticConfig):
+    name: str = Field(..., alias="Name", description="Surface name")
+    surface_type: str = Field(..., alias="Surface Type", description="Type of surface")
+    construction_name: str = Field(..., alias="Construction Name", description="Name of the construction")
+    zone_name: str = Field(..., alias="Zone Name", description="Name of the associated zone")
+    space_name: Optional[str] = Field(None, alias="Space Name", description="Name of the associated space")
+    outside_boundary_condition: str = Field(..., alias="Outside Boundary Condition", description="Outside boundary condition")
+    outside_boundary_condition_object: Optional[str] = Field(None, alias="Outside Boundary Condition Object", description="Outside boundary condition object")
+    sun_exposure: str = Field("NoSun", alias="Sun Exposure", description="Sun exposure")
+    wind_exposure: str = Field("NoWind", alias="Wind Exposure", description="Wind exposure")
+    view_factor_to_ground: str | float = Field("autocalculate", alias="View Factor to Ground", description="View factor to ground or 'autocalculate'")
+    vertices: List[dict[str, float]] = Field(..., alias="Vertices", description="List of vertices defining the surface")
+
+    @field_validator('name', 'construction_name', 'zone_name')
+    def validate_non_empty(cls, v):
+        if not v:
+            raise ValueError("This field must not be empty.")
+        return v
+    @field_validator('surface_type')
+    def validate_surface_type(cls, v):
+        valid_types = {"Wall", "Roof", "Floor", "Window", "Door", "Ceiling", "AirWall", "UndergroundWall", "UndergroundSlab"}
+        if v not in valid_types:
+            raise ValueError(f"Surface Type must be one of {valid_types}.")
+        return v
+    @field_validator('outside_boundary_condition')
+    def validate_outside_boundary_condition(cls, v):
+        valid_conditions = {"Outdoors", "Adiabatic", "Ground", "OtherSideCoefficients", "OtherSideConditionsModel", "Surface"}
+        if v not in valid_conditions:
+            raise ValueError(f"Outside Boundary Condition must be one of {valid_conditions}.")
+        return v
+    @field_validator('sun_exposure')
+    def validate_sun_exposure(cls, v):
+        valid_exposures = {"SunExposed", "NoSun"}
+        if v not in valid_exposures:
+            raise ValueError(f"Sun Exposure must be one of {valid_exposures}.")
+        return v
+    @field_validator('wind_exposure')
+    def validate_wind_exposure(cls, v):
+        valid_exposures = {"WindExposed", "NoWind"}
+        if v not in valid_exposures:
+            raise ValueError(f"Wind Exposure must be one of {valid_exposures}.")
+        return v
+
+    @field_validator('view_factor_to_ground')
+    def validate_view_factor_to_ground(cls, v):
+        if isinstance(v, str) and v.lower() == "autocalculate":
+            return "autocalculate"
+        try:
+            fv = float(v)
+            if not (0.0 <= fv <= 1.0):
+                raise ValueError("View Factor to Ground must be between 0.0 and 1.0.")
+            return fv
+        except (TypeError, ValueError):
+            raise ValueError("View Factor to Ground must be a number between 0.0 and 1.0 or 'autocalculate'.")
+
+
+    @field_validator('vertices')
+    def validate_vertices(cls, v):
+        if not isinstance(v, list) or len(v) < 3:
+            raise ValueError("Vertices must be a list with at least three vertex dictionaries.")
+        for vertex in v:
+            if not (isinstance(vertex, dict) and all(k in vertex for k in ('X', 'Y', 'Z')) and all(isinstance(vertex[k], (int, float)) for k in ('X', 'Y', 'Z'))):
+                raise ValueError("Each vertex must be a dictionary with numeric keys 'X', 'Y', and 'Z'.")
+        #还需要添加一个验证，确保顶点是按顺序排列的，且形成一个闭合多边形
+        
+        return v
