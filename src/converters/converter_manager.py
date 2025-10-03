@@ -7,6 +7,7 @@ import yaml
 from src.utils.logging import get_logger
 from src.converters.zone_converter import ZoneConverter
 from src.converters.building_converter import BuildingConverter
+from src.converters.surface_converter import BuildingSurfaceConverter
 
 class ConverterManager:
 
@@ -17,7 +18,8 @@ class ConverterManager:
         self.yaml_data : Dict = self._load_yaml(file_to_convert)
         self.converters = {
             'building': BuildingConverter(self.idf),
-            'zones': ZoneConverter(self.idf)
+            'zones': ZoneConverter(self.idf),
+            'surfaces': BuildingSurfaceConverter(self.idf)
         }
 
     def convert_all(self) -> IDF:
@@ -48,3 +50,4 @@ class ConverterManager:
         self.logger.info(f"Loading YAML file from {file_path}.")
         with open(file_path, 'r', encoding='utf-8') as f:
             return yaml.safe_load(f)
+
