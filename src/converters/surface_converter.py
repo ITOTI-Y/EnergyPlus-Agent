@@ -1,5 +1,5 @@
 from eppy.modeleditor import IDF
-from typing import Dict, Any, List
+from typing import Dict, Any
 
 from src.converters.base_converter import BaseConverter
 from src.validator.data_model import SurfaceSchema
@@ -11,15 +11,14 @@ class BuildingSurfaceConverter(BaseConverter):
 
     def convert(self, data: Dict) -> None:
         self.logger.info("Converting BuildingSurface data...")
-        try:
-            val_data_list: List = [self.validate(zd) for zd in data.get('BuildingSurface:Detailed', [])]
-        except Exception as e:
-            self.state['failed'] += 1
-            self.logger.error(f"Error Validate BuildingSurface Data: {e}", exc_info=True)
-            return
-        
-        for vd in val_data_list:
-            self._add_to_idf(vd)
+        for sd in data.get('BuildingSurface:Detailed', []):
+            try:
+                val_data = self.validate(sd)
+                self._add_to_idf(val_data)
+            except Exception as e:
+                self.state['failed'] += 1
+                self.logger.error(f"Error Validate BuildingSurface Data: {e}", exc_info=True)
+                continue
 
     
     def _add_to_idf(self, data:Any) -> None:
@@ -44,10 +43,6 @@ class BuildingSurfaceConverter(BaseConverter):
             
             
             for i, vertex in enumerate(data.vertices, 1):
-                if i > 120:
-                    self.logger.warning(f"Surface {data.name} has more than 120 vertices, truncating.")
-                    break
-                
                 setattr(surface_obj, f'Vertex_{i}_Xcoordinate', vertex['X'])
                 setattr(surface_obj, f'Vertex_{i}_Ycoordinate', vertex['Y'])
                 setattr(surface_obj, f'Vertex_{i}_Zcoordinate', vertex['Z'])
@@ -60,8 +55,4 @@ class BuildingSurfaceConverter(BaseConverter):
 
     def validate(self, data: Dict) -> Any:
         val_data = SurfaceSchema.model_validate(data)
-        #vertices = val_data.vertices
-        #if not self._validate_vertices(vertices):
-        #    self.logger.warning(f"Invalid vertices for surface {val_data.name}.")
         return val_data
-        

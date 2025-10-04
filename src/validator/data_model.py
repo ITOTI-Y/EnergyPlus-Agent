@@ -1,7 +1,9 @@
-from typing import Tuple, List, Optional
+from typing import Tuple, List, Optional, Dict
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-class PydanticConfig:
+
+class BaseSchema(BaseModel):
+    
     model_config = ConfigDict(
         from_attributes=True,  # 支持从对象创建模型
         validate_assignment=True,  # 赋值时验证
@@ -12,7 +14,17 @@ class PydanticConfig:
         extra='ignore'  # 忽略额外字段
     )
 
-class BuildingSchema(BaseModel, PydanticConfig):
+    _idf_field: Dict = {}
+
+    @classmethod
+    def set_idf_field(cls, idf_field: Dict):
+        cls._idf_field = idf_field
+
+    @property
+    def idf_field(self) -> Dict:
+        return self._idf_field
+
+class BuildingSchema(BaseSchema):
     name: str = Field(..., alias="Name", description="Building name")
     north_axis: float = Field(0.0, alias="North Axis", description="Building north axis in degrees")
     terrain: str = Field("Suburbs", alias="Terrain", description="Terrain type")
@@ -55,7 +67,7 @@ class BuildingSchema(BaseModel, PydanticConfig):
             raise ValueError("Warmup days must be non-negative.")
         return v
 
-class SettingsSchema(BaseModel, PydanticConfig):
+class SettingsSchema(BaseSchema):
     version: str | Tuple | List  = Field(..., alias="Version Identifier", description="Version identifier")
     
     @field_validator('version')
@@ -68,7 +80,7 @@ class SettingsSchema(BaseModel, PydanticConfig):
             return v
         raise ValueError("Version Identifier must be a string or a tuple/list of integers.")
 
-class ZoneSchema(BaseModel, PydanticConfig):
+class ZoneSchema(BaseSchema):
     name: str = Field(..., alias="Name", description="Zone name")
     direction_of_relative_north: Optional[float] = Field(0.0, alias="Direction of Relative North", description="Direction of relative north in degrees")
     x_origin: float = Field(0.0, alias="X Origin", description="X origin coordinate")
@@ -140,7 +152,7 @@ class ZoneSchema(BaseModel, PydanticConfig):
             raise ValueError(f"Part of Total Floor Area must be one of {valid_options}.")
         return v
 
-class SurfaceSchema(BaseModel, PydanticConfig):
+class SurfaceSchema(BaseSchema):
     name: str = Field(..., alias="Name", description="Surface name")
     surface_type: str = Field(..., alias="Surface Type", description="Type of surface")
     construction_name: str = Field(..., alias="Construction Name", description="Name of the construction")
@@ -153,6 +165,7 @@ class SurfaceSchema(BaseModel, PydanticConfig):
     view_factor_to_ground: str | float = Field("autocalculate", alias="View Factor to Ground", description="View factor to ground or 'autocalculate'")
     vertices: List[dict[str, float]] = Field(..., alias="Vertices", description="List of vertices defining the surface")
 
+
     @field_validator('name', 'construction_name', 'zone_name')
     def validate_non_empty(cls, v):
         if not v:
@@ -160,25 +173,26 @@ class SurfaceSchema(BaseModel, PydanticConfig):
         return v
     @field_validator('surface_type')
     def validate_surface_type(cls, v):
-        valid_types = {"Wall", "Roof", "Floor", "Window", "Door", "Ceiling", "AirWall", "UndergroundWall", "UndergroundSlab"}
+        valid_types = cls._idf_field['BuildingSurface:Detailed'.upper()]['Surface Type']['key']
         if v not in valid_types:
             raise ValueError(f"Surface Type must be one of {valid_types}.")
         return v
+
     @field_validator('outside_boundary_condition')
     def validate_outside_boundary_condition(cls, v):
-        valid_conditions = {"Outdoors", "Adiabatic", "Ground", "OtherSideCoefficients", "OtherSideConditionsModel", "Surface"}
+        valid_conditions = cls._idf_field['BuildingSurface:Detailed'.upper()]['Outside Boundary Condition']['key']
         if v not in valid_conditions:
             raise ValueError(f"Outside Boundary Condition must be one of {valid_conditions}.")
         return v
     @field_validator('sun_exposure')
     def validate_sun_exposure(cls, v):
-        valid_exposures = {"SunExposed", "NoSun"}
+        valid_exposures = cls._idf_field['BuildingSurface:Detailed'.upper()]['Sun Exposure']['key']
         if v not in valid_exposures:
             raise ValueError(f"Sun Exposure must be one of {valid_exposures}.")
         return v
     @field_validator('wind_exposure')
     def validate_wind_exposure(cls, v):
-        valid_exposures = {"WindExposed", "NoWind"}
+        valid_exposures = cls._idf_field['BuildingSurface:Detailed'.upper()]['Wind Exposure']['key']
         if v not in valid_exposures:
             raise ValueError(f"Wind Exposure must be one of {valid_exposures}.")
         return v
