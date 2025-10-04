@@ -11,15 +11,14 @@ class ZoneConverter(BaseConverter):
 
     def convert(self, data: Dict) -> None:
         self.logger.info("Converting zone data...")
-        try:
-            val_data_list: List = [self.validate(zd) for zd in data.get('Zone', [])]
-        except Exception as e:
-            self.state['failed'] += 1
-            self.logger.error(f"Error Validate Zone Data: {e}", exc_info=True)
-            return
-        
-        for vd in val_data_list:
-            self._add_to_idf(vd)
+        for zd in data.get('Zone', []):
+            try:
+                val_data = self.validate(zd)
+                self._add_to_idf(val_data)
+            except Exception as e:
+                self.state['failed'] += 1
+                self.logger.error(f"Error processing Zone: {e}", exc_info=True)
+                continue
 
     def _add_to_idf(self, data:Any) -> None:
         if self.idf.getobject("Zone", name=data.name):
