@@ -1,6 +1,39 @@
 from typing import Tuple, List, Optional, Dict
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+class IDDField:
+    def __init__(self, data: List[Dict] | Dict):
+        if isinstance(data, list):
+            for obj in data:
+                if isinstance(obj, list):
+                    if len(obj) > 0 and isinstance(obj[0], dict):
+                        obj_name = obj[0].get('idfobj', None)
+                    else:
+                        continue
+                    if obj_name:
+                        obj_name = self._clean_key(obj_name)
+                        setattr(self, obj_name, IDDField(obj[1:]))
+                elif isinstance(obj, dict):
+                    field_name = obj.get('field', None)
+                    if field_name:
+                        if isinstance(field_name, (list, tuple)) and len(field_name) > 0:
+                            field_name = self._clean_key(field_name[0])
+                        elif isinstance(field_name, str):
+                            field_name = self._clean_key(field_name)
+                        else:
+                            continue
+                        setattr(self, field_name, IDDField(obj))
+        elif isinstance(data, dict):
+            for key, value in data.items():
+                key = self._clean_key(key)
+                if isinstance(value, list) and len(value) == 1:
+                    value = value[0]
+                setattr(self, key, value)
+
+    def _clean_key(self, key: str) -> str:
+        for i in [" ", "-", "/", ":"]:
+            key = key.replace(i, "_")
+        return key
 
 class BaseSchema(BaseModel):
     
@@ -14,14 +47,14 @@ class BaseSchema(BaseModel):
         extra='ignore'  # 忽略额外字段
     )
 
-    _idf_field: Dict = {}
+    _idf_field: IDDField = IDDField({})
 
     @classmethod
-    def set_idf_field(cls, idf_field: Dict):
+    def set_idf_field(cls, idf_field: IDDField):
         cls._idf_field = idf_field
 
     @property
-    def idf_field(self) -> Dict:
+    def idf_field(self) -> IDDField:
         return self._idf_field
 
 class BuildingSchema(BaseSchema):
@@ -173,26 +206,26 @@ class SurfaceSchema(BaseSchema):
         return v
     @field_validator('surface_type')
     def validate_surface_type(cls, v):
-        valid_types = cls._idf_field['BuildingSurface:Detailed'.upper()]['Surface Type']['key']
+        valid_types = getattr(cls._idf_field, 'BuildingSurface_Detailed').Surface_Type.key
         if v not in valid_types:
             raise ValueError(f"Surface Type must be one of {valid_types}.")
         return v
 
     @field_validator('outside_boundary_condition')
     def validate_outside_boundary_condition(cls, v):
-        valid_conditions = cls._idf_field['BuildingSurface:Detailed'.upper()]['Outside Boundary Condition']['key']
+        valid_conditions = getattr(cls._idf_field, 'BuildingSurface_Detailed').Outside_Boundary_Condition.key
         if v not in valid_conditions:
             raise ValueError(f"Outside Boundary Condition must be one of {valid_conditions}.")
         return v
     @field_validator('sun_exposure')
     def validate_sun_exposure(cls, v):
-        valid_exposures = cls._idf_field['BuildingSurface:Detailed'.upper()]['Sun Exposure']['key']
+        valid_exposures = getattr(cls._idf_field, 'BuildingSurface_Detailed').Sun_Exposure.key
         if v not in valid_exposures:
             raise ValueError(f"Sun Exposure must be one of {valid_exposures}.")
         return v
     @field_validator('wind_exposure')
     def validate_wind_exposure(cls, v):
-        valid_exposures = cls._idf_field['BuildingSurface:Detailed'.upper()]['Wind Exposure']['key']
+        valid_exposures = getattr(cls._idf_field, 'BuildingSurface_Detailed').Wind_Exposure.key
         if v not in valid_exposures:
             raise ValueError(f"Wind Exposure must be one of {valid_exposures}.")
         return v
