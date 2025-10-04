@@ -1,12 +1,12 @@
 from pathlib import Path
 from eppy.modeleditor import IDF
 from io import StringIO
-from typing import Dict
+from typing import Dict, cast, List
 import yaml
 
 from src.utils.logging import get_logger
-from src.converters.zone_converter import ZoneConverter
-from src.converters.building_converter import BuildingConverter
+from src.converters import BuildingConverter, ZoneConverter, SurfaceConverter
+from src.validator.data_model import BaseSchema, IDDField
 
 class ConverterManager:
 
@@ -14,10 +14,13 @@ class ConverterManager:
         self.logger = get_logger(__name__)
         IDF.setiddname(str(idd_file))
         self.idf = self._create_blank_idf()
+        self.idf_field: IDDField = self._process_idf_field()
         self.yaml_data : Dict = self._load_yaml(file_to_convert)
+        BaseSchema.set_idf_field(self.idf_field)
         self.converters = {
             'building': BuildingConverter(self.idf),
-            'zones': ZoneConverter(self.idf)
+            'zones': ZoneConverter(self.idf),
+            'surfaces': SurfaceConverter(self.idf)
         }
 
     def convert_all(self) -> IDF:
@@ -48,3 +51,9 @@ class ConverterManager:
         self.logger.info(f"Loading YAML file from {file_path}.")
         with open(file_path, 'r', encoding='utf-8') as f:
             return yaml.safe_load(f)
+
+    def _process_idf_field(self) -> IDDField:
+        _idd_info = cast(List[Dict], self.idf.idd_info)
+        idd_field = IDDField(_idd_info)
+        return idd_field
+
