@@ -1,5 +1,5 @@
 from typing import Tuple, List, Optional, Dict
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 class IDDField:
     def __init__(self, data: List[Dict] | Dict):
@@ -253,3 +253,14 @@ class SurfaceSchema(BaseSchema):
         #还需要添加一个验证，确保顶点是按顺序排列的，且形成一个闭合多边形
         
         return v
+
+    @model_validator(mode='after')
+    def validate_boundary_condition_object(self):
+        needs_obj = {"Surface", "OtherSideCoefficients", "OtherSideConditionsModel"}
+        if self.outside_boundary_condition in needs_obj:
+            if not self.outside_boundary_condition_object:
+                raise ValueError(
+                    f"Outside Boundary Condition Object is required when "
+                    f"Outside Boundary Condition is '{self.outside_boundary_condition}'."
+                )
+        return self
