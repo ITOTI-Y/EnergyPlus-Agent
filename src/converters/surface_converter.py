@@ -4,7 +4,7 @@ from typing import Dict, Any
 from src.converters.base_converter import BaseConverter
 from src.validator.data_model import SurfaceSchema
 
-class BuildingSurfaceConverter(BaseConverter):
+class SurfaceConverter(BaseConverter):
 
     def __init__(self, idf: IDF):
         super().__init__(idf)

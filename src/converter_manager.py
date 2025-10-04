@@ -5,9 +5,7 @@ from typing import Dict, cast, List
 import yaml
 
 from src.utils.logging import get_logger
-from src.converters.zone_converter import ZoneConverter
-from src.converters.building_converter import BuildingConverter
-from src.converters.surface_converter import BuildingSurfaceConverter
+from src.converters import BuildingConverter, ZoneConverter, SurfaceConverter
 from src.validator.data_model import BaseSchema, IDDField
 
 class ConverterManager:
@@ -22,7 +20,7 @@ class ConverterManager:
         self.converters = {
             'building': BuildingConverter(self.idf),
             'zones': ZoneConverter(self.idf),
-            'surfaces': BuildingSurfaceConverter(self.idf)
+            'surfaces': SurfaceConverter(self.idf)
         }
 
     def convert_all(self) -> IDF:
