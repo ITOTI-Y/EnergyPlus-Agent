@@ -1,7 +1,42 @@
-from typing import Tuple, List, Optional
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from typing import Tuple, List, Optional, Dict
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-class PydanticConfig:
+class IDDField:
+    def __init__(self, data: List[Dict] | Dict):
+        if isinstance(data, list):
+            for obj in data:
+                if isinstance(obj, list):
+                    if len(obj) > 0 and isinstance(obj[0], dict):
+                        obj_name = obj[0].get('idfobj', None)
+                    else:
+                        continue
+                    if obj_name:
+                        obj_name = self._clean_key(obj_name)
+                        setattr(self, obj_name, IDDField(obj[1:]))
+                elif isinstance(obj, dict):
+                    field_name = obj.get('field', None)
+                    if field_name:
+                        if isinstance(field_name, (list, tuple)) and len(field_name) > 0:
+                            field_name = self._clean_key(field_name[0])
+                        elif isinstance(field_name, str):
+                            field_name = self._clean_key(field_name)
+                        else:
+                            continue
+                        setattr(self, field_name, IDDField(obj))
+        elif isinstance(data, dict):
+            for key, value in data.items():
+                key = self._clean_key(key)
+                if isinstance(value, list) and len(value) == 1:
+                    value = value[0]
+                setattr(self, key, value)
+
+    def _clean_key(self, key: str) -> str:
+        for i in [" ", "-", "/", ":"]:
+            key = key.replace(i, "_")
+        return key
+
+class BaseSchema(BaseModel):
+    
     model_config = ConfigDict(
         from_attributes=True,  # 支持从对象创建模型
         validate_assignment=True,  # 赋值时验证
@@ -12,7 +47,17 @@ class PydanticConfig:
         extra='ignore'  # 忽略额外字段
     )
 
-class BuildingSchema(BaseModel, PydanticConfig):
+    _idf_field: IDDField = IDDField({})
+
+    @classmethod
+    def set_idf_field(cls, idf_field: IDDField):
+        cls._idf_field = idf_field
+
+    @property
+    def idf_field(self) -> IDDField:
+        return self._idf_field
+
+class BuildingSchema(BaseSchema):
     name: str = Field(..., alias="Name", description="Building name")
     north_axis: float = Field(0.0, alias="North Axis", description="Building north axis in degrees")
     terrain: str = Field("Suburbs", alias="Terrain", description="Terrain type")
@@ -55,7 +100,7 @@ class BuildingSchema(BaseModel, PydanticConfig):
             raise ValueError("Warmup days must be non-negative.")
         return v
 
-class SettingsSchema(BaseModel, PydanticConfig):
+class SettingsSchema(BaseSchema):
     version: str | Tuple | List  = Field(..., alias="Version Identifier", description="Version identifier")
     
     @field_validator('version')
@@ -68,7 +113,7 @@ class SettingsSchema(BaseModel, PydanticConfig):
             return v
         raise ValueError("Version Identifier must be a string or a tuple/list of integers.")
 
-class ZoneSchema(BaseModel, PydanticConfig):
+class ZoneSchema(BaseSchema):
     name: str = Field(..., alias="Name", description="Zone name")
     direction_of_relative_north: Optional[float] = Field(0.0, alias="Direction of Relative North", description="Direction of relative north in degrees")
     x_origin: float = Field(0.0, alias="X Origin", description="X origin coordinate")
@@ -139,3 +184,83 @@ class ZoneSchema(BaseModel, PydanticConfig):
         if v not in valid_options:
             raise ValueError(f"Part of Total Floor Area must be one of {valid_options}.")
         return v
+
+class SurfaceSchema(BaseSchema):
+    name: str = Field(..., alias="Name", description="Surface name")
+    surface_type: str = Field(..., alias="Surface Type", description="Type of surface")
+    construction_name: str = Field(..., alias="Construction Name", description="Name of the construction")
+    zone_name: str = Field(..., alias="Zone Name", description="Name of the associated zone")
+    space_name: Optional[str] = Field(None, alias="Space Name", description="Name of the associated space")
+    outside_boundary_condition: str = Field(..., alias="Outside Boundary Condition", description="Outside boundary condition")
+    outside_boundary_condition_object: Optional[str] = Field(None, alias="Outside Boundary Condition Object", description="Outside boundary condition object")
+    sun_exposure: str = Field("NoSun", alias="Sun Exposure", description="Sun exposure")
+    wind_exposure: str = Field("NoWind", alias="Wind Exposure", description="Wind exposure")
+    view_factor_to_ground: str | float = Field("autocalculate", alias="View Factor to Ground", description="View factor to ground or 'autocalculate'")
+    vertices: List[dict[str, float]] = Field(..., alias="Vertices", description="List of vertices defining the surface")
+
+
+    @field_validator('name', 'construction_name', 'zone_name')
+    def validate_non_empty(cls, v):
+        if not v:
+            raise ValueError("This field must not be empty.")
+        return v
+    @field_validator('surface_type')
+    def validate_surface_type(cls, v):
+        valid_types = getattr(cls._idf_field, 'BuildingSurface_Detailed').Surface_Type.key
+        if v not in valid_types:
+            raise ValueError(f"Surface Type must be one of {valid_types}.")
+        return v
+
+    @field_validator('outside_boundary_condition')
+    def validate_outside_boundary_condition(cls, v):
+        valid_conditions = getattr(cls._idf_field, 'BuildingSurface_Detailed').Outside_Boundary_Condition.key
+        if v not in valid_conditions:
+            raise ValueError(f"Outside Boundary Condition must be one of {valid_conditions}.")
+        return v
+    @field_validator('sun_exposure')
+    def validate_sun_exposure(cls, v):
+        valid_exposures = getattr(cls._idf_field, 'BuildingSurface_Detailed').Sun_Exposure.key
+        if v not in valid_exposures:
+            raise ValueError(f"Sun Exposure must be one of {valid_exposures}.")
+        return v
+    @field_validator('wind_exposure')
+    def validate_wind_exposure(cls, v):
+        valid_exposures = getattr(cls._idf_field, 'BuildingSurface_Detailed').Wind_Exposure.key
+        if v not in valid_exposures:
+            raise ValueError(f"Wind Exposure must be one of {valid_exposures}.")
+        return v
+
+    @field_validator('view_factor_to_ground')
+    def validate_view_factor_to_ground(cls, v):
+        if isinstance(v, str) and v.lower() == "autocalculate":
+            return "autocalculate"
+        try:
+            fv = float(v)
+            if not (0.0 <= fv <= 1.0):
+                raise ValueError("View Factor to Ground must be between 0.0 and 1.0.")
+            return fv
+        except (TypeError, ValueError):
+            raise ValueError("View Factor to Ground must be a number between 0.0 and 1.0 or 'autocalculate'.")
+
+
+    @field_validator('vertices')
+    def validate_vertices(cls, v):
+        if not isinstance(v, list) or len(v) < 3:
+            raise ValueError("Vertices must be a list with at least three vertex dictionaries.")
+        for vertex in v:
+            if not (isinstance(vertex, dict) and all(k in vertex for k in ('X', 'Y', 'Z')) and all(isinstance(vertex[k], (int, float)) for k in ('X', 'Y', 'Z'))):
+                raise ValueError("Each vertex must be a dictionary with numeric keys 'X', 'Y', and 'Z'.")
+        #还需要添加一个验证，确保顶点是按顺序排列的，且形成一个闭合多边形
+        
+        return v
+
+    @model_validator(mode='after')
+    def validate_boundary_condition_object(self):
+        needs_obj = {"Surface", "OtherSideCoefficients", "OtherSideConditionsModel"}
+        if self.outside_boundary_condition in needs_obj:
+            if not self.outside_boundary_condition_object:
+                raise ValueError(
+                    f"Outside Boundary Condition Object is required when "
+                    f"Outside Boundary Condition is '{self.outside_boundary_condition}'."
+                )
+        return self
