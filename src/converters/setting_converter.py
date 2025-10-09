@@ -1,123 +1,107 @@
 from eppy.modeleditor import IDF
-from typing import Dict, Any, List, Tuple
+from typing import Dict, Any, List, Tuple, Optional
 from src.converters.base_converter import BaseConverter
-from src.validator.data_model import(
-    BaseSchema,
-)
 from src.utils.logging import get_logger
-try:
-    from src.validator.data_model import SimulationControlSchema
-except ImportError:
-    class SimulationControlSchema(BaseSchema):pass
-
-try:
-    from src.validator.data_model import TimestepSchema
-except ImportError:
-    class TimestepSchema(BaseSchema):pass
-
-try:
-    from src.validator.data_model import RunPeriodSchema
-except ImportError:
-    class RunPeriodSchema(BaseSchema):pass
-
-try:
-    from src.validator.data_model import GlobalGeometryRulesSchema
-except ImportError:
-    class GlobalGeometryRulesSchema(BaseSchema):pass
-
-try:
-    from src.validator.data_model import SiteLocationSchema
-except ImportError:
-    class SiteLocationSchema(BaseSchema):pass   
-
-try:
-    from src.validator.data_model import OutputVariableDictionarySchema
-except ImportError:             
-    class OutputVariableDictionarySchema(BaseSchema):pass
-
-try:
-    from src.validator.data_model import OutputDiagnosticsSchema
-except ImportError:             
-    class OutputDiagnosticsSchema(BaseSchema):pass
-
-try:
-    from src.validator.data_model import OutputTableSummaryReportsSchema
-except ImportError:            
-    class OutputTableSummaryReportsSchema(BaseSchema):pass  
-
-try:
-    from src.validator.data_model import OutputControlTableStyleSchema                  
-except ImportError:
-    class OutputControlTableStyleSchema(BaseSchema):pass    
-
-try:
-    from src.validator.data_model import OutputVariableSchema
-except ImportError:
-    class OutputVariableSchema(BaseSchema):pass
+from pydantic import Field, create_model, field_validator
+from src.validator.data_model import BaseSchema
 
 class SettingsConverter(BaseConverter):
-    def __init__(self,idf:IDF):
-      super().__init__(idf)
-      self.logger=get_logger(__name__)
-    
-      self.setting_map={
-        "SimulationControl":SimulationControlSchema,
-        "Timestep":TimestepSchema,
-        "RunPeriod":RunPeriodSchema,
-        "GlobalGeometryRules":GlobalGeometryRulesSchema,
-        "SiteLocation":SiteLocationSchema,
-        "OutputVariableDictionary":OutputVariableDictionarySchema,
-        "OutputDiagnostics":OutputDiagnosticsSchema,
-        "OutputTableSummaryReports":OutputTableSummaryReportsSchema,
-        "OutputControl:Table:Style":OutputControlTableStyleSchema,
-        "OutputVariable":OutputVariableSchema,
-    }
+
+    def __init__(self, idf: IDF):
+        super().__init__(idf)
+        self.logger = get_logger(__name__)
+        self.setting_keys = [
+            "SimulationControl", "Timestep", "RunPeriod", "GlobalGeometryRules",
+            "Site:Location", "Output:VariableDictionary", "Output:Diagnostics",
+            "Output:Table:SummaryReports", "OutputControl:Table:Style", "Output:Variable"
+        ]
 
     def convert(self, data: Dict[str, Any]) -> None:
-      self.logger.info("Settings Converter Starting...")
-      self._add_version_object()
-      for idf_key, schema in self.setting_map.items():
-          if idf_key in data:
-             setting_data = data[idf_key]
-             try:
-                 if isinstance(setting_data, list):
-                     for item in setting_data:
-                         self._add_to_idf(idf_key, item)
-                 else:
-                     self._add_to_idf(idf_key, setting_data)
-                 self.state['success'] += 1
-             except Exception as e:
-                 self.state['failed'] += 1
-                 self.logger.error(f"Error processing setting '{idf_key}': {e}", exc_info=True)
-          else:
-                self.logger.debug(f"Setting '{idf_key}' not found in YAML. Skipping.")
-                self.state['skipped'] += 1
-
-    def _add_version_object(self) -> None:
-        try:
-            idd_version: Tuple[int, ...] = self.idf.idd_version
-            version_str = ".".join(map(str, idd_version))
-            
-            self.logger.info(f"Ensuring Version object '{version_str}' exists in IDF.")
-            if not self.idf.idfobjects.get("Version"):
-                self.idf.newidfobject("Version", Version_Identifier=version_str)
-        except Exception as e:
-            self.logger.error(f"Error adding Version object: {e}", exc_info=True)
-
-    def _add_to_idf(self, idf_key: str, data_to_add: Any) -> None:
-        filtered_data = {key: value for key, value in data_to_add.items() if value is not None}
+        self.logger.info("Settings Converter Starting...")
         
-        cleaned_data = {key.replace(' ', '_'): value for key, value in filtered_data.items()}
-       
-        if len(self.idf.idfobjects.get(idf_key, [])) > 0 and idf_key != "Output:Variable":
-             self.logger.warning(f"Object of type '{idf_key}' already exists. Skipping addition.")
-             return
+        version_tuple: Tuple[int, ...] = self.idf.idd_version
+        global_settings_data = {key: data.get(key) for key in self.setting_keys if key in data}
+        
+        try:
 
-        self.logger.info(f"Adding object of type '{idf_key}' to IDF.")
-        self.idf.newidfobject(idf_key, **cleaned_data)
+            data_to_validate = {
+                "version_data": {"version": version_tuple},
+                "global_settings_data": global_settings_data
+            }
+            
+            validated_data = self.validate(data_to_validate)
+            
+            self._add_to_idf(validated_data)
+            
+            self.state['success'] += 1
+        except Exception as e:
+            self.state['failed'] += 1
+            self.logger.error(f"Error during settings conversion process: {e}", exc_info=True)
 
-    def validate(self, data: Dict) -> Any:
-        pass
+    def _create_dynamic_schema(self, schema_name: str, data_dict: Dict[str, Any]) -> type[BaseSchema]:
+        fields = {}
+        for key, value in data_dict.items():
+            field_name = key.replace(' ', '_').replace(':', '_')
+            fields[field_name] = (Any, Field(default=..., alias=key))
+        
+        DynamicSchema = create_model(
+            schema_name.replace(':', '_'),
+            __base__=BaseSchema,
+            **fields
+        )
+        return DynamicSchema
 
-          
+    def validate(self, data: Dict) -> Dict:
+        self.logger.info("Validating global settings...")
+        class VersionSchema(BaseSchema):
+            version: str
+            @field_validator('version', mode='before')
+            def format_version(cls, v): return ".".join(map(str, v))
+        
+        val_version_data = VersionSchema.model_validate(data.get("version_data", {}))
 
+        validated_settings = {}
+        raw_global_settings = data.get("global_settings_data", {})
+     
+        for idf_key, setting_data in raw_global_settings.items():
+            if setting_data is None: continue
+            
+            try:
+                if isinstance(setting_data, list):
+                    validated_list = []
+                    for item in setting_data:
+                        DynamicSchema = self._create_dynamic_schema(idf_key, item)
+                        validated_list.append(DynamicSchema.model_validate(item))
+                    validated_settings[idf_key] = validated_list
+                else:
+                    DynamicSchema = self._create_dynamic_schema(idf_key, setting_data)
+                    validated_settings[idf_key] = DynamicSchema.model_validate(setting_data)
+            except Exception as e:
+                self.logger.error(f"Validation failed for '{idf_key}': {e}", exc_info=True)
+                raise
+
+        return {
+            "version_info": val_version_data,
+            "validated_settings": validated_settings
+        }
+
+    def _add_to_idf(self, val_data: Dict) -> None:
+        version_info = val_data.get("version_info")
+        settings_to_add = val_data.get("validated_settings", {})
+
+        if version_info and not self.idf.idfobjects.get("Version"):
+            self.logger.info(f"Adding Version object '{version_info.version}' to IDF.")
+            self.idf.newidfobject("Version", Version_Identifier=version_info.version)
+        
+        for idf_key, validated_model_or_list in settings_to_add.items():
+            items_to_process = validated_model_or_list if isinstance(validated_model_or_list, list) else [validated_model_or_list]
+            
+            for validated_model in items_to_process:
+                data_dict = validated_model.model_dump(exclude_none=True)
+        
+                if idf_key != "Output:Variable" and len(self.idf.idfobjects.get(idf_key, [])) > 0:
+                     self.logger.warning(f"Object of type '{idf_key}' already exists. Skipping addition.")
+                     break 
+                
+                self.logger.info(f"Adding object of type '{idf_key}' to IDF.")
+                self.idf.newidfobject(idf_key, **data_dict)
