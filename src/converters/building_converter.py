@@ -1,7 +1,7 @@
 from eppy.modeleditor import IDF
 from typing import Dict, Tuple, Any
 
-from src.validator.data_model import BuildingSchema, SettingsSchema
+from src.validator.data_model import BuildingSchema, VersionSchema
 from src.converters.base_converter import BaseConverter
 from src.utils.logging import get_logger
 
@@ -60,7 +60,7 @@ class BuildingConverter(BaseConverter):
             self.logger.error(f"Error Adding Building to IDF: {e}", exc_info=True)
 
     def validate(self, data: Dict) -> Dict:
-        val_setting_data = SettingsSchema.model_validate(data.get("settings"))
+        val_setting_data = VersionSchema.model_validate(data.get("settings"))
         val_building_data = BuildingSchema.model_validate(data.get("building_data"))
         return {
             "settings": val_setting_data,

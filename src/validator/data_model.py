@@ -100,7 +100,7 @@ class BuildingSchema(BaseSchema):
             raise ValueError("Warmup days must be non-negative.")
         return v
 
-class SettingsSchema(BaseSchema):
+class VersionSchema(BaseSchema):
     version: str | Tuple | List  = Field(..., alias="Version Identifier", description="Version identifier")
     
     @field_validator('version')
