@@ -264,3 +264,78 @@ class SurfaceSchema(BaseSchema):
                     f"Outside Boundary Condition is '{self.outside_boundary_condition}'."
                 )
         return self
+class SimulationControlSchema(BaseSchema):
+    Do_Zone_Sizing_Calculation: str | bool = Field("No", alias="Do Zone Sizing Calculation")
+    Do_System_Sizing_Calculation: str | bool = Field("No", alias="Do System Sizing Calculation")
+    Do_Plant_Sizing_Calculation: str | bool = Field("No", alias="Do Plant Sizing Calculation")
+    Run_Simulation_for_Sizing_Periods: str | bool = Field("No", alias="Run Simulation for Sizing Periods")
+    Run_Simulation_for_Weather_File_Run_Periods: str | bool = Field("Yes", alias="Run Simulation for Weather File Run Periods")
+    Do_HVAC_Sizing_Simulation_for_Sizing_Periods: Optional[str | bool] = Field("Yes", alias="Do HVAC Sizing Simulation for Sizing Periods")
+    Maximum_Number_of_HVAC_Sizing_Simulation_Passes: Optional[int] = Field(1, alias="Maximum Number of HVAC Sizing Simulation Passes")
+    
+    @field_validator(
+        'Do_Zone_Sizing_Calculation', 'Do_System_Sizing_Calculation', 
+        'Do_Plant_Sizing_Calculation', 'Run_Simulation_for_Sizing_Periods',
+        'Run_Simulation_for_Weather_File_Run_Periods', 'Do_HVAC_Sizing_Simulation_for_Sizing_Periods',
+        mode='before'
+    )
+    def convert_bool_to_yes_no(cls, v):
+        if isinstance(v, bool): return "Yes" if v else "No"
+        return v
+class TimestepSchema(BaseSchema):
+    Number_of_Timesteps_per_Hour: int = Field(4, alias="Number of Timesteps per Hour")
+
+class SiteLocationSchema(BaseSchema):
+    Name: str = Field(..., alias="Name")
+    Latitude: float = Field(..., alias="Latitude")
+    Longitude: float = Field(..., alias="Longitude")
+    Time_Zone: float = Field(..., alias="Time Zone")
+    Elevation: float = Field(..., alias="Elevation")
+
+class RunPeriodSchema(BaseSchema):
+    Name: str = Field(..., alias="Name")
+    Begin_Month: int = Field(..., alias="Begin Month")
+    Begin_Day_of_Month: int = Field(..., alias="Begin Day of Month")
+    Begin_Year: Optional[int] = Field(None, alias="Begin Year")
+    End_Month: int = Field(..., alias="End Month")
+    End_Day_of_Month: int = Field(..., alias="End Day of Month")
+    End_Year: Optional[int] = Field(None, alias="End Year")
+    Day_of_Week_for_Start_Day: Optional[str] = Field(None, alias="Day of Week for Start Day")
+    Use_Weather_File_Holidays_and_Special_Days: Optional[str | bool] = Field(None, alias="Use Weather File Holidays and Special Days")
+    Use_Weather_File_Daylight_Saving_Period: Optional[str | bool] = Field(None, alias="Use Weather File Daylight Saving Period")
+    Apply_Weekend_Holiday_Rule: Optional[str | bool] = Field(None, alias="Apply Weekend Holiday Rule")
+    Use_Weather_File_Rain_Indicators: Optional[str | bool] = Field(None, alias="Use Weather File Rain Indicators")
+    Use_Weather_File_Snow_Indicators: Optional[str | bool] = Field(None, alias="Use Weather File Snow Indicators")
+
+    @field_validator(
+        'Use_Weather_File_Holidays_and_Special_Days', 'Use_Weather_File_Daylight_Saving_Period',
+        'Apply_Weekend_Holiday_Rule', 'Use_Weather_File_Rain_Indicators',
+        'Use_Weather_File_Snow_Indicators',
+        mode='before'
+    )
+    def convert_bool_to_yes_no_runperiod(cls, v):
+        if v is None: return None
+        if isinstance(v, bool): return "Yes" if v else "No"
+        return v
+
+class GlobalGeometryRulesSchema(BaseSchema):
+    Starting_Vertex_Position: str = Field(..., alias="Starting Vertex Position")
+    Vertex_Entry_Direction: str = Field(..., alias="Vertex Entry Direction")
+    Coordinate_System: str = Field(..., alias="Coordinate System")
+
+class OutputVariableDictionarySchema(BaseSchema):
+    Key_Field: str = Field("Regular", alias="Key Field")
+
+class OutputDiagnosticsSchema(BaseSchema):
+    Key_1: str = Field(..., alias="Key 1")
+
+class OutputTableSummaryReportsSchema(BaseSchema):
+    Report_1_Name: str = Field(..., alias="Report 1 Name")
+
+class OutputControlTableStyleSchema(BaseSchema):
+    Column_Separator: str = Field("HTML", alias="Column Separator")
+
+class OutputVariableSchema(BaseSchema):
+    Key_Value: str = Field("*", alias="Key Value")
+    Variable_Name: str = Field(..., alias="Variable Name")
+    Reporting_Frequency: str = Field("Hourly", alias="Reporting Frequency")
