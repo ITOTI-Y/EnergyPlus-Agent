@@ -48,7 +48,7 @@ class SurfaceConverter(BaseConverter):
                 setattr(surface_obj, f'Vertex_{i}_Zcoordinate', vertex['Z'])
             
             self.state['success'] += 1
-            self.logger.info(f"BuildingSurface with name {data.name} added to IDF.")
+            self.logger.success(f"BuildingSurface with name {data.name} added to IDF.")
         except Exception as e:
             self.state['failed'] += 1
             self.logger.error(f"Error Adding BuildingSurface Data to IDF: {e}", exc_info=True)

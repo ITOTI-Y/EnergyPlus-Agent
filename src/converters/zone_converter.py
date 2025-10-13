@@ -1,5 +1,5 @@
 from eppy.modeleditor import IDF
-from typing import Dict, Any, List
+from typing import Dict, Any
 
 from src.converters.base_converter import BaseConverter
 from src.validator.data_model import ZoneSchema
@@ -43,7 +43,7 @@ class ZoneConverter(BaseConverter):
                 Part_of_Total_Floor_Area=data.part_of_total_floor_area
             )
             self.state['success'] += 1
-            self.logger.info(f"Zone with name {data.name} added to IDF.")
+            self.logger.success(f"Zone with name {data.name} added to IDF.")
         except Exception as e:
             self.state['failed'] += 1
             self.logger.error(f"Error Adding Zone Data to IDF: {e}", exc_info=True)

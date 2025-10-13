@@ -7,7 +7,7 @@ import yaml
 from src.utils.logging import get_logger
 from src.converters import BuildingConverter, ZoneConverter, SurfaceConverter
 from src.validator.data_model import BaseSchema, IDDField
-
+from src.converters.setting_converter import SettingsConverter
 class ConverterManager:
 
     def __init__(self, idd_file: Path, file_to_convert: Path):
@@ -18,6 +18,7 @@ class ConverterManager:
         self.yaml_data : Dict = self._load_yaml(file_to_convert)
         BaseSchema.set_idf_field(self.idf_field)
         self.converters = {
+            'settings': SettingsConverter(self.idf),
             'building': BuildingConverter(self.idf),
             'zones': ZoneConverter(self.idf),
             'surfaces': SurfaceConverter(self.idf)

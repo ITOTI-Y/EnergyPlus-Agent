@@ -1,7 +1,7 @@
 from eppy.modeleditor import IDF
-from typing import Dict, Tuple, Any
+from typing import Dict
 
-from src.validator.data_model import BuildingSchema, SettingsSchema
+from src.validator.data_model import BuildingSchema
 from src.converters.base_converter import BaseConverter
 from src.utils.logging import get_logger
 
@@ -15,27 +15,17 @@ class BuildingConverter(BaseConverter):
     def convert(self, data: Dict) -> None:
         self.logger.info("Building Converter Starting...")
 
-        version: Dict[str, Tuple[int, ...]] = self.idf.idd_version
         building_data: Dict = data.get('Building', {})
         
         try:
-            validated_data = self.validate({
-                "settings": {"version": version},
-                "building_data": building_data
-            })
+            validated_data = self.validate(building_data)
             self._add_to_idf(validated_data)
         except Exception as e:
             self.state['failed'] += 1
             self.logger.error(f"Error Convert Building Data: {e}", exc_info=True)
 
     def _add_to_idf(self, val_data: Dict) -> None:
-        building_data: Any = val_data.get("building_data", {})
-        settings_data: Any = val_data.get("settings", {})
-        version: str = settings_data.version
-
-        self.logger.info(f"Adding Building object with version {version} to IDF.")
-        if not self.idf.idfobjects["Version"]:
-            self.idf.newidfobject("Version", Version_Identifier=version)
+        building_data: BuildingSchema = val_data["building_data"]
 
         try:
             if not self.idf.getobject("Building", name=building_data.name):
@@ -51,7 +41,7 @@ class BuildingConverter(BaseConverter):
                     Minimum_Number_of_Warmup_Days=building_data.minimum_number_of_warmup_days,
                 )
                 self.state['success'] += 1
-                self.logger.info(f"Building object with name {building_data.name} added to IDF.")
+                self.logger.success(f"Building object with name {building_data.name} added to IDF.")
             else:
                 self.logger.warning(f"Building object with name {building_data.name} already exists in IDF. Skipping addition.")
                 self.state['skipped'] += 1
@@ -60,9 +50,7 @@ class BuildingConverter(BaseConverter):
             self.logger.error(f"Error Adding Building to IDF: {e}", exc_info=True)
 
     def validate(self, data: Dict) -> Dict:
-        val_setting_data = SettingsSchema.model_validate(data.get("settings"))
-        val_building_data = BuildingSchema.model_validate(data.get("building_data"))
+        val_building_data = BuildingSchema.model_validate(data)
         return {
-            "settings": val_setting_data,
             "building_data": val_building_data,
         }
