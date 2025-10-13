@@ -1,5 +1,5 @@
 from eppy.modeleditor import IDF
-from typing import Dict, Any
+from typing import Dict
 
 from src.validator.data_model import BuildingSchema
 from src.converters.base_converter import BaseConverter
@@ -25,7 +25,7 @@ class BuildingConverter(BaseConverter):
             self.logger.error(f"Error Convert Building Data: {e}", exc_info=True)
 
     def _add_to_idf(self, val_data: Dict) -> None:
-        building_data: Any = val_data.get("building_data", {})
+        building_data: BuildingSchema = val_data["building_data"]
 
         try:
             if not self.idf.getobject("Building", name=building_data.name):
@@ -41,7 +41,7 @@ class BuildingConverter(BaseConverter):
                     Minimum_Number_of_Warmup_Days=building_data.minimum_number_of_warmup_days,
                 )
                 self.state['success'] += 1
-                self.logger.info(f"Building object with name {building_data.name} added to IDF.")
+                self.logger.success(f"Building object with name {building_data.name} added to IDF.")
             else:
                 self.logger.warning(f"Building object with name {building_data.name} already exists in IDF. Skipping addition.")
                 self.state['skipped'] += 1

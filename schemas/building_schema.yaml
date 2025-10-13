@@ -317,7 +317,7 @@ BuildingSurface:Detailed:
 Output:VariableDictionary:
     Key Field: Regular
 Output:Diagnostics:  
-    Key 1: DisplayExtraWarning  
+    Key 1: DisplayExtraWarnings
 Output:Table:SummaryReports:
     Report 1 Name: AllSummary
 OutputControl:Table:Style:

@@ -18,7 +18,7 @@ class ConverterManager:
         self.yaml_data : Dict = self._load_yaml(file_to_convert)
         BaseSchema.set_idf_field(self.idf_field)
         self.converters = {
-            'settings': SettingsConverter(self.idf), # <-- 1. 添加这一行
+            'settings': SettingsConverter(self.idf),
             'building': BuildingConverter(self.idf),
             'zones': ZoneConverter(self.idf),
             'surfaces': SurfaceConverter(self.idf)
