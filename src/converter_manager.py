@@ -7,6 +7,8 @@ import yaml
 from src.utils.logging import get_logger
 from src.converters import BuildingConverter, ZoneConverter, SurfaceConverter
 from src.validator.data_model import BaseSchema, IDDField
+from src.converters.material_converter import MaterialConverter
+from src.converters.construction_converter import ConstructionConverter
 from src.converters.setting_converter import SettingsConverter
 class ConverterManager:
 
@@ -20,6 +22,8 @@ class ConverterManager:
         self.converters = {
             'settings': SettingsConverter(self.idf),
             'building': BuildingConverter(self.idf),
+            'materials': MaterialConverter(self.idf),
+            'constructions': ConstructionConverter(self.idf),
             'zones': ZoneConverter(self.idf),
             'surfaces': SurfaceConverter(self.idf)
         }

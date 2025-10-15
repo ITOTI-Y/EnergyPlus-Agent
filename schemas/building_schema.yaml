@@ -97,7 +97,7 @@ Construction:
 # ==================================================================
 GlobalGeometryRules:
     Starting Vertex Position: UpperLeftCorner
-    Vertex Entry Direction: CounterClockWise
+    Vertex Entry Direction: Counterclockwise
     Coordinate System: World
 
 # ==================================================================
@@ -315,7 +315,7 @@ BuildingSurface:Detailed:
 # 输出设置
 # ==================================================================
 Output:VariableDictionary:
-    Key Field: Regular
+    Key Field: regular
 Output:Diagnostics:  
     Key 1: DisplayExtraWarnings
 Output:Table:SummaryReports:

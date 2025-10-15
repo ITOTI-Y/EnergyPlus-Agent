@@ -681,3 +681,38 @@ class OutputVariableSchema(BaseSchema):
             cls._idf_field, "Output_Variable"
         ).Reporting_Frequency.key
         return cls.validate_choice_field(v, valid_frequencies, "Reporting Frequency")
+
+class MaterialSchema(BaseSchema):
+    Name: str = Field(..., alias="Name", description="Material name")
+    Roughness: str = Field("MediumRough", alias="Roughness", description="Material surface roughness")
+    Thickness: float = Field(..., alias="Thickness", description="Material thickness in meters", gt=0)
+    Conductivity: float = Field(..., alias="Conductivity", description="Material thermal conductivity in W/m-K", gt=0)
+    Density: float = Field(..., alias="Density", description="Material density in kg/m3", gt=0)
+    Specific_Heat: float = Field(..., alias="Specific Heat", description="Material specific heat in J/kg-K", gt=0)
+
+    @field_validator("Name")
+    def validate_name(cls, v):
+        if not v:
+            raise ValueError("Material Name must not be empty.")
+        return v
+    
+    @field_validator("Roughness")
+    def validate_roughness(cls, v):
+        valid_choices = getattr(cls._idf_field, "Material").Roughness.key
+        return cls.validate_choice_field(v, valid_choices, "Roughness")
+    
+class ConstructionSchema(BaseSchema):
+    Name: str = Field(..., alias="Name")
+    Layers: List[str] = Field(..., alias="Layers", min_length=1)
+
+    @field_validator("Name")
+    def validate_name(cls, v: str) -> str:
+        if not v:
+            raise ValueError("Construction Name must not be empty.")
+        return v
+    
+    @field_validator("Layers")
+    def validate_layers(cls, v: List[str]) -> List[str]:
+        if not all(isinstance(layer, str) and layer for layer in v):
+            raise ValueError("All items in Layers must be non-empty strings.")
+        return v
