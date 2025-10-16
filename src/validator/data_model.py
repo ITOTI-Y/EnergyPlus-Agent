@@ -400,25 +400,6 @@ class SurfaceSchema(BaseSchema):
                 "View Factor to Ground must be a number between 0.0 and 1.0 or 'autocalculate'."
             )
 
-    @field_validator("vertices")
-    def validate_vertices(cls, v):
-        if not isinstance(v, list) or len(v) < 3:
-            raise ValueError(
-                "Vertices must be a list with at least three vertex dictionaries."
-            )
-        for vertex in v:
-            if not (
-                isinstance(vertex, dict)
-                and all(k in vertex for k in ("X", "Y", "Z"))
-                and all(isinstance(vertex[k], (int, float)) for k in ("X", "Y", "Z"))
-            ):
-                raise ValueError(
-                    "Each vertex must be a dictionary with numeric keys 'X', 'Y', and 'Z'."
-                )
-        # 还需要添加一个验证，确保顶点是按顺序排列的，且形成一个闭合多边形
-
-        return v
-
     @model_validator(mode="after")
     def validate_boundary_condition_object(self):
         needs_obj = {"Surface", "OtherSideCoefficients", "OtherSideConditionsModel"}
@@ -431,34 +412,33 @@ class SurfaceSchema(BaseSchema):
         return self
 
 def points_validator(surface_data):
-
     BuildingSurface_data = surface_data
 
-    surface_points = {} # 面顶点
+    surface_points = {}  # 面顶点
     triangle_points = {}  # 面三角形顶点
     inside_points = {}  # 三角形中心
-    inside_vectors = {} # 三角形中心法向量
+    inside_vectors = {}  # 三角形中心法向量
     bottom_points = {}  # 底部点
-    surfacecenters = {} # 面中心点
-    surface_vectors = {} # 面中心到顶点向量
+    surfacecenters = {}  # 面中心点
+    surface_vectors = {}  # 面中心到顶点向量
     normal_vectors = {}  # 面法向量
 
     def get_zone_name(surface_name):
         for surface in BuildingSurface_data:
-            if surface['Name'] == surface_name:
-                return surface.get('Zone Name', '')
+            if surface["Name"] == surface_name:
+                return surface.get("Zone Name", "")
 
-    for surface in BuildingSurface_data:    
+    for surface in BuildingSurface_data:
         points_lists = []
-        points = surface.get('Vertices', [])
+        points = surface.get("Vertices", [])
         for point in points:
-            points_lists.append([point['X'], point['Y'], point['Z']])
-        
-        surface_points[surface['Name']] = points_lists
-        if surface.get('Surface Type', '') == 'Floor':
-            bottom_points[surface['Zone Name']] = points_lists
+            points_lists.append([point["X"], point["Y"], point["Z"]])
 
-    for zone, points in bottom_points.items(): 
+        surface_points[surface["Name"]] = points_lists
+        if surface.get("Surface Type", "") == "Floor":
+            bottom_points[surface["Zone Name"]] = points_lists
+
+    for zone, points in bottom_points.items():
         tri_points = []
         rim_point_np = np.array(points)
         tri = Delaunay(rim_point_np[:, :-1])
@@ -471,10 +451,10 @@ def points_validator(surface_data):
             center_x = (tri[0][0] + tri[1][0] + tri[2][0]) / 3
             center_y = (tri[0][1] + tri[1][1] + tri[2][1]) / 3
             center_z = (tri[0][2] + tri[1][2] + tri[2][2]) / 3
-            inside_points[f'{zone}_{i}'] = [center_x, center_y, center_z]
+            inside_points[f"{zone}_{i}"] = [center_x, center_y, center_z]
             i += 1
 
-    for surface_name, points in surface_points.items(): 
+    for surface_name, points in surface_points.items():
         num_points = len(points)
         sum_x = sum(point[0] for point in points)
         sum_y = sum(point[1] for point in points)
@@ -484,32 +464,30 @@ def points_validator(surface_data):
         center_z = sum_z / num_points
         surfacecenters[surface_name] = [center_x, center_y, center_z]
 
-    for ins_point, point in inside_points.items(): 
-
+    for ins_point, point in inside_points.items():
         vec = np.array(point)
 
         inside_vectors[ins_point] = vec
 
-    for surface_name, points in surface_points.items(): 
+    for surface_name, points in surface_points.items():
         vectors = []
         for point in points:
             vec = np.array(point) - np.array(surfacecenters[surface_name])
             vectors.append(vec)
         surface_vectors[surface_name] = vectors
 
-    for surface_name, vectors in surface_vectors.items(): 
+    for surface_name, vectors in surface_vectors.items():
         i = 0
         normals = []
         for i in range(len(vectors)):
-            norm = np.cross(vectors[i], vectors[(i-1)])
+            norm = np.cross(vectors[i], vectors[(i - 1)])
             norm_normalized = norm / np.linalg.norm(norm)
             normals.append(norm_normalized)
             i += 1
-            normal_vectors[surface_name] = normals       
+            normal_vectors[surface_name] = normals
 
-    for surface_name, normals in normal_vectors.items(): 
+    for surface_name, normals in normal_vectors.items():
         if "Floor" in surface_name or "Roof" in surface_name:
-
             points = surface_points[surface_name]
 
             is_clockwise = False
@@ -523,82 +501,89 @@ def points_validator(surface_data):
                         norm = 0
                         all_norms_negative = True
                         norm_values = []
-                        
+
                         for vector in normals:
                             inside_vec = inside_vectors[tri_name]
                             vec = np.array(surfacecenters[surface_name]) - inside_vec
                             norm = np.dot(vector, vec)
                             norm_values.append(norm)
-                            
-                            if norm >= 0: 
+
+                            if norm >= 0:
                                 all_norms_negative = False
 
                         inside_point = np.array(inside_vectors[tri_name])
                         surface_center = np.array(surfacecenters[surface_name])
                         normal_vector = surface_center - inside_point
-                        normal_vector = normal_vector / np.linalg.norm(normal_vector)  
+                        normal_vector = normal_vector / np.linalg.norm(normal_vector)
 
                         origin_point = surface_center
-                        
-                        if abs(normal_vector[0]) < 1e-10 and abs(normal_vector[1]) < 1e-10:
+
+                        if (
+                            abs(normal_vector[0]) < 1e-10
+                            and abs(normal_vector[1]) < 1e-10
+                        ):
                             angle_z = 0.0
                             R_z = np.eye(3)
                         else:
                             angle_z = np.arctan2(normal_vector[0], normal_vector[1])
                             cos_z = np.cos(angle_z)
                             sin_z = np.sin(angle_z)
-                            R_z = np.array([
-                                [cos_z, -sin_z, 0],
-                                [sin_z, cos_z, 0],
-                                [0, 0, 1]
-                            ])
+                            R_z = np.array(
+                                [[cos_z, -sin_z, 0], [sin_z, cos_z, 0], [0, 0, 1]]
+                            )
 
                         normal_after_z = np.dot(R_z, normal_vector)
 
-                        if abs(normal_after_z[1]) < 1e-10 and abs(normal_after_z[2]) < 1e-10:
+                        if (
+                            abs(normal_after_z[1]) < 1e-10
+                            and abs(normal_after_z[2]) < 1e-10
+                        ):
                             angle_x = 0.0
                             R_x = np.eye(3)
                         else:
                             angle_x = np.arctan2(normal_after_z[2], normal_after_z[1])
                             cos_x = np.cos(angle_x)
                             sin_x = np.sin(angle_x)
-                            R_x = np.array([
-                                [1, 0, 0],
-                                [0, cos_x, -sin_x],
-                                [0, sin_x, cos_x]
-                            ])
+                            R_x = np.array(
+                                [[1, 0, 0], [0, cos_x, -sin_x], [0, sin_x, cos_x]]
+                            )
 
                         rotation_matrix = np.dot(R_x, R_z)
-                        
+
                         projected_points = {}
                         new_xz_coords_list = []
-                        
+
                         for point_name, surface_point in enumerate(points):
                             point_3d = np.array(surface_point)
                             relative_point = point_3d - origin_point
                             rotated_point = np.dot(rotation_matrix, relative_point)
-                            new_xz_coords = [rotated_point[0], rotated_point[2]]  
+                            new_xz_coords = [rotated_point[0], rotated_point[2]]
                             new_xz_coords_list.append(new_xz_coords)
-                            
+
                             projected_points[f"Point_{point_name}"] = {
-                                'original_3d': surface_point,
-                                'rotated_3d': (rotated_point + origin_point).tolist(),
-                                'new_xz_coords': new_xz_coords,
-                                'rotation_angles_degrees': [np.degrees(angle_z), np.degrees(angle_x)]
+                                "original_3d": surface_point,
+                                "rotated_3d": (rotated_point + origin_point).tolist(),
+                                "new_xz_coords": new_xz_coords,
+                                "rotation_angles_degrees": [
+                                    np.degrees(angle_z),
+                                    np.degrees(angle_x),
+                                ],
                             }
 
                         area = 0
                         for j in range(len(new_xz_coords_list)):
                             x1, y1 = new_xz_coords_list[j]
-                            x2, y2 = new_xz_coords_list[(j + 1) % len(new_xz_coords_list)]
-                            area += (x1 * y2 - x2 * y1)
-                        
+                            x2, y2 = new_xz_coords_list[
+                                (j + 1) % len(new_xz_coords_list)
+                            ]
+                            area += x1 * y2 - x2 * y1
+
                         is_clockwise = area < 0
                         break
 
             if "Floor" in surface_name:
                 third_quadrant_points = []
-                
+
                 for i, point in enumerate(points):
                     x, y = point[0], point[1]
 
@@ -610,10 +595,10 @@ def points_validator(surface_data):
                     target_point = max(third_quadrant_points, key=lambda x: x[2])
                     target_index = target_point[0]
                 else:
-                    min_distance = float('inf')
+                    min_distance = float("inf")
                     target_index = 0
                     for i, point in enumerate(points):
-                        distance = np.sqrt(point[0]**2 + point[1]**2)
+                        distance = np.sqrt(point[0] ** 2 + point[1] ** 2)
                         if distance < min_distance:
                             min_distance = distance
                             target_index = i
@@ -624,10 +609,10 @@ def points_validator(surface_data):
                         first_point = current_points.pop(0)
                         current_points.append(first_point)
                     surface_points[surface_name] = current_points
-                    
+
             elif "Roof" in surface_name:
                 second_quadrant_points = []
-                
+
                 for i, point in enumerate(points):
                     x, y = point[0], point[1]
                     if x <= 0 and y >= 0:
@@ -638,10 +623,10 @@ def points_validator(surface_data):
                     target_point = max(second_quadrant_points, key=lambda x: x[2])
                     target_index = target_point[0]
                 else:
-                    min_distance = float('inf')
+                    min_distance = float("inf")
                     target_index = 0
                     for i, point in enumerate(points):
-                        distance = np.sqrt(point[0]**2 + point[1]**2)
+                        distance = np.sqrt(point[0] ** 2 + point[1] ** 2)
                         if distance < min_distance:
                             min_distance = distance
                             target_index = i
@@ -663,79 +648,90 @@ def points_validator(surface_data):
                         norm = 0
                         all_norms_negative = True
                         norm_values = []
-                        
+
                         for vector in normals:
                             inside_vec = inside_vectors[tri_name]
                             vec = np.array(surfacecenters[surface_name]) - inside_vec
                             norm = np.dot(vector, vec)
                             norm_values.append(norm)
-                            
-                            if norm >= 0: 
+
+                            if norm >= 0:
                                 all_norms_negative = False
 
                         inside_point = np.array(inside_vectors[tri_name])
                         surface_center = np.array(surfacecenters[surface_name])
                         normal_vector = surface_center - inside_point
-                        normal_vector = normal_vector / np.linalg.norm(normal_vector)  
+                        normal_vector = normal_vector / np.linalg.norm(normal_vector)
 
                         origin_point = surface_center
-                        
-                        if abs(normal_vector[0]) < 1e-10 and abs(normal_vector[1]) < 1e-10:
+
+                        if (
+                            abs(normal_vector[0]) < 1e-10
+                            and abs(normal_vector[1]) < 1e-10
+                        ):
                             angle_z = 0.0
                             R_z = np.eye(3)
                         else:
                             angle_z = np.arctan2(normal_vector[0], normal_vector[1])
                             cos_z = np.cos(angle_z)
                             sin_z = np.sin(angle_z)
-                            R_z = np.array([
-                                [cos_z, -sin_z, 0],
-                                [sin_z, cos_z, 0],
-                                [0, 0, 1]
-                            ])
+                            R_z = np.array(
+                                [[cos_z, -sin_z, 0], [sin_z, cos_z, 0], [0, 0, 1]]
+                            )
 
                         normal_after_z = np.dot(R_z, normal_vector)
 
-                        if abs(normal_after_z[1]) < 1e-10 and abs(normal_after_z[2]) < 1e-10:
+                        if (
+                            abs(normal_after_z[1]) < 1e-10
+                            and abs(normal_after_z[2]) < 1e-10
+                        ):
                             angle_x = 0.0
                             R_x = np.eye(3)
                         else:
                             angle_x = np.arctan2(normal_after_z[2], normal_after_z[1])
                             cos_x = np.cos(angle_x)
                             sin_x = np.sin(angle_x)
-                            R_x = np.array([
-                                [1, 0, 0],
-                                [0, cos_x, -sin_x],
-                                [0, sin_x, cos_x]
-                            ])
+                            R_x = np.array(
+                                [[1, 0, 0], [0, cos_x, -sin_x], [0, sin_x, cos_x]]
+                            )
 
                         rotation_matrix = np.dot(R_x, R_z)
-                        
+
                         projected_points = {}
                         new_xz_coords_list = []
-                        
-                        for point_name, surface_point in enumerate(surface_points[surface_name]):
+
+                        for point_name, surface_point in enumerate(
+                            surface_points[surface_name]
+                        ):
                             point_3d = np.array(surface_point)
                             relative_point = point_3d - origin_point
                             rotated_point = np.dot(rotation_matrix, relative_point)
-                            new_xz_coords = [rotated_point[0], rotated_point[2]]  
+                            new_xz_coords = [rotated_point[0], rotated_point[2]]
                             new_xz_coords_list.append(new_xz_coords)
-                            
+
                             projected_points[f"Point_{point_name}"] = {
-                                'original_3d': surface_point,
-                                'rotated_3d': (rotated_point + origin_point).tolist(),
-                                'new_xz_coords': new_xz_coords,
-                                'rotation_angles_degrees': [np.degrees(angle_z), np.degrees(angle_x)]
+                                "original_3d": surface_point,
+                                "rotated_3d": (rotated_point + origin_point).tolist(),
+                                "new_xz_coords": new_xz_coords,
+                                "rotation_angles_degrees": [
+                                    np.degrees(angle_z),
+                                    np.degrees(angle_x),
+                                ],
                             }
                         first_quadrant_points = []
                         for i, coords in enumerate(new_xz_coords_list):
-                            if coords[0] >= 0 and coords[1] >= 0:  
-                                distance = np.sqrt(coords[0]**2 + coords[1]**2)
+                            if coords[0] >= 0 and coords[1] >= 0:
+                                distance = np.sqrt(coords[0] ** 2 + coords[1] ** 2)
                                 first_quadrant_points.append((i, coords, distance))
-                        
+
                         if first_quadrant_points:
-                            farthest_point = max(first_quadrant_points, key=lambda x: x[2])
-                            farthest_index, farthest_coords, farthest_distance = farthest_point
-                            is_first_point_farthest = (farthest_index == 0)
+                            farthest_point = max(
+                                first_quadrant_points, key=lambda x: x[2]
+                            )
+                            farthest_index, farthest_coords, farthest_distance = (
+                                farthest_point
+                            )
+                            is_first_point_farthest = farthest_index == 0
                             if not is_first_point_farthest:
                                 current_points = surface_points[surface_name]
                                 max_iterations = len(current_points)
@@ -750,9 +746,9 @@ def points_validator(surface_data):
         pts_list = []
         for point in points:
             pt = {}
-            pt['X'] = point[0]
-            pt['Y'] = point[1]
-            pt['Z'] = point[2]
+            pt["X"] = point[0]
+            pt["Y"] = point[1]
+            pt["Z"] = point[2]
             pts_list.append(pt)
 
         pts[name] = pts_list
@@ -760,35 +756,35 @@ def points_validator(surface_data):
     validate_BuildingSurface_data = []
 
     for surface in BuildingSurface_data:
-        surface_name = surface.get('Name', [])
-        surface['Vertices'] = pts[surface_name]
+        surface_name = surface.get("Name", [])
+        surface["Vertices"] = pts[surface_name]
         validate_BuildingSurface_data.append(surface)
-        
+
     return validate_BuildingSurface_data
 
 
 def closure_validator(surface_data):
     BuildingSurface_data = surface_data
-    surface_points = {} # 面顶点
+    surface_points = {}  # 面顶点
     bottom_points = {}  # 底部点
-    zone_pointskey = {} # 按zone组织的线条数据
-    zone_points = {} # 按zone组织的点数据
+    zone_pointskey = {}  # 按zone组织的线条数据
+    zone_points = {}  # 按zone组织的点数据
 
     def get_zone_name(surface_name):
         for surface in BuildingSurface_data:
-            if surface['Name'] == surface_name:
-                return surface.get('Zone Name', '')
+            if surface["Name"] == surface_name:
+                return surface.get("Zone Name", "")
 
-    for surface in BuildingSurface_data:    
+    for surface in BuildingSurface_data:
         points_lists = []
-        points = surface.get('Vertices', [])
+        points = surface.get("Vertices", [])
 
         for point in points:
-            points_lists.append([point['X'], point['Y'], point['Z']])
-        
-        surface_points[surface['Name']] = points_lists
-        if surface.get('Surface Type', '') == 'Floor':
-            bottom_points[surface['Zone Name']] = points_lists
+            points_lists.append([point["X"], point["Y"], point["Z"]])
+
+        surface_points[surface["Name"]] = points_lists
+        if surface.get("Surface Type", "") == "Floor":
+            bottom_points[surface["Zone Name"]] = points_lists
 
     for surface_name, points in surface_points.items():
         zone_name = get_zone_name(surface_name)
@@ -803,16 +799,15 @@ def closure_validator(surface_data):
 
         if zone_name not in zone_pointskey:
             zone_pointskey[zone_name] = []
-        
+
         for i, point in enumerate(points):
             start_point = tuple(point)
-            end_point = tuple(points[(i-1) % len(points)])
+            end_point = tuple(points[(i - 1) % len(points)])
             line = (start_point, end_point)
             zone_pointskey[zone_name].append(line)
 
     for zone_name, sample_points in zone_points.items():
         for sample_point in sample_points:
-
             zone_lines = zone_pointskey.get(zone_name, [])
 
             end_points = set()
@@ -823,8 +818,9 @@ def closure_validator(surface_data):
             if len(end_points) >= 3:
                 continue
             else:
-                info = f'{zone_name}:{sample_point} error'
+                info = f"{zone_name}:{sample_point} error"
                 return info
+
 
 class SimulationControlSchema(BaseSchema):
     Do_Zone_Sizing_Calculation: str | bool = Field(

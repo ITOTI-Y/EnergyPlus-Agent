@@ -1,14 +1,9 @@
-import os
-import sys
 import tempfile
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Dict, Any
 
-from loguru import logger
-from eppy import modeleditor
+from eppy.modeleditor import IDF
 from eppy.runner.run_functions import run
-
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from src.utils.logging import get_logger
 
@@ -25,13 +20,13 @@ class EnergyPlusRunner:
         Args:
             idd_file_path: EnergyPlus IDD文件路径，如果为None则使用默认路径
         """
-        self.logger = get_logger("EnergyPlusRunner")
+        self.logger = get_logger(__name__)
         self.idd_file_path = idd_file_path
 
         if not self.idd_file_path.exists():
             raise FileNotFoundError(f"IDD文件不存在: {self.idd_file_path}")
 
-        modeleditor.IDF.setiddname(str(self.idd_file_path))
+        IDF.setiddname(str(self.idd_file_path))
         
         self.logger.info(f"EnergyPlus运行器初始化完成，使用IDD文件: {self.idd_file_path}")
     
@@ -61,19 +56,19 @@ class EnergyPlusRunner:
             output_dir = Path(output_directory)
             output_dir.mkdir(parents=True, exist_ok=True)
         
-        self.logger.info(f"开始运行EnergyPlus模拟")
+        self.logger.info("开始运行EnergyPlus模拟")
         self.logger.info(f"IDF文件: {self.idf_path}")
         self.logger.info(f"EPW文件: {epw_file_path}")
         self.logger.info(f"输出目录: {output_dir}")
         
         try:
-            idf = modeleditor.IDF(str(self.idf_path))
+            idf = IDF(str(self.idf_path))
             try:
                 result = run(
                     idf=idf,
                     weather=epw_file_path,
                     output_directory=str(output_dir),
-                    verbose='q'
+                    verbose='v'
                 )
 
                 success = result == 0
@@ -89,7 +84,7 @@ class EnergyPlusRunner:
                 }
                 
                 if success:
-                    self.logger.info(f"EnergyPlus模拟成功完成")
+                    self.logger.info("EnergyPlus模拟成功完成")
                     self.logger.info(f"生成文件: {len(output_files)} 个")
                 else:
                     self.logger.error(f"EnergyPlus模拟失败，退出码: {result}")
@@ -112,5 +107,5 @@ class EnergyPlusRunner:
                 return run_result
             
         except Exception as e:
-            self.logger.error(f"运行EnergyPlus模拟时发生错误: {e}")
+            self.logger.exception(f"运行EnergyPlus模拟时发生错误: {e}")
             raise
