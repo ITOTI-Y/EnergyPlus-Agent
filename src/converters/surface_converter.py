@@ -3,6 +3,8 @@ from typing import Dict, Any
 
 from src.converters.base_converter import BaseConverter
 from src.validator.data_model import SurfaceSchema
+from src.validator.data_model import points_validator
+from src.validator.data_model import closure_validator
 
 class SurfaceConverter(BaseConverter):
 
@@ -11,7 +13,13 @@ class SurfaceConverter(BaseConverter):
 
     def convert(self, data: Dict) -> None:
         self.logger.info("Converting BuildingSurface data...")
-        for sd in data.get('BuildingSurface:Detailed', []):
+        surface_data = data.get('BuildingSurface:Detailed', [])
+        closure_validate = closure_validator(surface_data)
+        if closure_validate:
+            self.logger.error(f"{closure_validate}: Space is not close !")
+        surface_data = points_validator(surface_data)
+
+        for sd in surface_data:
             try:
                 val_data = self.validate(sd)
                 self._add_to_idf(val_data)
@@ -55,4 +63,5 @@ class SurfaceConverter(BaseConverter):
 
     def validate(self, data: Dict) -> Any:
         val_data = SurfaceSchema.model_validate(data)
+
         return val_data
