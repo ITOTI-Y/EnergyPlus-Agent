@@ -3,7 +3,7 @@ import time
 
 from src.converter_manager import ConverterManager
 from src.utils.logging import setup_logger, get_logger
-from src.EPruner.runer import EnergyPlusRunner
+from src.runner.runner import EnergyPlusRunner
 
 logger_time = time.strftime("%Y%m%d_%H%M%S")
 setup_logger(
