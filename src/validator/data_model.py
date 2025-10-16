@@ -1,6 +1,7 @@
 from typing import Tuple, List, Optional, Dict
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
-
+import numpy as np
+from scipy.spatial import Delaunay
 from src.utils.logging import get_logger
 
 logger = get_logger(__name__)
