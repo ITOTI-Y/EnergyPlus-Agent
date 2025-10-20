@@ -399,6 +399,23 @@ class SurfaceSchema(BaseSchema):
             raise ValueError(
                 "View Factor to Ground must be a number between 0.0 and 1.0 or 'autocalculate'."
             )
+    
+    @field_validator("vertices")
+    def validate_vertices(cls, v):
+        tolerance = 1e-10
+        if len(v) < 3:
+            raise ValueError(f"The surface must have at least 3 vertices. current has {len(v)}")
+        pts = np.array([[pt['X'],pt["Y"],pt["Z"]] for pt in v])
+        diff = pts[:, np.newaxis, :] - pts[np.newaxis, :, :]
+        distances = np.linalg.norm(diff, axis=2)
+        np.fill_diagonal(distances, np.inf)
+
+        mask = distances < tolerance
+        if np.any(mask):
+            for pt1, pt2 in np.argwhere(mask):
+                logger.error(f"Vertices {v[pt1]} and {v[pt2]} are too close.")
+            raise ValueError("Some vertices are too close to each other.")
+        return v
 
     @model_validator(mode="after")
     def validate_boundary_condition_object(self):
