@@ -39,7 +39,10 @@ class ConstructionConverter(BaseConverter):
             for layer_name in data.Layers:
                 if not (self.idf.getobject("MATERIAL", layer_name) or 
                         self.idf.getobject("MATERIAL:NOMASS", layer_name)):
-                    raise ValueError(...)
+                    raise ValueError(
+                        f"Material '{layer_name}' referenced in Construction '{data.Name}' "
+                        f"does not exist in IDF. Please add the material first."
+       )
             
             construction_obj = self.idf.newidfobject(
                 "CONSTRUCTION",
