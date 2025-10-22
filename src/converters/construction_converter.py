@@ -35,6 +35,11 @@ class ConstructionConverter(BaseConverter):
             
         try:
             self.logger.info(f"Adding Construction '{data.Name}' to IDF.")
+           
+            for layer_name in data.Layers:
+                if not (self.idf.getobject("MATERIAL", layer_name) or 
+                        self.idf.getobject("MATERIAL:NOMASS", layer_name)):
+                    raise ValueError(...)
             
             construction_obj = self.idf.newidfobject(
                 "CONSTRUCTION",
@@ -51,7 +56,11 @@ class ConstructionConverter(BaseConverter):
                 self.logger.debug(f"  - Set {field_name} to '{layer_name}' for '{data.Name}'.")
             self.state['success'] += 1
             self.logger.info(f"Construction '{data.Name}' with {len(data.Layers)} layers added successfully.")
-            
+
+        except ValueError as e:
+            self.state['failed'] += 1
+            self.logger.error(f"Failed to add Construction '{data.Name}': {e}")    
+        
         except AttributeError as e:
             self.state['failed'] += 1
             self.logger.error(

@@ -683,23 +683,48 @@ class OutputVariableSchema(BaseSchema):
         return cls.validate_choice_field(v, valid_frequencies, "Reporting Frequency")
 
 class MaterialSchema(BaseSchema):
-    Name: str = Field(..., alias="Name", description="Material name")
-    Roughness: str = Field("MediumRough", alias="Roughness", description="Material surface roughness")
-    Thickness: float = Field(..., alias="Thickness", description="Material thickness in meters", gt=0)
-    Conductivity: float = Field(..., alias="Conductivity", description="Material thermal conductivity in W/m-K", gt=0)
-    Density: float = Field(..., alias="Density", description="Material density in kg/m3", gt=0)
-    Specific_Heat: float = Field(..., alias="Specific Heat", description="Material specific heat in J/kg-K", gt=0)
+    """
+    A schema that can validate both standard materials and no-mass materials.
+    The type of material is inferred based on the presence of specific fields.
+    """
+    Name: str = Field(..., alias="Name", description="Unique name for the material.")
+    Roughness: str = Field("MediumRough", alias="Roughness", description="Surface roughness.")
+    
+    Thickness: Optional[float] = Field(None, alias="Thickness", description="Thickness [m]. Required for standard materials.", gt=0)
+    Conductivity: Optional[float] = Field(None, alias="Conductivity", description="Thermal conductivity [W/m-K]. Required for standard materials.", gt=0)
+    Density: Optional[float] = Field(None, alias="Density", description="Density [kg/m^3]. Required for standard materials.", gt=0)
+    Specific_Heat: Optional[float] = Field(None, alias="Specific Heat", description="Specific heat [J/kg-K]. Required for standard materials.", gt=0)
+    
+    Thermal_Resistance: Optional[float] = Field(None, alias="Thermal Resistance", description="Thermal resistance [m^2-K/W]. Required for NoMass materials.", gt=0)
 
     @field_validator("Name")
-    def validate_name(cls, v):
-        if not v:
-            raise ValueError("Material Name must not be empty.")
+    def validate_name(cls, v: str) -> str:
+        if not v: raise ValueError("Material Name must not be empty.")
         return v
     
     @field_validator("Roughness")
-    def validate_roughness(cls, v):
-        valid_choices = getattr(cls._idf_field, "Material").Roughness.key
-        return cls.validate_choice_field(v, valid_choices, "Roughness")
+    def validate_roughness(cls, v: str) -> str:
+        try:
+            valid_choices_material = getattr(cls._idf_field, "Material").Roughness.key
+            return cls.validate_choice_field(v, valid_choices_material, "Roughness")
+        except AttributeError:
+            valid_choices_nomass = getattr(cls._idf_field, "Material_NoMass").Roughness.key
+            return cls.validate_choice_field(v, valid_choices_nomass, "Roughness")
+
+    @model_validator(mode='after')
+    def check_material_type(self) -> 'MaterialSchema':
+        """
+        Checks that either all standard properties or all NoMass properties are present.
+        """
+        is_standard = all(p is not None for p in [self.Thickness, self.Conductivity, self.Density, self.Specific_Heat])
+        is_nomass = self.Thermal_Resistance is not None
+
+        if is_standard and is_nomass:
+            raise ValueError(f"Material '{self.Name}' cannot have both standard properties and Thermal Resistance.")
+        if not is_standard and not is_nomass:
+            raise ValueError(f"Material '{self.Name}' must have either all standard properties (Thickness, etc.) or Thermal Resistance.")
+        
+        return self
     
 class ConstructionSchema(BaseSchema):
     Name: str = Field(..., alias="Name")
