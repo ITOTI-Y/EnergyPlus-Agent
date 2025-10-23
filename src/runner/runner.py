@@ -1,6 +1,6 @@
-import tempfile
+from datetime import datetime
 from pathlib import Path
-from typing import Dict, Any
+from typing import Optional, cast
 
 from eppy.modeleditor import IDF
 from eppy.runner.run_functions import run
@@ -9,103 +9,96 @@ from src.utils.logging import get_logger
 
 
 class EnergyPlusRunner:
-    """
-    EnergyPlus IDF文件执行器
-    """
-    
-    def __init__(self, idd_file_path):
+    def __init__(self, idf: Optional[IDF] = None, idd_file_path: Optional[Path] = None):
         """
-        初始化EnergyPlus运行器
-        
+        Initialize the EnergyPlusRunner.
+
         Args:
-            idd_file_path: EnergyPlus IDD文件路径，如果为None则使用默认路径
+            idf: An instance of eppy.modeleditor.IDF
+            idd_file_path: EnergyPlus IDD file path, required if idf is not provided
         """
         self.logger = get_logger(__name__)
-        self.idd_file_path = idd_file_path
+        if idf:
+            self.idf = idf
+        else:
+            try:
+                IDF.setiddname(str(idd_file_path))
+                self.idf = IDF()
+            except Exception as e:
+                self.logger.error(
+                    f"Must provide either an IDF instance or a valid IDD file path. Error: {e}"
+                )
+                raise
 
-        if not self.idd_file_path.exists():
-            raise FileNotFoundError(f"IDD文件不存在: {self.idd_file_path}")
+        self.logger.info("EnergyPlusRunner initialized.")
 
-        IDF.setiddname(str(self.idd_file_path))
-        
-        self.logger.info(f"EnergyPlus运行器初始化完成，使用IDD文件: {self.idd_file_path}")
-    
-    def run_idf(self, 
-                idf_file_path, 
-                epw_file_path,
-                output_directory = None) -> Dict[str, Any]:
+    def run_idf(
+        self,
+        epw_file_path: Path | str,
+        idf_file_path: Optional[Path | str] = None,
+        output_directory: Optional[Path] = None,
+    ) -> bool:
         """
-        运行EnergyPlus IDF文件
-        
+        Run EnergyPlus IDF file
+
         Args:
-            idf_file_path: IDF文件路径
-            epw_file_path: EPW天气文件路径
-            output_directory: 输出目录，如果为None则使用临时目录
-            
+            idf_file_path: IDF file path
+            epw_file_path: EPW weather file path
+            output_directory: Output directory, if None, a default directory will be created
+
         Returns:
-            包含运行结果的字典
+            bool: True if the simulation ran successfully, False otherwise
         """
-        self.idf_path = Path(idf_file_path)
-        
+        if idf_file_path:
+            self.idf_path = Path(idf_file_path)
+            self.idf = IDF(str(self.idf_path))
+        elif self.idf.idfname:
+            idf_file_path = cast(str, self.idf.idfname)
+            self.idf_path = Path(idf_file_path)
+        else:
+            raise ValueError(
+                "IDF file path must be provided either via parameter or IDF instance."
+            )
+        self.epw_path = Path(epw_file_path)
+
         if not self.idf_path.exists():
-            raise FileNotFoundError(f"IDF文件不存在: {self.idf_path}")
+            raise FileNotFoundError(f"IDF file not found: {self.idf_path}")
+        if not self.epw_path.exists():
+            raise FileNotFoundError(f"EPW file not found: {self.epw_path}")
 
         if output_directory is None:
-            output_dir = Path(tempfile.mkdtemp(prefix="energyplus_output_"))
+            output_directory = (
+                Path(__file__).parent.parent.parent
+                / "output"
+                / "results"
+                / f"energyplus_runs_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            )
         else:
-            output_dir = Path(output_directory)
-            output_dir.mkdir(parents=True, exist_ok=True)
-        
-        self.logger.info("开始运行EnergyPlus模拟")
-        self.logger.info(f"IDF文件: {self.idf_path}")
-        self.logger.info(f"EPW文件: {epw_file_path}")
-        self.logger.info(f"输出目录: {output_dir}")
-        
-        try:
-            idf = IDF(str(self.idf_path))
-            try:
-                result = run(
-                    idf=idf,
-                    weather=epw_file_path,
-                    output_directory=str(output_dir),
-                    verbose='v'
-                )
+            output_directory = Path(output_directory)
+        output_directory.mkdir(parents=True, exist_ok=True)
 
-                success = result == 0
-                output_files = list(output_dir.glob("*")) if output_dir.exists() else []
-                
-                run_result = {
-                    "success": success,
-                    "exit_code": result,
-                    "output_directory": str(output_dir),
-                    "output_files": [str(f) for f in output_files],
-                    "idf_file": str(self.idf_path),
-                    "epw_file": epw_file_path
-                }
-                
-                if success:
-                    self.logger.info("EnergyPlus模拟成功完成")
-                    self.logger.info(f"生成文件: {len(output_files)} 个")
-                else:
-                    self.logger.error(f"EnergyPlus模拟失败，退出码: {result}")
-                
-                return run_result
-                
-            except FileNotFoundError:
-                self.logger.warning("EnergyPlus未安装，返回模拟结果")
-                run_result = {
-                    "success": True,
-                    "exit_code": 0,
-                    "output_directory": str(output_dir),
-                    "output_files": [],
-                    "idf_file": str(self.idf_path),
-                    "epw_file": epw_file_path,
-                    "simulation_mode": True,
-                    "message": "EnergyPlus未安装，此为模拟运行结果"
-                }
-                self.logger.info("模拟运行完成（EnergyPlus未安装）")
-                return run_result
-            
+        self.logger.info("Starting EnergyPlus simulation...")
+        self.logger.info(f"IDF file: {self.idf_path}")
+        self.logger.info(f"EPW file: {self.epw_path}")
+        self.logger.info(f"Output directory: {output_directory}")
+
+        try:
+            result = run(
+                idf=self.idf,
+                weather=self.epw_path,
+                output_directory=str(output_directory),
+                verbose="v",
+                readvars=True,
+            )
+
+            success = result == 0
+
+            return bool(success)
+
+        except FileNotFoundError:
+            self.logger.error("EnergyPlus executable not found.")
+            return False
+
         except Exception as e:
-            self.logger.exception(f"运行EnergyPlus模拟时发生错误: {e}")
+            self.logger.exception(f"Running EnergyPlus simulation failed: {e}")
             raise

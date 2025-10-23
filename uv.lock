@@ -52,6 +52,7 @@ dependencies = [
     { name = "pydantic" },
     { name = "pyyaml" },
     { name = "scipy" },
+    { name = "trimesh" },
 ]
 
 [package.metadata]
@@ -62,6 +63,7 @@ requires-dist = [
     { name = "pydantic", specifier = ">=2.11.7" },
     { name = "pyyaml", specifier = ">=6.0.2" },
     { name = "scipy", specifier = ">=1.16.2" },
+    { name = "trimesh", specifier = ">=4.9.0" },
 ]
 
 [[package]]
@@ -498,6 +500,18 @@ name = "tinynumpy"
 version = "1.2.1"
 source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/26/2d/1679ecf77ff85ecfc392fd713388580dce5ac6c48fe467c9bf8b8314947c/tinynumpy-1.2.1.tar.gz", hash = "sha256:f4b867eaa6ecfaf594ee64a4d6969acb5bddb94bda0427598f7fadf57a6bb750", size = 16023, upload-time = "2016-01-12T04:12:16.312Z" }
+
+[[package]]
+name = "trimesh"
+version = "4.9.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "numpy" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/1e/f1/110f6ed138a4a2ea77da2b5bc47d04ef80b7ccc41c2bdf3af6542520bd77/trimesh-4.9.0.tar.gz", hash = "sha256:ad907a223867f614ef1598d85a4c978845f39365cb7ccc93fa5800901fba3ef9", size = 832474, upload-time = "2025-10-22T17:42:25.809Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/fc/73/719ce8e11262d1fd42d0d24a98cee862c05d5f40b7869ad463c0912ea5d4/trimesh-4.9.0-py3-none-any.whl", hash = "sha256:934265a1de4b472bee21094c4e88d0a7522054b9911adb06e9b8062bb8757178", size = 736524, upload-time = "2025-10-22T17:42:23.436Z" },
+]
 
 [[package]]
 name = "typing-extensions"
