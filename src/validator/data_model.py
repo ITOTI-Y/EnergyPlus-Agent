@@ -340,7 +340,7 @@ class SurfaceSchema(BaseSchema):
         alias="View Factor to Ground",
         description="View factor to ground or 'autocalculate'",
     )
-    vertices: List[dict[str, float]] | np.ndarray = Field(
+    vertices: np.ndarray = Field(
         ..., alias="Vertices", description="List of vertices defining the surface"
     )
 
@@ -401,9 +401,11 @@ class SurfaceSchema(BaseSchema):
             raise ValueError(
                 "View Factor to Ground must be a number between 0.0 and 1.0 or 'autocalculate'."
             )
-    
-    @field_validator("vertices")
+
+    @field_validator("vertices", mode="before")
     def validate_vertices(cls, v):
+        if isinstance(v, np.ndarray):
+            return v
         tolerance = 1e-10
         if len(v) < 3:
             raise ValueError(f"The surface must have at least 3 vertices. current has {len(v)}")
@@ -471,16 +473,44 @@ class GeometrySchema(BaseSchema):
             if surface.surface_type == "Floor":
                 floor_surface = surface
                 interior_points.extend(self._get_interior_points(surface))
-                surface.vertices = self._sort_vertices_clockwise(surface, np.array([0,0,1]))
-            elif surface.surface_type == "Ceiling":
+                surface.vertices = self._sort_vertices_clockwise(surface, np.array([0,0,-1]))
+            elif surface.surface_type == "Roof" or surface.surface_type == "Ceiling":
                 ceiling_surface = surface
+                surface.vertices = self._sort_vertices_clockwise(surface, np.array([0,0,1]))
             elif surface.surface_type == "Wall":
                 wall_surfaces.append(surface)
 
         return self
     
     def _sort_vertices_clockwise(self, surface: SurfaceSchema, normal_vector: np.ndarray):
-        return []
+        points = surface.vertices
+        normal = normal_vector / np.linalg.norm(normal_vector)
+        centroid = np.mean(points, axis=0)
+
+        def compare_points(idx1, idx2):
+            v1 = points[idx1] - centroid
+            v2 = points[idx2] - centroid
+
+            cross = np.cross(v1, v2)
+
+            sign = np.dot(cross, normal)
+
+            if sign > 1e-10:
+                return 1
+            elif sign < -1e-10:
+                return -1
+            else:
+                d1 = np.linalg.norm(v1)
+                d2 = np.linalg.norm(v2)
+                return -1 if d1 < d2 else 1
+            
+        from functools import cmp_to_key
+        sorted_indices = sorted(range(len(points)), key=cmp_to_key(compare_points))
+        points = points[sorted_indices]
+        top_left_index = self._get_top_left_corner_from_normal(points, normal_vector)
+        points = np.roll(points, -top_left_index, axis=0)
+
+        return points[sorted_indices]
 
     def _get_interior_points(self, surface: SurfaceSchema) -> List:
         interior_points = []
@@ -491,6 +521,31 @@ class GeometrySchema(BaseSchema):
             centroid = triangle_vertices.mean(axis=0)
             interior_points.append(centroid.tolist())
         return interior_points
+
+    def _get_top_left_corner_from_normal(self, points, normal_vector):
+        normal = normal_vector / np.linalg.norm(normal_vector)
+
+        world_up = np.array([0, 0, 1])
+
+        if abs(np.dot(normal, world_up)) > 0.99:
+            world_up = np.array([0, 1, 0])
+
+        right = np.cross(world_up, normal)
+        right /= np.linalg.norm(right)
+
+        up = np.cross(normal, right)
+        up /= np.linalg.norm(up)
+
+        centroid = np.mean(points, axis=0)
+        relative_points = points - centroid
+
+        x_coords = np.dot(relative_points, right)
+        y_coords = np.dot(relative_points, up)
+
+        sort_keys = np.column_stack((-y_coords, x_coords))
+        top_left_index = np.lexsort((sort_keys[:, 1], sort_keys[:, 0]))[0]
+
+        return top_left_index
 
 def points_validator(surface_data):
     BuildingSurface_data = surface_data
