@@ -1,8 +1,9 @@
 from eppy.modeleditor import IDF
 from typing import Dict, Any
+from collections import defaultdict
 
 from src.converters.base_converter import BaseConverter
-from src.validator.data_model import SurfaceSchema
+from src.validator.data_model import SurfaceSchema, GeometrySchema
 from src.validator.data_model import points_validator
 from src.validator.data_model import closure_validator
 
@@ -14,21 +15,25 @@ class SurfaceConverter(BaseConverter):
     def convert(self, data: Dict) -> None:
         self.logger.info("Converting BuildingSurface data...")
         surface_data = data.get("BuildingSurface:Detailed", [])
-        closure_validate = closure_validator(surface_data)
-        if closure_validate:
-            self.logger.error(f"{closure_validate}: Space is not close !")
-        surface_data = points_validator(surface_data)
+        zone_to_surfaces = defaultdict(list)
+        for surface in surface_data:
+            zone_to_surfaces[surface["Zone Name"]].append(surface)
+        val_data = self.validate(zone_to_surfaces)
+        # closure_validate = closure_validator(surface_data)
+        # if closure_validate:
+        #     self.logger.error(f"{closure_validate}: Space is not close !")
+        # surface_data = points_validator(surface_data)
 
-        for sd in surface_data:
-            try:
-                val_data = self.validate(sd)
-                self._add_to_idf(val_data)
-            except Exception as e:
-                self.state["failed"] += 1
-                self.logger.error(
-                    f"Error Validate BuildingSurface Data: {e}", exc_info=True
-                )
-                continue
+        # for sd in surface_data:
+        #     try:
+        #         val_data = self.validate(sd)
+        #         self._add_to_idf(val_data)
+        #     except Exception as e:
+        #         self.state["failed"] += 1
+        #         self.logger.error(
+        #             f"Error Validate BuildingSurface Data: {e}", exc_info=True
+        #         )
+        #         continue
 
     def _add_to_idf(self, data: Any) -> None:
         if self.idf.getobject("BuildingSurface:Detailed", name=data.name):
@@ -67,6 +72,8 @@ class SurfaceConverter(BaseConverter):
             )
 
     def validate(self, data: Dict) -> Any:
-        val_data = SurfaceSchema.model_validate(data)
-
+        val_data = {}
+        for zone_name, surfaces in data.items():
+            geometry = GeometrySchema.model_validate({"surfaces": surfaces})
+            val_data[zone_name] = geometry
         return val_data

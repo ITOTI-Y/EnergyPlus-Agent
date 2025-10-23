@@ -2,6 +2,8 @@ from typing import Tuple, List, Optional, Dict
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 import numpy as np
 from scipy.spatial import Delaunay
+from collections import defaultdict
+
 from src.utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -338,7 +340,7 @@ class SurfaceSchema(BaseSchema):
         alias="View Factor to Ground",
         description="View factor to ground or 'autocalculate'",
     )
-    vertices: List[dict[str, float]] = Field(
+    vertices: List[dict[str, float]] | np.ndarray = Field(
         ..., alias="Vertices", description="List of vertices defining the surface"
     )
 
@@ -415,7 +417,7 @@ class SurfaceSchema(BaseSchema):
             for pt1, pt2 in np.argwhere(mask):
                 logger.error(f"Vertices {v[pt1]} and {v[pt2]} are too close.")
             raise ValueError("Some vertices are too close to each other.")
-        return v
+        return pts
 
     @model_validator(mode="after")
     def validate_boundary_condition_object(self):
@@ -427,6 +429,68 @@ class SurfaceSchema(BaseSchema):
                     f"Outside Boundary Condition is '{self.outside_boundary_condition}'."
                 )
         return self
+    
+class VertexSchema(BaseSchema):
+    vertices: List[Dict[str, float]] = Field(..., alias="Vertices", description="List of vertices defining the surface")
+    surface_type: str = Field(..., alias="Surface Type", description="Type of surface")
+    interior_points: Optional[List] = Field(None, alias="Interior Points", description="List of interior points for the surface")
+
+    @field_validator("vertices")
+    def validate_vertices(cls, v):
+        return v
+    
+class GeometrySchema(BaseSchema):
+    surfaces : List[SurfaceSchema] = Field(..., alias="BuildingSurface:Detailed", description="List of building surfaces")
+
+    @model_validator(mode="before")
+    def validate_surfaces(cls, v):
+        result = defaultdict(list)
+        for surface in v.get("surfaces", []):
+            result["surfaces"].append(SurfaceSchema.model_validate(surface))
+        return result
+    
+    @field_validator("surfaces")
+    def validate_geometry_closure(cls, v):
+        points = np.array([surface.vertices for surface in v]).reshape(-1,3)
+        unique_points, counts = np.unique(points, axis=0, return_counts=True)
+        unclosure_indices = np.argwhere(counts < 3)
+        if len(unclosure_indices) > 0:
+            for idx in unclosure_indices:
+                point = unique_points[idx]
+                logger.error(f"Point {point} is not properly closed in the geometry.")
+            raise ValueError("Geometry closure validation failed. Some points are not properly closed.")
+        return v
+    
+    @model_validator(mode="after")
+    def validate_points_sorting(self):
+        floor_surface: Optional[SurfaceSchema] = None
+        ceiling_surface: Optional[SurfaceSchema] = None
+        wall_surfaces: List[SurfaceSchema] = []
+        interior_points = []
+        for surface in self.surfaces:
+            if surface.surface_type == "Floor":
+                floor_surface = surface
+                interior_points.extend(self._get_interior_points(surface))
+                surface.vertices = self._sort_vertices_clockwise(surface, np.array([0,0,1]))
+            elif surface.surface_type == "Ceiling":
+                ceiling_surface = surface
+            elif surface.surface_type == "Wall":
+                wall_surfaces.append(surface)
+
+        return self
+    
+    def _sort_vertices_clockwise(self, surface: SurfaceSchema, normal_vector: np.ndarray):
+        return []
+
+    def _get_interior_points(self, surface: SurfaceSchema) -> List:
+        interior_points = []
+        if isinstance(surface.vertices, np.ndarray):
+            tri = Delaunay(surface.vertices[:, :-1])
+        for simplex in tri.simplices:
+            triangle_vertices = surface.vertices[simplex]
+            centroid = triangle_vertices.mean(axis=0)
+            interior_points.append(centroid.tolist())
+        return interior_points
 
 def points_validator(surface_data):
     BuildingSurface_data = surface_data
