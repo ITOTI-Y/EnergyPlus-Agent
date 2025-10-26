@@ -450,7 +450,7 @@ class GeometrySchema(BaseSchema):
     @field_validator("surfaces")
     def validate_geometry_closure(cls, v):
         # TODO: Consider the use of trimesh to implement a concave polygon triangularization closure check
-        points = np.vstack([surface.vertices for surface in v])
+        points = np.vstack([surface.vertices for surface in v]).round(8)
         unique_points, counts = np.unique(points, axis=0, return_counts=True)
         unclosure_indices = np.argwhere(counts < 3)
         if len(unclosure_indices) > 0:

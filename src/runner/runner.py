@@ -1,6 +1,7 @@
 from datetime import datetime
 from pathlib import Path
 from typing import Optional, cast
+from io import StringIO
 
 from eppy.modeleditor import IDF
 from eppy.runner.run_functions import run
@@ -23,7 +24,7 @@ class EnergyPlusRunner:
         else:
             try:
                 IDF.setiddname(str(idd_file_path))
-                self.idf = IDF()
+                self.idf = IDF(StringIO(""))
             except Exception as e:
                 self.logger.error(
                     f"Must provide either an IDF instance or a valid IDD file path. Error: {e}"
@@ -91,9 +92,9 @@ class EnergyPlusRunner:
                 readvars=True,
             )
 
-            success = result == 0
+            success: bool = result == "OK"
 
-            return bool(success)
+            return success
 
         except FileNotFoundError:
             self.logger.error("EnergyPlus executable not found.")
