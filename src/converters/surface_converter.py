@@ -1,58 +1,65 @@
 from eppy.modeleditor import IDF
-from typing import Dict, Any
+from typing import Dict, List
+from collections import defaultdict
 
 from src.converters.base_converter import BaseConverter
-from src.validator.data_model import SurfaceSchema
+from src.validator.data_model import SurfaceSchema, GeometrySchema
+
 
 class SurfaceConverter(BaseConverter):
-
     def __init__(self, idf: IDF):
         super().__init__(idf)
 
     def convert(self, data: Dict) -> None:
         self.logger.info("Converting BuildingSurface data...")
-        for sd in data.get('BuildingSurface:Detailed', []):
+        surface_data = data.get("BuildingSurface:Detailed", [])
+        zone_to_surfaces = defaultdict(list)
+        for surface in surface_data:
+            zone_to_surfaces[surface["Zone Name"]].append(surface)
+        val_data = self.validate(zone_to_surfaces)
+        for surface in val_data:
             try:
-                val_data = self.validate(sd)
-                self._add_to_idf(val_data)
+                self._add_to_idf(surface)
+                self.logger.success(
+                    f"Successfully converted BuildingSurface: {surface.name}"
+                )
+                self.state["success"] += 1
             except Exception as e:
-                self.state['failed'] += 1
-                self.logger.error(f"Error Validate BuildingSurface Data: {e}", exc_info=True)
-                continue
+                self.state["failed"] += 1
+                self.logger.error(
+                    f"Error Converting BuildingSurface Data: {e}", exc_info=True
+                )
 
-    
-    def _add_to_idf(self, data:Any) -> None:
+    def _add_to_idf(self, data: SurfaceSchema) -> None:
         if self.idf.getobject("BuildingSurface:Detailed", name=data.name):
-            self.logger.warning(f"BuildingSurface with name {data.name} already exists in IDF. Skipping addition.")
-            self.state['skipped'] += 1
-            return
-        try:
-            surface_obj = self.idf.newidfobject(
-                "BuildingSurface:Detailed",
-                Name=data.name,
-                Surface_Type=data.surface_type,
-                Construction_Name=data.construction_name,
-                Zone_Name=data.zone_name,
-                Space_Name=data.space_name or "",  
-                Outside_Boundary_Condition=data.outside_boundary_condition,
-                Outside_Boundary_Condition_Object=data.outside_boundary_condition_object or "",
-                Sun_Exposure=data.sun_exposure,
-                Wind_Exposure=data.wind_exposure,
-                View_Factor_to_Ground=data.view_factor_to_ground
+            self.logger.warning(
+                f"BuildingSurface with name {data.name} already exists in IDF. Skipping addition."
             )
-            
-            
-            for i, vertex in enumerate(data.vertices, 1):
-                setattr(surface_obj, f'Vertex_{i}_Xcoordinate', vertex['X'])
-                setattr(surface_obj, f'Vertex_{i}_Ycoordinate', vertex['Y'])
-                setattr(surface_obj, f'Vertex_{i}_Zcoordinate', vertex['Z'])
-            
-            self.state['success'] += 1
-            self.logger.success(f"BuildingSurface with name {data.name} added to IDF.")
-        except Exception as e:
-            self.state['failed'] += 1
-            self.logger.error(f"Error Adding BuildingSurface Data to IDF: {e}", exc_info=True)
+            self.state["skipped"] += 1
+            return
+        surface_obj = self.idf.newidfobject(
+            "BuildingSurface:Detailed",
+            Name=data.name,
+            Surface_Type=data.surface_type,
+            Construction_Name=data.construction_name,
+            Zone_Name=data.zone_name,
+            Space_Name=data.space_name or "",
+            Outside_Boundary_Condition=data.outside_boundary_condition,
+            Outside_Boundary_Condition_Object=data.outside_boundary_condition_object
+            or "",
+            Sun_Exposure=data.sun_exposure,
+            Wind_Exposure=data.wind_exposure,
+            View_Factor_to_Ground=data.view_factor_to_ground,
+        )
 
-    def validate(self, data: Dict) -> Any:
-        val_data = SurfaceSchema.model_validate(data)
+        for i, vertex in enumerate(data.vertices, 1):
+            setattr(surface_obj, f"Vertex_{i}_Xcoordinate", vertex[0])
+            setattr(surface_obj, f"Vertex_{i}_Ycoordinate", vertex[1])
+            setattr(surface_obj, f"Vertex_{i}_Zcoordinate", vertex[2])
+
+    def validate(self, data: Dict) -> List[SurfaceSchema]:
+        val_data = []
+        for _, surfaces in data.items():
+            geometry = GeometrySchema.model_validate({"surfaces": surfaces})
+            val_data.extend(geometry.surfaces)
         return val_data
