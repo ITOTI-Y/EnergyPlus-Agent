@@ -10,6 +10,8 @@ from src.converters import BuildingConverter, ZoneConverter, SurfaceConverter
 from src.validator.data_model import BaseSchema, IDDField
 from src.converters.material_converter import MaterialConverter
 from src.converters.construction_converter import ConstructionConverter
+from src.converters.material_converter import MaterialConverter
+from src.converters.construction_converter import ConstructionConverter
 from src.converters.setting_converter import SettingsConverter
 
 
