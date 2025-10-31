@@ -83,13 +83,13 @@ class MaterialConverter(BaseConverter):
         """
         根据材料类型返回对应的 IDF 键。
         """
-        type_to_key = {
+        type_to_key: Dict[str, str] = {
             "Standard": "Material",
             "NoMass": "Material:NoMass", 
             "AirGap": "Material:AirGap",
             "Glazing": "WindowMaterial:SimpleGlazingSystem"
         }
-        return type_to_key.get(material_type)
+        return type_to_key.get(material_type) or ""
 
     def _prepare_material_dict(self, material: MaterialSchema) -> Dict[str, Any]:
         """
