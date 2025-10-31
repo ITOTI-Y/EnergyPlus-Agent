@@ -59,21 +59,42 @@ RunPeriod:
 
 # ==================================================================
 # 材料
-# ==================================================================
 Material:
   - Name: Concrete_20cm
-    Roughness: MediumRough
-    Thickness : 0.2 # meters
-    Conductivity : 1.729 # W/m-K
-    Density : 2240 # kg/m3
-    Specific Heat : 837 # J/kg-K
-  - Name: Gypsum_1.3cm
-    Roughness: Smooth
-    Thickness : 0.0127 # meters
-    Conductivity : 0.16 # W/m-K
-    Density : 785 # kg/m3
-    Specific Heat : 830 # J/kg-K
+    Type: Standard
+    Properties:
+      Roughness: MediumRough
+      Thickness: 0.2
+      Conductivity: 1.729
+      Density: 2240
+      Specific_Heat: 837
 
+  - Name: Gypsum_1.3cm
+    Type: Standard
+    Properties:
+      Roughness: Smooth
+      Thickness: 0.0127
+      Conductivity: 0.16
+      Density: 785
+      Specific_Heat: 830
+
+  - Name: Interior_Insulation
+    Type: NoMass
+    Properties:
+      Roughness: MediumRough
+      Thermal_Resistance: 2.5
+
+  - Name: Roof_AirGap
+    Type: AirGap
+    Properties:
+      Thermal_Resistance: 0.18
+
+  - Name: SimpleGlazingSystem
+    Type: Glazing
+    Properties:
+      U-Factor: 5.8
+      Solar_Heat_Gain_Coefficient: 0.8
+      Visible_Transmittance: 0.9
 # ==================================================================
 # 构造
 # ==================================================================

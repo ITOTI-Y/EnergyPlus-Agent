@@ -1,4 +1,4 @@
-from typing import Tuple, List, Optional, Dict
+from typing import Tuple, List, Optional, Dict, Union, Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from src.utils.logging import get_logger
@@ -46,43 +46,249 @@ class IDDField:
 
 class BaseSchema(BaseModel):
     model_config = ConfigDict(
-        from_attributes=True,  # 支持从对象创建模型
-        validate_assignment=True,  # 赋值时验证
-        arbitrary_types_allowed=True,  # 允许任意类型
-        str_strip_whitespace=True,  # 自动去除字符串空格
-        use_enum_values=True,  # 使用枚举值
-        populate_by_name=True,  # 允许通过字段名填充
-        extra="ignore",  # 忽略额外字段
+        from_attributes=True,
+        validate_assignment=True,
+        arbitrary_types_allowed=True,
+        str_strip_whitespace=True,
+        str_to_lower=False,
+        use_enum_values=True,
+        populate_by_name=True,
+        extra="ignore",
+    )
+    
+    # 添加类变量
+    _idf_field = None
+    
+    # 添加缺失的方法
+    @classmethod
+    def set_idf_field(cls, idf_field):
+        cls._idf_field = idf_field
+    
+    # 添加 validate_choice_field 方法
+    @classmethod
+    def validate_choice_field(cls, value, valid_choices, field_name):
+        if value not in valid_choices:
+            raise ValueError(f"{field_name} must be one of {valid_choices}.")
+        return value
+
+
+# 标准材料属性类
+class StandardMaterialProperties(BaseSchema):
+    Roughness: str = Field(..., alias="Roughness")
+    Thickness: float = Field(..., alias="Thickness", gt=0)
+    Conductivity: float = Field(..., alias="Conductivity", gt=0)
+    Density: float = Field(..., alias="Density", gt=0)
+    Specific_Heat: float = Field(..., alias="Specific_Heat", gt=0)
+
+    @field_validator("Roughness")
+    def validate_roughness(cls, v: str) -> str:
+        valid_choices = ["VeryRough", "Rough", "MediumRough", "MediumSmooth", "Smooth", "VerySmooth"]
+        if v not in valid_choices:
+            raise ValueError(f"Roughness must be one of {valid_choices}.")
+        return v
+
+
+# NoMass 材料属性类
+class NoMassMaterialProperties(BaseSchema):
+    Roughness: str = Field(..., alias="Roughness")
+    Thermal_Resistance: float = Field(..., alias="Thermal_Resistance", gt=0)
+
+    @field_validator("Roughness")
+    def validate_roughness(cls, v: str) -> str:
+        valid_choices = ["VeryRough", "Rough", "MediumRough", "MediumSmooth", "Smooth", "VerySmooth"]
+        if v not in valid_choices:
+            raise ValueError(f"Roughness must be one of {valid_choices}.")
+        return v
+
+
+# AirGap 材料属性类
+class AirGapMaterialProperties(BaseSchema):
+    Thermal_Resistance: float = Field(..., alias="Thermal_Resistance", gt=0)
+
+
+# 玻璃材料属性类
+class GlazingMaterialProperties(BaseSchema):
+    U_Factor: float = Field(..., alias="U-Factor", gt=0) 
+    Solar_Heat_Gain_Coefficient: float = Field(..., alias="Solar_Heat_Gain_Coefficient", gt=0)
+    Visible_Transmittance: Optional[float] = Field(None, alias="Visible_Transmittance", ge=0, le=1)
+
+
+# 主 MaterialSchema - 使用 discriminated union 实现嵌套结构
+class MaterialSchema(BaseSchema):
+    """
+    嵌套结构的材料模式 - 使用 discriminated union
+    """
+    Name: str = Field(..., alias="Name", description="Unique name for the material.")
+    Type: str = Field(..., alias="Type", description="Material type: Standard, NoMass, AirGap, Glazing")
+    Properties: Union[
+        StandardMaterialProperties, 
+        NoMassMaterialProperties, 
+        AirGapMaterialProperties, 
+        GlazingMaterialProperties
+    ] = Field(..., alias="Properties", description="Material properties based on type")
+
+    @field_validator("Name")
+    def validate_name(cls, v: str) -> str:
+        if not v:
+            raise ValueError("Material Name must not be empty.")
+        return v
+
+    @field_validator("Type")
+    def validate_type(cls, v: str) -> str:
+        valid_types = ["Standard", "NoMass", "AirGap", "Glazing"]
+        if v not in valid_types:
+            raise ValueError(f"Type must be one of {valid_types}.")
+        return v
+
+    @model_validator(mode='before')
+    @classmethod
+    def validate_and_transform_properties(cls, data: Dict) -> Dict:
+        """
+        根据 Type 字段转换 Properties 为对应的类型
+        """
+        if not isinstance(data, dict):
+            return data
+            
+        material_type = data.get('Type')
+        properties = data.get('Properties')
+        
+        if not material_type or not properties:
+            return data
+        
+        # 根据 Type 转换 Properties 为对应的类型
+        try:
+            if material_type == "Standard":
+                validated_props = StandardMaterialProperties.model_validate(properties)
+                data['Properties'] = validated_props
+            elif material_type == "NoMass":
+                validated_props = NoMassMaterialProperties.model_validate(properties)
+                data['Properties'] = validated_props
+            elif material_type == "AirGap":
+                validated_props = AirGapMaterialProperties.model_validate(properties)
+                data['Properties'] = validated_props
+            elif material_type == "Glazing":
+                validated_props = GlazingMaterialProperties.model_validate(properties)
+                data['Properties'] = validated_props
+        except Exception as e:
+            material_name = data.get('Name', 'Unknown')
+            raise ValueError(f"Invalid properties for {material_type} material '{material_name}': {str(e)}")
+        
+        return data
+
+# ... 其他 Schema 保持不变 ...
+
+class BuildingSchema(BaseSchema):
+    name: str = Field(..., alias="Name", description="Building name")
+    north_axis: float = Field(
+        0.0, alias="North Axis", description="Building north axis in degrees"
+    )
+    terrain: str = Field("Suburbs", alias="Terrain", description="Terrain type")
+    loads_convergence_tolerance_value: float = Field(
+        0.04,
+        alias="Loads Convergence Tolerance Value",
+        description="Loads convergence tolerance value",
+    )
+    temperature_convergence_tolerance_value: float = Field(
+        0.4,
+        alias="Temperature Convergence Tolerance Value",
+        description="Temperature convergence tolerance value",
+    )
+    solar_distribution: str = Field(
+        "FullExterior", alias="Solar Distribution", description="Solar distribution"
+    )
+    maximum_number_of_warmup_days: int = Field(
+        25,
+        alias="Maximum Number of Warmup Days",
+        description="Maximum number of warmup days",
+    )
+    minimum_number_of_warmup_days: int = Field(
+        0,
+        alias="Minimum Number of Warmup Days",
+        description="Minimum number of warmup days",
     )
 
-    _idf_field: IDDField = IDDField({})
+    @field_validator("name")
+    def validate_name(cls, v):
+        if not v:
+            raise ValueError("Name must not be empty.")
+        return v
 
-    @classmethod
-    def set_idf_field(cls, idf_field: IDDField):
-        cls._idf_field = idf_field
+    @field_validator("north_axis")
+    def validate_north_axis(cls, v):
+        if not (0 <= v < 360):
+            raise ValueError("North Axis must be in [0, 360).")
+        return v
 
-    @property
-    def idf_field(self) -> IDDField:
-        return self._idf_field
+    @field_validator("terrain")
+    def validate_terrain(cls, v):
+        valid_terrains = {"Suburbs", "Country", "City", "Ocean", "Urban"}
+        if v not in valid_terrains:
+            raise ValueError(f"Terrain must be one of {valid_terrains}.")
+        return v
 
-    @staticmethod
-    def validate_choice_field(value: str, valid_choices: list, field_name: str) -> str:
-        choice_mapping = {choice.lower(): choice for choice in valid_choices}
-        value_lower = value.lower()
+    @field_validator(
+        "loads_convergence_tolerance_value", "temperature_convergence_tolerance_value"
+    )
+    def validate_positive(cls, v):
+        if v <= 0:
+            raise ValueError("Value must be positive.")
+        return v
 
-        if value_lower not in choice_mapping:
-            logger.error(
-                f"{field_name} '{value}' is not a valid choice. Valid choices are: {valid_choices}."
-            )
-            raise ValueError(f"{field_name} must be one of {valid_choices}.")
+    @field_validator("solar_distribution")
+    def validate_solar_distribution(cls, v):
+        valid_distribution = {
+            "FullExterior",
+            "MinimalShadowing",
+            "FullInteriorAndExterior",
+            "FullExteriorWithReflections",
+            "FullInteriorAndExteriorWithReflections",
+        }
+        if v not in valid_distribution:
+            raise ValueError(f"Solar Distribution must be one of {valid_distribution}.")
+        return v
 
-        if value not in valid_choices:
-            logger.warning(
-                f"{field_name} '{value}' is not in the standard casing. Using '{choice_mapping[value_lower]}' instead."
-            )
-        return choice_mapping[value_lower]
+    @field_validator("maximum_number_of_warmup_days", "minimum_number_of_warmup_days")
+    def validate_warmup_days(cls, v):
+        if v < 0:
+            raise ValueError("Warmup days must be non-negative.")
+        return v
 
 
+class VersionSchema(BaseSchema):
+    version: str | Tuple | List = Field(
+        ..., alias="Version Identifier", description="Version identifier"
+    )
+
+    @field_validator("version")
+    def validate_version(cls, v):
+        if not v:
+            raise ValueError("Version Identifier must not be empty.")
+        if isinstance(v, (list, tuple)):
+            return ".".join([str(i) for i in v])
+        if isinstance(v, str):
+            return v
+        raise ValueError(
+            "Version Identifier must be a string or a tuple/list of integers."
+        )
+
+
+class ConstructionSchema(BaseSchema):
+    Name: str = Field(..., alias="Name")
+    Layers: List[str] = Field(..., alias="Layers", min_length=1)
+
+    @field_validator("Name")
+    def validate_name(cls, v: str) -> str:
+        if not v:
+            raise ValueError("Construction Name must not be empty.")
+        return v
+    
+    @field_validator("Layers")
+    def validate_layers(cls, v: List[str]) -> List[str]:
+        if not all(isinstance(layer, str) and layer for layer in v):
+            raise ValueError("All items in Layers must be non-empty strings.")
+        return v
+
+# ... 其他 Schema 类保持不变 ..
 class BuildingSchema(BaseSchema):
     name: str = Field(..., alias="Name", description="Building name")
     north_axis: float = Field(
@@ -681,51 +887,6 @@ class OutputVariableSchema(BaseSchema):
             cls._idf_field, "Output_Variable"
         ).Reporting_Frequency.key
         return cls.validate_choice_field(v, valid_frequencies, "Reporting Frequency")
-
-class MaterialSchema(BaseSchema):
-    """
-    A schema that can validate both standard materials and no-mass materials.
-    The type of material is inferred based on the presence of specific fields.
-    """
-    Name: str = Field(..., alias="Name", description="Unique name for the material.")
-    Roughness: str = Field("MediumRough", alias="Roughness", description="Surface roughness.")
-    
-    Thickness: Optional[float] = Field(None, alias="Thickness", description="Thickness [m]. Required for standard materials.", gt=0)
-    Conductivity: Optional[float] = Field(None, alias="Conductivity", description="Thermal conductivity [W/m-K]. Required for standard materials.", gt=0)
-    Density: Optional[float] = Field(None, alias="Density", description="Density [kg/m^3]. Required for standard materials.", gt=0)
-    Specific_Heat: Optional[float] = Field(None, alias="Specific Heat", description="Specific heat [J/kg-K]. Required for standard materials.", gt=0)
-    
-    Thermal_Resistance: Optional[float] = Field(None, alias="Thermal Resistance", description="Thermal resistance [m^2-K/W]. Required for NoMass materials.", gt=0)
-
-    @field_validator("Name")
-    def validate_name(cls, v: str) -> str:
-        if not v: raise ValueError("Material Name must not be empty.")
-        return v
-    
-    @field_validator("Roughness")
-    def validate_roughness(cls, v: str) -> str:
-        try:
-            valid_choices_material = getattr(cls._idf_field, "Material").Roughness.key
-            return cls.validate_choice_field(v, valid_choices_material, "Roughness")
-        except AttributeError:
-            valid_choices_nomass = getattr(cls._idf_field, "Material_NoMass").Roughness.key
-            return cls.validate_choice_field(v, valid_choices_nomass, "Roughness")
-
-    @model_validator(mode='after')
-    def check_material_type(self) -> 'MaterialSchema':
-        """
-        Checks that either all standard properties or all NoMass properties are present.
-        """
-        is_standard = all(p is not None for p in [self.Thickness, self.Conductivity, self.Density, self.Specific_Heat])
-        is_nomass = self.Thermal_Resistance is not None
-
-        if is_standard and is_nomass:
-            raise ValueError(f"Material '{self.Name}' cannot have both standard properties and Thermal Resistance.")
-        if not is_standard and not is_nomass:
-            raise ValueError(f"Material '{self.Name}' must have either all standard properties (Thickness, etc.) or Thermal Resistance.")
-        
-        return self
-    
 class ConstructionSchema(BaseSchema):
     Name: str = Field(..., alias="Name")
     Layers: List[str] = Field(..., alias="Layers", min_length=1)
