@@ -1,8 +1,8 @@
-from typing import Tuple, List, Optional, Dict, Union, Literal
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
-import numpy as np
-from scipy.spatial import Delaunay
 from collections import defaultdict
+
+import numpy as np
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from scipy.spatial import Delaunay
 
 from src.utils.logging import get_logger
 
@@ -10,7 +10,7 @@ logger = get_logger(__name__)
 
 
 class IDDField:
-    def __init__(self, data: List[Dict] | Dict):
+    def __init__(self, data: list[dict] | dict):
         if isinstance(data, list):
             for obj in data:
                 if isinstance(obj, list):
@@ -46,252 +46,51 @@ class IDDField:
             key = key.replace(i, "_")
         return key
 
-
-class BaseSchema(BaseModel):
-    model_config = ConfigDict(
-        from_attributes=True,
-        validate_assignment=True,
-        arbitrary_types_allowed=True,
-        str_strip_whitespace=True,
-        str_to_lower=False,
-        use_enum_values=True,
-        populate_by_name=True,
-        extra="ignore",
-    )
-    
-    # 添加类变量
-    _idf_field = None
-    
-    # 添加缺失的方法
-    @classmethod
-    def set_idf_field(cls, idf_field):
-        cls._idf_field = idf_field
-    
-    # 添加 validate_choice_field 方法
-    @classmethod
-    def validate_choice_field(cls, value, valid_choices, field_name):
-        if value not in valid_choices:
-            raise ValueError(f"{field_name} must be one of {valid_choices}.")
-        return value
-
-
-# 标准材料属性类
-class StandardMaterialProperties(BaseSchema):
-    Roughness: str = Field(..., alias="Roughness")
-    Thickness: float = Field(..., alias="Thickness", gt=0)
-    Conductivity: float = Field(..., alias="Conductivity", gt=0)
-    Density: float = Field(..., alias="Density", gt=0)
-    Specific_Heat: float = Field(..., alias="Specific_Heat", gt=0)
-
-    @field_validator("Roughness")
-    def validate_roughness(cls, v: str) -> str:
-        valid_choices = ["VeryRough", "Rough", "MediumRough", "MediumSmooth", "Smooth", "VerySmooth"]
-        if v not in valid_choices:
-            raise ValueError(f"Roughness must be one of {valid_choices}.")
-        return v
-
-
-# NoMass 材料属性类
-class NoMassMaterialProperties(BaseSchema):
-    Roughness: str = Field(..., alias="Roughness")
-    Thermal_Resistance: float = Field(..., alias="Thermal_Resistance", gt=0)
-
-    @field_validator("Roughness")
-    def validate_roughness(cls, v: str) -> str:
-        valid_choices = ["VeryRough", "Rough", "MediumRough", "MediumSmooth", "Smooth", "VerySmooth"]
-        if v not in valid_choices:
-            raise ValueError(f"Roughness must be one of {valid_choices}.")
-        return v
-
-
-# AirGap 材料属性类
-class AirGapMaterialProperties(BaseSchema):
-    Thermal_Resistance: float = Field(..., alias="Thermal_Resistance", gt=0)
-
-
-# 玻璃材料属性类
-class GlazingMaterialProperties(BaseSchema):
-    U_Factor: float = Field(..., alias="U-Factor", gt=0) 
-    Solar_Heat_Gain_Coefficient: float = Field(..., alias="Solar_Heat_Gain_Coefficient", gt=0)
-    Visible_Transmittance: Optional[float] = Field(None, alias="Visible_Transmittance", ge=0, le=1)
-
-
-# 主 MaterialSchema - 使用 discriminated union 实现嵌套结构
-class MaterialSchema(BaseSchema):
-    """
-    嵌套结构的材料模式 - 使用 discriminated union
-    """
-    Name: str = Field(..., alias="Name", description="Unique name for the material.")
-    Type: str = Field(..., alias="Type", description="Material type: Standard, NoMass, AirGap, Glazing")
-    Properties: Union[
-        StandardMaterialProperties, 
-        NoMassMaterialProperties, 
-        AirGapMaterialProperties, 
-        GlazingMaterialProperties
-    ] = Field(..., alias="Properties", description="Material properties based on type")
-
-    @field_validator("Name")
-    def validate_name(cls, v: str) -> str:
-        if not v:
-            raise ValueError("Material Name must not be empty.")
-        return v
-
-    @field_validator("Type")
-    def validate_type(cls, v: str) -> str:
-        valid_types = ["Standard", "NoMass", "AirGap", "Glazing"]
-        if v not in valid_types:
-            raise ValueError(f"Type must be one of {valid_types}.")
-        return v
-
-    @model_validator(mode='before')
-    @classmethod
-    def validate_and_transform_properties(cls, data: Dict) -> Dict:
-        """
-        根据 Type 字段转换 Properties 为对应的类型
-        """
-        if not isinstance(data, dict):
-            return data
-            
-        material_type = data.get('Type')
-        properties = data.get('Properties')
-        
-        if not material_type or not properties:
-            return data
-        
-        # 根据 Type 转换 Properties 为对应的类型
-        try:
-            if material_type == "Standard":
-                validated_props = StandardMaterialProperties.model_validate(properties)
-                data['Properties'] = validated_props
-            elif material_type == "NoMass":
-                validated_props = NoMassMaterialProperties.model_validate(properties)
-                data['Properties'] = validated_props
-            elif material_type == "AirGap":
-                validated_props = AirGapMaterialProperties.model_validate(properties)
-                data['Properties'] = validated_props
-            elif material_type == "Glazing":
-                validated_props = GlazingMaterialProperties.model_validate(properties)
-                data['Properties'] = validated_props
-        except Exception as e:
-            material_name = data.get('Name', 'Unknown')
-            raise ValueError(f"Invalid properties for {material_type} material '{material_name}': {str(e)}")
-        
-        return data
-
-# ... 其他 Schema 保持不变 ...
-
-class BuildingSchema(BaseSchema):
-    name: str = Field(..., alias="Name", description="Building name")
-    north_axis: float = Field(
-        0.0, alias="North Axis", description="Building north axis in degrees"
-    )
-    terrain: str = Field("Suburbs", alias="Terrain", description="Terrain type")
-    loads_convergence_tolerance_value: float = Field(
-        0.04,
-        alias="Loads Convergence Tolerance Value",
-        description="Loads convergence tolerance value",
-    )
-    temperature_convergence_tolerance_value: float = Field(
-        0.4,
-        alias="Temperature Convergence Tolerance Value",
-        description="Temperature convergence tolerance value",
-    )
-    solar_distribution: str = Field(
-        "FullExterior", alias="Solar Distribution", description="Solar distribution"
-    )
-    maximum_number_of_warmup_days: int = Field(
-        25,
-        alias="Maximum Number of Warmup Days",
-        description="Maximum number of warmup days",
-    )
-    minimum_number_of_warmup_days: int = Field(
-        0,
-        alias="Minimum Number of Warmup Days",
-        description="Minimum number of warmup days",
-    )
-
-    @field_validator("name")
-    def validate_name(cls, v):
-        if not v:
-            raise ValueError("Name must not be empty.")
-        return v
-
-    @field_validator("north_axis")
-    def validate_north_axis(cls, v):
-        if not (0 <= v < 360):
-            raise ValueError("North Axis must be in [0, 360).")
-        return v
-
-    @field_validator("terrain")
-    def validate_terrain(cls, v):
-        valid_terrains = {"Suburbs", "Country", "City", "Ocean", "Urban"}
-        if v not in valid_terrains:
-            raise ValueError(f"Terrain must be one of {valid_terrains}.")
-        return v
-
-    @field_validator(
-        "loads_convergence_tolerance_value", "temperature_convergence_tolerance_value"
-    )
-    def validate_positive(cls, v):
-        if v <= 0:
-            raise ValueError("Value must be positive.")
-        return v
-
-    @field_validator("solar_distribution")
-    def validate_solar_distribution(cls, v):
-        valid_distribution = {
-            "FullExterior",
-            "MinimalShadowing",
-            "FullInteriorAndExterior",
-            "FullExteriorWithReflections",
-            "FullInteriorAndExteriorWithReflections",
-        }
-        if v not in valid_distribution:
-            raise ValueError(f"Solar Distribution must be one of {valid_distribution}.")
-        return v
-
-    @field_validator("maximum_number_of_warmup_days", "minimum_number_of_warmup_days")
-    def validate_warmup_days(cls, v):
-        if v < 0:
-            raise ValueError("Warmup days must be non-negative.")
-        return v
-
-
-class VersionSchema(BaseSchema):
-    version: str | Tuple | List = Field(
-        ..., alias="Version Identifier", description="Version identifier"
-    )
-
-    @field_validator("version")
-    def validate_version(cls, v):
-        if not v:
-            raise ValueError("Version Identifier must not be empty.")
-        if isinstance(v, (list, tuple)):
-            return ".".join([str(i) for i in v])
-        if isinstance(v, str):
-            return v
-        raise ValueError(
-            "Version Identifier must be a string or a tuple/list of integers."
+    def __getattr__(self, name: str) -> "IDDField":
+        raise AttributeError(
+            f"'{self.__class__.__name__}' object has no attribute '{name}'"
         )
 
 
-class ConstructionSchema(BaseSchema):
-    Name: str = Field(..., alias="Name")
-    Layers: List[str] = Field(..., alias="Layers", min_length=1)
+class BaseSchema(BaseModel):
+    model_config = ConfigDict(
+        from_attributes=True,  # 支持从对象创建模型
+        validate_assignment=True,  # 赋值时验证
+        arbitrary_types_allowed=True,  # 允许任意类型
+        str_strip_whitespace=True,  # 自动去除字符串空格
+        use_enum_values=True,  # 使用枚举值
+        populate_by_name=True,  # 允许通过字段名填充
+        extra="allow",  # 允许额外字段
+    )
 
-    @field_validator("Name")
-    def validate_name(cls, v: str) -> str:
-        if not v:
-            raise ValueError("Construction Name must not be empty.")
-        return v
-    
-    @field_validator("Layers")
-    def validate_layers(cls, v: List[str]) -> List[str]:
-        if not all(isinstance(layer, str) and layer for layer in v):
-            raise ValueError("All items in Layers must be non-empty strings.")
-        return v
+    _idf_field: IDDField = IDDField({})
 
-# ... 其他 Schema 类保持不变 ..
+    @classmethod
+    def set_idf_field(cls, idf_field: IDDField):
+        cls._idf_field = idf_field
+
+    @property
+    def idf_field(self) -> IDDField:
+        return self._idf_field
+
+    @staticmethod
+    def validate_choice_field(value: str, valid_choices: list, field_name: str) -> str:
+        choice_mapping = {choice.lower(): choice for choice in valid_choices}
+        value_lower = value.lower()
+
+        if value_lower not in choice_mapping:
+            logger.error(
+                f"{field_name} '{value}' is not a valid choice. Valid choices are: {valid_choices}."
+            )
+            raise ValueError(f"{field_name} must be one of {valid_choices}.")
+
+        if value not in valid_choices:
+            logger.warning(
+                f"{field_name} '{value}' is not in the standard casing. Using '{choice_mapping[value_lower]}' instead."
+            )
+        return choice_mapping[value_lower]
+
+
 class BuildingSchema(BaseSchema):
     name: str = Field(..., alias="Name", description="Building name")
     north_axis: float = Field(
@@ -370,7 +169,7 @@ class BuildingSchema(BaseSchema):
 
 
 class VersionSchema(BaseSchema):
-    version: str | Tuple | List = Field(
+    version: str | tuple | list = Field(
         ..., alias="Version Identifier", description="Version identifier"
     )
 
@@ -389,7 +188,7 @@ class VersionSchema(BaseSchema):
 
 class ZoneSchema(BaseSchema):
     name: str = Field(..., alias="Name", description="Zone name")
-    direction_of_relative_north: Optional[float] = Field(
+    direction_of_relative_north: float | None = Field(
         0.0,
         alias="Direction of Relative North",
         description="Direction of relative north in degrees",
@@ -471,8 +270,8 @@ class ZoneSchema(BaseSchema):
             if fv <= 0:
                 raise ValueError("Value must be positive or 'autocalculate'.")
             return fv
-        except (TypeError, ValueError):
-            raise ValueError("Value must be a number or 'autocalculate'.")
+        except (TypeError, ValueError) as e:
+            raise ValueError("Value must be a number or 'autocalculate'.") from e
 
     @field_validator("zone_inside_convection_algorithm")
     def validate_zone_inside_convection_algorithm(cls, v):
@@ -524,7 +323,7 @@ class SurfaceSchema(BaseSchema):
     zone_name: str = Field(
         ..., alias="Zone Name", description="Name of the associated zone"
     )
-    space_name: Optional[str] = Field(
+    space_name: str | None = Field(
         None, alias="Space Name", description="Name of the associated space"
     )
     outside_boundary_condition: str = Field(
@@ -532,7 +331,7 @@ class SurfaceSchema(BaseSchema):
         alias="Outside Boundary Condition",
         description="Outside boundary condition",
     )
-    outside_boundary_condition_object: Optional[str] = Field(
+    outside_boundary_condition_object: str | None = Field(
         None,
         alias="Outside Boundary Condition Object",
         description="Outside boundary condition object",
@@ -558,18 +357,16 @@ class SurfaceSchema(BaseSchema):
 
     @field_validator("surface_type")
     def validate_surface_type(cls, v):
-        valid_types = getattr(
-            cls._idf_field, "BuildingSurface_Detailed"
-        ).Surface_Type.key
+        valid_types = cls._idf_field.BuildingSurface_Detailed.Surface_Type.key
         if v not in valid_types:
             raise ValueError(f"Surface Type must be one of {valid_types}.")
         return v
 
     @field_validator("outside_boundary_condition")
     def validate_outside_boundary_condition(cls, v):
-        valid_conditions = getattr(
-            cls._idf_field, "BuildingSurface_Detailed"
-        ).Outside_Boundary_Condition.key
+        valid_conditions = (
+            cls._idf_field.BuildingSurface_Detailed.Outside_Boundary_Condition.key
+        )
         if v not in valid_conditions:
             raise ValueError(
                 f"Outside Boundary Condition must be one of {valid_conditions}."
@@ -578,18 +375,14 @@ class SurfaceSchema(BaseSchema):
 
     @field_validator("sun_exposure")
     def validate_sun_exposure(cls, v):
-        valid_exposures = getattr(
-            cls._idf_field, "BuildingSurface_Detailed"
-        ).Sun_Exposure.key
+        valid_exposures = cls._idf_field.BuildingSurface_Detailed.Sun_Exposure.key
         if v not in valid_exposures:
             raise ValueError(f"Sun Exposure must be one of {valid_exposures}.")
         return v
 
     @field_validator("wind_exposure")
     def validate_wind_exposure(cls, v):
-        valid_exposures = getattr(
-            cls._idf_field, "BuildingSurface_Detailed"
-        ).Wind_Exposure.key
+        valid_exposures = cls._idf_field.BuildingSurface_Detailed.Wind_Exposure.key
         if v not in valid_exposures:
             raise ValueError(f"Wind Exposure must be one of {valid_exposures}.")
         return v
@@ -603,10 +396,10 @@ class SurfaceSchema(BaseSchema):
             if not (0.0 <= fv <= 1.0):
                 raise ValueError("View Factor to Ground must be between 0.0 and 1.0.")
             return fv
-        except (TypeError, ValueError):
+        except (TypeError, ValueError) as e:
             raise ValueError(
                 "View Factor to Ground must be a number between 0.0 and 1.0 or 'autocalculate'."
-            )
+            ) from e
 
     @field_validator("vertices", mode="before")
     def validate_vertices(cls, v):
@@ -632,17 +425,19 @@ class SurfaceSchema(BaseSchema):
     @model_validator(mode="after")
     def validate_boundary_condition_object(self):
         needs_obj = {"Surface", "OtherSideCoefficients", "OtherSideConditionsModel"}
-        if self.outside_boundary_condition in needs_obj:
-            if not self.outside_boundary_condition_object:
-                raise ValueError(
-                    f"Outside Boundary Condition Object is required when "
-                    f"Outside Boundary Condition is '{self.outside_boundary_condition}'."
-                )
+        if (
+            self.outside_boundary_condition in needs_obj
+            and not self.outside_boundary_condition_object
+        ):
+            raise ValueError(
+                f"Outside Boundary Condition Object is required when "
+                f"Outside Boundary Condition is '{self.outside_boundary_condition}'."
+            )
         return self
 
 
 class GeometrySchema(BaseSchema):
-    surfaces: List[SurfaceSchema] = Field(
+    surfaces: list[SurfaceSchema] = Field(
         ..., alias="BuildingSurface:Detailed", description="List of building surfaces"
     )
 
@@ -737,7 +532,9 @@ class GeometrySchema(BaseSchema):
                 logger.exception(
                     f"Failed to perform Delaunay triangulation on surface {surface.name}: {e}"
                 )
-                raise ValueError(f"Delaunay triangulation failed for surface {surface.name}.") from e
+                raise ValueError(
+                    f"Delaunay triangulation failed for surface {surface.name}."
+                ) from e
         for simplex in tri.simplices:
             triangle_vertices = surface.vertices[simplex]
             centroid = triangle_vertices.mean(axis=0)
@@ -793,35 +590,35 @@ class GeometrySchema(BaseSchema):
 
 
 class SimulationControlSchema(BaseSchema):
-    Do_Zone_Sizing_Calculation: str | bool = Field(
+    do_zone_sizing_calculation: str | bool = Field(
         "No", alias="Do Zone Sizing Calculation"
     )
-    Do_System_Sizing_Calculation: str | bool = Field(
+    do_system_sizing_calculation: str | bool = Field(
         "No", alias="Do System Sizing Calculation"
     )
-    Do_Plant_Sizing_Calculation: str | bool = Field(
+    do_plant_sizing_calculation: str | bool = Field(
         "No", alias="Do Plant Sizing Calculation"
     )
-    Run_Simulation_for_Sizing_Periods: str | bool = Field(
+    run_simulation_for_sizing_periods: str | bool = Field(
         "No", alias="Run Simulation for Sizing Periods"
     )
-    Run_Simulation_for_Weather_File_Run_Periods: str | bool = Field(
+    run_simulation_for_weather_file_run_periods: str | bool = Field(
         "Yes", alias="Run Simulation for Weather File Run Periods"
     )
-    Do_HVAC_Sizing_Simulation_for_Sizing_Periods: Optional[str | bool] = Field(
+    do_hvac_sizing_simulation_for_sizing_periods: str | bool | None = Field(
         "Yes", alias="Do HVAC Sizing Simulation for Sizing Periods"
     )
-    Maximum_Number_of_HVAC_Sizing_Simulation_Passes: Optional[int] = Field(
+    maximum_number_of_hvac_sizing_simulation_passes: int | None = Field(
         1, alias="Maximum Number of HVAC Sizing Simulation Passes"
     )
 
     @field_validator(
-        "Do_Zone_Sizing_Calculation",
-        "Do_System_Sizing_Calculation",
-        "Do_Plant_Sizing_Calculation",
-        "Run_Simulation_for_Sizing_Periods",
-        "Run_Simulation_for_Weather_File_Run_Periods",
-        "Do_HVAC_Sizing_Simulation_for_Sizing_Periods",
+        "do_zone_sizing_calculation",
+        "do_system_sizing_calculation",
+        "do_plant_sizing_calculation",
+        "run_simulation_for_sizing_periods",
+        "run_simulation_for_weather_file_run_periods",
+        "do_hvac_sizing_simulation_for_sizing_periods",
         mode="before",
     )
     def convert_bool_to_yes_no(cls, v):
@@ -831,9 +628,9 @@ class SimulationControlSchema(BaseSchema):
 
 
 class TimestepSchema(BaseSchema):
-    Number_of_Timesteps_per_Hour: int = Field(4, alias="Number of Timesteps per Hour")
+    number_of_timesteps_per_hour: int = Field(4, alias="Number of Timesteps per Hour")
 
-    @field_validator("Number_of_Timesteps_per_Hour")
+    @field_validator("number_of_timesteps_per_hour")
     def validate_timesteps(cls, v):
         if v < 1:
             raise ValueError("Number of Timesteps per Hour must be at least 1.")
@@ -841,31 +638,31 @@ class TimestepSchema(BaseSchema):
 
 
 class SiteLocationSchema(BaseSchema):
-    Name: str = Field(..., alias="Name")
-    Latitude: float = Field(..., alias="Latitude")
-    Longitude: float = Field(..., alias="Longitude")
-    Time_Zone: float = Field(..., alias="Time Zone")
-    Elevation: float = Field(..., alias="Elevation")
+    name: str = Field(..., alias="Name")
+    latitude: float = Field(..., alias="Latitude")
+    longitude: float = Field(..., alias="Longitude")
+    time_zone: float = Field(..., alias="Time Zone")
+    elevation: float = Field(..., alias="Elevation")
 
-    @field_validator("Name")
+    @field_validator("name")
     def validate_name(cls, v):
         if not v:
             raise ValueError("Name must not be empty.")
         return v
 
-    @field_validator("Latitude")
+    @field_validator("latitude")
     def validate_latitude(cls, v):
         if not (-90 <= v <= 90):
             raise ValueError("Latitude must be between -90 and 90 degrees.")
         return v
 
-    @field_validator("Longitude")
+    @field_validator("longitude")
     def validate_longitude(cls, v):
         if not (-180 <= v <= 180):
             raise ValueError("Longitude must be between -180 and 180 degrees.")
         return v
 
-    @field_validator("Time_Zone")
+    @field_validator("time_zone")
     def validate_time_zone(cls, v):
         if not (-12 <= v <= 14):
             raise ValueError("Time Zone must be between -12 and 14 hours.")
@@ -873,38 +670,38 @@ class SiteLocationSchema(BaseSchema):
 
 
 class RunPeriodSchema(BaseSchema):
-    Name: str = Field(..., alias="Name")
-    Begin_Month: int = Field(..., alias="Begin Month")
-    Begin_Day_of_Month: int = Field(..., alias="Begin Day of Month")
-    Begin_Year: Optional[int] = Field(None, alias="Begin Year")
-    End_Month: int = Field(..., alias="End Month")
-    End_Day_of_Month: int = Field(..., alias="End Day of Month")
-    End_Year: Optional[int] = Field(None, alias="End Year")
-    Day_of_Week_for_Start_Day: Optional[str] = Field(
+    name: str = Field(..., alias="Name")
+    begin_month: int = Field(..., alias="Begin Month")
+    begin_day_of_month: int = Field(..., alias="Begin Day of Month")
+    begin_year: int | None = Field(None, alias="Begin Year")
+    end_month: int = Field(..., alias="End Month")
+    end_day_of_month: int = Field(..., alias="End Day of Month")
+    end_year: int | None = Field(None, alias="End Year")
+    day_of_week_for_start_day: str | None = Field(
         None, alias="Day of Week for Start Day"
     )
-    Use_Weather_File_Holidays_and_Special_Days: Optional[str | bool] = Field(
+    use_weather_file_holidays_and_special_days: str | bool | None = Field(
         None, alias="Use Weather File Holidays and Special Days"
     )
-    Use_Weather_File_Daylight_Saving_Period: Optional[str | bool] = Field(
+    use_weather_file_daylight_saving_period: str | bool | None = Field(
         None, alias="Use Weather File Daylight Saving Period"
     )
-    Apply_Weekend_Holiday_Rule: Optional[str | bool] = Field(
+    apply_weekend_holiday_rule: str | bool | None = Field(
         None, alias="Apply Weekend Holiday Rule"
     )
-    Use_Weather_File_Rain_Indicators: Optional[str | bool] = Field(
+    use_weather_file_rain_indicators: str | bool | None = Field(
         None, alias="Use Weather File Rain Indicators"
     )
-    Use_Weather_File_Snow_Indicators: Optional[str | bool] = Field(
+    use_weather_file_snow_indicators: str | bool | None = Field(
         None, alias="Use Weather File Snow Indicators"
     )
 
     @field_validator(
-        "Use_Weather_File_Holidays_and_Special_Days",
-        "Use_Weather_File_Daylight_Saving_Period",
-        "Apply_Weekend_Holiday_Rule",
-        "Use_Weather_File_Rain_Indicators",
-        "Use_Weather_File_Snow_Indicators",
+        "use_weather_file_holidays_and_special_days",
+        "use_weather_file_daylight_saving_period",
+        "apply_weekend_holiday_rule",
+        "use_weather_file_rain_indicators",
+        "use_weather_file_snow_indicators",
         mode="before",
     )
     def convert_bool_to_yes_no_runperiod(cls, v):
@@ -914,7 +711,7 @@ class RunPeriodSchema(BaseSchema):
             return "Yes" if v else "No"
         return v
 
-    @field_validator("Begin_Month", "End_Month")
+    @field_validator("begin_month", "end_month")
     def validate_month(cls, v):
         if not (1 <= v <= 12):
             raise ValueError("Month must be between 1 and 12.")
@@ -922,11 +719,11 @@ class RunPeriodSchema(BaseSchema):
 
     @model_validator(mode="after")
     def validate_month_oder(self):
-        if self.Begin_Month > self.End_Month:
+        if self.begin_month > self.end_month:
             raise ValueError("Begin Month must be less than or equal to End Month.")
         return self
 
-    @field_validator("Begin_Day_of_Month", "End_Day_of_Month")
+    @field_validator("begin_day_of_month", "end_day_of_month")
     def validate_day(cls, v):
         if not (1 <= v <= 31):
             raise ValueError("Day of Month must be between 1 and 31.")
@@ -935,126 +732,206 @@ class RunPeriodSchema(BaseSchema):
     @model_validator(mode="after")
     def validate_day_order(self):
         if (
-            self.Begin_Month == self.End_Month
-            and self.Begin_Day_of_Month > self.End_Day_of_Month
+            self.begin_month == self.end_month
+            and self.begin_day_of_month > self.end_day_of_month
         ):
             raise ValueError(
                 "Begin Day of Month must be less than or equal to End Day of Month when Begin Month equals End Month."
             )
         return self
 
-    @field_validator("Day_of_Week_for_Start_Day")
+    @field_validator("day_of_week_for_start_day")
     def validate_day_of_week(cls, v):
-        valid_days = getattr(cls._idf_field, "RunPeriod").Day_of_Week_for_Start_Day.key
+        valid_days = cls._idf_field.RunPeriod.Day_of_Week_for_Start_Day.key
         if v is not None and v not in valid_days:
             raise ValueError(f"Day of Week for Start Day must be one of {valid_days}.")
         return v
 
 
 class GlobalGeometryRulesSchema(BaseSchema):
-    Starting_Vertex_Position: str = Field(..., alias="Starting Vertex Position")
-    Vertex_Entry_Direction: str = Field(..., alias="Vertex Entry Direction")
-    Coordinate_System: str = Field(..., alias="Coordinate System")
+    starting_vertex_position: str = Field(..., alias="Starting Vertex Position")
+    vertex_entry_direction: str = Field(..., alias="Vertex Entry Direction")
+    coordinate_system: str = Field(..., alias="Coordinate System")
 
-    @field_validator("Starting_Vertex_Position")
+    @field_validator("starting_vertex_position")
     def validate_starting_vertex_position(cls, v):
-        valid_positions = getattr(
-            cls._idf_field, "GlobalGeometryRules"
-        ).Starting_Vertex_Position.key
+        valid_positions = (
+            cls._idf_field.GlobalGeometryRules.Starting_Vertex_Position.key
+        )
         if v not in valid_positions:
             raise ValueError(
                 f"Starting Vertex Position must be one of {valid_positions}."
             )
         return v
 
-    @field_validator("Vertex_Entry_Direction")
+    @field_validator("vertex_entry_direction")
     def validate_vertex_entry_direction(cls, v):
-        valid_directions = getattr(
-            cls._idf_field, "GlobalGeometryRules"
-        ).Vertex_Entry_Direction.key
-        return cls.validate_choice_field(v, valid_directions, "Vertex Entry Direction")
+        valid_directions = cls._idf_field.GlobalGeometryRules.Vertex_Entry_Direction.key
+        return cls.validate_choice_field(v, valid_directions, "Vertex Entry Direction")  # type: ignore
 
-    @field_validator("Coordinate_System")
+    @field_validator("coordinate_system")
     def validate_coordinate_system(cls, v):
-        valid_systems = getattr(
-            cls._idf_field, "GlobalGeometryRules"
-        ).Coordinate_System.key
-        return cls.validate_choice_field(v, valid_systems, "Coordinate System")
+        valid_systems = cls._idf_field.GlobalGeometryRules.Coordinate_System.key
+        return cls.validate_choice_field(v, valid_systems, "Coordinate System")  # type: ignore
 
 
 class OutputVariableDictionarySchema(BaseSchema):
-    Key_Field: str = Field("Regular", alias="Key Field")
+    key_field: str = Field("Regular", alias="Key Field")
 
-    @field_validator("Key_Field")
+    @field_validator("key_field")
     def validate_key_field(cls, v):
-        valid_key_field = getattr(
-            cls._idf_field, "Output_VariableDictionary"
-        ).Key_Field.key
-        return cls.validate_choice_field(v, valid_key_field, "Key Field")
+        valid_key_field = cls._idf_field.Output_VariableDictionary.Key_Field.key
+        return cls.validate_choice_field(v, valid_key_field, "Key Field")  # type: ignore
 
 
 class OutputDiagnosticsSchema(BaseSchema):
-    Key_1: str = Field(..., alias="Key 1")
+    key_1: str = Field(..., alias="Key 1")
 
-    @field_validator("Key_1")
+    @field_validator("key_1")
     def validate_key_1(cls, v):
-        valid_key_1 = getattr(cls._idf_field, "Output_Diagnostics").Key_1.key
-        return cls.validate_choice_field(v, valid_key_1, "Key 1")
+        valid_key_1 = cls._idf_field.Output_Diagnostics.Key_1.key
+        return cls.validate_choice_field(v, valid_key_1, "Key 1")  # type: ignore
 
 
 class OutputTableSummaryReportsSchema(BaseSchema):
-    Report_1_Name: str = Field(..., alias="Report 1 Name")
+    report_1_name: str = Field(..., alias="Report 1 Name")
 
-    @field_validator("Report_1_Name")
+    @field_validator("report_1_name")
     def validate_report_1_name(cls, v):
-        valid_report_names = getattr(
-            cls._idf_field, "Output_Table_SummaryReports"
-        ).Report_1_Name.key
-        return cls.validate_choice_field(v, valid_report_names, "Report 1 Name")
+        valid_report_names = (
+            cls._idf_field.Output_Table_SummaryReports.Report_1_Name.key
+        )
+        return cls.validate_choice_field(v, valid_report_names, "Report 1 Name")  # type: ignore
 
 
 class OutputControlTableStyleSchema(BaseSchema):
-    Column_Separator: str = Field("HTML", alias="Column Separator")
-    Unit_Conversion: str = Field("None", alias="Unit Conversion")
+    column_separator: str = Field("HTML", alias="Column Separator")
+    unit_conversion: str = Field("None", alias="Unit Conversion")
 
-    @field_validator("Column_Separator")
+    @field_validator("column_separator")
     def validate_column_separator(cls, v):
-        valid_separators = getattr(
-            cls._idf_field, "OutputControl_Table_Style"
-        ).Column_Separator.key
-        return cls.validate_choice_field(v, valid_separators, "Column Separator")
+        valid_separators = cls._idf_field.OutputControl_Table_Style.Column_Separator.key
+        return cls.validate_choice_field(v, valid_separators, "Column Separator")  # type: ignore
 
-    @field_validator("Unit_Conversion")
+    @field_validator("unit_conversion")
     def validate_unit_conversion(cls, v):
-        valid_conversions = getattr(
-            cls._idf_field, "OutputControl_Table_Style"
-        ).Unit_Conversion.key
-        return cls.validate_choice_field(v, valid_conversions, "Unit Conversion")
+        valid_conversions = cls._idf_field.OutputControl_Table_Style.Unit_Conversion.key
+        return cls.validate_choice_field(v, valid_conversions, "Unit Conversion")  # type: ignore
 
 
 class OutputVariableSchema(BaseSchema):
-    Key_Value: str = Field("*", alias="Key Value")
-    Variable_Name: str = Field(..., alias="Variable Name")
-    Reporting_Frequency: str = Field("Hourly", alias="Reporting Frequency")
+    key_value: str = Field("*", alias="Key Value")
+    variable_name: str = Field(..., alias="Variable Name")
+    reporting_frequency: str = Field("Hourly", alias="Reporting Frequency")
 
-    @field_validator("Reporting_Frequency")
+    @field_validator("reporting_frequency")
     def validate_reporting_frequency(cls, v):
-        valid_frequencies = getattr(
-            cls._idf_field, "Output_Variable"
-        ).Reporting_Frequency.key
-        return cls.validate_choice_field(v, valid_frequencies, "Reporting Frequency")
-class ConstructionSchema(BaseSchema):
-    Name: str = Field(..., alias="Name")
-    Layers: List[str] = Field(..., alias="Layers", min_length=1)
+        valid_frequencies = cls._idf_field.Output_Variable.Reporting_Frequency.key
+        return cls.validate_choice_field(v, valid_frequencies, "Reporting Frequency")  # type: ignore
 
-    @field_validator("Name")
+
+class MaterialSchema(BaseSchema):
+    name: str = Field(..., alias="Name")
+    type: str = Field(..., alias="Type")
+
+    @field_validator("name")
+    def validate_name(cls, v: str) -> str:
+        if not v:
+            raise ValueError("Material Name must not be empty.")
+        return v
+
+    @field_validator("type")
+    def validate_type(cls, v: str) -> str:
+        valid_types = ["Standard", "NoMass", "AirGap", "Glazing"]
+        if v not in valid_types:
+            raise ValueError(f"Type must be one of {valid_types}.")
+        return v
+
+    @model_validator(mode="after")
+    def validate_material(
+        self,
+    ) -> "MaterialSchema":
+        if isinstance(self, (StandardMaterialSchema, NoMassMaterialSchema, AirGapMaterialSchema, GlazingMaterialSchema)):
+            return self
+        if self.type == "Standard":
+            return StandardMaterialSchema(**self.model_dump())
+        elif self.type == "NoMass":
+            return NoMassMaterialSchema(**self.model_dump())
+        elif self.type == "AirGap":
+            return AirGapMaterialSchema(**self.model_dump())
+        elif self.type == "Glazing":
+            return GlazingMaterialSchema(**self.model_dump())
+        else:
+            raise ValueError(f"Invalid material type: {self.type}")
+
+
+class StandardMaterialSchema(MaterialSchema):
+    roughness: str = Field(..., alias="Roughness")
+    thickness: float = Field(..., alias="Thickness", gt=0)
+    conductivity: float = Field(..., alias="Conductivity", gt=0)
+    density: float = Field(..., alias="Density", gt=0)
+    specific_heat: float = Field(..., alias="Specific_Heat", gt=0)
+
+    @field_validator("roughness")
+    def validate_roughness(cls, v: str) -> str:
+        valid_choices = [
+            "VeryRough",
+            "Rough",
+            "MediumRough",
+            "MediumSmooth",
+            "Smooth",
+            "VerySmooth",
+        ]
+        if v not in valid_choices:
+            raise ValueError(f"Roughness must be one of {valid_choices}.")
+        return v
+
+
+class NoMassMaterialSchema(MaterialSchema):
+    roughness: str = Field(..., alias="Roughness")
+    thermal_resistance: float = Field(..., alias="Thermal_Resistance", gt=0)
+
+    @field_validator("roughness")
+    def validate_roughness(cls, v: str) -> str:
+        valid_choices = [
+            "VeryRough",
+            "Rough",
+            "MediumRough",
+            "MediumSmooth",
+            "Smooth",
+            "VerySmooth",
+        ]
+        if v not in valid_choices:
+            raise ValueError(f"Roughness must be one of {valid_choices}.")
+        return v
+
+
+class AirGapMaterialSchema(MaterialSchema):
+    thermal_resistance: float = Field(..., alias="Thermal_Resistance", gt=0)
+
+
+class GlazingMaterialSchema(MaterialSchema):
+    u_factor: float = Field(..., alias="U-Factor", gt=0)
+    solar_heat_gain_coefficient: float = Field(
+        ..., alias="Solar_Heat_Gain_Coefficient", gt=0
+    )
+    visible_transmittance: float | None = Field(
+        None, alias="Visible_Transmittance", ge=0, le=1
+    )
+
+
+class ConstructionSchema(BaseSchema):
+    name: str = Field(..., alias="Name")
+    layers: list[str] = Field(..., alias="Layers", min_length=1)
+
+    @field_validator("name")
     def validate_name(cls, v: str) -> str:
         if not v:
             raise ValueError("Construction Name must not be empty.")
         return v
-    
-    @field_validator("Layers")
-    def validate_layers(cls, v: List[str]) -> List[str]:
+
+    @field_validator("layers")
+    def validate_layers(cls, v: list[str]) -> list[str]:
         if not all(isinstance(layer, str) and layer for layer in v):
             raise ValueError("All items in Layers must be non-empty strings.")
         return v

@@ -46,10 +46,10 @@ RunPeriod:
     Name: Run Period 1
     Begin Month: 1
     Begin Day of Month: 1
-    Begin Year: null
+    Begin Year: 2040
     End Month: 12
     End Day of Month: 31
-    End Year: null
+    End Year: 2040
     Day of Week for Start Day: Tuesday
     Use Weather File Holidays and Special Days: Yes
     Use Weather File Daylight Saving Period: Yes
@@ -62,39 +62,34 @@ RunPeriod:
 Material:
   - Name: Concrete_20cm
     Type: Standard
-    Properties:
-      Roughness: MediumRough
-      Thickness: 0.2
-      Conductivity: 1.729
-      Density: 2240
-      Specific_Heat: 837
+    Roughness: MediumRough
+    Thickness: 0.2
+    Conductivity: 1.729
+    Density: 2240
+    Specific_Heat: 837
 
   - Name: Gypsum_1.3cm
     Type: Standard
-    Properties:
-      Roughness: Smooth
-      Thickness: 0.0127
-      Conductivity: 0.16
-      Density: 785
-      Specific_Heat: 830
+    Roughness: Smooth
+    Thickness: 0.0127
+    Conductivity: 0.16
+    Density: 785
+    Specific_Heat: 830
 
   - Name: Interior_Insulation
     Type: NoMass
-    Properties:
-      Roughness: MediumRough
-      Thermal_Resistance: 2.5
+    Roughness: MediumRough
+    Thermal_Resistance: 2.5
 
   - Name: Roof_AirGap
     Type: AirGap
-    Properties:
-      Thermal_Resistance: 0.18
+    Thermal_Resistance: 0.18
 
   - Name: SimpleGlazingSystem
     Type: Glazing
-    Properties:
-      U-Factor: 5.8
-      Solar_Heat_Gain_Coefficient: 0.8
-      Visible_Transmittance: 0.9
+    U-Factor: 5.8
+    Solar_Heat_Gain_Coefficient: 0.8
+    Visible_Transmittance: 0.9
 # ==================================================================
 # 构造
 # ==================================================================

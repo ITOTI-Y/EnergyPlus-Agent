@@ -1,18 +1,17 @@
-from pathlib import Path
-from eppy.modeleditor import IDF
-from io import StringIO
-from typing import Dict, cast, List
 from copy import deepcopy
-import yaml
+from io import StringIO
+from pathlib import Path
+from typing import cast
 
-from src.utils.logging import get_logger
-from src.converters import BuildingConverter, ZoneConverter, SurfaceConverter
-from src.validator.data_model import BaseSchema, IDDField
-from src.converters.material_converter import MaterialConverter
+import yaml
+from eppy.modeleditor import IDF
+
+from src.converters import BuildingConverter, SurfaceConverter, ZoneConverter
 from src.converters.construction_converter import ConstructionConverter
 from src.converters.material_converter import MaterialConverter
-from src.converters.construction_converter import ConstructionConverter
 from src.converters.setting_converter import SettingsConverter
+from src.utils.logging import get_logger
+from src.validator.data_model import BaseSchema, IDDField
 
 
 class ConverterManager:
@@ -21,7 +20,7 @@ class ConverterManager:
         IDF.setiddname(str(idd_file))
         self._idf = self._create_blank_idf()
         self.idf_field: IDDField = self._process_idf_field()
-        self.yaml_data: Dict = self._load_yaml(file_to_convert)
+        self.yaml_data: dict = self._load_yaml(file_to_convert)
         BaseSchema.set_idf_field(self.idf_field)
         self.converters = {
             "settings": SettingsConverter(self._idf),
@@ -60,10 +59,10 @@ class ConverterManager:
 
     def _load_yaml(self, file_path: Path) -> dict:
         self.logger.info(f"Loading YAML file from {file_path}.")
-        with open(file_path, "r", encoding="utf-8") as f:
+        with open(file_path, encoding="utf-8") as f:
             return yaml.safe_load(f)
 
     def _process_idf_field(self) -> IDDField:
-        _idd_info = cast(List[Dict], self._idf.idd_info)
+        _idd_info = cast(list[dict], self._idf.idd_info)
         idd_field = IDDField(_idd_info)
         return idd_field
