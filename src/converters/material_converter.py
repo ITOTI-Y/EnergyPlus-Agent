@@ -65,23 +65,25 @@ class MaterialConverter(BaseConverter):
                 )
                 self.state["skipped"] += 1
                 return
-            if isinstance(material, StandardMaterialSchema):
-                self._add_standard_material_to_idf(material)
-            elif isinstance(material, NoMassMaterialSchema):
-                self._add_no_mass_material_to_idf(material)
-            elif isinstance(material, AirGapMaterialSchema):
-                self._add_air_gap_material_to_idf(material)
-            elif isinstance(material, GlazingMaterialSchema):
-                self._add_glazing_material_to_idf(material)
-            else:
-                raise ValueError(f"Invalid material type: {material.type}")
+            type_handlers = {
+                StandardMaterialSchema: self._add_standard_material_to_idf,
+                NoMassMaterialSchema: self._add_no_mass_material_to_idf,
+                AirGapMaterialSchema: self._add_air_gap_material_to_idf,
+                GlazingMaterialSchema: self._add_glazing_material_to_idf,
+            }
+            handler = type_handlers.get(type(material))
 
+            if not handler:
+                self.state["failed"] += 1
+                self.logger.exception(f"Invalid material type: {material.type}")
+                return
+
+            handler(material)
             self.state["success"] += 1
-            self.logger.success(f"Successfully added {idf_key} '{material.name}'")
-
-        except Exception as e:
+            self.logger.success(f"Material '{material.name}' added successfully.")
+        except Exception:
             self.state["failed"] += 1
-            self.logger.exception(f"Error adding material '{material.name}' to IDF: {e!s}")
+            self.logger.exception(f"An unexpected error occurred while adding material '{material.name}' to IDF")
 
     def _get_idf_key(self, material_type: str) -> str:
         type_to_key: dict[str, str] = {

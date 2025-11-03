@@ -37,14 +37,16 @@ class ConstructionConverter(BaseConverter):
             return
 
         try:
-            self.logger.info(f"Adding Construction '{data.name}' to IDF.")
+            self.logger.debug(f"Adding Construction '{data.name}' to IDF.")
 
             for layer_name in data.layers:
                 if not (
                     self.idf.getobject("MATERIAL", layer_name)
                     or self.idf.getobject("MATERIAL:NOMASS", layer_name)
                     or self.idf.getobject("MATERIAL:AIRGAP", layer_name)
-                    or self.idf.getobject("WINDOWMATERIAL:SIMPLEGLAZINGSYSTEM", layer_name)
+                    or self.idf.getobject(
+                        "WINDOWMATERIAL:SIMPLEGLAZINGSYSTEM", layer_name
+                    )
                 ):
                     raise ValueError(
                         f"Material '{layer_name}' referenced in Construction '{data.name}' "
@@ -61,25 +63,23 @@ class ConstructionConverter(BaseConverter):
                     f"  - Set {field_name} to '{layer_name}' for '{data.name}'."
                 )
             self.state["success"] += 1
-            self.logger.info(
+            self.logger.success(
                 f"Construction '{data.name}' with {len(data.layers)} layers added successfully."
             )
 
-        except ValueError as e:
+        except ValueError:
             self.state["failed"] += 1
-            self.logger.error(f"Failed to add Construction '{data.name}': {e}")
+            self.logger.exception(f"Failed to add Construction '{data.name}'")
 
-        except AttributeError as e:
+        except AttributeError:
             self.state["failed"] += 1
-            self.logger.error(
-                f"Error adding Construction '{data.name}'. A specified field name was not found. Details: {e}",
-                exc_info=True,
+            self.logger.exception(
+                f"Error adding Construction '{data.name}'. A specified field name was not found.",
             )
-        except Exception as e:
+        except Exception:
             self.state["failed"] += 1
-            self.logger.error(
-                f"An unexpected error occurred while adding Construction '{data.name}': {e}",
-                exc_info=True,
+            self.logger.exception(
+                f"An unexpected error occurred while adding Construction '{data.name}'"
             )
 
     def validate(self, data: dict) -> ConstructionSchema:
