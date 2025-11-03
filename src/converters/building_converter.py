@@ -1,9 +1,9 @@
-from eppy.modeleditor import IDF
-from typing import Dict
 
-from src.validator.data_model import BuildingSchema
+from eppy.modeleditor import IDF
+
 from src.converters.base_converter import BaseConverter
 from src.utils.logging import get_logger
+from src.validator.data_model import BuildingSchema
 
 logger = get_logger(__name__)
 
@@ -12,11 +12,11 @@ class BuildingConverter(BaseConverter):
     def __init__(self, idf: IDF):
         super().__init__(idf)
 
-    def convert(self, data: Dict) -> None:
+    def convert(self, data: dict) -> None:
         self.logger.info("Building Converter Starting...")
 
-        building_data: Dict = data.get('Building', {})
-        
+        building_data: dict = data.get('Building', {})
+
         try:
             validated_data = self.validate(building_data)
             self._add_to_idf(validated_data)
@@ -24,7 +24,7 @@ class BuildingConverter(BaseConverter):
             self.state['failed'] += 1
             self.logger.error(f"Error Convert Building Data: {e}", exc_info=True)
 
-    def _add_to_idf(self, val_data: Dict) -> None:
+    def _add_to_idf(self, val_data: dict) -> None:
         building_data: BuildingSchema = val_data["building_data"]
 
         try:
@@ -49,7 +49,7 @@ class BuildingConverter(BaseConverter):
             self.state['failed'] += 1
             self.logger.error(f"Error Adding Building to IDF: {e}", exc_info=True)
 
-    def validate(self, data: Dict) -> Dict:
+    def validate(self, data: dict) -> dict:
         val_building_data = BuildingSchema.model_validate(data)
         return {
             "building_data": val_building_data,

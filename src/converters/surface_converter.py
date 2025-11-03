@@ -1,16 +1,16 @@
-from eppy.modeleditor import IDF
-from typing import Dict, List
 from collections import defaultdict
 
+from eppy.modeleditor import IDF
+
 from src.converters.base_converter import BaseConverter
-from src.validator.data_model import SurfaceSchema, GeometrySchema
+from src.validator.data_model import GeometrySchema, SurfaceSchema
 
 
 class SurfaceConverter(BaseConverter):
     def __init__(self, idf: IDF):
         super().__init__(idf)
 
-    def convert(self, data: Dict) -> None:
+    def convert(self, data: dict) -> None:
         self.logger.info("Converting BuildingSurface data...")
         surface_data = data.get("BuildingSurface:Detailed", [])
         zone_to_surfaces = defaultdict(list)
@@ -57,7 +57,7 @@ class SurfaceConverter(BaseConverter):
             setattr(surface_obj, f"Vertex_{i}_Ycoordinate", vertex[1])
             setattr(surface_obj, f"Vertex_{i}_Zcoordinate", vertex[2])
 
-    def validate(self, data: Dict) -> List[SurfaceSchema]:
+    def validate(self, data: dict) -> list[SurfaceSchema]:
         val_data = []
         for _, surfaces in data.items():
             geometry = GeometrySchema.model_validate({"surfaces": surfaces})

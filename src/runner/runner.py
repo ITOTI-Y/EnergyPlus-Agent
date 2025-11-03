@@ -1,7 +1,7 @@
 from datetime import datetime
-from pathlib import Path
-from typing import Optional, cast
 from io import StringIO
+from pathlib import Path
+from typing import cast
 
 from eppy.modeleditor import IDF
 from eppy.runner.run_functions import run
@@ -10,7 +10,7 @@ from src.utils.logging import get_logger
 
 
 class EnergyPlusRunner:
-    def __init__(self, idf: Optional[IDF] = None, idd_file_path: Optional[Path] = None):
+    def __init__(self, idf: IDF | None = None, idd_file_path: Path | None = None):
         """
         Initialize the EnergyPlusRunner.
 
@@ -36,8 +36,8 @@ class EnergyPlusRunner:
     def run_idf(
         self,
         epw_file_path: Path | str,
-        idf_file_path: Optional[Path | str] = None,
-        output_directory: Optional[Path] = None,
+        idf_file_path: Path | str | None = None,
+        output_directory: Path | None = None,
     ) -> bool:
         """
         Run EnergyPlus IDF file

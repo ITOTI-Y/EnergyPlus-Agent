@@ -1,15 +1,17 @@
+from typing import Any
+
 from eppy.modeleditor import IDF
-from typing import Dict, Any
 
 from src.converters.base_converter import BaseConverter
 from src.validator.data_model import ZoneSchema
+
 
 class ZoneConverter(BaseConverter):
 
     def __init__(self, idf: IDF):
         super().__init__(idf)
 
-    def convert(self, data: Dict) -> None:
+    def convert(self, data: dict) -> None:
         self.logger.info("Converting zone data...")
         for zd in data.get('Zone', []):
             try:
@@ -48,6 +50,6 @@ class ZoneConverter(BaseConverter):
             self.state['failed'] += 1
             self.logger.error(f"Error Adding Zone Data to IDF: {e}", exc_info=True)
 
-    def validate(self, data: Dict) -> Any:
+    def validate(self, data: dict) -> Any:
         val_data = ZoneSchema.model_validate(data)
         return val_data

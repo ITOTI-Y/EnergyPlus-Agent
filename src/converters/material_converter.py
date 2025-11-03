@@ -131,5 +131,5 @@ class MaterialConverter(BaseConverter):
             Name=material.name,
             UFactor=material.u_factor,
             Solar_Heat_Gain_Coefficient=material.solar_heat_gain_coefficient,
-            Visible_Transmittance=material.visible_transmittance,
+            Visible_Transmittance=material.visible_transmittance or "",
         )
