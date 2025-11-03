@@ -43,8 +43,7 @@ class MaterialConverter(BaseConverter):
 
             except Exception as e:
                 self.state["failed"] += 1
-                material_name = material_data.get("Name", "Unknown Material")
-                self.logger.error(
+                self.logger.exception(
                     f"Failed to convert Material '{material_name}': {e!s}"
                 )
                 continue
@@ -82,7 +81,7 @@ class MaterialConverter(BaseConverter):
 
         except Exception as e:
             self.state["failed"] += 1
-            self.logger.error(f"Error adding material '{material.name}' to IDF: {e!s}")
+            self.logger.exception(f"Error adding material '{material.name}' to IDF: {e!s}")
 
     def _get_idf_key(self, material_type: str) -> str:
         type_to_key: dict[str, str] = {
