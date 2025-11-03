@@ -1,8 +1,10 @@
-from eppy.modeleditor import IDF
 from abc import ABC, abstractmethod
-from typing import Dict, TypedDict
+from typing import TypedDict
+
+from eppy.modeleditor import IDF
 
 from src.utils.logging import get_logger
+
 
 class ConvertState(TypedDict):
     success: int
@@ -21,13 +23,13 @@ class BaseConverter(ABC):
         }
 
     @abstractmethod
-    def convert(self, data: Dict) -> None:
+    def convert(self, data: dict) -> None:
         pass
 
     @abstractmethod
-    def _add_to_idf(self, data: Dict) -> None:
+    def _add_to_idf(self, data: dict) -> None:
         pass
-    
+
     @abstractmethod
-    def validate(self, data: Dict) -> Dict:
+    def validate(self, data: dict) -> dict:
         pass

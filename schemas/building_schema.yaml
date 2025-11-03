@@ -46,10 +46,10 @@ RunPeriod:
     Name: Run Period 1
     Begin Month: 1
     Begin Day of Month: 1
-    Begin Year: null
+    Begin Year: 2040
     End Month: 12
     End Day of Month: 31
-    End Year: null
+    End Year: 2040
     Day of Week for Start Day: Tuesday
     Use Weather File Holidays and Special Days: Yes
     Use Weather File Daylight Saving Period: Yes
@@ -59,21 +59,37 @@ RunPeriod:
 
 # ==================================================================
 # 材料
-# ==================================================================
 Material:
   - Name: Concrete_20cm
+    Type: Standard
     Roughness: MediumRough
-    Thickness : 0.2 # meters
-    Conductivity : 1.729 # W/m-K
-    Density : 2240 # kg/m3
-    Specific Heat : 837 # J/kg-K
-  - Name: Gypsum_1.3cm
-    Roughness: Smooth
-    Thickness : 0.0127 # meters
-    Conductivity : 0.16 # W/m-K
-    Density : 785 # kg/m3
-    Specific Heat : 830 # J/kg-K
+    Thickness: 0.2
+    Conductivity: 1.729
+    Density: 2240
+    Specific_Heat: 837
 
+  - Name: Gypsum_1.3cm
+    Type: Standard
+    Roughness: Smooth
+    Thickness: 0.0127
+    Conductivity: 0.16
+    Density: 785
+    Specific_Heat: 830
+
+  - Name: Interior_Insulation
+    Type: NoMass
+    Roughness: MediumRough
+    Thermal_Resistance: 2.5
+
+  - Name: Roof_AirGap
+    Type: AirGap
+    Thermal_Resistance: 0.18
+
+  - Name: SimpleGlazingSystem
+    Type: Glazing
+    U-Factor: 5.8
+    Solar_Heat_Gain_Coefficient: 0.8
+    Visible_Transmittance: 0.9
 # ==================================================================
 # 构造
 # ==================================================================
@@ -97,7 +113,7 @@ Construction:
 # ==================================================================
 GlobalGeometryRules:
     Starting Vertex Position: UpperLeftCorner
-    Vertex Entry Direction: CounterClockWise
+    Vertex Entry Direction: Counterclockwise
     Coordinate System: World
 
 # ==================================================================
@@ -315,7 +331,7 @@ BuildingSurface:Detailed:
 # 输出设置
 # ==================================================================
 Output:VariableDictionary:
-    Key Field: Regular
+    Key Field: regular
 Output:Diagnostics:  
     Key 1: DisplayExtraWarnings
 Output:Table:SummaryReports:

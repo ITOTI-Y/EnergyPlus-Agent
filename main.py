@@ -1,9 +1,9 @@
-from pathlib import Path
 import time
+from pathlib import Path
 
 from src.converter_manager import ConverterManager
-from src.utils.logging import setup_logger, get_logger
 from src.runner.runner import EnergyPlusRunner
+from src.utils.logging import get_logger, setup_logger
 
 logger_time = time.strftime("%Y%m%d_%H%M%S")
 setup_logger(

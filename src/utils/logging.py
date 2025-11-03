@@ -1,6 +1,6 @@
 import sys
 from pathlib import Path
-from typing import Optional, Any
+from typing import Any
 
 from loguru import logger
 
@@ -10,7 +10,7 @@ def setup_logger(
     level: str = "INFO",
     format_str: str = "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | <level>{level: <8}</level> | <cyan>{name}:{function}:{line}</cyan> - <level>{message}</level>",
     console_output: bool = True,
-    log_file_path: Optional[Path] = None,
+    log_file_path: Path | None = None,
     serialize: bool = False,
     **kwargs: Any
 ) -> None:
@@ -19,10 +19,10 @@ def setup_logger(
 
     Args:
         level (str, optional): The log level. Defaults to "INFO".
-        format_str (str, optional): The format of the log message with color tags. 
+        format_str (str, optional): The format of the log message with color tags.
         console_output (bool, optional): Whether to output to console. Defaults to True.
         file_output (bool, optional): Whether to output to file. Defaults to False.
-        log_file_path (Optional[Path], optional): The path to the log file. Defaults to None.
+        log_file_path (Path | None): The path to the log file. Defaults to None.
         serialize (bool, optional): Whether to serialize the log. Defaults to False.
         **kwargs: Additional keyword arguments to pass to the logger.
     """
