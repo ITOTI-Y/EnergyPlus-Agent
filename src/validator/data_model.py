@@ -1,5 +1,5 @@
 from collections import defaultdict
-
+from typing import Optional
 import numpy as np
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from scipy.spatial import Delaunay
@@ -935,3 +935,101 @@ class ConstructionSchema(BaseSchema):
         if not all(isinstance(layer, str) and layer for layer in v):
             raise ValueError("All items in Layers must be non-empty strings.")
         return v
+
+class FenestrationSurfaceSchema(BaseSchema):
+    name: str = Field(..., alias="Name", description="Fenestration surface name")
+    surface_type: str = Field(..., alias="Surface Type", description="Type of surface")
+    construction_name: str = Field(
+        ..., alias="Construction Name", description="Name of the construction"
+    )
+    building_surface_name: str = Field(
+        ..., alias="Building Surface Name", description="Name of the building surface"
+    )
+    outside_boundary_condition_object: Optional[str] = Field(
+        None,
+        alias="Outside Boundary Condition Object",
+        description="Outside boundary condition object",
+    )
+    frame_and_divider_name: Optional[str] = Field(
+        None, alias="Frame and Divider Name", description="Frame and divider name"
+    )
+    multiplier: int = Field(1, alias="Multiplier", description="Surface multiplier", ge=1)
+    view_factor_to_ground: str | float = Field(
+        "autocalculate",
+        alias="View Factor to Ground",
+        description="View factor to ground or 'autocalculate'",
+    )
+    Number_of_Vertices: str | int = Field(
+        ..., alias="Number of Vertices", description="Number of vertices defining the surface"
+    )
+    vertices: np.ndarray = Field(
+        ..., alias="Vertices", description="List of vertices defining the surface"
+    )
+
+    @field_validator("name", "construction_name", "building_surface_name")
+    def validate_non_empty(cls, v):
+        if not v:
+            raise ValueError("This field must not be empty.")
+        return v
+
+    @field_validator("surface_type")
+    def validate_surface_type(cls, v):
+        valid_types = {"Window", "Door", "GlassDoor"}
+        if v not in valid_types:
+            raise ValueError(f"Surface Type must be one of {valid_types}.")
+        return v
+
+    @field_validator("multiplier")
+    def validate_multiplier(cls, v):
+        if v < 1:
+            raise ValueError("Multiplier must be at least 1.")
+        return v
+
+    @field_validator("vertices", mode="before")
+    def validate_vertices(cls, v):
+        if isinstance(v, np.ndarray):
+            return v
+        tolerance = 1e-10
+        if len(v) < 3:
+            raise ValueError(
+                f"The surface must have at least 3 vertices. current has {len(v)}"
+            )
+        pts = np.array([[pt["X"], pt["Y"], pt["Z"]] for pt in v])
+        diff = pts[:, np.newaxis, :] - pts[np.newaxis, :, :]
+        distances = np.linalg.norm(diff, axis=2)
+        np.fill_diagonal(distances, np.inf)
+
+        mask = distances < tolerance
+        if np.any(mask):
+            for pt1, pt2 in np.argwhere(mask):
+                raise ValueError(f"Vertices {v[pt1]} and {v[pt2]} are too close.")
+        return pts
+
+
+class GeometryWindowsSchema(BaseSchema):
+    windows: list[FenestrationSurfaceSchema] = Field(
+        ..., alias="FenestrationSurface:Detailed", description="List of fenestration surfaces"
+    )
+
+    @model_validator(mode="before")
+    def validate_windows(cls, v):
+        result = defaultdict(list)
+        for window in v.get("windows", []):
+            result["windows"].append(FenestrationSurfaceSchema.model_validate(window))
+        return result
+
+    @field_validator("windows")
+    def validate_geometry_closure(cls, v):
+        # 对于窗户，我们不需要验证闭合，只需要确保有足够的顶点
+        for window in v:
+            points = window.vertices
+            if len(points) < 3:
+                raise ValueError(f"Window {window.name} must have at least 3 vertices.")
+        
+        return v
+
+    @model_validator(mode="after")
+    def validate_points_sorting(self):
+        # 对于窗户，我们需要排序顶点，使用与GeometrySchema相同的逻辑
+        # 保持原始的顶点顺序
+        return self
