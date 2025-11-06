@@ -12,6 +12,7 @@ from src.converters.material_converter import MaterialConverter
 from src.converters.setting_converter import SettingsConverter
 from src.utils.logging import get_logger
 from src.validator.data_model import BaseSchema, IDDField
+from src.converters.hvac_converter import HVACConverter
 
 
 class ConverterManager:
@@ -29,6 +30,7 @@ class ConverterManager:
             "surfaces": SurfaceConverter(self._idf),
             "materials": MaterialConverter(self._idf),
             "constructions": ConstructionConverter(self._idf),
+            "hvac": HVACConverter(self._idf),
         }
 
     @property

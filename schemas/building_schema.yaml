@@ -327,6 +327,43 @@ BuildingSurface:Detailed:
       - {X: 5, Y: 5, Z: 0}
       - {X: 5, Y: 0, Z: 0}
 
+# HVAC 系统 (简化版)
+# ==================================================================
+HVAC:
+  ScheduleTypeLimits:
+    - Name: On/Off
+      Lower Limit Value: 0
+      Upper Limit Value: 1
+      Numeric Type: DISCRETE
+
+  Schedule:Compact:
+    - Name: Always On
+      Schedule Type Limits Name: On/Off
+      Data:
+        - "Through: 12/31"
+        - "For: AllDays"
+        - "Until: 24:00, 1"
+
+  Fan:VariableVolume:
+    - Name: Supply Fan
+      Availability Schedule Name: Always On
+      Fan Total Efficiency: 0.7
+      Pressure Rise: 600
+
+  Coil:Cooling:Water:
+    - Name: Main Cooling Coil
+      Availability Schedule Name: Always On
+      Design Air Flow Rate: autosize
+
+  AirTerminal:SingleDuct:VAV:NoReheat:
+    - Name: VAV Terminal West
+      Availability Schedule Name: Always On
+      Air Outlet Node Name: Zone_West Inlet Node
+      Maximum Air Flow Rate: autosize
+
+    - Name: VAV Terminal East
+      Availability Schedule Name: Always On
+      Air Outlet Node Name: Zone_East Inlet Node
 # ==================================================================
 # 输出设置
 # ==================================================================

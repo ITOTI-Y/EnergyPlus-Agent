@@ -1,11 +1,9 @@
 from collections import defaultdict
-
 import numpy as np
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from scipy.spatial import Delaunay
-
 from src.utils.logging import get_logger
-
+from typing import List, Optional, Union
 logger = get_logger(__name__)
 
 
@@ -909,7 +907,6 @@ class NoMassMaterialSchema(MaterialSchema):
 class AirGapMaterialSchema(MaterialSchema):
     thermal_resistance: float = Field(..., alias="Thermal_Resistance", gt=0)
 
-
 class GlazingMaterialSchema(MaterialSchema):
     u_factor: float = Field(..., alias="U-Factor", gt=0)
     solar_heat_gain_coefficient: float = Field(
@@ -918,7 +915,6 @@ class GlazingMaterialSchema(MaterialSchema):
     visible_transmittance: float | None = Field(
         None, alias="Visible_Transmittance", ge=0, le=1
     )
-
 
 class ConstructionSchema(BaseSchema):
     name: str = Field(..., alias="Name")
@@ -935,3 +931,43 @@ class ConstructionSchema(BaseSchema):
         if not all(isinstance(layer, str) and layer for layer in v):
             raise ValueError("All items in Layers must be non-empty strings.")
         return v
+class ScheduleTypeLimitsSchema(BaseSchema):
+    name: str = Field(..., alias="Name")
+    lower_limit_value: Optional[float] = Field(None, alias="Lower Limit Value")
+    upper_limit_value: Optional[float] = Field(None, alias="Upper Limit Value")
+    numeric_type: Optional[str] = Field("CONTINUOUS", alias="Numeric Type")
+    unit_type: Optional[str] = Field("Dimensionless", alias="Unit Type")
+
+class ScheduleCompactSchema(BaseSchema):
+    name: str = Field(..., alias="Name")
+    schedule_type_limits_name: str = Field(..., alias="Schedule Type Limits Name")
+    data: List[str] = Field(..., alias="Data", min_length=1)
+
+class FanVariableVolumeSchema(BaseSchema):
+    name: str = Field(..., alias="Name")
+    availability_schedule_name: str = Field(..., alias="Availability Schedule Name")
+    fan_total_efficiency: float = Field(..., alias="Fan Total Efficiency")
+    pressure_rise: float = Field(..., alias="Pressure Rise")
+    maximum_flow_rate: Union[float, str] = Field("autosize", alias="Maximum Flow Rate")
+
+class CoilCoolingWaterSchema(BaseSchema):
+    name: str = Field(..., alias="Name")
+    availability_schedule_name: str = Field(..., alias="Availability Schedule Name")
+    design_air_flow_rate: Union[float, str] = Field("autosize", alias="Design Air Flow Rate")
+
+class AirTerminalSingleDuctVAVNoReheatSchema(BaseSchema):
+    name: str = Field(..., alias="Name")
+    availability_schedule_name: str = Field(..., alias="Availability Schedule Name")
+    air_outlet_node_name: str = Field(..., alias="Air Outlet Node Name")
+    maximum_air_flow_rate: Union[float, str] = Field("autosize", alias="Maximum Air Flow Rate")
+    
+class HVACSchema(BaseSchema):
+    """
+    A container schema for all HVAC related components.
+    This schema organizes lists of different HVAC objects.
+    """
+    schedule_type_limits: Optional[List[ScheduleTypeLimitsSchema]] = Field(None, alias="ScheduleTypeLimits")
+    schedules: Optional[List[ScheduleCompactSchema]] = Field(None, alias="Schedule:Compact")
+    fans: Optional[List[FanVariableVolumeSchema]] = Field(None, alias="Fan:VariableVolume")
+    cooling_coils: Optional[List[CoilCoolingWaterSchema]] = Field(None, alias="Coil:Cooling:Water")
+    terminals: Optional[List[AirTerminalSingleDuctVAVNoReheatSchema]] = Field(None, alias="AirTerminal:SingleDuct:VAV:NoReheat")
