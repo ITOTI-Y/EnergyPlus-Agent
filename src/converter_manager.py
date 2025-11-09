@@ -6,7 +6,12 @@ from typing import cast
 import yaml
 from eppy.modeleditor import IDF
 
-from src.converters import BuildingConverter, SurfaceConverter, ZoneConverter
+from src.converters import (
+    BuildingConverter,
+    FenestrationConverter,
+    SurfaceConverter,
+    ZoneConverter,
+)
 from src.converters.construction_converter import ConstructionConverter
 from src.converters.material_converter import MaterialConverter
 from src.converters.setting_converter import SettingsConverter
@@ -29,6 +34,7 @@ class ConverterManager:
             "surfaces": SurfaceConverter(self._idf),
             "materials": MaterialConverter(self._idf),
             "constructions": ConstructionConverter(self._idf),
+            "fenestrations": FenestrationConverter(self._idf),
         }
 
     @property

@@ -436,159 +436,6 @@ class SurfaceSchema(BaseSchema):
         return self
 
 
-class GeometrySchema(BaseSchema):
-    surfaces: list[SurfaceSchema] = Field(
-        ..., alias="BuildingSurface:Detailed", description="List of building surfaces"
-    )
-
-    @model_validator(mode="before")
-    def validate_surfaces(cls, v):
-        result = defaultdict(list)
-        for surface in v.get("surfaces", []):
-            result["surfaces"].append(SurfaceSchema.model_validate(surface))
-        return result
-
-    @field_validator("surfaces")
-    def validate_geometry_closure(cls, v):
-        # TODO: Consider the use of trimesh to implement a concave polygon triangularization closure check
-        points = np.vstack([surface.vertices for surface in v]).round(8)
-        unique_points, counts = np.unique(points, axis=0, return_counts=True)
-        unclosure_indices = np.argwhere(counts < 3)
-        if len(unclosure_indices) > 0:
-            for idx in unclosure_indices:
-                point = unique_points[idx]
-                logger.error(f"Point {point} is not properly closed in the geometry.")
-            raise ValueError(
-                "Geometry closure validation failed. Some points are not properly closed."
-            )
-        return v
-
-    @model_validator(mode="after")
-    def validate_points_sorting(self):
-        interior_points: np.ndarray = np.array([])
-        for surface in self.surfaces:
-            if surface.surface_type == "Floor":
-                interior_points = self._get_interior_points(surface)
-                surface.vertices = self._sort_vertices_clockwise(
-                    surface, np.array([0, 0, -1])
-                )
-            elif surface.surface_type == "Roof" or surface.surface_type == "Ceiling":
-                surface.vertices = self._sort_vertices_clockwise(
-                    surface, np.array([0, 0, 1])
-                )
-        for surface in self.surfaces:
-            if surface.surface_type not in {"Floor", "Roof", "Ceiling"}:
-                if len(interior_points) == 0:
-                    logger.error(
-                        f"Cannot compute normal vector for surface {surface.name} without floor surfaces for reference."
-                    )
-                    raise ValueError(
-                        "At least one Floor surface is required to validate other surface types."
-                    )
-                normal_vector = self._get_normal_vector(
-                    surface.vertices, interior_points
-                )
-                surface.vertices = self._sort_vertices_clockwise(surface, normal_vector)
-        return self
-
-    def _sort_vertices_clockwise(
-        self, surface: SurfaceSchema, normal_vector: np.ndarray
-    ):
-        points = surface.vertices
-        normal = normal_vector / np.linalg.norm(normal_vector)
-        centroid = np.mean(points, axis=0)
-
-        def compare_points(idx1, idx2):
-            v1 = points[idx1] - centroid
-            v2 = points[idx2] - centroid
-
-            cross = np.cross(v1, v2)
-
-            sign = np.dot(cross, normal)
-
-            if sign > 1e-10:
-                return -1
-            elif sign < -1e-10:
-                return 1
-            else:
-                d1 = np.linalg.norm(v1)
-                d2 = np.linalg.norm(v2)
-                return -1 if d1 < d2 else 1
-
-        from functools import cmp_to_key
-
-        sorted_indices = sorted(range(len(points)), key=cmp_to_key(compare_points))
-        points = points[sorted_indices]
-        top_left_index = self._get_top_left_corner_from_normal(points, normal_vector)
-
-        return np.roll(points, -top_left_index, axis=0)
-
-    def _get_interior_points(self, surface: SurfaceSchema) -> np.ndarray:
-        interior_points = []
-        if isinstance(surface.vertices, np.ndarray):
-            try:
-                tri = Delaunay(surface.vertices[:, :-1])
-            except Exception as e:
-                logger.exception(
-                    f"Failed to perform Delaunay triangulation on surface {surface.name}: {e}"
-                )
-                raise ValueError(
-                    f"Delaunay triangulation failed for surface {surface.name}."
-                ) from e
-        for simplex in tri.simplices:
-            triangle_vertices = surface.vertices[simplex]
-            centroid = triangle_vertices.mean(axis=0)
-            interior_points.append(centroid.tolist())
-        return np.array(interior_points)
-
-    def _get_top_left_corner_from_normal(self, points, normal_vector) -> np.ndarray:
-        normal = normal_vector / np.linalg.norm(normal_vector)
-
-        world_up = np.array([0, 0, 1])
-
-        if abs(np.dot(normal, world_up)) > 0.99:
-            if np.dot(normal, world_up) > 0:
-                world_up = np.array([0, 1, 0])
-            else:
-                world_up = np.array([0, -1, 0])
-
-        right = np.cross(world_up, normal)
-        right /= np.linalg.norm(right)
-
-        up = np.cross(normal, right)
-        up /= np.linalg.norm(up)
-
-        centroid = np.mean(points, axis=0)
-        relative_points = points - centroid
-
-        x_coords = np.dot(relative_points, right)
-        y_coords = np.dot(relative_points, up)
-
-        sort_keys = np.column_stack((-y_coords, x_coords))
-        top_left_index = np.lexsort((sort_keys[:, 1], sort_keys[:, 0]))[0]
-
-        return top_left_index
-
-    def _get_normal_vector(
-        self, points: np.ndarray, interior_points: np.ndarray
-    ) -> np.ndarray:
-        centroid = np.mean(points, axis=0)
-        distances = np.linalg.norm(interior_points - centroid, axis=1)
-        interior_vector = interior_points[np.argmin(distances)] - centroid
-
-        v1 = points[1] - points[0]
-        v2 = points[2] - points[0]
-
-        if np.dot(np.cross(v1, v2), interior_vector) < 0:
-            normal_vector = np.cross(v1, v2)
-        else:
-            normal_vector = np.cross(v2, v1)
-
-        normal_vector = normal_vector / np.linalg.norm(normal_vector)
-
-        return normal_vector
-
-
 class SimulationControlSchema(BaseSchema):
     do_zone_sizing_calculation: str | bool = Field(
         "No", alias="Do Zone Sizing Calculation"
@@ -851,7 +698,15 @@ class MaterialSchema(BaseSchema):
     def validate_material(
         self,
     ) -> "MaterialSchema":
-        if isinstance(self, (StandardMaterialSchema, NoMassMaterialSchema, AirGapMaterialSchema, GlazingMaterialSchema)):
+        if isinstance(
+            self,
+            (
+                StandardMaterialSchema,
+                NoMassMaterialSchema,
+                AirGapMaterialSchema,
+                GlazingMaterialSchema,
+            ),
+        ):
             return self
         if self.type == "Standard":
             return StandardMaterialSchema(**self.model_dump())
@@ -935,3 +790,263 @@ class ConstructionSchema(BaseSchema):
         if not all(isinstance(layer, str) and layer for layer in v):
             raise ValueError("All items in Layers must be non-empty strings.")
         return v
+
+
+class FenestrationSurfaceSchema(BaseSchema):
+    name: str = Field(..., alias="Name", description="Fenestration surface name")
+    surface_type: str = Field(..., alias="Surface Type", description="Type of surface")
+    construction_name: str = Field(
+        ..., alias="Construction Name", description="Name of the construction"
+    )
+    building_surface_name: str = Field(
+        ..., alias="Building Surface Name", description="Name of the building surface"
+    )
+    outside_boundary_condition_object: str | None = Field(
+        None,
+        alias="Outside Boundary Condition Object",
+        description="Outside boundary condition object",
+    )
+    frame_and_divider_name: str | None = Field(
+        None, alias="Frame and Divider Name", description="Frame and divider name"
+    )
+    multiplier: int = Field(
+        1, alias="Multiplier", description="Surface multiplier", ge=1
+    )
+    view_factor_to_ground: str | float = Field(
+        "autocalculate",
+        alias="View Factor to Ground",
+        description="View factor to ground or 'autocalculate'",
+    )
+    Number_of_Vertices: str | int = Field(
+        ...,
+        alias="Number of Vertices",
+        description="Number of vertices defining the surface",
+    )
+    vertices: np.ndarray = Field(
+        ..., alias="Vertices", description="List of vertices defining the surface"
+    )
+
+    @field_validator("name", "construction_name", "building_surface_name")
+    def validate_non_empty(cls, v):
+        if not v:
+            raise ValueError("This field must not be empty.")
+        return v
+
+    @field_validator("surface_type")
+    def validate_surface_type(cls, v):
+        valid_types = cls._idf_field.FenestrationSurface_Detailed.Surface_Type.key
+        if v not in valid_types:
+            raise ValueError(f"Surface Type must be one of {valid_types}.")
+        return v
+
+    @field_validator("multiplier")
+    def validate_multiplier(cls, v):
+        if v < 1:
+            raise ValueError("Multiplier must be at least 1.")
+        return v
+
+    @field_validator("vertices", mode="before")
+    def validate_vertices(cls, v):
+        if isinstance(v, np.ndarray):
+            return v
+        tolerance = 1e-10
+        if len(v) < 3:
+            raise ValueError(
+                f"The surface must have at least 3 vertices. current has {len(v)}"
+            )
+        pts = np.array([[pt["X"], pt["Y"], pt["Z"]] for pt in v])
+        diff = pts[:, np.newaxis, :] - pts[np.newaxis, :, :]
+        distances = np.linalg.norm(diff, axis=2)
+        np.fill_diagonal(distances, np.inf)
+
+        mask = distances < tolerance
+        if np.any(mask):
+            for pt1, pt2 in np.argwhere(mask):
+                raise ValueError(f"Vertices {v[pt1]} and {v[pt2]} are too close.")
+        return pts
+
+
+class GeometrySchema(BaseSchema):
+    surfaces: list[SurfaceSchema] = Field(
+        default_factory=list,
+        alias="BuildingSurface:Detailed",
+        description="List of building surfaces",
+    )
+    fenestrationsurfaces: list[FenestrationSurfaceSchema] = Field(
+        default_factory=list,
+        alias="FenestrationSurface:Detailed",
+        description="List of fenestration surfaces",
+    )
+    _interior_points: np.ndarray = np.array([])
+
+    @model_validator(mode="before")
+    def validate_surfaces(cls, v):
+        if "surfaces" not in v:
+            return v
+        result = defaultdict(list)
+        for surface in v.get("surfaces", []):
+            result["surfaces"].append(SurfaceSchema.model_validate(surface))
+        return result
+
+    @model_validator(mode="before")
+    def validate_fenestrationsurfaces(cls, v):
+        if "fenestrationsurfaces" not in v:
+            return v
+        result = defaultdict(list)
+        for surface in v.get("fenestrationsurfaces", []):
+            result["fenestrationsurfaces"].append(
+                FenestrationSurfaceSchema.model_validate(surface)
+            )
+        return result
+
+    @field_validator("surfaces")
+    def validate_geometry_closure(cls, v):
+        # TODO: Consider the use of trimesh to implement a concave polygon triangularization closure check
+        points = np.vstack([surface.vertices for surface in v]).round(8)
+        unique_points, counts = np.unique(points, axis=0, return_counts=True)
+        unclosure_indices = np.argwhere(counts < 3)
+        if len(unclosure_indices) > 0:
+            for idx in unclosure_indices:
+                point = unique_points[idx]
+                logger.error(f"Point {point} is not properly closed in the geometry.")
+            raise ValueError(
+                "Geometry closure validation failed. Some points are not properly closed."
+            )
+        return v
+
+    @model_validator(mode="after")
+    def validate_points_sorting(self):
+        if not self.surfaces and not self.fenestrationsurfaces:
+            return self
+        if np.any(self._interior_points):
+            interior_points = self._interior_points
+        else:
+            interior_points = np.array([])
+        for surface in self.surfaces:
+            if surface.surface_type == "Floor":
+                interior_points = self._get_interior_points(surface)
+                if not np.any(self._interior_points):
+                    GeometrySchema._interior_points = interior_points
+                surface.vertices = self._sort_vertices_clockwise(
+                    surface, np.array([0, 0, -1])
+                )
+            elif surface.surface_type == "Roof" or surface.surface_type == "Ceiling":
+                surface.vertices = self._sort_vertices_clockwise(
+                    surface, np.array([0, 0, 1])
+                )
+        for surface in self.surfaces:
+            if surface.surface_type not in {"Floor", "Roof", "Ceiling"}:
+                if len(interior_points) == 0:
+                    logger.error(
+                        f"Cannot compute normal vector for surface {surface.name} without floor surfaces for reference."
+                    )
+                    raise ValueError(
+                        "At least one Floor surface is required to validate other surface types."
+                    )
+                normal_vector = self._get_normal_vector(
+                    surface.vertices, interior_points
+                )
+                surface.vertices = self._sort_vertices_clockwise(surface, normal_vector)
+        for surface in self.fenestrationsurfaces:
+            normal_vector = self._get_normal_vector(surface.vertices, interior_points)
+            surface.vertices = self._sort_vertices_clockwise(surface, normal_vector)
+        return self
+
+    def _sort_vertices_clockwise(
+        self,
+        surface: SurfaceSchema | FenestrationSurfaceSchema,
+        normal_vector: np.ndarray,
+    ):
+        points = surface.vertices
+        normal = normal_vector / np.linalg.norm(normal_vector)
+        centroid = np.mean(points, axis=0)
+
+        def compare_points(idx1, idx2):
+            v1 = points[idx1] - centroid
+            v2 = points[idx2] - centroid
+
+            cross = np.cross(v1, v2)
+
+            sign = np.dot(cross, normal)
+
+            if sign > 1e-10:
+                return -1
+            elif sign < -1e-10:
+                return 1
+            else:
+                d1 = np.linalg.norm(v1)
+                d2 = np.linalg.norm(v2)
+                return -1 if d1 < d2 else 1
+
+        from functools import cmp_to_key
+
+        sorted_indices = sorted(range(len(points)), key=cmp_to_key(compare_points))
+        points = points[sorted_indices]
+        top_left_index = self._get_top_left_corner_from_normal(points, normal_vector)
+
+        return np.roll(points, -top_left_index, axis=0)
+
+    def _get_interior_points(self, surface: SurfaceSchema) -> np.ndarray:
+        interior_points = []
+        if isinstance(surface.vertices, np.ndarray):
+            try:
+                tri = Delaunay(surface.vertices[:, :-1])
+            except Exception as e:
+                logger.exception(
+                    f"Failed to perform Delaunay triangulation on surface {surface.name}: {e}"
+                )
+                raise ValueError(
+                    f"Delaunay triangulation failed for surface {surface.name}."
+                ) from e
+        for simplex in tri.simplices:
+            triangle_vertices = surface.vertices[simplex]
+            centroid = triangle_vertices.mean(axis=0)
+            interior_points.append(centroid.tolist())
+        return np.array(interior_points)
+
+    def _get_top_left_corner_from_normal(self, points, normal_vector) -> np.ndarray:
+        normal = normal_vector / np.linalg.norm(normal_vector)
+
+        world_up = np.array([0, 0, 1])
+
+        if abs(np.dot(normal, world_up)) > 0.99:
+            if np.dot(normal, world_up) > 0:
+                world_up = np.array([0, 1, 0])
+            else:
+                world_up = np.array([0, -1, 0])
+
+        right = np.cross(world_up, normal)
+        right /= np.linalg.norm(right)
+
+        up = np.cross(normal, right)
+        up /= np.linalg.norm(up)
+
+        centroid = np.mean(points, axis=0)
+        relative_points = points - centroid
+
+        x_coords = np.dot(relative_points, right)
+        y_coords = np.dot(relative_points, up)
+
+        sort_keys = np.column_stack((-y_coords, x_coords))
+        top_left_index = np.lexsort((sort_keys[:, 1], sort_keys[:, 0]))[0]
+
+        return top_left_index
+
+    def _get_normal_vector(
+        self, points: np.ndarray, interior_points: np.ndarray
+    ) -> np.ndarray:
+        centroid = np.mean(points, axis=0)
+        distances = np.linalg.norm(interior_points - centroid, axis=1)
+        interior_vector = interior_points[np.argmin(distances)] - centroid
+
+        v1 = points[1] - points[0]
+        v2 = points[2] - points[0]
+
+        if np.dot(np.cross(v1, v2), interior_vector) < 0:
+            normal_vector = np.cross(v1, v2)
+        else:
+            normal_vector = np.cross(v2, v1)
+
+        normal_vector = normal_vector / np.linalg.norm(normal_vector)
+
+        return normal_vector
