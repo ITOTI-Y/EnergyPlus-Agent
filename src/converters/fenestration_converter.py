@@ -38,6 +38,11 @@ class FenestrationConverter(BaseConverter):
             self.state["skipped"] += 1
             return
 
+        if self.idf.getobject("Construction", name=data.construction_name) is None:
+            raise ValueError(
+                f"Construction {data.construction_name} does not exist in IDF"
+            )
+
         fenestration_obj = self.idf.newidfobject(
             "FenestrationSurface:Detailed",
             Name=data.name,
