@@ -107,6 +107,9 @@ Construction:
   - Name: Floor_Const
     Layers:
       - Concrete_20cm
+  - Name: Window_Const
+    Layers:
+      - SimpleGlazingSystem
 
 # ==================================================================
 # 全局几何规则
@@ -326,6 +329,22 @@ BuildingSurface:Detailed:
       - {X: 5, Y: 5, Z: 3}
       - {X: 5, Y: 5, Z: 0}
       - {X: 5, Y: 0, Z: 0}
+
+FenestrationSurface:Detailed:
+  - Name: Zone_West_Window_North_1
+    Surface Type: Window
+    Construction Name: Window_Const
+    Building Surface Name: Zone_West_Wall_North
+    Outside Boundary Condition Object: null
+    View Factor to Ground: autocalculate
+    Frame and Divider Name: null
+    Multiplier: 1
+    Number of Vertices: autocalculate
+    Vertices:
+      - {X: 4, Y: 5, Z: 2}
+      - {X: 4, Y: 5, Z: 1}
+      - {X: 1, Y: 5, Z: 1}
+      - {X: 1, Y: 5, Z: 2}
 
 # HVAC 系统 (简化版)
 # ==================================================================
