@@ -1079,6 +1079,24 @@ class CoilCoolingWaterSchema(BaseSchema):
     availability_schedule_name: str = Field(..., alias="Availability Schedule Name")
     design_air_flow_rate: float | str = Field("autosize", alias="Design Air Flow Rate")
 
+    @field_validator("name", "availability_schedule_name")
+    def validate_non_empty(cls, v):
+        if not v:
+            raise ValueError("This field must not be empty.")
+        return v
+
+    @field_validator("design_air_flow_rate")
+    def validate_flow_rate(cls, v):
+        if isinstance(v, str) and v.lower() == "autosize":
+            return "autosize"
+        try:
+            fv = float(v)
+            if fv <= 0:
+                raise ValueError("Design Air Flow Rate must be positive.")
+            return fv
+        except (TypeError, ValueError) as e:
+            raise ValueError("Design Air Flow Rate must be 'autosize' or a positive number.") from e
+
 
 class AirTerminalSingleDuctVAVNoReheatSchema(BaseSchema):
     name: str = Field(..., alias="Name")
