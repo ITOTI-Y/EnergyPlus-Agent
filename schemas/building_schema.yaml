@@ -346,6 +346,20 @@ FenestrationSurface:Detailed:
       - {X: 1, Y: 5, Z: 1}
       - {X: 1, Y: 5, Z: 2}
 
+# Schedule   
+Schedule:
+  ScheduleTypeLimits:
+    - Name: On/Off
+      Lower Limit Value: 0
+      Upper Limit Value: 1
+      Numeric Type: DISCRETE
+  Schedule:Compact:
+    - Name: Always On
+      Schedule Type Limits Name: On/Off
+      Data:
+        - "Through: 12/31"
+        - "For: AllDays"
+        - "Until: 24:00, 1"
 # HVAC 系统 (简化版)
 # ==================================================================
 HVAC:
@@ -354,14 +368,6 @@ HVAC:
       Lower Limit Value: 0
       Upper Limit Value: 1
       Numeric Type: DISCRETE
-
-  Schedule:Compact:
-    - Name: Always On
-      Schedule Type Limits Name: On/Off
-      Data:
-        - "Through: 12/31"
-        - "For: AllDays"
-        - "Until: 24:00, 1"
 
   Fan:VariableVolume:
     - Name: Supply Fan

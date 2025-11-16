@@ -56,14 +56,7 @@ class HVACConverter(BaseConverter):
                 for key, value in data.items()
             }
 
-            if idf_key == "Schedule:Compact" and "Data" in params:
-                schedule_data = params.pop("Data")
-                idf_object = self.idf.newidfobject(idf_key, **params)
-                for i, datum in enumerate(schedule_data, 1):
-                    setattr(idf_object, f"Field_{i}", datum)
-            else:
-                self.idf.newidfobject(idf_key, **params)
-
+            self.idf.newidfobject(idf_key, **params)
             self.state["success"] += 1
             self.logger.debug(f"Successfully added '{object_name}' as {idf_key}.")
         except Exception as e:

@@ -1058,27 +1058,23 @@ class GeometrySchema(BaseSchema):
 
         return normal_vector
 
-
 class ScheduleTypeLimitsSchema(BaseSchema):
     name: str = Field(..., alias="Name")
     lower_limit_value: float | None = Field(None, alias="Lower Limit Value")
     upper_limit_value: float | None = Field(None, alias="Upper Limit Value")
     numeric_type: str | None = Field("CONTINUOUS", alias="Numeric Type")
     unit_type: str | None = Field("Dimensionless", alias="Unit Type")
-
     @field_validator("name")
     def validate_name(cls, v: str) -> str:
         if not v:
             raise ValueError("ScheduleTypeLimits 'Name' must not be empty.")
         return v
-
     @field_validator("numeric_type")
     def validate_numeric_type(cls, v: str | None) -> str | None:
         if v is None:
-            return None  # 允许为空
+            return None
         valid_choices = ["CONTINUOUS", "DISCRETE"]
         return cls.validate_choice_field(v, valid_choices, "Numeric Type")
-
     @model_validator(mode="after")
     def check_limits(self) -> "ScheduleTypeLimitsSchema":
         if (
@@ -1092,33 +1088,23 @@ class ScheduleTypeLimitsSchema(BaseSchema):
             )
         return self
 
-
 class ScheduleCompactSchema(BaseSchema):
     name: str = Field(..., alias="Name")
     schedule_type_limits_name: str = Field(..., alias="Schedule Type Limits Name")
     data: list[str] = Field(..., alias="Data", min_length=1)
-
     @field_validator("name", "schedule_type_limits_name")
     def validate_non_empty(cls, v: str, info: "ValidationInfo") -> str:
         if not v:
             raise ValueError(f"Field '{info.field_name}' must not be empty.")
         return v
 
+## --- START: FIXES APPLIED IN THIS SECTION ---
 
 class FanVariableVolumeSchema(BaseSchema):
     name: str = Field(..., alias="Name")
     availability_schedule_name: str = Field(..., alias="Availability Schedule Name")
-    fan_total_efficiency: float = Field(
-        ...,
-        alias="Fan Total Efficiency",
-        gt=0,  # 必须大于 0
-        le=1   # 必须小于等于 1
-    )
-    pressure_rise: float = Field(
-        ...,
-        alias="Pressure Rise",
-        gt=0   # 必须大于 0
-    )
+    fan_total_efficiency: float = Field(..., alias="Fan Total Efficiency", gt=0, le=1)
+    pressure_rise: float = Field(..., alias="Pressure Rise", gt=0)
     maximum_flow_rate: float | str = Field("autosize", alias="Maximum Flow Rate")
 
     @field_validator("name", "availability_schedule_name")
@@ -1128,23 +1114,23 @@ class FanVariableVolumeSchema(BaseSchema):
         return v
 
     @field_validator("maximum_flow_rate")
-    def validate_autosize_or_positive(cls, v: float | str) -> float | str:
+    def validate_autosize_or_positive(cls, v: float | str, info: "ValidationInfo") -> float | str:
         if isinstance(v, str) and v.lower() == "autosize":
             return "autosize"
         try:
             fv = float(v)
-            if fv <= 0:
-                raise ValueError("Value must be positive if specified numerically.")
-            return fv
         except (ValueError, TypeError) as e:
-            raise ValueError("Value must be a positive number or 'autosize'.") from e
-
+            raise ValueError(f"Field '{info.field_name}' must be a positive number or 'autosize'.") from e
+        if fv <= 0:
+            raise ValueError(f"Field '{info.field_name}' must be positive if specified numerically.")
+        return fv
 
 class CoilCoolingWaterSchema(BaseSchema):
     name: str = Field(..., alias="Name")
     availability_schedule_name: str = Field(..., alias="Availability Schedule Name")
     design_air_flow_rate: float | str = Field("autosize", alias="Design Air Flow Rate")
 
+    ## FIX 2: 增加了缺失的验证器
     @field_validator("name", "availability_schedule_name")
     def validate_non_empty(cls, v: str, info: "ValidationInfo") -> str:
         if not v:
@@ -1152,17 +1138,18 @@ class CoilCoolingWaterSchema(BaseSchema):
         return v
 
     @field_validator("design_air_flow_rate")
-    def validate_autosize_or_positive(cls, v: float | str) -> float | str:
+    def validate_autosize_or_positive(cls, v: float | str, info: "ValidationInfo") -> float | str:
+        # 重用了上面修复后的健壮模式
         if isinstance(v, str) and v.lower() == "autosize":
             return "autosize"
         try:
             fv = float(v)
-            if fv <= 0:
-                raise ValueError("Value must be positive if specified numerically.")
-            return fv
-        except (TypeError, ValueError) as e:
-            raise ValueError("Value must be 'autosize' or a positive number.") from e
+        except (ValueError, TypeError) as e:
+            raise ValueError(f"Field '{info.field_name}' must be a positive number or 'autosize'.") from e
 
+        if fv <= 0:
+            raise ValueError(f"Field '{info.field_name}' must be positive if specified numerically.")
+        return fv
 
 class AirTerminalSingleDuctVAVNoReheatSchema(BaseSchema):
     name: str = Field(..., alias="Name")
@@ -1177,36 +1164,40 @@ class AirTerminalSingleDuctVAVNoReheatSchema(BaseSchema):
         if not v:
             raise ValueError(f"Field '{info.field_name}' must not be empty.")
         return v
-
     @field_validator("maximum_air_flow_rate")
-    def validate_autosize_or_positive(cls, v: float | str) -> float | str:
+    def validate_autosize_or_positive(cls, v: float | str, info: "ValidationInfo") -> float | str:
+
         if isinstance(v, str) and v.lower() == "autosize":
             return "autosize"
         try:
             fv = float(v)
-            if fv <= 0:
-                raise ValueError("Value must be positive if specified numerically.")
-            return fv
         except (ValueError, TypeError) as e:
-            raise ValueError("Value must be a positive number or 'autosize'.") from e
+            raise ValueError(f"Field '{info.field_name}' must be a positive number or 'autosize'.") from e
 
+        if fv <= 0:
+            raise ValueError(f"Field '{info.field_name}' must be positive if specified numerically.")
+        return fv
+class ScheduleCollectionSchema(BaseSchema):
+    """
+    A container schema for all Schedule related components.
+    """
+    schedule_type_limits: list[ScheduleTypeLimitsSchema] | None = Field(
+        default=None, alias="ScheduleTypeLimits"
+    )
+    schedules: list[ScheduleCompactSchema] | None = Field(
+        default=None, alias="Schedule:Compact"
+    )
 
 class HVACSchema(BaseSchema):
     """
     A container schema for all HVAC related components.
-    This schema organizes lists of different HVAC objects.
     """
-
-    schedule_type_limits: list[ScheduleTypeLimitsSchema] | None = Field(
-        None, alias="ScheduleTypeLimits"
+    fans: list[FanVariableVolumeSchema] | None = Field(
+        default=None, alias="Fan:VariableVolume"
     )
-    schedules: list[ScheduleCompactSchema] | None = Field(
-        None, alias="Schedule:Compact"
-    )
-    fans: list[FanVariableVolumeSchema] | None = Field(None, alias="Fan:VariableVolume")
     cooling_coils: list[CoilCoolingWaterSchema] | None = Field(
-        None, alias="Coil:Cooling:Water"
+        default=None, alias="Coil:Cooling:Water"
     )
     terminals: list[AirTerminalSingleDuctVAVNoReheatSchema] | None = Field(
-        None, alias="AirTerminal:SingleDuct:VAV:NoReheat"
+        default=None, alias="AirTerminal:SingleDuct:VAV:NoReheat"
     )
