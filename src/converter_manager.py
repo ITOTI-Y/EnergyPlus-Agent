@@ -32,6 +32,7 @@ class ConverterManager:
         self.converters = {
             "settings": SettingsConverter(self._idf),
             "building": BuildingConverter(self._idf),
+            "schedules": ScheduleConverter(self._idf),
             "zones": ZoneConverter(self._idf),
             "surfaces": SurfaceConverter(self._idf),
             "materials": MaterialConverter(self._idf),
@@ -75,20 +76,3 @@ class ConverterManager:
         _idd_info = cast(list[dict], self._idf.idd_info)
         idd_field = IDDField(_idd_info)
         return idd_field
-
-def run_all_conversions(idf, yaml_data):
-
-    converters_in_order = [
-        ScheduleConverter(idf),
-        SettingsConverter(idf),
-        BuildingConverter(idf),
-        ZoneConverter(idf),
-        SurfaceConverter(idf),
-        MaterialConverter(idf),
-        ConstructionConverter(idf),
-        FenestrationConverter(idf),
-        HVACConverter(idf),
-    ]
-
-    for converter in converters_in_order:
-        converter.convert(yaml_data)
