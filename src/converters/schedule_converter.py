@@ -1,5 +1,3 @@
-# src/converters/schedule_converter.py
-
 from typing import Any
 
 from eppy.modeleditor import IDF
@@ -32,12 +30,15 @@ class ScheduleConverter(BaseConverter):
             self.logger.error(f"Failed to process Schedule block: {e}", exc_info=True)
 
     def validate(self, data: dict[str, Any]) -> ScheduleCollectionSchema:
-        """Validates the entire Schedule data block."""
+        """Validates the entire Schedule data block using the container schema."""
         return ScheduleCollectionSchema.model_validate(data)
 
+    # --- MODIFIED: 更新类型注解 ---
     def _add_to_idf(self, schedule_schema: ScheduleCollectionSchema) -> None:
         """Iterates through validated Schedule components and adds them to the IDF."""
+
         schedule_definitions = schedule_schema.model_dump(by_alias=True, exclude_none=True)
+
         for idf_key, object_list in schedule_definitions.items():
             if not object_list:
                 continue
@@ -61,6 +62,7 @@ class ScheduleConverter(BaseConverter):
                     setattr(idf_object, f"Field_{i}", datum)
             else:
                 self.idf.newidfobject(idf_key, **params)
+
             self.state["success"] += 1
             self.logger.debug(f"Successfully added '{object_name}' as {idf_key}.")
         except Exception as e:

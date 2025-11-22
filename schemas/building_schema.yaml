@@ -353,6 +353,8 @@ Schedule:
       Lower Limit Value: 0
       Upper Limit Value: 1
       Numeric Type: DISCRETE
+      Unit Type: Dimensionless
+      
   Schedule:Compact:
     - Name: Always On
       Schedule Type Limits Name: On/Off
@@ -360,35 +362,36 @@ Schedule:
         - "Through: 12/31"
         - "For: AllDays"
         - "Until: 24:00, 1"
+    - Name: Heating_Setpoint_Schedule
+      Schedule Type Limits Name: Temperature # 引用我们新定义的温度类型
+      Data:
+        - "Through: 12/31" # 全年
+        - "For: AllDays"   # 每天
+        - "Until: 24:00, 20" # 全天24小时，温度设定为 20°C
+        
+    # --- NEW: 添加制冷温度设定时间表 ---
+    - Name: Cooling_Setpoint_Schedule
+      Schedule Type Limits Name: Temperature # 引用我们新定义的温度类型
+      Data:
+        - "Through: 12/31" # 全年
+        - "For: AllDays"   # 每天
+        - "Until: 24:00, 26" # 全天24小时，温度设定为 26°C
 # HVAC 系统 (简化版)
 # ==================================================================
 HVAC:
-  ScheduleTypeLimits:
-    - Name: On/Off
-      Lower Limit Value: 0
-      Upper Limit Value: 1
-      Numeric Type: DISCRETE
-
-  Fan:VariableVolume:
-    - Name: Supply Fan
+  HVACTemplate:Zone:IdealLoadsAirSystem:
+    - Zone Name: Zone_West
+      Template Thermostat Name: Ideal Loads Thermostat 
       Availability Schedule Name: Always On
-      Fan Total Efficiency: 0.7
-      Pressure Rise: 600
-
-  Coil:Cooling:Water:
-    - Name: Main Cooling Coil
+      
+    - Zone Name: Zone_East 
+      Template Thermostat Name: Ideal Loads Thermostat 
       Availability Schedule Name: Always On
-      Design Air Flow Rate: autosize
-
-  AirTerminal:SingleDuct:VAV:NoReheat:
-    - Name: VAV Terminal West
-      Availability Schedule Name: Always On
-      Air Outlet Node Name: Zone_West Inlet Node
-      Maximum Air Flow Rate: autosize
-
-    - Name: VAV Terminal East
-      Availability Schedule Name: Always On
-      Air Outlet Node Name: Zone_East Inlet Node
+      
+  HVACTemplate:Thermostat:
+    - Name: Ideal Loads Thermostat
+      Heating Setpoint Schedule Name: Heating_Setpoint_Schedule 
+      Cooling Setpoint Schedule Name: Cooling_Setpoint_Schedule 
 # ==================================================================
 # 输出设置
 # ==================================================================
