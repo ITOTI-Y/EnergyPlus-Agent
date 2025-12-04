@@ -346,6 +346,53 @@ FenestrationSurface:Detailed:
       - {X: 1, Y: 5, Z: 1}
       - {X: 1, Y: 5, Z: 2}
 
+
+Schedule:
+  ScheduleTypeLimits:
+    - Name: On/Off
+      Lower Limit Value: 0
+      Upper Limit Value: 1
+      Numeric Type: DISCRETE
+      Unit Type: Dimensionless
+    - Name: Temperature
+      Numeric Type: CONTINUOUS  
+      Unit Type: Temperature
+  Schedule:Compact:
+    - Name: Always On
+      Schedule Type Limits Name: On/Off
+      Data:
+        - "Through: 12/31"
+        - "For: AllDays"
+        - "Until: 24:00, 1"
+    - Name: Heating_Setpoint_Schedule
+      Schedule Type Limits Name: Temperature
+      Data:
+        - "Through: 12/31"
+        - "For: AllDays"
+        - "Until: 24:00, 20"
+        
+
+    - Name: Cooling_Setpoint_Schedule
+      Schedule Type Limits Name: Temperature
+      Data:
+        - "Through: 12/31"
+        - "For: AllDays"
+        - "Until: 24:00, 26"
+
+HVAC:
+  HVACTemplate:Zone:IdealLoadsAirSystem:
+    - Zone Name: Zone_West
+      Template Thermostat Name: Ideal Loads Thermostat
+      System Availability Schedule Name: Always On
+      
+    - Zone Name: Zone_East 
+      Template Thermostat Name: Ideal Loads Thermostat
+      System Availability Schedule Name: Always On
+      
+  HVACTemplate:Thermostat:
+    - Name: Ideal Loads Thermostat
+      Heating Setpoint Schedule Name: Heating_Setpoint_Schedule
+      Cooling Setpoint Schedule Name: Cooling_Setpoint_Schedule
 # ==================================================================
 # 输出设置
 # ==================================================================

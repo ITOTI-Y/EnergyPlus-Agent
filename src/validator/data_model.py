@@ -1,7 +1,14 @@
 from collections import defaultdict
 
 import numpy as np
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    ValidationInfo,
+    field_validator,
+    model_validator,
+)
 from scipy.spatial import Delaunay
 
 from src.utils.logging import get_logger
@@ -358,7 +365,7 @@ class SurfaceSchema(BaseSchema):
     @field_validator("surface_type")
     def validate_surface_type(cls, v):
         valid_types = cls._idf_field.BuildingSurface_Detailed.Surface_Type.key
-        if v not in valid_types:
+        if v not in valid_types:  # type: ignore[operator]
             raise ValueError(f"Surface Type must be one of {valid_types}.")
         return v
 
@@ -367,7 +374,7 @@ class SurfaceSchema(BaseSchema):
         valid_conditions = (
             cls._idf_field.BuildingSurface_Detailed.Outside_Boundary_Condition.key
         )
-        if v not in valid_conditions:
+        if v not in valid_conditions:  # type: ignore[operator]
             raise ValueError(
                 f"Outside Boundary Condition must be one of {valid_conditions}."
             )
@@ -376,14 +383,14 @@ class SurfaceSchema(BaseSchema):
     @field_validator("sun_exposure")
     def validate_sun_exposure(cls, v):
         valid_exposures = cls._idf_field.BuildingSurface_Detailed.Sun_Exposure.key
-        if v not in valid_exposures:
+        if v not in valid_exposures:  # type: ignore[operator]
             raise ValueError(f"Sun Exposure must be one of {valid_exposures}.")
         return v
 
     @field_validator("wind_exposure")
     def validate_wind_exposure(cls, v):
         valid_exposures = cls._idf_field.BuildingSurface_Detailed.Wind_Exposure.key
-        if v not in valid_exposures:
+        if v not in valid_exposures:  # type: ignore[operator]
             raise ValueError(f"Wind Exposure must be one of {valid_exposures}.")
         return v
 
@@ -590,7 +597,7 @@ class RunPeriodSchema(BaseSchema):
     @field_validator("day_of_week_for_start_day")
     def validate_day_of_week(cls, v):
         valid_days = cls._idf_field.RunPeriod.Day_of_Week_for_Start_Day.key
-        if v is not None and v not in valid_days:
+        if v is not None and v not in valid_days:  # type: ignore[operator]
             raise ValueError(f"Day of Week for Start Day must be one of {valid_days}.")
         return v
 
@@ -605,7 +612,7 @@ class GlobalGeometryRulesSchema(BaseSchema):
         valid_positions = (
             cls._idf_field.GlobalGeometryRules.Starting_Vertex_Position.key
         )
-        if v not in valid_positions:
+        if v not in valid_positions:  # type: ignore[operator]
             raise ValueError(
                 f"Starting Vertex Position must be one of {valid_positions}."
             )
@@ -835,7 +842,7 @@ class FenestrationSurfaceSchema(BaseSchema):
     @field_validator("surface_type")
     def validate_surface_type(cls, v):
         valid_types = cls._idf_field.FenestrationSurface_Detailed.Surface_Type.key
-        if v not in valid_types:
+        if v not in valid_types:  # type: ignore[operator]
             raise ValueError(f"Surface Type must be one of {valid_types}.")
         return v
 
@@ -1050,3 +1057,132 @@ class GeometrySchema(BaseSchema):
         normal_vector = normal_vector / np.linalg.norm(normal_vector)
 
         return normal_vector
+
+
+class ScheduleTypeLimitsSchema(BaseSchema):
+    name: str = Field(..., alias="Name")
+    lower_limit_value: float | None | str = Field(default="", alias="Lower Limit Value")
+    upper_limit_value: float | None | str = Field(default="", alias="Upper Limit Value")
+    numeric_type: str | None = Field("CONTINUOUS", alias="Numeric Type")
+    unit_type: str | None = Field("Dimensionless", alias="Unit Type")
+
+    @field_validator("name")
+    def validate_name(cls, v: str) -> str:
+        if not v:
+            raise ValueError("ScheduleTypeLimits 'Name' must not be empty.")
+        return v
+
+    @field_validator("lower_limit_value", "upper_limit_value")
+    def validate_limit_value(cls, v: float | None | str) -> float | None | str:
+        if v == "":
+            return ""
+        if isinstance(v, (int, float)):
+            return v
+        raise ValueError("Limit values must be a number or an empty string.")
+
+    @field_validator("numeric_type")
+    def validate_numeric_type(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
+        valid_choices = ["CONTINUOUS", "DISCRETE"]
+        return cls.validate_choice_field(v, valid_choices, "Numeric Type")
+
+    @model_validator(mode="after")
+    def check_limits(self) -> "ScheduleTypeLimitsSchema":
+        if isinstance(self.lower_limit_value, str) and isinstance(
+            self.upper_limit_value, str
+        ):
+            return self
+        if (
+            isinstance(self.lower_limit_value, (int, float))
+            and isinstance(self.upper_limit_value, (int, float))
+            and self.lower_limit_value < self.upper_limit_value
+        ):
+            return self
+        raise ValueError(
+            f"Type Limits for {self.name} are not valid. Lower limit ({self.lower_limit_value}), upper limit ({self.upper_limit_value})."
+        )
+
+
+class ScheduleCompactSchema(BaseSchema):
+    name: str = Field(..., alias="Name")
+    schedule_type_limits_name: str = Field(..., alias="Schedule Type Limits Name")
+    data: list[str] = Field(..., alias="Data", min_length=1)
+
+    @field_validator("name", "schedule_type_limits_name")
+    def validate_non_empty(cls, v: str, info: "ValidationInfo") -> str:
+        if not v:
+            raise ValueError(f"Field '{info.field_name}' must not be empty.")
+        return v
+
+    @field_validator("data")
+    def validate_data(cls, v: list[str]) -> list[str]:
+        for i in range(0, len(v), 3):
+            through_str = v[i]
+            for_str = v[i+1]
+            until_str = v[i+2]
+            value = until_str.split()[-1]
+            if not through_str.startswith("Through:"):
+                raise ValueError(f"Data must start with 'Through:', but got {through_str}")
+            if not for_str.startswith("For:"):
+                raise ValueError(f"Data must contain 'For:', but got {for_str}")
+            if not until_str.startswith("Until:"):
+                raise ValueError(f"Data must contain 'Until:', but got {until_str}")
+            if not value.isdigit():
+                raise ValueError(f"Data must contain a number after 'Until:', but got {value}")
+        return v
+
+
+class ScheduleCollectionSchema(BaseSchema):
+    schedule_type_limits: list[ScheduleTypeLimitsSchema] = Field(
+        default_factory=list, alias="ScheduleTypeLimits"
+    )
+    schedules: list[ScheduleCompactSchema] = Field(
+        default_factory=list, alias="Schedule:Compact"
+    )
+
+
+class HVACTemplateThermostatSchema(BaseSchema):
+    name: str = Field(..., alias="Name")
+    heating_setpoint_schedule_name: str = Field(
+        ..., alias="Heating Setpoint Schedule Name"
+    )
+    cooling_setpoint_schedule_name: str = Field(
+        ..., alias="Cooling Setpoint Schedule Name"
+    )
+
+    @field_validator(
+        "name", "heating_setpoint_schedule_name", "cooling_setpoint_schedule_name"
+    )
+    def validate_non_empty(cls, v: str, info: "ValidationInfo") -> str:
+        if not v:
+            raise ValueError(f"Field '{info.field_name}' must not be empty.")
+        return v
+
+
+class HVACTemplateZoneIdealLoadsAirSystemSchema(BaseSchema):
+    zone_name: str = Field(..., alias="Zone Name")
+    template_thermostat_name: str = Field(..., alias="Template Thermostat Name")
+    system_availability_schedule_name: str | None = Field(
+        None, alias="System Availability Schedule Name"
+    )
+
+    @field_validator("zone_name", "template_thermostat_name")
+    def validate_non_empty(cls, v: str, info: "ValidationInfo") -> str:
+        if not v:
+            raise ValueError(f"Field '{info.field_name}' must not be empty.")
+        return v
+
+
+class HVACSchema(BaseSchema):
+    """
+    A container schema for all HVAC related components,
+    now based on HVACTemplate objects.
+    """
+
+    thermostats: list[HVACTemplateThermostatSchema] | list = Field(
+        default_factory=list, alias="HVACTemplate:Thermostat"
+    )
+    ideal_loads_systems: list[HVACTemplateZoneIdealLoadsAirSystemSchema] | list = Field(
+        default_factory=list, alias="HVACTemplate:Zone:IdealLoadsAirSystem"
+    )

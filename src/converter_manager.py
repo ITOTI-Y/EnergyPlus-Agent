@@ -8,13 +8,15 @@ from eppy.modeleditor import IDF
 
 from src.converters import (
     BuildingConverter,
+    ConstructionConverter,
     FenestrationConverter,
+    HVACConverter,
+    MaterialConverter,
+    ScheduleConverter,
+    SettingsConverter,
     SurfaceConverter,
     ZoneConverter,
 )
-from src.converters.construction_converter import ConstructionConverter
-from src.converters.material_converter import MaterialConverter
-from src.converters.setting_converter import SettingsConverter
 from src.utils.logging import get_logger
 from src.validator.data_model import BaseSchema, IDDField
 
@@ -30,11 +32,13 @@ class ConverterManager:
         self.converters = {
             "settings": SettingsConverter(self._idf),
             "building": BuildingConverter(self._idf),
+            "schedules": ScheduleConverter(self._idf),
             "zones": ZoneConverter(self._idf),
             "surfaces": SurfaceConverter(self._idf),
             "materials": MaterialConverter(self._idf),
             "constructions": ConstructionConverter(self._idf),
             "fenestrations": FenestrationConverter(self._idf),
+            "hvac": HVACConverter(self._idf),
         }
 
     @property

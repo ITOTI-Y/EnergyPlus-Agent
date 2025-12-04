@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import TypedDict
+from typing import TypedDict, Any
 
 from eppy.modeleditor import IDF
 
@@ -27,9 +27,9 @@ class BaseConverter(ABC):
         pass
 
     @abstractmethod
-    def _add_to_idf(self, data: dict) -> None:
+    def _add_to_idf(self, data: Any) -> None:
         pass
 
     @abstractmethod
-    def validate(self, data: dict) -> dict:
+    def validate(self, data: dict) -> Any:
         pass

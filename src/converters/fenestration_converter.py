@@ -15,7 +15,6 @@ class FenestrationConverter(BaseConverter):
         self.logger.info("Converting FenestrationSurface data...")
         fenestration_data = data.get("FenestrationSurface:Detailed", [])
 
-        # Pass the complete data to validate method so it can access building surface info
         val_data = self.validate(fenestration_data)
         for fenestration in val_data:
             try:
@@ -62,12 +61,10 @@ class FenestrationConverter(BaseConverter):
             setattr(fenestration_obj, f"Vertex_{i}_Ycoordinate", vertex[1])
             setattr(fenestration_obj, f"Vertex_{i}_Zcoordinate", vertex[2])
 
-    def validate(
-        self, fenestration_data: list[dict]
-    ) -> list[FenestrationSurfaceSchema]:
+    def validate(self, data: list[dict]) -> list[FenestrationSurfaceSchema]:
         val_data = []
         try:
-            fenestrationsurfaces = {"fenestrationsurfaces": fenestration_data}
+            fenestrationsurfaces = {"fenestrationsurfaces": data}
             geometry = GeometrySchema.model_validate(fenestrationsurfaces)
 
             for f_surface in geometry.fenestrationsurfaces:
@@ -77,5 +74,5 @@ class FenestrationConverter(BaseConverter):
             self.logger.error(
                 f"Geometry validation failed for fenestration surfaces: {e}"
             )
-            self.state["failed"] += len(fenestration_data)
+            self.state["failed"] += len(data)
         return val_data
