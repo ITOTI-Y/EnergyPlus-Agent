@@ -346,7 +346,7 @@ FenestrationSurface:Detailed:
       - {X: 1, Y: 5, Z: 1}
       - {X: 1, Y: 5, Z: 2}
 
-# Schedule   
+
 Schedule:
   ScheduleTypeLimits:
     - Name: On/Off
@@ -354,7 +354,9 @@ Schedule:
       Upper Limit Value: 1
       Numeric Type: DISCRETE
       Unit Type: Dimensionless
-      
+    - Name: Temperature
+      Numeric Type: CONTINUOUS  
+      Unit Type: Temperature
   Schedule:Compact:
     - Name: Always On
       Schedule Type Limits Name: On/Off
@@ -363,21 +365,20 @@ Schedule:
         - "For: AllDays"
         - "Until: 24:00, 1"
     - Name: Heating_Setpoint_Schedule
-      Schedule Type Limits Name: Temperature # 引用我们新定义的温度类型
+      Schedule Type Limits Name: Temperature
       Data:
-        - "Through: 12/31" # 全年
-        - "For: AllDays"   # 每天
-        - "Until: 24:00, 20" # 全天24小时，温度设定为 20°C
+        - "Through: 12/31"
+        - "For: AllDays"
+        - "Until: 24:00, 20"
         
-    # --- NEW: 添加制冷温度设定时间表 ---
+
     - Name: Cooling_Setpoint_Schedule
-      Schedule Type Limits Name: Temperature # 引用我们新定义的温度类型
+      Schedule Type Limits Name: Temperature
       Data:
-        - "Through: 12/31" # 全年
-        - "For: AllDays"   # 每天
-        - "Until: 24:00, 26" # 全天24小时，温度设定为 26°C
-# HVAC 系统 (简化版)
-# ==================================================================
+        - "Through: 12/31"
+        - "For: AllDays"
+        - "Until: 24:00, 26"
+
 HVAC:
   HVACTemplate:Zone:IdealLoadsAirSystem:
     - Zone Name: Zone_West
