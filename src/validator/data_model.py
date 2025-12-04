@@ -1128,8 +1128,10 @@ class ScheduleCompactSchema(BaseSchema):
                 raise ValueError(f"Data must contain 'For:', but got {for_str}")
             if not until_str.startswith("Until:"):
                 raise ValueError(f"Data must contain 'Until:', but got {until_str}")
-            if not value.isdigit():
-                raise ValueError(f"Data must contain a number after 'Until:', but got {value}")
+            try:
+                float(value)
+            except ValueError as e:
+                raise ValueError(f"Data must contain a number after 'Until:', but got {value}") from e
         return v
 
 
