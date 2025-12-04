@@ -50,44 +50,44 @@ class HVACConverter(BaseConverter):
 
     def _add_to_idf(
         self,
-        data: HVACTemplateThermostatSchema | HVACTemplateZoneIdealLoadsAirSystemSchema,
+        val_data: HVACTemplateThermostatSchema | HVACTemplateZoneIdealLoadsAirSystemSchema,
     ) -> None:
         try:
-            if isinstance(data, HVACTemplateThermostatSchema):
-                if not self.idf.getobject("HVACTemplate:Thermostat", data.name):
+            if isinstance(val_data, HVACTemplateThermostatSchema):
+                if not self.idf.getobject("HVACTemplate:Thermostat", val_data.name):
                     self.idf.newidfobject(
                         "HVACTemplate:Thermostat",
-                        Name=data.name,
-                        Heating_Setpoint_Schedule_Name=data.heating_setpoint_schedule_name,
-                        Cooling_Setpoint_Schedule_Name=data.cooling_setpoint_schedule_name,
+                        Name=val_data.name,
+                        Heating_Setpoint_Schedule_Name=val_data.heating_setpoint_schedule_name,
+                        Cooling_Setpoint_Schedule_Name=val_data.cooling_setpoint_schedule_name,
                     )
                     self.state["success"] += 1
                     self.logger.success(
-                        f"Successfully added HVACTemplate:Thermostat '{data.name}'."
+                        f"Successfully added HVACTemplate:Thermostat '{val_data.name}'."
                     )
                 else:
                     self.logger.warning(
-                        f"HVACTemplate:Thermostat '{data.name}' already exists. Skipping."
+                        f"HVACTemplate:Thermostat '{val_data.name}' already exists. Skipping."
                     )
                     self.state["skipped"] += 1
-            elif isinstance(data, HVACTemplateZoneIdealLoadsAirSystemSchema):
+            elif isinstance(val_data, HVACTemplateZoneIdealLoadsAirSystemSchema):
                 if not self.idf.getobject(
-                    "HVACTemplate:Zone:IdealLoadsAirSystem", data.zone_name
+                    "HVACTemplate:Zone:IdealLoadsAirSystem", val_data.zone_name
                 ):
                     self.idf.newidfobject(
                         "HVACTemplate:Zone:IdealLoadsAirSystem",
-                        Zone_Name=data.zone_name,
-                        Template_Thermostat_Name=data.template_thermostat_name,
-                        System_Availability_Schedule_Name=data.system_availability_schedule_name
+                        Zone_Name=val_data.zone_name,
+                        Template_Thermostat_Name=val_data.template_thermostat_name,
+                        System_Availability_Schedule_Name=val_data.system_availability_schedule_name
                         or "",
                     )
                     self.state["success"] += 1
                     self.logger.success(
-                        f"Successfully added HVACTemplate:Zone:IdealLoadsAirSystem for zone '{data.zone_name}'."
+                        f"Successfully added HVACTemplate:Zone:IdealLoadsAirSystem for zone '{val_data.zone_name}'."
                     )
                 else:
                     self.logger.warning(
-                        f"HVACTemplate:Zone:IdealLoadsAirSystem for zone '{data.zone_name}' already exists. Skipping."
+                        f"HVACTemplate:Zone:IdealLoadsAirSystem for zone '{val_data.zone_name}' already exists. Skipping."
                     )
                     self.state["skipped"] += 1
         except Exception as e:

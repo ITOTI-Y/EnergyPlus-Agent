@@ -30,29 +30,29 @@ class SurfaceConverter(BaseConverter):
                     f"Error Converting BuildingSurface Data: {e}", exc_info=True
                 )
 
-    def _add_to_idf(self, data: SurfaceSchema) -> None:
-        if self.idf.getobject("BuildingSurface:Detailed", name=data.name):
+    def _add_to_idf(self, val_data: SurfaceSchema) -> None:
+        if self.idf.getobject("BuildingSurface:Detailed", name=val_data.name):
             self.logger.warning(
-                f"BuildingSurface with name {data.name} already exists in IDF. Skipping addition."
+                f"BuildingSurface with name {val_data.name} already exists in IDF. Skipping addition."
             )
             self.state["skipped"] += 1
             return
         surface_obj = self.idf.newidfobject(
             "BuildingSurface:Detailed",
-            Name=data.name,
-            Surface_Type=data.surface_type,
-            Construction_Name=data.construction_name,
-            Zone_Name=data.zone_name,
-            Space_Name=data.space_name or "",
-            Outside_Boundary_Condition=data.outside_boundary_condition,
-            Outside_Boundary_Condition_Object=data.outside_boundary_condition_object
+            Name=val_data.name,
+            Surface_Type=val_data.surface_type,
+            Construction_Name=val_data.construction_name,
+            Zone_Name=val_data.zone_name,
+            Space_Name=val_data.space_name or "",
+            Outside_Boundary_Condition=val_data.outside_boundary_condition,
+            Outside_Boundary_Condition_Object=val_data.outside_boundary_condition_object
             or "",
-            Sun_Exposure=data.sun_exposure,
-            Wind_Exposure=data.wind_exposure,
-            View_Factor_to_Ground=data.view_factor_to_ground,
+            Sun_Exposure=val_data.sun_exposure,
+            Wind_Exposure=val_data.wind_exposure,
+            View_Factor_to_Ground=val_data.view_factor_to_ground,
         )
 
-        for i, vertex in enumerate(data.vertices, 1):
+        for i, vertex in enumerate(val_data.vertices, 1):
             setattr(surface_obj, f"Vertex_{i}_Xcoordinate", vertex[0])
             setattr(surface_obj, f"Vertex_{i}_Ycoordinate", vertex[1])
             setattr(surface_obj, f"Vertex_{i}_Zcoordinate", vertex[2])

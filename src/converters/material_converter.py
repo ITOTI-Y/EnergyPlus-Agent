@@ -48,42 +48,45 @@ class MaterialConverter(BaseConverter):
                 )
                 continue
 
-    def _add_to_idf(self, data: MaterialSchema | StandardMaterialSchema | NoMassMaterialSchema | AirGapMaterialSchema | GlazingMaterialSchema) -> None:
+    def _add_to_idf(
+        self,
+        val_data: MaterialSchema
+        | StandardMaterialSchema
+        | NoMassMaterialSchema
+        | AirGapMaterialSchema
+        | GlazingMaterialSchema,
+    ) -> None:
         try:
-            idf_key = self._get_idf_key(data.type)
+            idf_key = self._get_idf_key(val_data.type)
 
             if not idf_key:
                 self.logger.error(
-                    f"Unknown material type '{data.type}' for material '{data.name}'"
+                    f"Unknown material type '{val_data.type}' for material '{val_data.name}'"
                 )
                 self.state["failed"] += 1
                 return
 
-            if self.idf.getobject(idf_key, data.name):
+            if self.idf.getobject(idf_key, val_data.name):
                 self.logger.warning(
-                    f"{idf_key} with name '{data.name}' already exists. Skipping addition."
+                    f"{idf_key} with name '{val_data.name}' already exists. Skipping addition."
                 )
                 self.state["skipped"] += 1
                 return
-            type_handlers = {
-                StandardMaterialSchema: self._add_standard_material_to_idf,
-                NoMassMaterialSchema: self._add_no_mass_material_to_idf,
-                AirGapMaterialSchema: self._add_air_gap_material_to_idf,
-                GlazingMaterialSchema: self._add_glazing_material_to_idf,
-            }
-            handler = type_handlers.get(type(data))
-
-            if not handler:
-                self.state["failed"] += 1
-                self.logger.exception(f"Invalid material type: {data.type}")
-                return
-
-            handler(data)
+            if isinstance(val_data, StandardMaterialSchema):
+                self._add_standard_material_to_idf(val_data)
+            elif isinstance(val_data, NoMassMaterialSchema):
+                self._add_no_mass_material_to_idf(val_data)
+            elif isinstance(val_data, AirGapMaterialSchema):
+                self._add_air_gap_material_to_idf(val_data)
+            elif isinstance(val_data, GlazingMaterialSchema):
+                self._add_glazing_material_to_idf(val_data)
             self.state["success"] += 1
-            self.logger.success(f"Material '{data.name}' added successfully.")
+            self.logger.success(f"Material '{val_data.name}' added successfully.")
         except Exception:
             self.state["failed"] += 1
-            self.logger.exception(f"An unexpected error occurred while adding material '{data.name}' to IDF")
+            self.logger.exception(
+                f"An unexpected error occurred while adding material '{val_data.name}' to IDF"
+            )
 
     def _get_idf_key(self, material_type: str) -> str:
         type_to_key: dict[str, str] = {
