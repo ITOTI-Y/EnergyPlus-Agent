@@ -1,5 +1,3 @@
-# prompt.py
-
 SYSTEM_PROMPT = """
 你是一个 EnergyPlus 建模助手。你的任务是通过调用工具补全建筑信息字典。
 
