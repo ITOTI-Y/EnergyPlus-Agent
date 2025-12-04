@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import TypedDict, Any
+from typing import Any, TypedDict
 
 from eppy.modeleditor import IDF
 
@@ -11,23 +11,19 @@ class ConvertState(TypedDict):
     skipped: int
     failed: int
 
-class BaseConverter(ABC):
 
+class BaseConverter(ABC):
     def __init__(self, idf: IDF):
         self.idf = idf
         self.logger = get_logger(__name__)
-        self.state: ConvertState = {
-            "success": 0,
-            "skipped": 0,
-            "failed": 0
-        }
+        self.state: ConvertState = {"success": 0, "skipped": 0, "failed": 0}
 
     @abstractmethod
     def convert(self, data: dict) -> None:
         pass
 
     @abstractmethod
-    def _add_to_idf(self, data: Any) -> None:
+    def _add_to_idf(self, val_data: Any) -> None:
         pass
 
     @abstractmethod

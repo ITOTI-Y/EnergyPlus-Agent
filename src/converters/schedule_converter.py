@@ -41,48 +41,48 @@ class ScheduleConverter(BaseConverter):
         for schedule_compact in validated_data.schedules:
             self._add_to_idf(schedule_compact)
 
-    def _add_to_idf(self, data: Any) -> None:
+    def _add_to_idf(self, val_data: Any) -> None:
         try:
-            if isinstance(data, ScheduleTypeLimitsSchema):
-                if not self.idf.getobject("ScheduleTypeLimits", data.name):
+            if isinstance(val_data, ScheduleTypeLimitsSchema):
+                if not self.idf.getobject("ScheduleTypeLimits", val_data.name):
                     self.idf.newidfobject(
                         "ScheduleTypeLimits",
-                        Name=data.name,
-                        Lower_Limit_Value=data.lower_limit_value,
-                        Upper_Limit_Value=data.upper_limit_value,
-                        Numeric_Type=data.numeric_type,
-                        Unit_Type=data.unit_type,
+                        Name=val_data.name,
+                        Lower_Limit_Value=val_data.lower_limit_value,
+                        Upper_Limit_Value=val_data.upper_limit_value,
+                        Numeric_Type=val_data.numeric_type,
+                        Unit_Type=val_data.unit_type,
                     )
                     self.state["success"] += 1
                     self.logger.success(
-                        f"ScheduleTypeLimits with name {data.name} added to IDF."
+                        f"ScheduleTypeLimits with name {val_data.name} added to IDF."
                     )
                 else:
                     self.logger.warning(
-                        f"ScheduleTypeLimits with name {data.name} already exists in IDF. Skipping addition."
+                        f"ScheduleTypeLimits with name {val_data.name} already exists in IDF. Skipping addition."
                     )
                     self.state["skipped"] += 1
-            elif isinstance(data, ScheduleCompactSchema):
-                if not self.idf.getobject("Schedule:Compact", data.name):
+            elif isinstance(val_data, ScheduleCompactSchema):
+                if not self.idf.getobject("Schedule:Compact", val_data.name):
                     schdule = self.idf.newidfobject(
                         "Schedule:Compact",
-                        Name=data.name,
-                        Schedule_Type_Limits_Name=data.schedule_type_limits_name,
+                        Name=val_data.name,
+                        Schedule_Type_Limits_Name=val_data.schedule_type_limits_name,
                     )
-                    for i, value in enumerate(data.data):
+                    for i, value in enumerate(val_data.data):
                         setattr(schdule, f"Field_{i + 1}", value)
                     self.state["success"] += 1
                     self.logger.success(
-                        f"Schedule:Compact with name {data.name} added to IDF."
+                        f"Schedule:Compact with name {val_data.name} added to IDF."
                     )
                 else:
                     self.logger.warning(
-                        f"Schedule:Compact with name {data.name} already exists in IDF. Skipping addition."
+                        f"Schedule:Compact with name {val_data.name} already exists in IDF. Skipping addition."
                     )
                     self.state["skipped"] += 1
             else:
                 self.state["failed"] += 1
-                raise ValueError(f"Unknown Schedule object type: {type(data)}")
+                raise ValueError(f"Unknown Schedule object type: {type(val_data)}")
         except Exception as e:
             self.state["failed"] += 1
             self.logger.error(f"Failed to add Schedule object: {e}")

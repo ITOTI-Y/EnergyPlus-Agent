@@ -22,30 +22,30 @@ class ZoneConverter(BaseConverter):
                 self.logger.error(f"Error processing Zone: {e}", exc_info=True)
                 continue
 
-    def _add_to_idf(self, data:Any) -> None:
-        if self.idf.getobject("Zone", name=data.name):
-            self.logger.warning(f"Zone with name {data.name} already exists in IDF. Skipping addition.")
+    def _add_to_idf(self, val_data:Any) -> None:
+        if self.idf.getobject("Zone", name=val_data.name):
+            self.logger.warning(f"Zone with name {val_data.name} already exists in IDF. Skipping addition.")
             self.state['skipped'] += 1
             return
         try:
             self.idf.newidfobject(
                 "Zone",
-                Name=data.name,
-                Direction_of_Relative_North=data.direction_of_relative_north,
-                X_Origin=data.x_origin,
-                Y_Origin=data.y_origin,
-                Z_Origin=data.z_origin,
-                Type=data.type,
-                Multiplier=data.multiplier,
-                Ceiling_Height=data.ceiling_height,
-                Volume=data.volume,
-                Floor_Area=data.floor_area,
-                Zone_Inside_Convection_Algorithm=data.zone_inside_convection_algorithm,
-                Zone_Outside_Convection_Algorithm=data.zone_outside_convection_algorithm,
-                Part_of_Total_Floor_Area=data.part_of_total_floor_area
+                Name=val_data.name,
+                Direction_of_Relative_North=val_data.direction_of_relative_north,
+                X_Origin=val_data.x_origin,
+                Y_Origin=val_data.y_origin,
+                Z_Origin=val_data.z_origin,
+                Type=val_data.type,
+                Multiplier=val_data.multiplier,
+                Ceiling_Height=val_data.ceiling_height,
+                Volume=val_data.volume,
+                Floor_Area=val_data.floor_area,
+                Zone_Inside_Convection_Algorithm=val_data.zone_inside_convection_algorithm,
+                Zone_Outside_Convection_Algorithm=val_data.zone_outside_convection_algorithm,
+                Part_of_Total_Floor_Area=val_data.part_of_total_floor_area
             )
             self.state['success'] += 1
-            self.logger.success(f"Zone with name {data.name} added to IDF.")
+            self.logger.success(f"Zone with name {val_data.name} added to IDF.")
         except Exception as e:
             self.state['failed'] += 1
             self.logger.error(f"Error Adding Zone Data to IDF: {e}", exc_info=True)

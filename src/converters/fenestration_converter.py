@@ -15,8 +15,8 @@ class FenestrationConverter(BaseConverter):
         self.logger.info("Converting FenestrationSurface data...")
         fenestration_data = data.get("FenestrationSurface:Detailed", [])
 
-        val_data = self.validate(fenestration_data)
-        for fenestration in val_data:
+        val_data = self.validate({"fenestrationsurfaces": fenestration_data})
+        for fenestration in val_data.fenestrationsurfaces:
             try:
                 self._add_to_idf(fenestration)
                 self.logger.success(
@@ -29,50 +29,44 @@ class FenestrationConverter(BaseConverter):
                     f"Error Converting FenestrationSurface Data: {e}", exc_info=True
                 )
 
-    def _add_to_idf(self, data: FenestrationSurfaceSchema) -> None:
-        if self.idf.getobject("FenestrationSurface:Detailed", name=data.name):
+    def _add_to_idf(self, val_data: FenestrationSurfaceSchema) -> None:
+        if self.idf.getobject("FenestrationSurface:Detailed", name=val_data.name):
             self.logger.warning(
-                f"FenestrationSurface with name {data.name} already exists in IDF. Skipping addition."
+                f"FenestrationSurface with name {val_data.name} already exists in IDF. Skipping addition."
             )
             self.state["skipped"] += 1
             return
 
-        if self.idf.getobject("Construction", name=data.construction_name) is None:
+        if self.idf.getobject("Construction", name=val_data.construction_name) is None:
             raise ValueError(
-                f"Construction {data.construction_name} does not exist in IDF"
+                f"Construction {val_data.construction_name} does not exist in IDF"
             )
 
         fenestration_obj = self.idf.newidfobject(
             "FenestrationSurface:Detailed",
-            Name=data.name,
-            Surface_Type=data.surface_type,
-            Construction_Name=data.construction_name,
-            Building_Surface_Name=data.building_surface_name,
-            Outside_Boundary_Condition_Object=data.outside_boundary_condition_object
+            Name=val_data.name,
+            Surface_Type=val_data.surface_type,
+            Construction_Name=val_data.construction_name,
+            Building_Surface_Name=val_data.building_surface_name,
+            Outside_Boundary_Condition_Object=val_data.outside_boundary_condition_object
             or "",
-            View_Factor_to_Ground=data.view_factor_to_ground or "",
-            Frame_and_Divider_Name=data.frame_and_divider_name or "",
-            Multiplier=data.multiplier,
-            Number_of_Vertices=data.Number_of_Vertices,
+            View_Factor_to_Ground=val_data.view_factor_to_ground or "",
+            Frame_and_Divider_Name=val_data.frame_and_divider_name or "",
+            Multiplier=val_data.multiplier,
+            Number_of_Vertices=val_data.Number_of_Vertices,
         )
 
-        for i, vertex in enumerate(data.vertices, 1):
+        for i, vertex in enumerate(val_data.vertices, 1):
             setattr(fenestration_obj, f"Vertex_{i}_Xcoordinate", vertex[0])
             setattr(fenestration_obj, f"Vertex_{i}_Ycoordinate", vertex[1])
             setattr(fenestration_obj, f"Vertex_{i}_Zcoordinate", vertex[2])
 
-    def validate(self, data: list[dict]) -> list[FenestrationSurfaceSchema]:
-        val_data = []
+    def validate(self, data: dict) -> GeometrySchema:
         try:
-            fenestrationsurfaces = {"fenestrationsurfaces": data}
-            geometry = GeometrySchema.model_validate(fenestrationsurfaces)
-
-            for f_surface in geometry.fenestrationsurfaces:
-                val_data.append(f_surface)
-
+            geometry = GeometrySchema.model_validate(data)
         except Exception as e:
             self.logger.error(
                 f"Geometry validation failed for fenestration surfaces: {e}"
             )
             self.state["failed"] += len(data)
-        return val_data
+        return geometry

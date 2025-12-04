@@ -24,8 +24,8 @@ class BuildingConverter(BaseConverter):
             self.state['failed'] += 1
             self.logger.error(f"Error Convert Building Data: {e}")
 
-    def _add_to_idf(self, data: dict) -> None:
-        building_data: BuildingSchema = data["building_data"]
+    def _add_to_idf(self, val_data: dict) -> None:
+        building_data: BuildingSchema = val_data["building_data"]
 
         try:
             if not self.idf.getobject("Building", name=building_data.name):
