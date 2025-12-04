@@ -1,0 +1,10 @@
+{
+  "Shanghai": {
+    "Recommended": {"name": "高性能岩棉方案", "u_value": 0.5, "desc": "节能首选"},
+    "Economy": {"name": "国标入门方案", "u_value": 0.8, "desc": "造价低"}
+  },
+  "Beijing": {
+    "Recommended": {"name": "加厚石墨聚苯板", "u_value": 0.4, "desc": "抗寒专用"},
+    "Economy": {"name": "常规保温", "u_value": 0.6, "desc": "标准配置"}
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "Geometry": {
+    "Source": "Rhino_Import",
+    "Zones": [
+      "Office_South",
+      "Office_North",
+      "Meeting_Room"
+    ]
+  },
+  "Location": {
+    "latitude": 31.23,
+    "longitude": 121.47,
+    "climate_zone": "Hot Summer Cold Winter",
+    "City": "Shanghai"
+  },
+  "Schedule": {
+    "description": "标准办公模式 (早8晚6，周末休息)",
+    "occupancy_schedule": "Office_Occ_Sch",
+    "lighting_schedule": "Office_Light_Sch",
+    "equipment_schedule": "Office_Equip_Sch",
+    "hvac_availability": "Office_HVAC_Sch"
+  },
+  "HVAC": {
+    "SystemType": "VAV_BuiltUp",
+    "Performance": {
+      "type": "VAV_BuiltUp",
+      "description": "变风量系统 (舒适度高，适合大型建筑)",
+      "cop_cooling": 3.2,
+      "cop_heating": 3.5
+    },
+    "Applied_Zones": [
+      "Office_South",
+      "Office_North",
+      "Meeting_Room"
+    ]
+  },
+  "Construction": {
+    "name": "高性能岩棉方案",
+    "u_value": 0.5,
+    "desc": "节能首选"
+  }
+}
