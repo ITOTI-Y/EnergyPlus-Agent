@@ -382,17 +382,17 @@ Schedule:
 HVAC:
   HVACTemplate:Zone:IdealLoadsAirSystem:
     - Zone Name: Zone_West
-      Template Thermostat Name: Ideal Loads Thermostat 
-      Availability Schedule Name: Always On
+      Template Thermostat Name: Ideal Loads Thermostat
+      System Availability Schedule Name: Always On
       
     - Zone Name: Zone_East 
-      Template Thermostat Name: Ideal Loads Thermostat 
-      Availability Schedule Name: Always On
+      Template Thermostat Name: Ideal Loads Thermostat
+      System Availability Schedule Name: Always On
       
   HVACTemplate:Thermostat:
     - Name: Ideal Loads Thermostat
-      Heating Setpoint Schedule Name: Heating_Setpoint_Schedule 
-      Cooling Setpoint Schedule Name: Cooling_Setpoint_Schedule 
+      Heating Setpoint Schedule Name: Heating_Setpoint_Schedule
+      Cooling Setpoint Schedule Name: Cooling_Setpoint_Schedule
 # ==================================================================
 # 输出设置
 # ==================================================================

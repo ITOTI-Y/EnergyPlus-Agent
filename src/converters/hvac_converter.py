@@ -36,6 +36,7 @@ class HVACConverter(BaseConverter):
         except Exception as e:
             self.state["failed"] += 1
             self.logger.error(f"Failed to process the entire HVAC block: {e}")
+            return
 
         for thermostat in validated_hvac_schema.thermostats:
             self._add_to_idf(thermostat)

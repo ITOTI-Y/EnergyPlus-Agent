@@ -1164,7 +1164,7 @@ class HVACTemplateZoneIdealLoadsAirSystemSchema(BaseSchema):
     zone_name: str = Field(..., alias="Zone Name")
     template_thermostat_name: str = Field(..., alias="Template Thermostat Name")
     system_availability_schedule_name: str | None = Field(
-        None, alias="Availability Schedule Name"
+        None, alias="System Availability Schedule Name"
     )
 
     @field_validator("zone_name", "template_thermostat_name")
