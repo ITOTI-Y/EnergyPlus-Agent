@@ -1168,8 +1168,9 @@ class ScheduleCompactSchema(BaseSchema):
         for i, item in enumerate(data):
             time = item["Until"]["Time"]
             value = float(item["Until"]["Value"])
-            if i == len(data) - 1 and time != "24:00":
-                raise ValueError(f"Last time entry must be 24:00, but got {time}")
+            if i == len(data) - 1:
+                if time != "24:00":
+                    raise ValueError(f"Last time entry must be 24:00, but got {time}")
             else:
                 time = parse(time).strftime("%H:%M")
             result.append(f"Until: {time}, {value}")
