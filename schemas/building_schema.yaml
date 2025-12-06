@@ -361,23 +361,35 @@ Schedule:
     - Name: Always On
       Schedule Type Limits Name: On/Off
       Data:
-        - "Through: 12/31"
-        - "For: AllDays"
-        - "Until: 24:00, 1"
+        - Through: "12/31"
+          Days:
+          - For: "AllDays"
+            Times:
+            - Until:
+                Time: "24:00"
+                Value: 1
+
     - Name: Heating_Setpoint_Schedule
       Schedule Type Limits Name: Temperature
       Data:
-        - "Through: 12/31"
-        - "For: AllDays"
-        - "Until: 24:00, 20"
-        
+        - Through: "12/31"
+          Days:
+          - For: "AllDays"
+            Times:
+            - Until:
+                Time: "24:00"
+                Value: 20
 
     - Name: Cooling_Setpoint_Schedule
       Schedule Type Limits Name: Temperature
       Data:
-        - "Through: 12/31"
-        - "For: AllDays"
-        - "Until: 24:00, 26"
+        - Through: "12/31"
+          Days:
+          - For: "AllDays"
+            Times:
+            - Until:
+                Time: "24:00"
+                Value: 26
 
 HVAC:
   HVACTemplate:Zone:IdealLoadsAirSystem:
