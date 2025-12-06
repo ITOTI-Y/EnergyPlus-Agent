@@ -24,7 +24,8 @@ Building:
     Loads Convergence Tolerance Value: 0.04
     Temperature Convergence Tolerance Value: 0.40
     Solar Distribution: FullInteriorAndExterior
-    Maximum Number of Warmup Days: 25Minimum Number of Warmup Days: 6
+    Maximum Number of Warmup Days: 25
+    Minimum Number of Warmup Days: 6
 
 # ==================================================================
 # 时间步长
@@ -174,7 +175,8 @@ Material:
 # ==================================================================
 # 构造
 # ==================================================================
-Construction:- Name: Exterior_Wall
+Construction:
+  - Name: Exterior_Wall
     Layers:
       - Cement_Mortar_20mm
       - Concrete_Block_200mm

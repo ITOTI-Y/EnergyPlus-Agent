@@ -1126,8 +1126,8 @@ class ScheduleCompactSchema(BaseSchema):
             date = item["Through"]
             date = parse(date).strftime("%m/%d")
             day_data = cls._validate_for(item["Days"])
-            if i == len(data) - 1:
-                assert date == "12/31"
+            if i == len(data) - 1 and date != "12/31":
+                raise ValueError("Schedule data must end with Through: 12/31")
             result.append(f"Through: {date}")
             result.extend(day_data)
         return result
@@ -1168,8 +1168,8 @@ class ScheduleCompactSchema(BaseSchema):
         for i, item in enumerate(data):
             time = item["Until"]["Time"]
             value = float(item["Until"]["Value"])
-            if i == len(data) - 1:
-                assert time == "24:00"
+            if i == len(data) - 1 and time != "24:00":
+                raise ValueError(f"Last time entry must be 24:00, but got {time}")
             else:
                 time = parse(time).strftime("%H:%M")
             result.append(f"Until: {time}, {value}")
