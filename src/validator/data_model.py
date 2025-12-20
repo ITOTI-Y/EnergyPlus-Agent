@@ -684,6 +684,7 @@ class OutputVariableSchema(BaseSchema):
         valid_frequencies = cls._idf_field.Output_Variable.Reporting_Frequency.key
         return cls.validate_choice_field(v, valid_frequencies, "Reporting Frequency")  # type: ignore
 
+
 class MaterialSchema(BaseSchema):
     name: str = Field(..., alias="Name")
     type: str = Field(..., alias="Type")

@@ -73,8 +73,7 @@ class SettingsConverter(BaseConverter):
     def validate(self, data: dict) -> dict:
         self.logger.info("Validating global settings...")
 
-        val_version_data = VersionSchema.model_validate(
-            data.get("version_data", {}))
+        val_version_data = VersionSchema.model_validate(data.get("version_data", {}))
 
         validated_settings = {}
         raw_global_settings = data.get("global_settings_data", {})
@@ -96,8 +95,7 @@ class SettingsConverter(BaseConverter):
                         schema.model_validate(item) for item in setting_data
                     ]
                 else:
-                    validated_settings[idf_key] = schema.model_validate(
-                        setting_data)
+                    validated_settings[idf_key] = schema.model_validate(setting_data)
             except Exception as e:
                 self.logger.error(
                     f"Validation failed for '{idf_key}': {e}", exc_info=True
@@ -114,10 +112,8 @@ class SettingsConverter(BaseConverter):
         settings_to_add = val_data.get("validated_settings", {})
 
         if version_info and not self.idf.idfobjects.get("Version"):
-            self.logger.info(
-                f"Adding Version object '{version_info.version}' to IDF.")
-            self.idf.newidfobject(
-                "Version", Version_Identifier=version_info.version)
+            self.logger.info(f"Adding Version object '{version_info.version}' to IDF.")
+            self.idf.newidfobject("Version", Version_Identifier=version_info.version)
 
         for idf_key, validated_model_or_list in settings_to_add.items():
             items_to_process = (
@@ -142,9 +138,7 @@ class SettingsConverter(BaseConverter):
         if apply_function:
             apply_function(validated_model)
         else:
-            self.logger.error(
-                f"No apply function found for '{idf_key}'"
-            )
+            self.logger.error(f"No apply function found for '{idf_key}'")
 
     def _simulation_control_apply(self, model: SimulationControlSchema) -> None:
         self.idf.newidfobject(
@@ -205,7 +199,9 @@ class SettingsConverter(BaseConverter):
         )
         self.logger.success("Added setting 'Site:Location' to IDF.")
 
-    def _output_variable_dictionary_apply(self, model: OutputVariableDictionarySchema) -> None:
+    def _output_variable_dictionary_apply(
+        self, model: OutputVariableDictionarySchema
+    ) -> None:
         self.idf.newidfobject(
             "Output:VariableDictionary",
             Key_Field=model.key_field,
@@ -219,7 +215,9 @@ class SettingsConverter(BaseConverter):
         )
         self.logger.success("Added setting 'Output:Diagnostics' to IDF.")
 
-    def _output_table_summary_reports_apply(self, model: OutputTableSummaryReportsSchema) -> None:
+    def _output_table_summary_reports_apply(
+        self, model: OutputTableSummaryReportsSchema
+    ) -> None:
         """应用 Output:Table:SummaryReports 对象到 IDF"""
         self.idf.newidfobject(
             "Output:Table:SummaryReports",
@@ -227,7 +225,9 @@ class SettingsConverter(BaseConverter):
         )
         self.logger.success("Added setting 'Output:Table:SummaryReports' to IDF.")
 
-    def _output_control_table_style_apply(self, model: OutputControlTableStyleSchema) -> None:
+    def _output_control_table_style_apply(
+        self, model: OutputControlTableStyleSchema
+    ) -> None:
         """应用 OutputControl:Table:Style 对象到 IDF"""
         self.idf.newidfobject(
             "OutputControl:Table:Style",
