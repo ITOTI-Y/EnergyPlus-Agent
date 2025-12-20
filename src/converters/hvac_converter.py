@@ -50,7 +50,8 @@ class HVACConverter(BaseConverter):
 
     def _add_to_idf(
         self,
-        val_data: HVACTemplateThermostatSchema | HVACTemplateZoneIdealLoadsAirSystemSchema,
+        val_data: HVACTemplateThermostatSchema
+        | HVACTemplateZoneIdealLoadsAirSystemSchema,
     ) -> None:
         try:
             if isinstance(val_data, HVACTemplateThermostatSchema):
