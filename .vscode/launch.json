@@ -6,10 +6,22 @@
     "configurations": [
 
         {
-            "name": "Python Debugger: Python File",
+            "name": "Main",
             "type": "debugpy",
             "request": "launch",
-            "program": "main.py"
+            "program": "${workspaceFolder}/main.py",
+            "args": [
+                "convert-idf"
+            ]
+        },
+        {
+            "name": "MCP",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/main.py",
+            "args": [
+                "mcp-server"
+            ]
         }
     ]
 }
