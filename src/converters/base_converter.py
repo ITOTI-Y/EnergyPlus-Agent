@@ -19,13 +19,10 @@ class BaseConverter(ABC):
         self.state: ConvertState = {"success": 0, "skipped": 0, "failed": 0}
 
     @abstractmethod
-    def convert(self, data: dict) -> None:
-        pass
+    def convert(self, data: dict) -> None: ...
 
     @abstractmethod
-    def _add_to_idf(self, val_data: Any) -> None:
-        pass
+    def _add_to_idf(self, val_data: Any) -> None: ...
 
     @abstractmethod
-    def validate(self, data: dict) -> Any:
-        pass
+    def validate(self, data: dict) -> Any: ...

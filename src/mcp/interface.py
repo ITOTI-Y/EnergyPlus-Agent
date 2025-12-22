@@ -1,6 +1,11 @@
 from pydantic import BaseModel, Field
 
-from src.validator import BuildingSchema, SiteLocationSchema
+from src.validator import (
+    BuildingSchema,
+    RunPeriodSchema,
+    SimulationControlSchema,
+    SiteLocationSchema,
+)
 
 
 class ToolResponse(BaseModel):
@@ -10,8 +15,13 @@ class ToolResponse(BaseModel):
         default=None, description="The data from the tool call."
     )
 
+    def to_mcp_response(self) -> dict:
+        return {
+            "result": self.model_dump(),
+        }
 
-class ValidationError(BaseModel):
+
+class SchemaValidationError(BaseModel):
     field: str = Field(..., description="The field that caused the validation error.")
     message: str = Field(..., description="The message from the validation error.")
 
@@ -47,12 +57,9 @@ class ConfigSummary(BaseModel):
     hvac_ideal_loads_count: int = Field(
         default=0, description="The number of HVAC ideal loads in the configuration."
     )
-    has_simulation_control: bool = Field(
-        default=False, description="Whether the configuration has a simulation control."
+    simulation_control: SimulationControlSchema | None = Field(
+        default=None, description="The simulation control configuration."
     )
-    has_site_location: bool = Field(
-        default=False, description="Whether the configuration has a site location."
-    )
-    has_run_period: bool = Field(
-        default=False, description="Whether the configuration has a run period."
+    run_period: RunPeriodSchema | None = Field(
+        default=None, description="The run period configuration."
     )

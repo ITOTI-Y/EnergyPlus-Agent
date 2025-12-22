@@ -13,6 +13,11 @@ from src.validator import (
     FenestrationSurfaceSchema,
     HVACSchema,
     MaterialSchema,
+    OutputControlTableStyleSchema,
+    OutputDiagnosticsSchema,
+    OutputTableSummaryReportsSchema,
+    OutputVariableDictionarySchema,
+    OutputVariableSchema,
     RunPeriodSchema,
     ScheduleCollectionSchema,
     SimulationControlSchema,
@@ -40,16 +45,32 @@ class ConfigState(BaseSchema):
         default_factory=list, alias="FenestrationSurface:Detailed"
     )
 
-    schedules: ScheduleCollectionSchema | None = Field(
-        default=None, alias="ScheduleCollection"
+    schedules: ScheduleCollectionSchema = Field(
+        default_factory=ScheduleCollectionSchema, alias="Schedule"
     )
 
-    hvac: HVACSchema | None = Field(default=None, alias="HVAC")
+    hvac: HVACSchema = Field(default_factory=HVACSchema, alias="HVAC")
 
     simulation_control: SimulationControlSchema = Field(
         default_factory=SimulationControlSchema, alias="SimulationControl"
     )
-    run_period: RunPeriodSchema | None = Field(default=None, alias="RunPeriod")
+    run_period: RunPeriodSchema = Field(default=dict, alias="RunPeriod")
+
+    output_variable_dictionary: OutputVariableDictionarySchema = Field(
+        default_factory=dict, alias="Output:VariableDictionary"
+    )
+    output_diagnostics: OutputDiagnosticsSchema = Field(
+        default_factory=dict, alias="Output:Diagnostics"
+    )
+    output_table_summary_reports: OutputTableSummaryReportsSchema = Field(
+        default_factory=dict, alias="Output:Table:SummaryReports"
+    )
+    output_variable: list[OutputVariableSchema] = Field(
+        default_factory=list, alias="Output:Variable"
+    )
+    output_control_table_style: OutputControlTableStyleSchema = Field(
+        default_factory=dict, alias="OutputControl:Table:Style"
+    )
 
     def to_yaml_dict(self) -> dict[str, Any]:
         return self.model_dump(by_alias=True, exclude_none=True, serialize_as_any=True)
@@ -66,6 +87,8 @@ class ConfigState(BaseSchema):
     def load_yaml(cls, input_path: str | Path) -> "ConfigState":
         if isinstance(input_path, str):
             input_path = Path(input_path)
+        if not input_path.exists():
+            raise FileNotFoundError(f"YAML file not found: {input_path}")
         with open(input_path) as f:
             config = OmegaConf.load(f)
             logger.info(f"Loaded YAML from {input_path}")
@@ -79,9 +102,17 @@ class ConfigState(BaseSchema):
         self.constructions.clear()
         self.surfaces.clear()
         self.fenestrations.clear()
-        self.schedules = None
-        self.hvac = None
+        self.schedules.schedule_type_limits.clear()
+        self.schedules.schedules.clear()
+        self.hvac.thermostats.clear()
+        self.hvac.ideal_loads_systems.clear()
         self.simulation_control = SimulationControlSchema()
+        self.run_period = RunPeriodSchema()
+        self.output_variable_dictionary = OutputVariableDictionarySchema()
+        self.output_diagnostics = OutputDiagnosticsSchema()
+        self.output_table_summary_reports = OutputTableSummaryReportsSchema()
+        self.output_variable = []
+        self.output_control_table_style = OutputControlTableStyleSchema()
 
     def get_summary(self) -> ConfigSummary:
         return ConfigSummary(
@@ -97,7 +128,81 @@ class ConfigState(BaseSchema):
             hvac_ideal_loads_count=len(self.hvac.ideal_loads_systems)
             if self.hvac
             else 0,
-            has_simulation_control=self.simulation_control is not None,
-            has_site_location=self.site_location is not None,
-            has_run_period=self.run_period is not None,
+            simulation_control=self.simulation_control
+            if self.simulation_control
+            else None,
+            run_period=self.run_period if self.run_period else None,
         )
+
+    def validate_references(self) -> list[str]:
+        errors = []
+
+        material_names = [material.name for material in self.materials]
+        construction_names = [construction.name for construction in self.constructions]
+        surface_names = [surface.name for surface in self.surfaces]
+        zone_names = [zone.name for zone in self.zones]
+        schedule_names = (
+            [schedule.name for schedule in self.schedules.schedules]
+            if self.schedules and self.schedules.schedules
+            else []
+        )
+        thermostat_names = (
+            [thermostat.name for thermostat in self.hvac.thermostats]
+            if self.hvac and self.hvac.thermostats
+            else []
+        )
+
+        for const in self.constructions if self.constructions else []:
+            for layer in const.layers:
+                if layer not in material_names:
+                    errors.append(
+                        f"Construction '{const.name}' references material '{layer}' which does not exist."
+                    )
+
+        for surface in self.surfaces if self.surfaces else []:
+            if surface.construction_name not in construction_names:
+                errors.append(
+                    f"Surface '{surface.name}' references construction '{surface.construction_name}' which does not exist."
+                )
+            if surface.zone_name not in zone_names:
+                errors.append(
+                    f"Surface '{surface.name}' references zone '{surface.zone_name}' which does not exist."
+                )
+
+        for fenestration in self.fenestrations if self.fenestrations else []:
+            if fenestration.construction_name not in construction_names:
+                errors.append(
+                    f"Fenestration '{fenestration.name}' references construction '{fenestration.construction_name}' which does not exist."
+                )
+            if fenestration.building_surface_name not in surface_names:
+                errors.append(
+                    f"Fenestration '{fenestration.name}' references building surface '{fenestration.building_surface_name}' which does not exist."
+                )
+
+        for ils in (
+            self.hvac.ideal_loads_systems
+            if self.hvac and self.hvac.ideal_loads_systems
+            else []
+        ):
+            if ils.zone_name not in zone_names:
+                errors.append(
+                    f"Ideal load system references zone '{ils.zone_name}' which does not exist."
+                )
+            if ils.template_thermostat_name not in thermostat_names:
+                errors.append(
+                    f"Ideal load system references thermostat '{ils.template_thermostat_name}' which does not exist in HVAC schema."
+                )
+
+        for thermostat in (
+            self.hvac.thermostats if self.hvac and self.hvac.thermostats else []
+        ):
+            if thermostat.heating_setpoint_schedule_name not in schedule_names:
+                errors.append(
+                    f"Thermostat '{thermostat.name}' references heating setpoint schedule '{thermostat.heating_setpoint_schedule_name}' which does not exist."
+                )
+            if thermostat.cooling_setpoint_schedule_name not in schedule_names:
+                errors.append(
+                    f"Thermostat '{thermostat.name}' references cooling setpoint schedule '{thermostat.cooling_setpoint_schedule_name}' which does not exist."
+                )
+
+        return errors

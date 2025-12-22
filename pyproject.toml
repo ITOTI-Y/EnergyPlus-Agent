@@ -18,6 +18,9 @@ dependencies = [
     "typer>=0.20.1",
 ]
 
+[project.scripts]
+energyplus-mcp = "src.mcp.server:mcp.run"
+
 [tool.ruff]
 line-length = 88
 

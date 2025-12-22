@@ -24,7 +24,6 @@ from src.validator.data_model import BaseSchema, IDDField
 class ConverterManager:
     def __init__(self, idd_file: Path, file_to_convert: Path):
         self.logger = get_logger(__name__)
-        BaseSchema.set_idf(idd_file)
         self._idf = BaseSchema.get_idf()
         self.yaml_data: dict = self._load_yaml(file_to_convert)
         self.converters = {

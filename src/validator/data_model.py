@@ -119,8 +119,7 @@ class BaseSchema(BaseModel):
         return choice_mapping[value_lower]
 
     @abstractmethod
-    def to_yaml_dict(self) -> dict[str, Any]:
-        pass
+    def to_yaml_dict(self) -> dict[str, Any]: ...
 
     @classmethod
     def get_idf(cls) -> IDF:
@@ -582,12 +581,12 @@ class SiteLocationSchema(BaseSchema):
 
 
 class RunPeriodSchema(BaseSchema):
-    name: str = Field(..., alias="Name")
-    begin_month: int = Field(..., alias="Begin Month")
-    begin_day_of_month: int = Field(..., alias="Begin Day of Month")
+    name: str = Field("Default Run Period", alias="Name")
+    begin_month: int = Field(1, alias="Begin Month")
+    begin_day_of_month: int = Field(1, alias="Begin Day of Month")
     begin_year: int | None = Field(None, alias="Begin Year")
-    end_month: int = Field(..., alias="End Month")
-    end_day_of_month: int = Field(..., alias="End Day of Month")
+    end_month: int = Field(12, alias="End Month")
+    end_day_of_month: int = Field(31, alias="End Day of Month")
     end_year: int | None = Field(None, alias="End Year")
     day_of_week_for_start_day: str | None = Field(
         None, alias="Day of Week for Start Day"
@@ -706,7 +705,7 @@ class OutputVariableDictionarySchema(BaseSchema):
 
 
 class OutputDiagnosticsSchema(BaseSchema):
-    key_1: str = Field(..., alias="Key 1")
+    key_1: str = Field("DisplayExtraWarnings", alias="Key 1")
 
     @field_validator("key_1")
     def validate_key_1(cls, v):
@@ -718,7 +717,7 @@ class OutputDiagnosticsSchema(BaseSchema):
 
 
 class OutputTableSummaryReportsSchema(BaseSchema):
-    report_1_name: str = Field(..., alias="Report 1 Name")
+    report_1_name: str = Field("AllSummary", alias="Report 1 Name")
 
     @field_validator("report_1_name")
     def validate_report_1_name(cls, v):
@@ -732,7 +731,7 @@ class OutputTableSummaryReportsSchema(BaseSchema):
 
 
 class OutputControlTableStyleSchema(BaseSchema):
-    column_separator: str = Field("HTML", alias="Column Separator")
+    column_separator: str = Field("Comma", alias="Column Separator")
     unit_conversion: str = Field("None", alias="Unit Conversion")
 
     @field_validator("column_separator")
@@ -751,7 +750,7 @@ class OutputControlTableStyleSchema(BaseSchema):
 
 class OutputVariableSchema(BaseSchema):
     key_value: str = Field("*", alias="Key Value")
-    variable_name: str = Field(..., alias="Variable Name")
+    variable_name: str = Field("Zone Mean Air Temperature", alias="Variable Name")
     reporting_frequency: str = Field("Hourly", alias="Reporting Frequency")
 
     @field_validator("reporting_frequency")
