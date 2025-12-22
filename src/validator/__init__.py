@@ -1,5 +1,6 @@
 from .data_model import (
     AirGapMaterialSchema,
+    BaseSchema,
     BuildingSchema,
     ConstructionSchema,
     FenestrationSurfaceSchema,
@@ -31,6 +32,7 @@ from .data_model import (
 
 __all__ = [
     "AirGapMaterialSchema",
+    "BaseSchema",
     "BuildingSchema",
     "ConstructionSchema",
     "FenestrationSurfaceSchema",

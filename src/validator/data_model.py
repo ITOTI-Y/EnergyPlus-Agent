@@ -1,14 +1,18 @@
 from abc import abstractmethod
 from collections import defaultdict
-from typing import Any
+from io import StringIO
+from pathlib import Path
+from typing import Any, cast
 
 import numpy as np
 from dateutil.parser import parse
+from eppy.modeleditor import IDF
 from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
     ValidationInfo,
+    field_serializer,
     field_validator,
     model_validator,
 )
@@ -73,15 +77,29 @@ class BaseSchema(BaseModel):
         extra="allow",  # 允许额外字段
     )
 
+    _idf: IDF | None = None
     _idf_field: IDDField = IDDField({})
 
     @classmethod
-    def set_idf_field(cls, idf_field: IDDField):
-        cls._idf_field = idf_field
+    def set_idf(cls, idd_file: Path | str, idf_path: Path | None = None) -> None:
+        IDF.setiddname(str(idd_file))
+        if idf_path:
+            cls._idf = IDF(str(idf_path))
+        else:
+            cls._idf = cls._create_blank_idf()
+        cls._idf_field = cls._process_idf_field()
 
-    @property
-    def idf_field(self) -> IDDField:
-        return self._idf_field
+    @classmethod
+    def _process_idf_field(cls) -> IDDField:
+        _idd_info = cast(list[dict], cls._idf.idd_info)
+        idd_field = IDDField(_idd_info)
+        return idd_field
+
+    @staticmethod
+    def _create_blank_idf() -> IDF:
+        idf_text = ""
+        fhandle = StringIO(idf_text)
+        return IDF(fhandle)
 
     @staticmethod
     def validate_choice_field(value: str, valid_choices: list, field_name: str) -> str:
@@ -103,6 +121,14 @@ class BaseSchema(BaseModel):
     @abstractmethod
     def to_yaml_dict(self) -> dict[str, Any]:
         pass
+
+    @classmethod
+    def get_idf(cls) -> IDF:
+        if cls._idf is None:
+            raise ValueError(
+                "IDF is not set. Please set the IDF using BaseSchema.set_idf."
+            )
+        return cls._idf
 
 
 class BuildingSchema(BaseSchema):
@@ -445,6 +471,10 @@ class SurfaceSchema(BaseSchema):
             raise ValueError("Some vertices are too close to each other.")
         return pts
 
+    @field_serializer("vertices")
+    def serialize_vertices(self, v: np.ndarray, _info: ValidationInfo) -> list[dict]:
+        return [{"X": float(pt[0]), "Y": float(pt[1]), "Z": float(pt[2])} for pt in v]
+
     @model_validator(mode="after")
     def validate_boundary_condition_object(self):
         needs_obj = {"Surface", "OtherSideCoefficients", "OtherSideConditionsModel"}
@@ -460,6 +490,7 @@ class SurfaceSchema(BaseSchema):
 
     def to_yaml_dict(self) -> dict[str, Any]:
         return {"BuildingSurface:Detailed": self.model_dump(by_alias=True)}
+
 
 class SimulationControlSchema(BaseSchema):
     do_zone_sizing_calculation: str | bool = Field(
@@ -934,6 +965,10 @@ class FenestrationSurfaceSchema(BaseSchema):
             for pt1, pt2 in np.argwhere(mask):
                 raise ValueError(f"Vertices {v[pt1]} and {v[pt2]} are too close.")
         return pts
+
+    @field_serializer("vertices")
+    def serialize_vertices(self, v: np.ndarray, _info: ValidationInfo) -> list[dict]:
+        return [{"X": float(pt[0]), "Y": float(pt[1]), "Z": float(pt[2])} for pt in v]
 
     def to_yaml_dict(self) -> dict[str, Any]:
         return {"FenestrationSurface:Detailed": self.model_dump(by_alias=True)}
