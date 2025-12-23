@@ -97,11 +97,11 @@ class WorkflowTool:
 
             self.state.export_yaml(temp_yaml)
 
-            manager = ConverterManager(self.idd_path, temp_yaml)
+            manager = ConverterManager(temp_yaml)
             manager.convert_all()
             manager.save_idf(temp_idf)
 
-            runner = EnergyPlusRunner(idf=manager._idf)
+            runner = EnergyPlusRunner(idf=manager.idf)
             runner.run_idf(epw_path)
 
             logger.info(f"Simulation run successfully. Output directory: {output_dir}")

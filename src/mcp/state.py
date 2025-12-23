@@ -54,7 +54,7 @@ class ConfigState(BaseSchema):
     simulation_control: SimulationControlSchema = Field(
         default_factory=SimulationControlSchema, alias="SimulationControl"
     )
-    run_period: RunPeriodSchema = Field(default=dict, alias="RunPeriod")
+    run_period: RunPeriodSchema = Field(default_factory=dict, alias="RunPeriod")
 
     output_variable_dictionary: OutputVariableDictionarySchema = Field(
         default_factory=dict, alias="Output:VariableDictionary"

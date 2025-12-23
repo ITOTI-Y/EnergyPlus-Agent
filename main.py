@@ -19,19 +19,19 @@ logger = get_logger(__name__)
 
 app = Typer()
 
-BaseSchema.set_idf(Path("./dependencies/Energy+.idd"))
+idd_file = Path("./dependencies/Energy+.idd")
+BaseSchema.set_idf(idd_file)
 
 
 @app.command()
 def convert_idf():
-    idd_file = Path("./dependencies/Energy+.idd")
     yaml_file = Path("./schemas/building_schema.yaml")
     idf_file_output = Path(f"./output/idf/output_{logger_time}.idf")
     epw_file = Path("./dependencies/Shenzhen.epw")
-    manager = ConverterManager(idd_file, yaml_file)
+    manager = ConverterManager(yaml_file)
     manager.convert_all()
     manager.save_idf(idf_file_output)
-    ep_runner = EnergyPlusRunner(manager._idf)
+    ep_runner = EnergyPlusRunner(manager.idf)
     ep_runner.run_idf(epw_file_path=epw_file)
 
 

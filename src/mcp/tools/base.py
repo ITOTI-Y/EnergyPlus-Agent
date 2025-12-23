@@ -38,6 +38,7 @@ class BaseTool(ABC):
     def _update_storage(self, name: str, instance: Any) -> None: ...
 
     def create(self, data: dict[str, Any]) -> ToolResponse:
+        name = data.get("Name", data.get("name", "<unknown>"))
         try:
             instance = self._validate_and_create(data)
             name = self._get_name(instance)
@@ -105,7 +106,11 @@ class BaseTool(ABC):
 
         try:
             existing = self.storage[name]
-            updated = existing.model_validate({k: v for k, v in data.items() if v})
+            existing_data = existing.model_dump(by_alias=True)
+            for k, v in data.items():
+                if v is not None:
+                    existing_data[k] = v
+            updated = existing.model_validate(existing_data)
 
             new_name = self._get_name(updated)
             if new_name != name:
