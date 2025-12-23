@@ -24,7 +24,7 @@ class WorkflowTool:
                 data={"path": str(path.absolute())},
             )
         except Exception as e:
-            logger.exception(f"Error exporting YAML: {e}")
+            logger.exception("Error exporting YAML")
             return ToolResponse(
                 success=False,
                 message=f"Error exporting YAML: {e!s}",
@@ -63,6 +63,7 @@ class WorkflowTool:
             )
 
         except Exception as e:
+            logger.exception("Error loading YAML")
             return ToolResponse(
                 success=False,
                 message=f"Error loading YAML: {e!s}",
@@ -118,7 +119,7 @@ class WorkflowTool:
             )
 
         except Exception as e:
-            logger.exception(f"Error running simulation: {e}")
+            logger.exception("Error running simulation")
             return ToolResponse(
                 success=False,
                 message=f"Error running simulation: {e!s}",
