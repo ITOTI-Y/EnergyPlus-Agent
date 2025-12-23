@@ -16,7 +16,7 @@ mcp = FastMCP(
 state = ConfigState()
 
 zone_tool = ZoneTool(state)
-workflow_tool = WorkflowTool(state, idd_path="./dependencies/Energy+.idd")
+workflow_tool = WorkflowTool(state)
 
 
 @mcp.tool
@@ -88,12 +88,12 @@ def list_zones() -> dict:
 
 
 @mcp.tool
-def export_yaml(output_path: str) -> dict:
+def export_yaml(output_path: str = "./output/yaml/output.yaml") -> dict:
     return workflow_tool.export_yaml(output_path).to_mcp_response()
 
 
 @mcp.tool
-def load_yaml(input_path: str) -> dict:
+def load_yaml(input_path: str = "schemas/building_schema.yaml") -> dict:
     return workflow_tool.load_yaml(input_path).to_mcp_response()
 
 
@@ -103,7 +103,7 @@ def validate_config() -> dict:
 
 
 @mcp.tool
-def run_simulation(epw_path: str, output_dir: str = "./output") -> dict:
+def run_simulation(epw_path: str = "dependencies/Shenzhen.epw", output_dir: str = "./output") -> dict:
     return workflow_tool.run_simulation(epw_path, output_dir).to_mcp_response()
 
 

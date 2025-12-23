@@ -11,9 +11,8 @@ logger = get_logger(__name__)
 
 
 class WorkflowTool:
-    def __init__(self, state: ConfigState, idd_path: str):
+    def __init__(self, state: ConfigState):
         self.state = state
-        self.idd_path = Path(idd_path)
 
     def export_yaml(self, output_path: str) -> ToolResponse:
         try:

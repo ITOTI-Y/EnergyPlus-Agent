@@ -11,6 +11,7 @@ from src.validator import (
     BuildingSchema,
     ConstructionSchema,
     FenestrationSurfaceSchema,
+    GlobalGeometryRulesSchema,
     HVACSchema,
     MaterialSchema,
     OutputControlTableStyleSchema,
@@ -54,7 +55,10 @@ class ConfigState(BaseSchema):
     simulation_control: SimulationControlSchema = Field(
         default_factory=SimulationControlSchema, alias="SimulationControl"
     )
-    run_period: RunPeriodSchema = Field(default_factory=dict, alias="RunPeriod")
+    global_geometry_rules: GlobalGeometryRulesSchema = Field(
+        default_factory=GlobalGeometryRulesSchema, alias="GlobalGeometryRules"
+    )
+    run_period: RunPeriodSchema = Field(default_factory=RunPeriodSchema, alias="RunPeriod")
 
     output_variable_dictionary: OutputVariableDictionarySchema = Field(
         default_factory=dict, alias="Output:VariableDictionary"
@@ -106,6 +110,7 @@ class ConfigState(BaseSchema):
         self.schedules.schedules.clear()
         self.hvac.thermostats.clear()
         self.hvac.ideal_loads_systems.clear()
+        self.global_geometry_rules = GlobalGeometryRulesSchema()
         self.simulation_control = SimulationControlSchema()
         self.run_period = RunPeriodSchema()
         self.output_variable_dictionary = OutputVariableDictionarySchema()
@@ -132,6 +137,9 @@ class ConfigState(BaseSchema):
             if self.simulation_control
             else None,
             run_period=self.run_period if self.run_period else None,
+            global_geometry_rules=self.global_geometry_rules
+            if self.global_geometry_rules
+            else None,
         )
 
     def validate_references(self) -> list[str]:

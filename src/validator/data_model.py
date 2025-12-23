@@ -663,9 +663,9 @@ class RunPeriodSchema(BaseSchema):
 
 
 class GlobalGeometryRulesSchema(BaseSchema):
-    starting_vertex_position: str = Field(..., alias="Starting Vertex Position")
-    vertex_entry_direction: str = Field(..., alias="Vertex Entry Direction")
-    coordinate_system: str = Field(..., alias="Coordinate System")
+    starting_vertex_position: str = Field('UpperLeftCorner', alias="Starting Vertex Position")
+    vertex_entry_direction: str = Field('Counterclockwise', alias="Vertex Entry Direction")
+    coordinate_system: str = Field('World', alias="Coordinate System")
 
     @field_validator("starting_vertex_position")
     def validate_starting_vertex_position(cls, v):

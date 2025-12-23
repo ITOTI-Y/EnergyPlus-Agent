@@ -2,6 +2,7 @@ from pydantic import BaseModel, Field
 
 from src.validator import (
     BuildingSchema,
+    GlobalGeometryRulesSchema,
     RunPeriodSchema,
     SimulationControlSchema,
     SiteLocationSchema,
@@ -62,4 +63,7 @@ class ConfigSummary(BaseModel):
     )
     run_period: RunPeriodSchema | None = Field(
         default=None, description="The run period configuration."
+    )
+    global_geometry_rules: GlobalGeometryRulesSchema | None = Field(
+        default=None, description="The global geometry rules configuration."
     )
