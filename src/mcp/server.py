@@ -93,7 +93,7 @@ def export_yaml(output_path: str = "./output/yaml/output.yaml") -> dict:
 
 
 @mcp.tool
-def load_yaml(input_path: str = "schemas/building_schema.yaml") -> dict:
+def load_yaml(input_path: str = "data/schemas/building_schema.yaml") -> dict:
     return workflow_tool.load_yaml(input_path).to_mcp_response()
 
 
@@ -103,7 +103,7 @@ def validate_config() -> dict:
 
 
 @mcp.tool
-def run_simulation(epw_path: str = "dependencies/Shenzhen.epw", output_dir: str = "./output") -> dict:
+def run_simulation(epw_path: str = "data/weather/Shenzhen.epw", output_dir: str = "./output") -> dict:
     return workflow_tool.run_simulation(epw_path, output_dir).to_mcp_response()
 
 

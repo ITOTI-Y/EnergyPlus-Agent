@@ -1,11 +1,16 @@
 services:
   energyplus-mcp:
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: docker/Dockerfile
     ports:
       - "8000:8000"
     volumes:
-      - ./..:/app
-    command: sh -c "uv sync && uv run main.py mcp-server --transport http --host 0.0.0.0 --port 8000"
+      - ../data:/app/data
+      - ../output:/app/output
+    environment:
+      - UV_CACHE_DIR=/app/.cache/uv
+      - HOME=/app
+    user: "1000:1000"
+    command: sh -c "uv run main.py mcp-server --transport http --host 0.0.0.0 --port 8000"
     restart: unless-stopped
