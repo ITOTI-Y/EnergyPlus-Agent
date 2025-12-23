@@ -6,10 +6,30 @@
     "configurations": [
 
         {
-            "name": "Python Debugger: Python File",
+            "name": "Main",
             "type": "debugpy",
             "request": "launch",
-            "program": "main.py"
+            "program": "${workspaceFolder}/main.py",
+            "args": [
+                "convert-idf"
+            ]
+        },
+        {
+            "name": "MCP Server",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/main.py",
+            "args": [
+                "mcp-server", "--transport", "http", "--port", "8000"
+            ]
+        }
+    ],
+    "compounds": [
+        {
+            "name": "MCP + Inspector",
+            "configurations": ["MCP Server"],
+            "preLaunchTask": "Start MCP Inspector",
+            "stopAll": true
         }
     ]
 }

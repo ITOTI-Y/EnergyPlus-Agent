@@ -1,12 +1,18 @@
+from abc import abstractmethod
 from collections import defaultdict
+from io import StringIO
+from pathlib import Path
+from typing import Any, cast
 
 import numpy as np
 from dateutil.parser import parse
+from eppy.modeleditor import IDF
 from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
     ValidationInfo,
+    field_serializer,
     field_validator,
     model_validator,
 )
@@ -71,15 +77,29 @@ class BaseSchema(BaseModel):
         extra="allow",  # 允许额外字段
     )
 
+    _idf: IDF | None = None
     _idf_field: IDDField = IDDField({})
 
     @classmethod
-    def set_idf_field(cls, idf_field: IDDField):
-        cls._idf_field = idf_field
+    def set_idf(cls, idd_file: Path | str, idf_path: Path | None = None) -> None:
+        IDF.setiddname(str(idd_file))
+        if idf_path:
+            cls._idf = IDF(str(idf_path))
+        else:
+            cls._idf = cls._create_blank_idf()
+        cls._idf_field = cls._process_idf_field()
 
-    @property
-    def idf_field(self) -> IDDField:
-        return self._idf_field
+    @classmethod
+    def _process_idf_field(cls) -> IDDField:
+        _idd_info = cast(list[dict], cls._idf.idd_info)
+        idd_field = IDDField(_idd_info)
+        return idd_field
+
+    @staticmethod
+    def _create_blank_idf() -> IDF:
+        idf_text = ""
+        fhandle = StringIO(idf_text)
+        return IDF(fhandle)
 
     @staticmethod
     def validate_choice_field(value: str, valid_choices: list, field_name: str) -> str:
@@ -97,6 +117,17 @@ class BaseSchema(BaseModel):
                 f"{field_name} '{value}' is not in the standard casing. Using '{choice_mapping[value_lower]}' instead."
             )
         return choice_mapping[value_lower]
+
+    @abstractmethod
+    def to_yaml_dict(self) -> dict[str, Any]: ...
+
+    @classmethod
+    def get_idf(cls) -> IDF:
+        if cls._idf is None:
+            raise ValueError(
+                "IDF is not set. Please set the IDF using BaseSchema.set_idf."
+            )
+        return cls._idf
 
 
 class BuildingSchema(BaseSchema):
@@ -175,6 +206,9 @@ class BuildingSchema(BaseSchema):
             raise ValueError("Warmup days must be non-negative.")
         return v
 
+    def to_yaml_dict(self) -> dict[str, Any]:
+        return {"Building": self.model_dump(by_alias=True)}
+
 
 class VersionSchema(BaseSchema):
     version: str | tuple | list = Field(
@@ -192,6 +226,9 @@ class VersionSchema(BaseSchema):
         raise ValueError(
             "Version Identifier must be a string or a tuple/list of integers."
         )
+
+    def to_yaml_dict(self) -> dict[str, Any]:
+        return {"Version": self.model_dump(by_alias=True)}
 
 
 class ZoneSchema(BaseSchema):
@@ -321,6 +358,9 @@ class ZoneSchema(BaseSchema):
             )
         return v
 
+    def to_yaml_dict(self) -> dict[str, Any]:
+        return {"Zone": self.model_dump(by_alias=True)}
+
 
 class SurfaceSchema(BaseSchema):
     name: str = Field(..., alias="Name", description="Surface name")
@@ -430,6 +470,10 @@ class SurfaceSchema(BaseSchema):
             raise ValueError("Some vertices are too close to each other.")
         return pts
 
+    @field_serializer("vertices")
+    def serialize_vertices(self, v: np.ndarray, _info: ValidationInfo) -> list[dict]:
+        return [{"X": float(pt[0]), "Y": float(pt[1]), "Z": float(pt[2])} for pt in v]
+
     @model_validator(mode="after")
     def validate_boundary_condition_object(self):
         needs_obj = {"Surface", "OtherSideCoefficients", "OtherSideConditionsModel"}
@@ -442,6 +486,9 @@ class SurfaceSchema(BaseSchema):
                 f"Outside Boundary Condition is '{self.outside_boundary_condition}'."
             )
         return self
+
+    def to_yaml_dict(self) -> dict[str, Any]:
+        return {"BuildingSurface:Detailed": self.model_dump(by_alias=True)}
 
 
 class SimulationControlSchema(BaseSchema):
@@ -481,6 +528,9 @@ class SimulationControlSchema(BaseSchema):
             return "Yes" if v else "No"
         return v
 
+    def to_yaml_dict(self) -> dict[str, Any]:
+        return {"SimulationControl": self.model_dump(by_alias=True)}
+
 
 class TimestepSchema(BaseSchema):
     number_of_timesteps_per_hour: int = Field(4, alias="Number of Timesteps per Hour")
@@ -490,6 +540,9 @@ class TimestepSchema(BaseSchema):
         if v < 1:
             raise ValueError("Number of Timesteps per Hour must be at least 1.")
         return v
+
+    def to_yaml_dict(self) -> dict[str, Any]:
+        return {"Timestep": self.model_dump(by_alias=True)}
 
 
 class SiteLocationSchema(BaseSchema):
@@ -523,14 +576,17 @@ class SiteLocationSchema(BaseSchema):
             raise ValueError("Time Zone must be between -12 and 14 hours.")
         return v
 
+    def to_yaml_dict(self) -> dict[str, Any]:
+        return {"Site:Location": self.model_dump(by_alias=True)}
+
 
 class RunPeriodSchema(BaseSchema):
-    name: str = Field(..., alias="Name")
-    begin_month: int = Field(..., alias="Begin Month")
-    begin_day_of_month: int = Field(..., alias="Begin Day of Month")
+    name: str = Field("Default Run Period", alias="Name")
+    begin_month: int = Field(1, alias="Begin Month")
+    begin_day_of_month: int = Field(1, alias="Begin Day of Month")
     begin_year: int | None = Field(None, alias="Begin Year")
-    end_month: int = Field(..., alias="End Month")
-    end_day_of_month: int = Field(..., alias="End Day of Month")
+    end_month: int = Field(12, alias="End Month")
+    end_day_of_month: int = Field(31, alias="End Day of Month")
     end_year: int | None = Field(None, alias="End Year")
     day_of_week_for_start_day: str | None = Field(
         None, alias="Day of Week for Start Day"
@@ -602,11 +658,14 @@ class RunPeriodSchema(BaseSchema):
             raise ValueError(f"Day of Week for Start Day must be one of {valid_days}.")
         return v
 
+    def to_yaml_dict(self) -> dict[str, Any]:
+        return {"RunPeriod": self.model_dump(by_alias=True)}
+
 
 class GlobalGeometryRulesSchema(BaseSchema):
-    starting_vertex_position: str = Field(..., alias="Starting Vertex Position")
-    vertex_entry_direction: str = Field(..., alias="Vertex Entry Direction")
-    coordinate_system: str = Field(..., alias="Coordinate System")
+    starting_vertex_position: str = Field('UpperLeftCorner', alias="Starting Vertex Position")
+    vertex_entry_direction: str = Field('Counterclockwise', alias="Vertex Entry Direction")
+    coordinate_system: str = Field('World', alias="Coordinate System")
 
     @field_validator("starting_vertex_position")
     def validate_starting_vertex_position(cls, v):
@@ -629,6 +688,9 @@ class GlobalGeometryRulesSchema(BaseSchema):
         valid_systems = cls._idf_field.GlobalGeometryRules.Coordinate_System.key
         return cls.validate_choice_field(v, valid_systems, "Coordinate System")  # type: ignore
 
+    def to_yaml_dict(self) -> dict[str, Any]:
+        return {"GlobalGeometryRules": self.model_dump(by_alias=True)}
+
 
 class OutputVariableDictionarySchema(BaseSchema):
     key_field: str = Field("Regular", alias="Key Field")
@@ -638,18 +700,24 @@ class OutputVariableDictionarySchema(BaseSchema):
         valid_key_field = cls._idf_field.Output_VariableDictionary.Key_Field.key
         return cls.validate_choice_field(v, valid_key_field, "Key Field")  # type: ignore
 
+    def to_yaml_dict(self) -> dict[str, Any]:
+        return {"Output:VariableDictionary": self.model_dump(by_alias=True)}
+
 
 class OutputDiagnosticsSchema(BaseSchema):
-    key_1: str = Field(..., alias="Key 1")
+    key_1: str = Field("DisplayExtraWarnings", alias="Key 1")
 
     @field_validator("key_1")
     def validate_key_1(cls, v):
         valid_key_1 = cls._idf_field.Output_Diagnostics.Key_1.key
         return cls.validate_choice_field(v, valid_key_1, "Key 1")  # type: ignore
 
+    def to_yaml_dict(self) -> dict[str, Any]:
+        return {"Output:Diagnostics": self.model_dump(by_alias=True)}
+
 
 class OutputTableSummaryReportsSchema(BaseSchema):
-    report_1_name: str = Field(..., alias="Report 1 Name")
+    report_1_name: str = Field("AllSummary", alias="Report 1 Name")
 
     @field_validator("report_1_name")
     def validate_report_1_name(cls, v):
@@ -658,9 +726,12 @@ class OutputTableSummaryReportsSchema(BaseSchema):
         )
         return cls.validate_choice_field(v, valid_report_names, "Report 1 Name")  # type: ignore
 
+    def to_yaml_dict(self) -> dict[str, Any]:
+        return {"Output:Table:SummaryReports": self.model_dump(by_alias=True)}
+
 
 class OutputControlTableStyleSchema(BaseSchema):
-    column_separator: str = Field("HTML", alias="Column Separator")
+    column_separator: str = Field("Comma", alias="Column Separator")
     unit_conversion: str = Field("None", alias="Unit Conversion")
 
     @field_validator("column_separator")
@@ -673,16 +744,22 @@ class OutputControlTableStyleSchema(BaseSchema):
         valid_conversions = cls._idf_field.OutputControl_Table_Style.Unit_Conversion.key
         return cls.validate_choice_field(v, valid_conversions, "Unit Conversion")  # type: ignore
 
+    def to_yaml_dict(self) -> dict[str, Any]:
+        return {"OutputControl:Table:Style": self.model_dump(by_alias=True)}
+
 
 class OutputVariableSchema(BaseSchema):
     key_value: str = Field("*", alias="Key Value")
-    variable_name: str = Field(..., alias="Variable Name")
+    variable_name: str = Field("Zone Mean Air Temperature", alias="Variable Name")
     reporting_frequency: str = Field("Hourly", alias="Reporting Frequency")
 
     @field_validator("reporting_frequency")
     def validate_reporting_frequency(cls, v):
         valid_frequencies = cls._idf_field.Output_Variable.Reporting_Frequency.key
         return cls.validate_choice_field(v, valid_frequencies, "Reporting Frequency")  # type: ignore
+
+    def to_yaml_dict(self) -> dict[str, Any]:
+        return {"Output:Variable": self.model_dump(by_alias=True)}
 
 
 class MaterialSchema(BaseSchema):
@@ -727,6 +804,9 @@ class MaterialSchema(BaseSchema):
         else:
             raise ValueError(f"Invalid material type: {self.type}")
 
+    def to_yaml_dict(self) -> dict[str, Any]:
+        return {"Material": self.model_dump(by_alias=True)}
+
 
 class StandardMaterialSchema(MaterialSchema):
     roughness: str = Field(..., alias="Roughness")
@@ -748,6 +828,9 @@ class StandardMaterialSchema(MaterialSchema):
         if v not in valid_choices:
             raise ValueError(f"Roughness must be one of {valid_choices}.")
         return v
+
+    def to_yaml_dict(self) -> dict[str, Any]:
+        return {"StandardMaterial": self.model_dump(by_alias=True)}
 
 
 class NoMassMaterialSchema(MaterialSchema):
@@ -772,6 +855,9 @@ class NoMassMaterialSchema(MaterialSchema):
 class AirGapMaterialSchema(MaterialSchema):
     thermal_resistance: float = Field(..., alias="Thermal_Resistance", gt=0)
 
+    def to_yaml_dict(self) -> dict[str, Any]:
+        return {"AirGapMaterial": self.model_dump(by_alias=True)}
+
 
 class GlazingMaterialSchema(MaterialSchema):
     u_factor: float = Field(..., alias="U-Factor", gt=0)
@@ -781,6 +867,9 @@ class GlazingMaterialSchema(MaterialSchema):
     visible_transmittance: float | None = Field(
         None, alias="Visible_Transmittance", ge=0, le=1
     )
+
+    def to_yaml_dict(self) -> dict[str, Any]:
+        return {"GlazingMaterial": self.model_dump(by_alias=True)}
 
 
 class ConstructionSchema(BaseSchema):
@@ -798,6 +887,9 @@ class ConstructionSchema(BaseSchema):
         if not all(isinstance(layer, str) and layer for layer in v):
             raise ValueError("All items in Layers must be non-empty strings.")
         return v
+
+    def to_yaml_dict(self) -> dict[str, Any]:
+        return {"Construction": self.model_dump(by_alias=True)}
 
 
 class FenestrationSurfaceSchema(BaseSchema):
@@ -872,6 +964,13 @@ class FenestrationSurfaceSchema(BaseSchema):
             for pt1, pt2 in np.argwhere(mask):
                 raise ValueError(f"Vertices {v[pt1]} and {v[pt2]} are too close.")
         return pts
+
+    @field_serializer("vertices")
+    def serialize_vertices(self, v: np.ndarray, _info: ValidationInfo) -> list[dict]:
+        return [{"X": float(pt[0]), "Y": float(pt[1]), "Z": float(pt[2])} for pt in v]
+
+    def to_yaml_dict(self) -> dict[str, Any]:
+        return {"FenestrationSurface:Detailed": self.model_dump(by_alias=True)}
 
 
 class GeometrySchema(BaseSchema):
@@ -1059,6 +1158,9 @@ class GeometrySchema(BaseSchema):
 
         return normal_vector
 
+    def to_yaml_dict(self) -> dict[str, Any]:
+        return {"Geometry": self.model_dump(by_alias=True)}
+
 
 class ScheduleTypeLimitsSchema(BaseSchema):
     name: str = Field(..., alias="Name")
@@ -1103,6 +1205,9 @@ class ScheduleTypeLimitsSchema(BaseSchema):
         raise ValueError(
             f"Type Limits for {self.name} are not valid. Lower limit ({self.lower_limit_value}), upper limit ({self.upper_limit_value})."
         )
+
+    def to_yaml_dict(self) -> dict[str, Any]:
+        return {"ScheduleTypeLimits": self.model_dump(by_alias=True)}
 
 
 class ScheduleCompactSchema(BaseSchema):
@@ -1177,6 +1282,9 @@ class ScheduleCompactSchema(BaseSchema):
             result.append(f"Until: {time}, {value}")
         return result
 
+    def to_yaml_dict(self) -> dict[str, Any]:
+        return {"Schedule:Compact": self.model_dump(by_alias=True)}
+
 
 class ScheduleCollectionSchema(BaseSchema):
     schedule_type_limits: list[ScheduleTypeLimitsSchema] = Field(
@@ -1185,6 +1293,9 @@ class ScheduleCollectionSchema(BaseSchema):
     schedules: list[ScheduleCompactSchema] = Field(
         default_factory=list, alias="Schedule:Compact"
     )
+
+    def to_yaml_dict(self) -> dict[str, Any]:
+        return {"ScheduleCollection": self.model_dump(by_alias=True)}
 
 
 class HVACTemplateThermostatSchema(BaseSchema):
@@ -1204,6 +1315,9 @@ class HVACTemplateThermostatSchema(BaseSchema):
             raise ValueError(f"Field '{info.field_name}' must not be empty.")
         return v
 
+    def to_yaml_dict(self) -> dict[str, Any]:
+        return {"HVACTemplate:Thermostat": self.model_dump(by_alias=True)}
+
 
 class HVACTemplateZoneIdealLoadsAirSystemSchema(BaseSchema):
     zone_name: str = Field(..., alias="Zone Name")
@@ -1218,6 +1332,9 @@ class HVACTemplateZoneIdealLoadsAirSystemSchema(BaseSchema):
             raise ValueError(f"Field '{info.field_name}' must not be empty.")
         return v
 
+    def to_yaml_dict(self) -> dict[str, Any]:
+        return {"HVACTemplate:Zone:IdealLoadsAirSystem": self.model_dump(by_alias=True)}
+
 
 class HVACSchema(BaseSchema):
     """
@@ -1231,3 +1348,6 @@ class HVACSchema(BaseSchema):
     ideal_loads_systems: list[HVACTemplateZoneIdealLoadsAirSystemSchema] | list = Field(
         default_factory=list, alias="HVACTemplate:Zone:IdealLoadsAirSystem"
     )
+
+    def to_yaml_dict(self) -> dict[str, Any]:
+        return {"HVAC": self.model_dump(by_alias=True)}
