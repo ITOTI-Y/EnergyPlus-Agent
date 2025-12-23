@@ -48,6 +48,12 @@ class WorkflowTool:
             self.state.hvac = new_state.hvac
             self.state.simulation_control = new_state.simulation_control
             self.state.run_period = new_state.run_period
+            self.state.global_geometry_rules = new_state.global_geometry_rules
+            self.state.output_variable_dictionary = new_state.output_variable_dictionary
+            self.state.output_diagnostics = new_state.output_diagnostics
+            self.state.output_table_summary_reports = new_state.output_table_summary_reports
+            self.state.output_variable = new_state.output_variable
+            self.state.output_control_table_style = new_state.output_control_table_style
 
             summary = self.state.get_summary()
             return ToolResponse(
