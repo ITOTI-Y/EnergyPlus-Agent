@@ -120,7 +120,6 @@ class ConfigState(BaseSchema):
         self.output_control_table_style = OutputControlTableStyleSchema()
 
     def update_from(self, other: "ConfigState") -> None:
-        """Update all fields from another ConfigState instance."""
         for field_name in self.model_fields:
             setattr(self, field_name, getattr(other, field_name))
 
