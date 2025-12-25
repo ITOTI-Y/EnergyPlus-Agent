@@ -13,21 +13,21 @@ logger_time = time.strftime("%Y%m%d_%H%M%S")
 setup_logger(
     level="INFO",
     console_output=True,
-    log_file_path=Path(f"./logs/{logger_time}.log"),
+    log_file_path=Path(f"./output/logs/{logger_time}.log"),
 )
 logger = get_logger(__name__)
 
 app = Typer()
 
-idd_file = Path("./dependencies/Energy+.idd")
+idd_file = Path("./data/dependencies/Energy+.idd")
 BaseSchema.set_idf(idd_file)
 
 
 @app.command()
 def convert_idf():
-    yaml_file = Path("./schemas/building_schema.yaml")
+    yaml_file = Path("./data/schemas/building_schema.yaml")
     idf_file_output = Path(f"./output/idf/output_{logger_time}.idf")
-    epw_file = Path("./dependencies/Shenzhen.epw")
+    epw_file = Path("./data/weather/Shenzhen.epw")
     manager = ConverterManager(yaml_file)
     manager.convert_all()
     manager.save_idf(idf_file_output)
