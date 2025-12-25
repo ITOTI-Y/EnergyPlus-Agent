@@ -5,6 +5,10 @@ from src.mcp.state import ConfigState
 from src.mcp.tools import (
     WorkflowTool,
     ZoneTool,
+    MaterialTool,
+    SurfaceTool,
+    FenestrationTool,
+    ConstructionTool,
 )
 
 mcp = FastMCP(
@@ -17,7 +21,10 @@ state = ConfigState()
 
 zone_tool = ZoneTool(state)
 workflow_tool = WorkflowTool(state)
-
+material_tool = MaterialTool(state)
+Construction_tool = ConstructionTool(state)
+surface_tool = SurfaceTool(state)
+fenestration_tool = FenestrationTool(state)
 
 @mcp.tool
 def create_zone(
