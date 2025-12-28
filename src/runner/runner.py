@@ -1,10 +1,11 @@
+import shutil
+import subprocess
 from datetime import datetime
 from io import StringIO
 from pathlib import Path
 from typing import cast
 
 from eppy.modeleditor import IDF
-from eppy.runner.run_functions import run
 
 from src.utils.logging import get_logger
 
@@ -84,17 +85,42 @@ class EnergyPlusRunner:
         self.logger.info(f"Output directory: {output_directory}")
 
         try:
-            result = run(
-                idf=self.idf,
-                weather=self.epw_path,
-                output_directory=str(output_directory),
-                verbose="v",
-                readvars=True,
+            energyplus_exe = shutil.which("energyplus")
+            if not energyplus_exe:
+                raise FileNotFoundError("EnergyPlus executable not found in PATH")
+
+            cmd = [
+                energyplus_exe,
+                "-w", str(self.epw_path),
+                "-d", str(output_directory),
+                "-r",
+                str(self.idf_path)
+            ]
+
+            self.logger.info(f"Running command: {' '.join(cmd)}")
+
+            process = subprocess.Popen(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                bufsize=1
             )
 
-            success: bool = result == "OK"
+            output_lines = []
+            for line in process.stdout or []:
+                line = line.rstrip()
+                self.logger.info(f"[EnergyPlus] {line}")
+                output_lines.append(line)
 
-            return success
+            return_code = process.wait()
+
+            if return_code != 0:
+                self.logger.error(f"EnergyPlus exited with code {return_code}")
+                return False
+
+            self.logger.info("EnergyPlus simulation completed successfully.")
+            return True
 
         except FileNotFoundError:
             self.logger.error("EnergyPlus executable not found.")

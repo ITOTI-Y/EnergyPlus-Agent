@@ -6,13 +6,14 @@ from loguru import logger
 
 logger.remove()
 
+
 def setup_logger(
     level: str = "INFO",
     format_str: str = "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | <level>{level: <8}</level> | <cyan>{name}:{function}:{line}</cyan> - <level>{message}</level>",
     console_output: bool = True,
     log_file_path: Path | None = None,
     serialize: bool = False,
-    **kwargs: Any
+    **kwargs: Any,
 ) -> None:
     """
     Setup the logger.
@@ -45,6 +46,7 @@ def setup_logger(
             serialize=serialize,
             **kwargs,
         )
+
 
 def get_logger(name: str) -> Any:
     """

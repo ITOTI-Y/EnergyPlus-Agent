@@ -6,14 +6,20 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "eppy>=0.5.63",
+    "fastmcp>=2.14.1",
     "loguru>=0.7.3",
     "numpy>=2.3.4",
+    "omegaconf>=2.3.0",
     "pydantic>=2.11.7",
     "python-dateutil>=2.9.0.post0",
     "pyyaml>=6.0.2",
     "scipy>=1.16.2",
     "trimesh>=4.9.0",
+    "typer>=0.20.1",
 ]
+
+[project.scripts]
+energyplus-mcp = "src.mcp.server:mcp.run"
 
 [tool.ruff]
 line-length = 88
