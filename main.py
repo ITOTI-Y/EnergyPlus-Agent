@@ -25,7 +25,7 @@ BaseSchema.set_idf(idd_file)
 
 @app.command()
 def convert_idf():
-    yaml_file = Path("./data/schemas/building_schema.yaml")
+    yaml_file = Path("./data/schemas/office_building_5f_atrium_transit.yaml")
     idf_file_output = Path(f"./output/idf/output_{logger_time}.idf")
     epw_file = Path("./data/weather/Shenzhen.epw")
     manager = ConverterManager(yaml_file)

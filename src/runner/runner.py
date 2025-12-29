@@ -91,10 +91,12 @@ class EnergyPlusRunner:
 
             cmd = [
                 energyplus_exe,
-                "-w", str(self.epw_path),
-                "-d", str(output_directory),
+                "-w",
+                str(self.epw_path),
+                "-d",
+                str(output_directory),
                 "-r",
-                str(self.idf_path)
+                str(self.idf_path),
             ]
 
             self.logger.info(f"Running command: {' '.join(cmd)}")
@@ -104,7 +106,7 @@ class EnergyPlusRunner:
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 text=True,
-                bufsize=1
+                bufsize=1,
             )
 
             output_lines = []
