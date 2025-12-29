@@ -996,6 +996,9 @@ class GeometrySchema(BaseSchema):
         if "surfaces" not in v:
             return v
         result = defaultdict(list)
+        surface_names = {surface["Name"] for surface in v.get("surfaces", [])}
+        if len(surface_names) != len(v.get("surfaces", [])):
+            raise ValueError("Surface names must be unique.")
         for surface in v.get("surfaces", []):
             result["surfaces"].append(SurfaceSchema.model_validate(surface))
         return result
