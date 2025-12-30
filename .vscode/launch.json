@@ -6,7 +6,7 @@
     "configurations": [
 
         {
-            "name": "Main",
+            "name": "Convert-IDF",
             "type": "debugpy",
             "request": "launch",
             "program": "${workspaceFolder}/main.py",

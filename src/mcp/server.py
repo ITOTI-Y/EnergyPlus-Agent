@@ -103,7 +103,9 @@ def validate_config() -> dict:
 
 
 @mcp.tool
-def run_simulation(epw_path: str = "data/weather/Shenzhen.epw", output_dir: str = "./output") -> dict:
+def run_simulation(
+    epw_path: str = "data/weather/Shenzhen.epw", output_dir: str = "./output"
+) -> dict:
     return workflow_tool.run_simulation(epw_path, output_dir).to_mcp_response()
 
 
