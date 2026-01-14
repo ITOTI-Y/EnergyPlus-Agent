@@ -3,12 +3,12 @@ from omegaconf import OmegaConf
 
 from src.mcp.state import ConfigState
 from src.mcp.tools import (
-    WorkflowTool,
-    ZoneTool,
+    ConstructionTool,
+    FenestrationTool,
     MaterialTool,
     SurfaceTool,
-    FenestrationTool,
-    ConstructionTool,
+    WorkflowTool,
+    ZoneTool,
 )
 
 mcp = FastMCP(
@@ -25,6 +25,7 @@ material_tool = MaterialTool(state)
 Construction_tool = ConstructionTool(state)
 surface_tool = SurfaceTool(state)
 fenestration_tool = FenestrationTool(state)
+
 
 @mcp.tool
 def create_zone(
@@ -93,6 +94,7 @@ def delete_zone(name: str) -> dict:
 def list_zones() -> dict:
     return zone_tool.list_all().to_mcp_response()
 
+
 @mcp.tool
 def create_standard_material(
     name: str,
@@ -104,13 +106,15 @@ def create_standard_material(
 ) -> dict:
     data = {
         "Name": name,
+        "Type": "Standard",
         "Roughness": roughness,
         "Thickness": thickness,
         "Conductivity": conductivity,
         "Density": density,
-        "Specific Heat": specific_heat,
+        "Specific_Heat": specific_heat,
     }
     return material_tool.create(data).to_mcp_response()
+
 
 @mcp.tool
 def create_no_mass_material(
@@ -120,10 +124,12 @@ def create_no_mass_material(
 ) -> dict:
     data = {
         "Name": name,
+        "Type": "NoMass",
         "Roughness": roughness,
-        "Thermal Resistance": thermal_resistance,
+        "Thermal_Resistance": thermal_resistance,
     }
     return material_tool.create(data).to_mcp_response()
+
 
 @mcp.tool
 def create_air_gap_material(
@@ -132,9 +138,11 @@ def create_air_gap_material(
 ) -> dict:
     data = {
         "Name": name,
-        "Thermal Resistance": thermal_resistance,
+        "Type": "AirGap",
+        "Thermal_Resistance": thermal_resistance,
     }
     return material_tool.create(data).to_mcp_response()
+
 
 @mcp.tool
 def create_glazing_material(
@@ -145,15 +153,18 @@ def create_glazing_material(
 ) -> dict:
     data = {
         "Name": name,
+        "Type": "Glazing",
         "U-Factor": u_factor,
-        "Solar Heat Gain Coefficient": solar_heat_gain_coefficient,
-        "Visible Transmittance": visible_transmittance,
+        "Solar_Heat_Gain_Coefficient": solar_heat_gain_coefficient,
+        "Visible_Transmittance": visible_transmittance,
     }
     return material_tool.create(data).to_mcp_response()
+
 
 @mcp.tool
 def get_material(name: str) -> dict:
     return material_tool.read(name).to_mcp_response()
+
 
 @mcp.tool
 def update_standard_material(
@@ -166,13 +177,15 @@ def update_standard_material(
 ) -> dict:
     data = {
         "Name": name,
+        "Type": "Standard", 
         "Roughness": roughness,
         "Thickness": thickness,
         "Conductivity": conductivity,
         "Density": density,
-        "Specific Heat": specific_heat,
+        "Specific_Heat": specific_heat,
     }
     return material_tool.update(name, data).to_mcp_response()
+
 
 @mcp.tool
 def update_no_mass_material(
@@ -182,10 +195,12 @@ def update_no_mass_material(
 ) -> dict:
     data = {
         "Name": name,
+        "Type": "NoMass", 
         "Roughness": roughness,
-        "Thermal Resistance": thermal_resistance,
+        "Thermal_Resistance": thermal_resistance,
     }
     return material_tool.update(name, data).to_mcp_response()
+
 
 @mcp.tool
 def update_air_gap_material(
@@ -194,9 +209,11 @@ def update_air_gap_material(
 ) -> dict:
     data = {
         "Name": name,
-        "Thermal Resistance": thermal_resistance,
+        "Type": "AirGap", 
+        "Thermal_Resistance": thermal_resistance,
     }
     return material_tool.update(name, data).to_mcp_response()
+
 
 @mcp.tool
 def update_glazing_material(
@@ -207,19 +224,23 @@ def update_glazing_material(
 ) -> dict:
     data = {
         "Name": name,
+        "Type": "Glazing",
         "U-Factor": u_factor,
-        "Solar Heat Gain Coefficient": solar_heat_gain_coefficient,
-        "Visible Transmittance": visible_transmittance,
+        "Solar_Heat_Gain_Coefficient": solar_heat_gain_coefficient,
+        "Visible_Transmittance": visible_transmittance,
     }
     return material_tool.update(name, data).to_mcp_response()
+
 
 @mcp.tool
 def delete_material(name: str) -> dict:
     return material_tool.delete(name).to_mcp_response()
 
+
 @mcp.tool
 def list_materials() -> dict:
     return material_tool.list_all().to_mcp_response()
+
 
 @mcp.tool
 def create_construction(
@@ -232,9 +253,11 @@ def create_construction(
     }
     return Construction_tool.create(data).to_mcp_response()
 
+
 @mcp.tool
 def get_construction(name: str) -> dict:
     return Construction_tool.read(name).to_mcp_response()
+
 
 @mcp.tool
 def update_construction(
@@ -247,13 +270,16 @@ def update_construction(
     }
     return Construction_tool.update(name, data).to_mcp_response()
 
+
 @mcp.tool
 def delete_construction(name: str) -> dict:
     return Construction_tool.delete(name).to_mcp_response()
 
+
 @mcp.tool
 def list_constructions() -> dict:
     return Construction_tool.list_all().to_mcp_response()
+
 
 @mcp.tool
 def create_surface(
@@ -261,14 +287,14 @@ def create_surface(
     surface_type: str,
     construction_name: str,
     zone_name: str,
-    space_name: str | None = None,
     outside_boundary_condition: str,
-    outside_boundary_condition_object: str | None = None,
     sun_exposure: str,
     wind_exposure: str,
+    vertices: list[dict],
+    outside_boundary_condition_object: str | None = None,
+    space_name: str | None = None,
     view_factor_to_ground: float | str = "autocalculate",
     number_of_vertices: int | str = "autocalculate",
-    vertices: list[dict],
 ) -> dict:
     data = {
         "Name": name,
@@ -286,9 +312,11 @@ def create_surface(
     }
     return surface_tool.create(data).to_mcp_response()
 
+
 @mcp.tool
 def get_surface(name: str) -> dict:
     return surface_tool.read(name).to_mcp_response()
+
 
 @mcp.tool
 def update_surface(
@@ -321,13 +349,16 @@ def update_surface(
     }
     return surface_tool.update(name, data).to_mcp_response()
 
+
 @mcp.tool
 def delete_surface(name: str) -> dict:
     return surface_tool.delete(name).to_mcp_response()
 
+
 @mcp.tool
 def list_surfaces() -> dict:
     return surface_tool.list_all().to_mcp_response()
+
 
 @mcp.tool
 def create_fenestration_surface(
@@ -335,12 +366,12 @@ def create_fenestration_surface(
     surface_type: str,
     construction_name: str,
     building_surface_name: str,
+    vertices: list[dict],
     outside_boundary_condition_object: str | None = None,
     view_factor_to_ground: float | str = "autocalculate",
     frame_and_divider_name: str | None = None,
     multiplier: int = 1,
     number_of_vertices: int | str = "autocalculate",
-    vertices: list[dict],
 ) -> dict:
     data = {
         "Name": name,
@@ -356,9 +387,11 @@ def create_fenestration_surface(
     }
     return fenestration_tool.create(data).to_mcp_response()
 
+
 @mcp.tool
 def get_fenestration_surface(name: str) -> dict:
     return fenestration_tool.read(name).to_mcp_response()
+
 
 @mcp.tool
 def update_fenestration_surface(
@@ -387,13 +420,16 @@ def update_fenestration_surface(
     }
     return fenestration_tool.update(name, data).to_mcp_response()
 
+
 @mcp.tool
 def delete_fenestration_surface(name: str) -> dict:
     return fenestration_tool.delete(name).to_mcp_response()
 
+
 @mcp.tool
 def list_fenestration_surfaces() -> dict:
     return fenestration_tool.list_all().to_mcp_response()
+
 
 @mcp.tool
 def export_yaml(output_path: str = "./output/yaml/output.yaml") -> dict:

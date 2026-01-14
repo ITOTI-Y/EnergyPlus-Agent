@@ -4,6 +4,7 @@ from src.mcp.state import ConfigState
 from src.mcp.tools.base import BaseTool
 from src.validator.data_model import FenestrationSurfaceSchema
 
+
 class FenestrationTool(BaseTool):
     def __init__(self, state: ConfigState):
         super().__init__(state, "FenestrationSurface")
@@ -34,7 +35,7 @@ class FenestrationTool(BaseTool):
 
     def _check_references(self, name: str) -> list[str]:
         refs = []
-        
+
         for fen in self.state.fenestrations:
             if fen.name == name:
                 surface = fen.building_surface_name

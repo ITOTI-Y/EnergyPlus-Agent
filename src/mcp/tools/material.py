@@ -4,6 +4,7 @@ from src.mcp.state import ConfigState
 from src.mcp.tools.base import BaseTool
 from src.validator.data_model import MaterialSchema
 
+
 class MaterialTool(BaseTool):
     def __init__(self, state: ConfigState):
         super().__init__(state, "Material")
@@ -16,10 +17,14 @@ class MaterialTool(BaseTool):
         self.state.materials.append(instance)
 
     def _remove_from_storage(self, name: str) -> None:
-        self.state.materials = [material for material in self.state.materials if material.name != name]
+        self.state.materials = [
+            material for material in self.state.materials if material.name != name
+        ]
 
     def _update_storage(self, name: str, instance: MaterialSchema) -> None:
-        self.state.materials = [material for material in self.state.materials if material.name != name]
+        self.state.materials = [
+            material for material in self.state.materials if material.name != name
+        ]
         self.state.materials.append(instance)
 
     def _validate_and_create(self, data: dict[str, Any]) -> MaterialSchema:
@@ -30,9 +35,7 @@ class MaterialTool(BaseTool):
 
     def _check_references(self, name: str) -> list[str]:
         refs = []
-
         for construction in self.state.constructions:
             if name in construction.layers:
                 refs.append(f"Construction:{construction.name}")
-
         return refs
