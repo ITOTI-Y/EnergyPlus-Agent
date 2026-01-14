@@ -2,7 +2,7 @@ from abc import abstractmethod
 from collections import defaultdict
 from io import StringIO
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, ClassVar, cast
 
 import numpy as np
 from dateutil.parser import parse
@@ -663,9 +663,13 @@ class RunPeriodSchema(BaseSchema):
 
 
 class GlobalGeometryRulesSchema(BaseSchema):
-    starting_vertex_position: str = Field('UpperLeftCorner', alias="Starting Vertex Position")
-    vertex_entry_direction: str = Field('Counterclockwise', alias="Vertex Entry Direction")
-    coordinate_system: str = Field('World', alias="Coordinate System")
+    starting_vertex_position: str = Field(
+        "UpperLeftCorner", alias="Starting Vertex Position"
+    )
+    vertex_entry_direction: str = Field(
+        "Counterclockwise", alias="Vertex Entry Direction"
+    )
+    coordinate_system: str = Field("World", alias="Coordinate System")
 
     @field_validator("starting_vertex_position")
     def validate_starting_vertex_position(cls, v):
@@ -985,12 +989,16 @@ class GeometrySchema(BaseSchema):
         description="List of fenestration surfaces",
     )
     _interior_points: np.ndarray = np.array([])
+    _surface_to_normal_vector: ClassVar[dict[str, np.ndarray]] = {}
 
     @model_validator(mode="before")
     def validate_surfaces(cls, v):
         if "surfaces" not in v:
             return v
         result = defaultdict(list)
+        surface_names = {surface["Name"] for surface in v.get("surfaces", [])}
+        if len(surface_names) != len(v.get("surfaces", [])):
+            raise ValueError("Surface names must be unique.")
         for surface in v.get("surfaces", []):
             result["surfaces"].append(SurfaceSchema.model_validate(surface))
         return result
@@ -1051,11 +1059,13 @@ class GeometrySchema(BaseSchema):
                         "At least one Floor surface is required to validate other surface types."
                     )
                 normal_vector = self._get_normal_vector(
-                    surface.vertices, interior_points
+                    surface.vertices, interior_points, surface.name
                 )
                 surface.vertices = self._sort_vertices_clockwise(surface, normal_vector)
         for surface in self.fenestrationsurfaces:
-            normal_vector = self._get_normal_vector(surface.vertices, interior_points)
+            normal_vector = self._get_normal_vector(
+                surface.vertices, interior_points, surface.building_surface_name
+            )
             surface.vertices = self._sort_vertices_clockwise(surface, normal_vector)
         return self
 
@@ -1140,8 +1150,11 @@ class GeometrySchema(BaseSchema):
         return top_left_index
 
     def _get_normal_vector(
-        self, points: np.ndarray, interior_points: np.ndarray
+        self, points: np.ndarray, interior_points: np.ndarray, surface_name: str
     ) -> np.ndarray:
+        if surface_name in self._surface_to_normal_vector:
+            return self._surface_to_normal_vector[surface_name]
+
         centroid = np.mean(points, axis=0)
         distances = np.linalg.norm(interior_points - centroid, axis=1)
         interior_vector = interior_points[np.argmin(distances)] - centroid
@@ -1155,6 +1168,8 @@ class GeometrySchema(BaseSchema):
             normal_vector = np.cross(v2, v1)
 
         normal_vector = normal_vector / np.linalg.norm(normal_vector)
+
+        self._surface_to_normal_vector[surface_name] = normal_vector
 
         return normal_vector
 
