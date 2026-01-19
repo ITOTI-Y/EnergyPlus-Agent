@@ -34,11 +34,4 @@ class FenestrationTool(BaseTool):
         return instance.name
 
     def _check_references(self, name: str) -> list[str]:
-        refs = []
-
-        for fen in self.state.fenestrations:
-            if fen.name == name:
-                surface = fen.building_surface_name
-                refs.append(f"Surface:{surface}")
-                
-        return refs
+        return []

@@ -177,7 +177,7 @@ def update_standard_material(
 ) -> dict:
     data = {
         "Name": name,
-        "Type": "Standard", 
+        "Type": "Standard",
         "Roughness": roughness,
         "Thickness": thickness,
         "Conductivity": conductivity,
@@ -195,7 +195,7 @@ def update_no_mass_material(
 ) -> dict:
     data = {
         "Name": name,
-        "Type": "NoMass", 
+        "Type": "NoMass",
         "Roughness": roughness,
         "Thermal_Resistance": thermal_resistance,
     }
@@ -209,7 +209,7 @@ def update_air_gap_material(
 ) -> dict:
     data = {
         "Name": name,
-        "Type": "AirGap", 
+        "Type": "AirGap",
         "Thermal_Resistance": thermal_resistance,
     }
     return material_tool.update(name, data).to_mcp_response()
