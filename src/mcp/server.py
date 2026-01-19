@@ -22,7 +22,7 @@ state = ConfigState()
 zone_tool = ZoneTool(state)
 workflow_tool = WorkflowTool(state)
 material_tool = MaterialTool(state)
-Construction_tool = ConstructionTool(state)
+construction_tool = ConstructionTool(state)
 surface_tool = SurfaceTool(state)
 fenestration_tool = FenestrationTool(state)
 
@@ -251,12 +251,12 @@ def create_construction(
         "Name": name,
         "Layers": layers,
     }
-    return Construction_tool.create(data).to_mcp_response()
+    return construction_tool.create(data).to_mcp_response()
 
 
 @mcp.tool
 def get_construction(name: str) -> dict:
-    return Construction_tool.read(name).to_mcp_response()
+    return construction_tool.read(name).to_mcp_response()
 
 
 @mcp.tool
@@ -268,17 +268,17 @@ def update_construction(
         "Name": name,
         "Layers": layers,
     }
-    return Construction_tool.update(name, data).to_mcp_response()
+    return construction_tool.update(name, data).to_mcp_response()
 
 
 @mcp.tool
 def delete_construction(name: str) -> dict:
-    return Construction_tool.delete(name).to_mcp_response()
+    return construction_tool.delete(name).to_mcp_response()
 
 
 @mcp.tool
 def list_constructions() -> dict:
-    return Construction_tool.list_all().to_mcp_response()
+    return construction_tool.list_all().to_mcp_response()
 
 
 @mcp.tool

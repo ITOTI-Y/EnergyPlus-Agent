@@ -40,7 +40,5 @@ class FenestrationTool(BaseTool):
             if fen.name == name:
                 surface = fen.building_surface_name
                 refs.append(f"Surface:{surface}")
-                con = fen.construction_name
-                refs.append(f"Construction:{con}")
-
+                
         return refs

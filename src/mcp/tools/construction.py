@@ -46,4 +46,7 @@ class ConstructionTool(BaseTool):
             if surface.construction_name == name:
                 refs.append(f"Surface:{surface.name}")
 
+        for fenestration in self.state.fenestrations:
+            if fenestration.construction_name == name:
+                refs.append(f"Fenestration:{fenestration.name}")
         return refs
