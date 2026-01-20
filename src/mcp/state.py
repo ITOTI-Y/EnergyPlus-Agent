@@ -58,7 +58,9 @@ class ConfigState(BaseSchema):
     global_geometry_rules: GlobalGeometryRulesSchema = Field(
         default_factory=GlobalGeometryRulesSchema, alias="GlobalGeometryRules"
     )
-    run_period: RunPeriodSchema = Field(default_factory=RunPeriodSchema, alias="RunPeriod")
+    run_period: RunPeriodSchema = Field(
+        default_factory=RunPeriodSchema, alias="RunPeriod"
+    )
 
     output_variable_dictionary: OutputVariableDictionarySchema = Field(
         default_factory=dict, alias="Output:VariableDictionary"
