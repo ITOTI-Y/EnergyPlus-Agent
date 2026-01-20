@@ -91,6 +91,10 @@ class BaseSchema(BaseModel):
 
     @classmethod
     def _process_idf_field(cls) -> IDDField:
+        if cls._idf is None:
+            raise ValueError(
+                "IDF is not set. Please set the IDF using BaseSchema.set_idf."
+            )
         _idd_info = cast(list[dict], cls._idf.idd_info)
         idd_field = IDDField(_idd_info)
         return idd_field
