@@ -1370,3 +1370,104 @@ class HVACSchema(BaseSchema):
 
     def to_yaml_dict(self) -> dict[str, Any]:
         return {"HVAC": self.model_dump(by_alias=True)}
+class LightsSchema(BaseSchema):
+    name: str = Field(..., alias="Name", description="Lights object name")
+    zone_name: str = Field(..., alias="Zone or ZoneList Name", description="Zone name")
+    schedule_name: str = Field(..., alias="Schedule Name", description="Schedule name")
+    design_level_calc_method: str = Field(
+        "Watts/Area",
+        alias="Design Level Calculation Method", 
+        description="Calculation method: LightingLevel, Watts/Area, or Watts/Person"
+    )
+    lighting_level: float = Field(
+        0.0, alias="Lighting Level", description="Lighting Level {W}"
+    )
+    watts_per_zone_floor_area: float = Field(
+        0.0, alias="Watts per Zone Floor Area", description="Watts per Zone Floor Area {W/m2}"
+    )
+    watts_per_person: float = Field(
+        0.0, alias="Watts per Person", description="Watts per Person {W/person}"
+    )
+    return_air_fraction: float = Field(
+        0.0, alias="Return Air Fraction", description="Return Air Fraction"
+    )
+    fraction_radiant: float = Field(
+        0.42, alias="Fraction Radiant", description="Fraction Radiant"
+    )
+    fraction_visible: float = Field(
+        0.18, alias="Fraction Visible", description="Fraction Visible"
+    )
+    fraction_replaceable: float = Field(
+        1.0, alias="Fraction Replaceable", description="Fraction Replaceable"
+    )
+    end_use_subcategory: str = Field(
+        "General", alias="End-Use Subcategory", description="End-Use Subcategory"
+    )
+
+    @field_validator("name", "zone_name", "schedule_name")
+    def validate_non_empty(cls, v):
+        if not v:
+            raise ValueError("Field must not be empty.")
+        return v
+
+    @field_validator("design_level_calc_method")
+    def validate_calc_method(cls, v):
+        valid_methods = {"LightingLevel", "Watts/Area", "Watts/Person"}
+        if v not in valid_methods:
+            raise ValueError(f"Design Level Calculation Method must be one of {valid_methods}")
+        return v
+
+    def to_yaml_dict(self) -> dict[str, Any]:
+        return {"Lights": self.model_dump(by_alias=True)}
+
+class PeopleSchema(BaseSchema):
+    name: str = Field(..., alias="Name", description="People object name")
+    zone_name: str = Field(..., alias="Zone or ZoneList Name", description="Zone name")
+    number_of_people_schedule_name: str = Field(..., alias="Number of People Schedule Name", description="Occupancy schedule")
+    activity_level_schedule_name: str = Field(..., alias="Activity Level Schedule Name", description="Metabolic rate schedule")
+    number_of_people_calc_method: str = Field(
+        "People",
+        alias="Number of People Calculation Method", 
+        description="Calculation method: People, People/Area, or Area/Person"
+    )
+    number_of_people: float = Field(
+        0.0, alias="Number of People", description="Total number of people"
+    )
+    people_per_zone_floor_area: float = Field(
+        0.0, alias="People per Zone Floor Area", description="People per m2"
+    )
+    zone_floor_area_per_person: float = Field(
+        0.0, alias="Zone Floor Area per Person", description="m2 per person"
+    )
+    fraction_radiant: float = Field(
+        0.3, alias="Fraction Radiant", description="Fraction radiant"
+    )
+    sensible_heat_fraction: str | float = Field(
+        "autocalculate", alias="Sensible Heat Fraction", description="Sensible heat fraction"
+    )
+    carbon_dioxide_generation_rate: float = Field(
+        0.0000000382, alias="Carbon Dioxide Generation Rate", description="CO2 generation rate {m3/s-W}"
+    )
+
+    @field_validator("name", "zone_name", "number_of_people_schedule_name", "activity_level_schedule_name")
+    def validate_non_empty(cls, v):
+        if not v:
+            raise ValueError("Field must not be empty.")
+        return v
+
+    @field_validator("number_of_people_calc_method")
+    def validate_calc_method(cls, v):
+        valid_methods = {"People", "People/Area", "Area/Person"}
+        if v not in valid_methods:
+            raise ValueError(f"Number of People Calculation Method must be one of {valid_methods}")
+        return v
+    @field_validator("sensible_heat_fraction")
+    def validate_sensible_heat(cls, v):
+        if isinstance(v, str) and v.lower() == "autocalculate":
+            return "autocalculate"
+        if isinstance(v, (int, float)):
+             return float(v)
+        return v
+
+    def to_yaml_dict(self) -> dict[str, Any]:
+        return {"People": self.model_dump(by_alias=True)}

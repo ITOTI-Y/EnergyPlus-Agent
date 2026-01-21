@@ -11,7 +11,9 @@ from src.converters import (
     ConstructionConverter,
     FenestrationConverter,
     HVACConverter,
+    LightConverter,
     MaterialConverter,
+    PeopleConverter,
     ScheduleConverter,
     SettingsConverter,
     SurfaceConverter,
@@ -36,6 +38,8 @@ class ConverterManager:
             "constructions": ConstructionConverter(self._idf),
             "fenestrations": FenestrationConverter(self._idf),
             "hvac": HVACConverter(self._idf),
+            "lights": LightConverter(self._idf),
+            "people": PeopleConverter(self._idf),
         }
 
     @property

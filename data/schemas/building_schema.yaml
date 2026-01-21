@@ -11,6 +11,17 @@ SimulationControl:
     Maximum Number of HVAC Sizing Simulation Passes: 1
 
 # ==================================================================
+Lights:
+  - Name: "Office_General_Lights"
+    Zone or ZoneList Name: "Zone_West"
+    Schedule Name: "Always On"
+    Design Level Calculation Method: "Watts/Area"
+    Watts per Zone Floor Area: 10.0
+    Return Air Fraction: 0.2
+    Fraction Radiant: 0.42
+    Fraction Visible: 0.18
+    Fraction Replaceable: 1.0
+    End-Use Subcategory: General
 # 建筑概况
 # ==================================================================
 Building:
@@ -357,6 +368,9 @@ Schedule:
     - Name: Temperature
       Numeric Type: CONTINUOUS  
       Unit Type: Temperature
+    - Name: Any Number              
+      Numeric Type: CONTINUOUS  
+
   Schedule:Compact:
     - Name: Always On
       Schedule Type Limits Name: On/Off
@@ -368,6 +382,17 @@ Schedule:
             - Until:
                 Time: "24:00"
                 Value: 1
+
+    - Name: Activity_Level_Schedule 
+      Schedule Type Limits Name: Any Number
+      Data:
+        - Through: "12/31"
+          Days:
+          - For: "AllDays"
+            Times:
+            - Until:
+                Time: "24:00"
+                Value: 120  
 
     - Name: Heating_Setpoint_Schedule
       Schedule Type Limits Name: Temperature
@@ -390,6 +415,26 @@ Schedule:
             - Until:
                 Time: "24:00"
                 Value: 26
+
+People:
+  - Name: "Zone_West_People"
+    Zone or ZoneList Name: "Zone_West"              
+    Number of People Schedule Name: "Always On"      
+    Activity Level Schedule Name: "Activity_Level_Schedule" 
+    Number of People Calculation Method: "People"   
+    Number of People: 3                              
+    Fraction Radiant: 0.3                           
+    Sensible Heat Fraction: "autocalculate"          
+    Carbon Dioxide Generation Rate: 0.0000000382    
+
+  - Name: "Zone_East_People"
+    Zone or ZoneList Name: "Zone_East"
+    Number of People Schedule Name: "Always On"
+    Activity Level Schedule Name: "Activity_Level_Schedule"
+    Number of People Calculation Method: "People"
+    Number of People: 5                              
+    Fraction Radiant: 0.3
+    Sensible Heat Fraction: "autocalculate"
 
 HVAC:
   HVACTemplate:Zone:IdealLoadsAirSystem:
