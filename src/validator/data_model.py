@@ -1376,7 +1376,7 @@ class LightsSchema(BaseSchema):
     schedule_name: str = Field(..., alias="Schedule Name", description="Schedule name")
     design_level_calc_method: str = Field(
         "Watts/Area",
-        alias="Design Level Calculation Method", 
+        alias="Design Level Calculation Method",
         description="Calculation method: LightingLevel, Watts/Area, or Watts/Person"
     )
     lighting_level: float = Field(
@@ -1427,7 +1427,7 @@ class PeopleSchema(BaseSchema):
     activity_level_schedule_name: str = Field(..., alias="Activity Level Schedule Name", description="Metabolic rate schedule")
     number_of_people_calc_method: str = Field(
         "People",
-        alias="Number of People Calculation Method", 
+        alias="Number of People Calculation Method",
         description="Calculation method: People, People/Area, or Area/Person"
     )
     number_of_people: float = Field(

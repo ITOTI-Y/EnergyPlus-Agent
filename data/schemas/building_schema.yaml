@@ -357,7 +357,9 @@ FenestrationSurface:Detailed:
       - {X: 1, Y: 5, Z: 1}
       - {X: 1, Y: 5, Z: 2}
 
-
+# ==================================================================
+# 时间表
+# ==================================================================
 Schedule:
   ScheduleTypeLimits:
     - Name: On/Off
@@ -365,13 +367,22 @@ Schedule:
       Upper Limit Value: 1
       Numeric Type: DISCRETE
       Unit Type: Dimensionless
-    - Name: Temperature
-      Numeric Type: CONTINUOUS  
-      Unit Type: Temperature
-    - Name: Any Number              
-      Numeric Type: CONTINUOUS  
+    
+    - Name: Fraction
+      Lower Limit Value: 0.0
+      Upper Limit Value: 1.0
+      Numeric Type: CONTINUOUS
+      Unit Type: Dimensionless
 
+    - Name: Temperature
+      Numeric Type: CONTINUOUS
+      Unit Type: Temperature
+      
+    - Name: Any Number
+      Numeric Type: CONTINUOUS
+      
   Schedule:Compact:
+    # (A) 设备常开
     - Name: Always On
       Schedule Type Limits Name: On/Off
       Data:
@@ -383,7 +394,37 @@ Schedule:
                 Time: "24:00"
                 Value: 1
 
-    - Name: Activity_Level_Schedule 
+    # (B) 办公人员作息 (注意 Until 下面的缩进)
+    - Name: Office_Occupancy_Schedule
+      Schedule Type Limits Name: Fraction
+      Data:
+        - Through: "12/31"
+          Days:
+          - For: "Weekdays"
+            Times:
+            - Until:
+                Time: "08:00"
+                Value: 0.0
+            - Until:
+                Time: "12:00"
+                Value: 0.95
+            - Until:
+                Time: "13:30"
+                Value: 0.50
+            - Until:
+                Time: "18:00"
+                Value: 0.95
+            - Until:
+                Time: "24:00"
+                Value: 0.0
+          - For: "AllOtherDays"
+            Times:
+            - Until:
+                Time: "24:00"
+                Value: 0.0
+
+    # (C) 人员活动水平
+    - Name: Activity_Level_Schedule
       Schedule Type Limits Name: Any Number
       Data:
         - Through: "12/31"
@@ -392,8 +433,32 @@ Schedule:
             Times:
             - Until:
                 Time: "24:00"
-                Value: 120  
+                Value: 120
 
+    # (D) 灯光时间表
+    - Name: Office_Lights_Schedule
+      Schedule Type Limits Name: Fraction
+      Data:
+        - Through: "12/31"
+          Days:
+          - For: "Weekdays"
+            Times:
+            - Until:
+                Time: "08:00"
+                Value: 0.0
+            - Until:
+                Time: "19:00"
+                Value: 1.0
+            - Until:
+                Time: "24:00"
+                Value: 0.0
+          - For: "AllOtherDays"
+            Times:
+            - Until:
+                Time: "24:00"
+                Value: 0.0
+
+    # (E) 空调设定点
     - Name: Heating_Setpoint_Schedule
       Schedule Type Limits Name: Temperature
       Data:
@@ -404,7 +469,6 @@ Schedule:
             - Until:
                 Time: "24:00"
                 Value: 20
-
     - Name: Cooling_Setpoint_Schedule
       Schedule Type Limits Name: Temperature
       Data:
@@ -416,23 +480,52 @@ Schedule:
                 Time: "24:00"
                 Value: 26
 
+# ==================================================================
+# 灯光
+# ==================================================================
+Lights:
+  - Name: "Zone_West_Lights"
+    Zone or ZoneList Name: "Zone_West"
+    Schedule Name: "Office_Lights_Schedule"
+    Design Level Calculation Method: "Watts/Area"
+    Watts per Zone Floor Area: 12.0
+    Return Air Fraction: 0.2
+    Fraction Radiant: 0.42
+    Fraction Visible: 0.18
+    Fraction Replaceable: 1.0
+    End-Use Subcategory: General
+
+  - Name: "Zone_East_Lights"
+    Zone or ZoneList Name: "Zone_East"
+    Schedule Name: "Office_Lights_Schedule"
+    Design Level Calculation Method: "Watts/Area"
+    Watts per Zone Floor Area: 12.0
+    Return Air Fraction: 0.2
+    Fraction Radiant: 0.42
+    Fraction Visible: 0.18
+    Fraction Replaceable: 1.0
+    End-Use Subcategory: General
+
+# ==================================================================
+# 3. 人员定义
+# ==================================================================
 People:
   - Name: "Zone_West_People"
-    Zone or ZoneList Name: "Zone_West"              
-    Number of People Schedule Name: "Always On"      
-    Activity Level Schedule Name: "Activity_Level_Schedule" 
-    Number of People Calculation Method: "People"   
-    Number of People: 3                              
-    Fraction Radiant: 0.3                           
-    Sensible Heat Fraction: "autocalculate"          
-    Carbon Dioxide Generation Rate: 0.0000000382    
+    Zone or ZoneList Name: "Zone_West"
+    Number of People Schedule Name: "Office_Occupancy_Schedule"
+    Activity Level Schedule Name: "Activity_Level_Schedule"
+    Number of People Calculation Method: "People/Area"
+    People per Zone Floor Area: 0.1
+    Fraction Radiant: 0.3
+    Sensible Heat Fraction: "autocalculate"
+    Carbon Dioxide Generation Rate: 0.0000000382
 
   - Name: "Zone_East_People"
     Zone or ZoneList Name: "Zone_East"
-    Number of People Schedule Name: "Always On"
+    Number of People Schedule Name: "Office_Occupancy_Schedule"
     Activity Level Schedule Name: "Activity_Level_Schedule"
-    Number of People Calculation Method: "People"
-    Number of People: 5                              
+    Number of People Calculation Method: "People/Area"
+    People per Zone Floor Area: 0.1
     Fraction Radiant: 0.3
     Sensible Heat Fraction: "autocalculate"
 

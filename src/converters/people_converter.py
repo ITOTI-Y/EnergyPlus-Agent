@@ -5,8 +5,6 @@ from eppy.modeleditor import IDF
 from src.converters.base_converter import BaseConverter
 from src.utils.logging import get_logger
 from src.validator.data_model import PeopleSchema
-
-
 class PeopleConverter(BaseConverter):
     def __init__(self, idf: IDF):
         super().__init__(idf)
@@ -15,7 +13,6 @@ class PeopleConverter(BaseConverter):
     def convert(self, data: dict[str, Any]) -> None:
         self.logger.info("Converting People data...")
         people_list = data.get("People") or data.get("people", [])
-
         for people_data in people_list:
             try:
                 validated_people = self.validate(people_data)
@@ -43,19 +40,13 @@ class PeopleConverter(BaseConverter):
             self.logger.debug(f"Adding People '{val_data.name}' to IDF.")
 
             if not self.idf.getobject("ZONE", val_data.zone_name):
-                raise ValueError(
+                 raise ValueError(
                     f"Zone '{val_data.zone_name}' referenced in People '{val_data.name}' "
                     f"does not exist in IDF."
                 )
-
             def check_schedule(sched_name, field_desc):
                 exists = False
-                for sched_type in [
-                    "SCHEDULE:COMPACT",
-                    "SCHEDULE:YEAR",
-                    "SCHEDULE:CONSTANT",
-                    "SCHEDULE:FILE",
-                ]:
+                for sched_type in ["SCHEDULE:COMPACT", "SCHEDULE:YEAR", "SCHEDULE:CONSTANT", "SCHEDULE:FILE"]:
                     if self.idf.getobject(sched_type, sched_name):
                         exists = True
                         break
@@ -65,67 +56,45 @@ class PeopleConverter(BaseConverter):
                         f"does not exist in IDF."
                     )
 
-            check_schedule(
-                val_data.number_of_people_schedule_name, "Number of People Schedule"
-            )
-            check_schedule(
-                val_data.activity_level_schedule_name, "Activity Level Schedule"
-            )
+            check_schedule(val_data.number_of_people_schedule_name, "Number of People Schedule")
+            check_schedule(val_data.activity_level_schedule_name, "Activity Level Schedule")
 
             people_obj = self.idf.newidfobject("PEOPLE")
-
             people_obj.Name = val_data.name
-
             zone_field = self._get_idd_field_name(people_obj, ["Zone", "Name"])
             if zone_field:
                 setattr(people_obj, zone_field, val_data.zone_name)
             else:
-                raise AttributeError(
-                    "Could not find 'Zone Name' field in IDD definition for People."
-                )
+                raise AttributeError("Could not find 'Zone Name' field in IDD definition for People.")
 
-            people_obj.Number_of_People_Schedule_Name = (
-                val_data.number_of_people_schedule_name
-            )
-            people_obj.Activity_Level_Schedule_Name = (
-                val_data.activity_level_schedule_name
-            )
-
-            people_obj.Number_of_People_Calculation_Method = (
-                val_data.number_of_people_calc_method
-            )
-
+            people_obj.Number_of_People_Schedule_Name = val_data.number_of_people_schedule_name
+            people_obj.Activity_Level_Schedule_Name = val_data.activity_level_schedule_name
+            people_obj.Number_of_People_Calculation_Method = val_data.number_of_people_calc_method
             if val_data.number_of_people_calc_method == "People":
-                num_field = self._get_idd_field_name(people_obj, ["Number", "People"])
-                if (
-                    num_field
-                    and "Schedule" not in num_field
-                    and "Method" not in num_field
-                ):
+                num_field = self._get_idd_field_name(people_obj, ["Number", "People"], exclude=["Schedule", "Method"])
+                if num_field:
                     setattr(people_obj, num_field, val_data.number_of_people)
                 else:
-                    people_obj.Number_of_People = val_data.number_of_people
+                    raise AttributeError("Could not find 'Number of People' field.")
 
             elif val_data.number_of_people_calc_method == "People/Area":
-                people_obj.People_per_Zone_Floor_Area = (
-                    val_data.people_per_zone_floor_area
-                )
-
+                ppa_field = self._get_idd_field_name(people_obj, ["People", "Floor", "Area"])
+                if ppa_field:
+                    setattr(people_obj, ppa_field, val_data.people_per_zone_floor_area)
+                else:
+                    raise AttributeError(f"Could not find 'People per Zone Floor Area' field. Available: {people_obj.fieldnames}")
             elif val_data.number_of_people_calc_method == "Area/Person":
-                people_obj.Zone_Floor_Area_per_Person = (
-                    val_data.zone_floor_area_per_person
-                )
-
+                app_field = self._get_idd_field_name(people_obj, ["Floor", "Area", "Person"])
+                if app_field:
+                    setattr(people_obj, app_field, val_data.zone_floor_area_per_person)
+                else:
+                    raise AttributeError("Could not find 'Zone Floor Area per Person' field.")
             people_obj.Fraction_Radiant = val_data.fraction_radiant
             people_obj.Sensible_Heat_Fraction = val_data.sensible_heat_fraction
-            people_obj.Carbon_Dioxide_Generation_Rate = (
-                val_data.carbon_dioxide_generation_rate
-            )
+            people_obj.Carbon_Dioxide_Generation_Rate = val_data.carbon_dioxide_generation_rate
 
             self.state["success"] += 1
-            self.logger.success(
-                f"People '{val_data.name}' added successfully to Zone '{val_data.zone_name}'."
-            )
+            self.logger.success(f"People '{val_data.name}' added successfully to Zone '{val_data.zone_name}'.")
 
         except ValueError as e:
             self.state["failed"] += 1
@@ -139,11 +108,16 @@ class PeopleConverter(BaseConverter):
                 f"An unexpected error occurred while adding People '{val_data.name}'"
             )
 
-    def _get_idd_field_name(self, idf_obj, keywords: list[str]) -> str | None:
+    def _get_idd_field_name(self, idf_obj, keywords: list[str], exclude: list[str] | None = None) -> str | None:
         """
-        Support Function: Resolves IDD Version Field Name Inconsistency Issue
+       Helper Function: Resolving IDD Version Field Name Inconsistencies
+        :param keywords: List of keywords field names must contain (AND relationship)
+        :param exclude: List of keywords field names must not contain (OR relationship)
         """
         for field in idf_obj.fieldnames:
-            if all(k.lower() in field.lower() for k in keywords):
-                return field
+            if not all(k.lower() in field.lower() for k in keywords):
+                continue
+            if exclude and any(ex.lower() in field.lower() for ex in exclude):
+                continue
+            return field
         return None
