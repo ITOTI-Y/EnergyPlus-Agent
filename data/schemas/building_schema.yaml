@@ -367,7 +367,7 @@ Schedule:
       Upper Limit Value: 1
       Numeric Type: DISCRETE
       Unit Type: Dimensionless
-    
+      
     - Name: Fraction
       Lower Limit Value: 0.0
       Upper Limit Value: 1.0
@@ -380,6 +380,7 @@ Schedule:
       
     - Name: Any Number
       Numeric Type: CONTINUOUS
+      Unit Type: Dimensionless 
       
   Schedule:Compact:
     # (A) 设备常开
@@ -533,11 +534,11 @@ HVAC:
   HVACTemplate:Zone:IdealLoadsAirSystem:
     - Zone Name: Zone_West
       Template Thermostat Name: Ideal Loads Thermostat
-      System Availability Schedule Name: Always On
+      System Availability Schedule Name: Office_Occupancy_Schedule
       
     - Zone Name: Zone_East 
       Template Thermostat Name: Ideal Loads Thermostat
-      System Availability Schedule Name: Always On
+      System Availability Schedule Name: Office_Occupancy_Schedule
       
   HVACTemplate:Thermostat:
     - Name: Ideal Loads Thermostat

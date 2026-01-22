@@ -46,17 +46,12 @@ class LightConverter(BaseConverter):
                     f"Zone '{val_data.zone_name}' referenced in Lights '{val_data.name}' "
                     f"does not exist in IDF. Please add the Zone first."
                 )
+
             schedule_exists = False
-            for sched_type in [
-                "SCHEDULE:COMPACT",
-                "SCHEDULE:YEAR",
-                "SCHEDULE:CONSTANT",
-                "SCHEDULE:FILE",
-            ]:
-                if self.idf.getobject(sched_type, val_data.schedule_name):
+            for key in self.idf.idfobjects:
+                if key.upper().startswith("SCHEDULE") and self.idf.getobject(key, val_data.schedule_name):
                     schedule_exists = True
                     break
-
             if not schedule_exists:
                 raise ValueError(
                     f"Schedule '{val_data.schedule_name}' referenced in Lights '{val_data.name}' "
@@ -65,28 +60,41 @@ class LightConverter(BaseConverter):
 
             light_obj = self.idf.newidfobject("LIGHTS")
             light_obj.Name = val_data.name
+
             zone_field = self._get_idd_field_name(light_obj, ["Zone", "Name"])
             if zone_field:
                 setattr(light_obj, zone_field, val_data.zone_name)
             else:
                 raise AttributeError(
-                    "Could not find 'Zone Name' field in IDD definition for Lights."
+                    f"IDD Error: Could not find 'Zone Name' field in IDD definition for Lights. "
+                    f"Available fields: {light_obj.fieldnames}"
                 )
 
             light_obj.Schedule_Name = val_data.schedule_name
-            light_obj.Design_Level_Calculation_Method = (
-                val_data.design_level_calc_method
-            )
+            light_obj.Design_Level_Calculation_Method = val_data.design_level_calc_method
+
             if val_data.design_level_calc_method == "LightingLevel":
                 light_obj.Lighting_Level = val_data.lighting_level
+
             elif val_data.design_level_calc_method == "Watts/Area":
                 wa_field = self._get_idd_field_name(light_obj, ["Watts", "Area"])
                 if wa_field:
                     setattr(light_obj, wa_field, val_data.watts_per_zone_floor_area)
+                else:
+                    raise AttributeError(
+                        f"IDD Error: Could not find a field matching 'Watts' and 'Area' "
+                        f"in LIGHTS object. Available fields: {light_obj.fieldnames}"
+                    )
+
             elif val_data.design_level_calc_method == "Watts/Person":
                 wp_field = self._get_idd_field_name(light_obj, ["Watts", "Person"])
                 if wp_field:
                     setattr(light_obj, wp_field, val_data.watts_per_person)
+                else:
+                    raise AttributeError(
+                        f"IDD Error: Could not find a field matching 'Watts' and 'Person' "
+                        f"in LIGHTS object. Available fields: {light_obj.fieldnames}"
+                    )
 
             light_obj.Return_Air_Fraction = val_data.return_air_fraction
             light_obj.Fraction_Radiant = val_data.fraction_radiant
@@ -95,10 +103,7 @@ class LightConverter(BaseConverter):
             rep_field = self._get_idd_field_name(light_obj, ["Fraction", "Replaceable"])
             if rep_field:
                 setattr(light_obj, rep_field, val_data.fraction_replaceable)
-
-            end_use_field = self._get_idd_field_name(
-                light_obj, ["End", "Use", "Subcategory"]
-            )
+            end_use_field = self._get_idd_field_name(light_obj, ["End", "Use", "Subcategory"])
             if end_use_field:
                 setattr(light_obj, end_use_field, val_data.end_use_subcategory)
 

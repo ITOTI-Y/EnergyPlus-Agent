@@ -1463,11 +1463,17 @@ class PeopleSchema(BaseSchema):
         return v
     @field_validator("sensible_heat_fraction")
     def validate_sensible_heat(cls, v):
-        if isinstance(v, str) and v.lower() == "autocalculate":
-            return "autocalculate"
+        if isinstance(v, str):
+            if v.lower() == "autocalculate":
+                return "autocalculate"
+            raise ValueError(f"Invalid string value: '{v}'. Did you mean 'autocalculate'?")
+
         if isinstance(v, (int, float)):
-             return float(v)
-        return v
+             fv = float(v)
+             if not (0.0 <= fv <= 1.0):
+                 raise ValueError(f"Sensible Heat Fraction must be between 0.0 and 1.0, got {fv}.")
+             return fv
+        raise ValueError(f"Invalid type for Sensible Heat Fraction: {type(v)}. Must be a number or 'autocalculate'.")
 
     def to_yaml_dict(self) -> dict[str, Any]:
         return {"People": self.model_dump(by_alias=True)}
