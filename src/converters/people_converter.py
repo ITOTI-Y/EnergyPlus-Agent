@@ -5,14 +5,23 @@ from eppy.modeleditor import IDF
 from src.converters.base_converter import BaseConverter
 from src.utils.logging import get_logger
 from src.validator.data_model import PeopleSchema
+
 class PeopleConverter(BaseConverter):
+    """
+    Converts People definitions from YAML data into IDF objects.
+    Strictly follows the EnergyPlus IDD field names provided in the screenshot.
+    """
     def __init__(self, idf: IDF):
         super().__init__(idf)
         self.logger = get_logger(__name__)
 
     def convert(self, data: dict[str, Any]) -> None:
-        self.logger.info("Converting People data...")
+        self.logger.info("People Converter Starting...")
         people_list = data.get("People") or data.get("people", [])
+        if not people_list:
+            self.logger.info("No People data found in YAML.")
+            return
+
         for people_data in people_list:
             try:
                 validated_people = self.validate(people_data)
@@ -25,13 +34,13 @@ class PeopleConverter(BaseConverter):
                 )
                 continue
 
-    def validate(self, data: dict) -> PeopleSchema:
+    def validate(self, data: dict[str, Any]) -> PeopleSchema:
         return PeopleSchema.model_validate(data)
 
     def _add_to_idf(self, val_data: PeopleSchema) -> None:
         if self.idf.getobject("PEOPLE", val_data.name):
             self.logger.warning(
-                f"People object with name '{val_data.name}' already exists. Skipping addition."
+                f"People object with name '{val_data.name}' already exists. Skipping."
             )
             self.state["skipped"] += 1
             return
@@ -44,80 +53,54 @@ class PeopleConverter(BaseConverter):
                     f"Zone '{val_data.zone_name}' referenced in People '{val_data.name}' "
                     f"does not exist in IDF."
                 )
-            def check_schedule(sched_name, field_desc):
-                exists = False
-                for sched_type in ["SCHEDULE:COMPACT", "SCHEDULE:YEAR", "SCHEDULE:CONSTANT", "SCHEDULE:FILE"]:
-                    if self.idf.getobject(sched_type, sched_name):
-                        exists = True
-                        break
-                if not exists:
-                    raise ValueError(
-                        f"{field_desc} '{sched_name}' referenced in People '{val_data.name}' "
-                        f"does not exist in IDF."
-                    )
 
-            check_schedule(val_data.number_of_people_schedule_name, "Number of People Schedule")
-            check_schedule(val_data.activity_level_schedule_name, "Activity Level Schedule")
+            self._check_schedule_exists(val_data.number_of_people_schedule_name, "Number of People Schedule")
+            self._check_schedule_exists(val_data.activity_level_schedule_name, "Activity Level Schedule")
 
-            people_obj = self.idf.newidfobject("PEOPLE")
-            people_obj.Name = val_data.name
-            zone_field = self._get_idd_field_name(people_obj, ["Zone", "Name"])
-            if zone_field:
-                setattr(people_obj, zone_field, val_data.zone_name)
-            else:
-                raise AttributeError("Could not find 'Zone Name' field in IDD definition for People.")
-
-            people_obj.Number_of_People_Schedule_Name = val_data.number_of_people_schedule_name
-            people_obj.Activity_Level_Schedule_Name = val_data.activity_level_schedule_name
-            people_obj.Number_of_People_Calculation_Method = val_data.number_of_people_calc_method
-            if val_data.number_of_people_calc_method == "People":
-                num_field = self._get_idd_field_name(people_obj, ["Number", "People"], exclude=["Schedule", "Method"])
-                if num_field:
-                    setattr(people_obj, num_field, val_data.number_of_people)
-                else:
-                    raise AttributeError("Could not find 'Number of People' field.")
-
-            elif val_data.number_of_people_calc_method == "People/Area":
-                ppa_field = self._get_idd_field_name(people_obj, ["People", "Floor", "Area"])
-                if ppa_field:
-                    setattr(people_obj, ppa_field, val_data.people_per_zone_floor_area)
-                else:
-                    raise AttributeError(f"Could not find 'People per Zone Floor Area' field. Available: {people_obj.fieldnames}")
-            elif val_data.number_of_people_calc_method == "Area/Person":
-                app_field = self._get_idd_field_name(people_obj, ["Floor", "Area", "Person"])
-                if app_field:
-                    setattr(people_obj, app_field, val_data.zone_floor_area_per_person)
-                else:
-                    raise AttributeError("Could not find 'Zone Floor Area per Person' field.")
-            people_obj.Fraction_Radiant = val_data.fraction_radiant
-            people_obj.Sensible_Heat_Fraction = val_data.sensible_heat_fraction
-            people_obj.Carbon_Dioxide_Generation_Rate = val_data.carbon_dioxide_generation_rate
-
+            self.idf.newidfobject(
+                "PEOPLE",
+                Name=val_data.name,
+                Zone_or_ZoneList_or_Space_or_SpaceList_Name=val_data.zone_name,
+                Number_of_People_Schedule_Name=val_data.number_of_people_schedule_name,
+                Number_of_People_Calculation_Method=val_data.number_of_people_calc_method,
+                Number_of_People=val_data.number_of_people,
+                People_per_Floor_Area=val_data.people_per_floor_area,
+                Floor_Area_per_Person=val_data.floor_area_per_person,
+                Fraction_Radiant=val_data.fraction_radiant,
+                Sensible_Heat_Fraction=val_data.sensible_heat_fraction,
+                Activity_Level_Schedule_Name=val_data.activity_level_schedule_name,
+                Carbon_Dioxide_Generation_Rate=val_data.carbon_dioxide_generation_rate
+            )
             self.state["success"] += 1
             self.logger.success(f"People '{val_data.name}' added successfully to Zone '{val_data.zone_name}'.")
 
-        except ValueError as e:
+        except Exception as e:
             self.state["failed"] += 1
-            self.logger.error(f"Validation Error adding People '{val_data.name}': {e}")
-        except AttributeError as e:
-            self.state["failed"] += 1
-            self.logger.error(f"IDD/Schema Error adding People '{val_data.name}': {e}")
-        except Exception:
-            self.state["failed"] += 1
-            self.logger.exception(
-                f"An unexpected error occurred while adding People '{val_data.name}'"
-            )
+            self.logger.error(f"Failed to add People object: {e}")
 
-    def _get_idd_field_name(self, idf_obj, keywords: list[str], exclude: list[str] | None = None) -> str | None:
+    def _check_schedule_exists(self, sched_name: str, field_desc: str):
         """
-       Helper Function: Resolving IDD Version Field Name Inconsistencies
-        :param keywords: List of keywords field names must contain (AND relationship)
-        :param exclude: List of keywords field names must not contain (OR relationship)
+        Robustly checks if a schedule exists, ignoring case and whitespace.
+        If not found, prints ALL available schedules to help debug.
         """
-        for field in idf_obj.fieldnames:
-            if not all(k.lower() in field.lower() for k in keywords):
-                continue
-            if exclude and any(ex.lower() in field.lower() for ex in exclude):
-                continue
-            return field
-        return None
+        target_clean = sched_name.strip().upper()
+        found = False
+        schedule_types = ["SCHEDULE:COMPACT", "SCHEDULE:YEAR", "SCHEDULE:CONSTANT", "SCHEDULE:FILE"]
+        for sched_type in schedule_types:
+            objects = self.idf.idfobjects[sched_type]
+            for obj in objects:
+                if obj.Name.strip().upper() == target_clean:
+                    found = True
+                    break
+            if found:
+                break
+        if not found:
+            existing_schedules = []
+            for st in schedule_types:
+                existing_schedules.extend([o.Name for o in self.idf.idfobjects[st]])
+            error_msg = (
+                f"{field_desc} '{sched_name}' referenced in People object NOT found in IDF.\n"
+                f"   ---> Current Schedules in IDF: {existing_schedules}\n"
+                f"   ---> Please check if ScheduleConverter ran successfully."
+            )
+            raise ValueError(error_msg)

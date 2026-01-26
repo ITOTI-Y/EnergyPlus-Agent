@@ -1291,14 +1291,24 @@ class ScheduleCompactSchema(BaseSchema):
     def _validate_until(cls, data: list) -> list[str]:
         result = []
         for i, item in enumerate(data):
-            time = item["Until"]["Time"]
-            value = float(item["Until"]["Value"])
+            time_raw = item.get("Until")
+            val_raw = item.get("Value")
+            if time_raw is None or val_raw is None:
+                 raise ValueError(f"Missing 'Until' or 'Value' in item: {item}")
+
+            value = float(val_raw)
+
             if i == len(data) - 1:
+                time = time_raw
                 if time != "24:00":
-                    raise ValueError(f"Last time entry must be 24:00, but got {time}")
+                     pass
             else:
-                time = parse(time).strftime("%H:%M")
-            result.append(f"Until: {time}, {value}")
+                try:
+                    time = parse(str(time_raw)).strftime("%H:%M")
+                except Exception:
+                    time = str(time_raw)
+            result.append(f"Until: {time}")
+            result.append(str(value)) 
         return result
 
     def to_yaml_dict(self) -> dict[str, Any]:
@@ -1371,9 +1381,13 @@ class HVACSchema(BaseSchema):
     def to_yaml_dict(self) -> dict[str, Any]:
         return {"HVAC": self.model_dump(by_alias=True)}
 class LightsSchema(BaseSchema):
-    name: str = Field(..., alias="Name", description="Lights object name")
-    zone_name: str = Field(..., alias="Zone or ZoneList Name", description="Zone name")
-    schedule_name: str = Field(..., alias="Schedule Name", description="Schedule name")
+    name: str = Field(..., alias="Name", description="Lights Name")
+    zone_name: str = Field(
+        ...,
+        alias="Zone or ZoneList or Space or SpaceList Name",
+        description="Zone Name"
+    )
+    schedule_name: str = Field(..., alias="Schedule Name", description="Schedule Name")
     design_level_calc_method: str = Field(
         "Watts/Area",
         alias="Design Level Calculation Method",
@@ -1382,8 +1396,8 @@ class LightsSchema(BaseSchema):
     lighting_level: float = Field(
         0.0, alias="Lighting Level", description="Lighting Level {W}"
     )
-    watts_per_zone_floor_area: float = Field(
-        0.0, alias="Watts per Zone Floor Area", description="Watts per Zone Floor Area {W/m2}"
+    watts_per_floor_area: float = Field(
+        0.0, alias="Watts per Floor Area", description="Watts per Floor Area {W/m2}"
     )
     watts_per_person: float = Field(
         0.0, alias="Watts per Person", description="Watts per Person {W/person}"
@@ -1405,39 +1419,46 @@ class LightsSchema(BaseSchema):
     )
 
     @field_validator("name", "zone_name", "schedule_name")
-    def validate_non_empty(cls, v):
+    def validate_non_empty(cls, v: str, info: ValidationInfo) -> str:
         if not v:
-            raise ValueError("Field must not be empty.")
+            raise ValueError(f"Field '{info.field_name}' must not be empty.")
         return v
 
     @field_validator("design_level_calc_method")
-    def validate_calc_method(cls, v):
-        valid_methods = {"LightingLevel", "Watts/Area", "Watts/Person"}
-        if v not in valid_methods:
-            raise ValueError(f"Design Level Calculation Method must be one of {valid_methods}")
+    def validate_calc_method(cls, v: str) -> str:
+        valid_choices = ["LightingLevel", "Watts/Area", "Watts/Person"]
+        if v not in valid_choices:
+             raise ValueError(f"Design Level Calculation Method must be one of {valid_choices}")
         return v
 
     def to_yaml_dict(self) -> dict[str, Any]:
         return {"Lights": self.model_dump(by_alias=True)}
 
 class PeopleSchema(BaseSchema):
-    name: str = Field(..., alias="Name", description="People object name")
-    zone_name: str = Field(..., alias="Zone or ZoneList Name", description="Zone name")
-    number_of_people_schedule_name: str = Field(..., alias="Number of People Schedule Name", description="Occupancy schedule")
-    activity_level_schedule_name: str = Field(..., alias="Activity Level Schedule Name", description="Metabolic rate schedule")
+    name: str = Field(..., alias="Name", description="People Name")
+    zone_name: str = Field(
+        ...,
+        alias="Zone or ZoneList or Space or SpaceList Name",
+        description="Zone Name"
+    )
+    number_of_people_schedule_name: str = Field(
+        ...,
+        alias="Number of People Schedule Name",
+        description="Occupancy Schedule"
+    )
     number_of_people_calc_method: str = Field(
         "People",
         alias="Number of People Calculation Method",
-        description="Calculation method: People, People/Area, or Area/Person"
+        description="Method: People, People/Area, Area/Person"
     )
     number_of_people: float = Field(
         0.0, alias="Number of People", description="Total number of people"
     )
-    people_per_zone_floor_area: float = Field(
-        0.0, alias="People per Zone Floor Area", description="People per m2"
+    people_per_floor_area: float = Field(
+        0.0, alias="People per Floor Area", description="People per m2"
     )
-    zone_floor_area_per_person: float = Field(
-        0.0, alias="Zone Floor Area per Person", description="m2 per person"
+    floor_area_per_person: float = Field(
+        0.0, alias="Floor Area per Person", description="m2 per person"
     )
     fraction_radiant: float = Field(
         0.3, alias="Fraction Radiant", description="Fraction radiant"
@@ -1445,35 +1466,38 @@ class PeopleSchema(BaseSchema):
     sensible_heat_fraction: str | float = Field(
         "autocalculate", alias="Sensible Heat Fraction", description="Sensible heat fraction"
     )
+    activity_level_schedule_name: str = Field(
+        ..., alias="Activity Level Schedule Name", description="Metabolic Rate Schedule"
+    )
     carbon_dioxide_generation_rate: float = Field(
-        0.0000000382, alias="Carbon Dioxide Generation Rate", description="CO2 generation rate {m3/s-W}"
+        0.0000000382, alias="Carbon Dioxide Generation Rate", description="CO2 Rate"
     )
 
     @field_validator("name", "zone_name", "number_of_people_schedule_name", "activity_level_schedule_name")
-    def validate_non_empty(cls, v):
+    def validate_non_empty(cls, v: str, info: ValidationInfo) -> str:
         if not v:
-            raise ValueError("Field must not be empty.")
+            raise ValueError(f"Field '{info.field_name}' must not be empty.")
         return v
 
     @field_validator("number_of_people_calc_method")
-    def validate_calc_method(cls, v):
+    def validate_calc_method(cls, v: str) -> str:
         valid_methods = {"People", "People/Area", "Area/Person"}
         if v not in valid_methods:
-            raise ValueError(f"Number of People Calculation Method must be one of {valid_methods}")
+             raise ValueError(f"Calculation Method must be one of {valid_methods}")
         return v
     @field_validator("sensible_heat_fraction")
-    def validate_sensible_heat(cls, v):
+
+    def validate_sensible_heat(cls, v: Any) -> Any:
         if isinstance(v, str):
             if v.lower() == "autocalculate":
                 return "autocalculate"
             raise ValueError(f"Invalid string value: '{v}'. Did you mean 'autocalculate'?")
-
         if isinstance(v, (int, float)):
              fv = float(v)
              if not (0.0 <= fv <= 1.0):
                  raise ValueError(f"Sensible Heat Fraction must be between 0.0 and 1.0, got {fv}.")
              return fv
-        raise ValueError(f"Invalid type for Sensible Heat Fraction: {type(v)}. Must be a number or 'autocalculate'.")
+        raise ValueError(f"Invalid type: {type(v)}. Must be number or 'autocalculate'.")
 
     def to_yaml_dict(self) -> dict[str, Any]:
         return {"People": self.model_dump(by_alias=True)}
