@@ -28,6 +28,8 @@ from .data_model import (
     TimestepSchema,
     VersionSchema,
     ZoneSchema,
+    PeopleSchema,
+    LightsSchema,
 )
 
 __all__ = [
@@ -60,4 +62,6 @@ __all__ = [
     "TimestepSchema",
     "VersionSchema",
     "ZoneSchema",
+    "PeopleSchema",
+    "LightsSchema",
 ]

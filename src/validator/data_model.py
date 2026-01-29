@@ -1308,7 +1308,7 @@ class ScheduleCompactSchema(BaseSchema):
                 except Exception:
                     time = str(time_raw)
             result.append(f"Until: {time}")
-            result.append(str(value)) 
+            result.append(str(value))
         return result
 
     def to_yaml_dict(self) -> dict[str, Any]:

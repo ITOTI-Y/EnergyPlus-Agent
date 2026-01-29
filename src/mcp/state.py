@@ -25,6 +25,8 @@ from src.validator import (
     SiteLocationSchema,
     SurfaceSchema,
     ZoneSchema,
+    PeopleSchema,
+    LightsSchema,
 )
 
 
@@ -45,6 +47,8 @@ class ConfigState(BaseSchema):
     fenestrations: list[FenestrationSurfaceSchema] = Field(
         default_factory=list, alias="FenestrationSurface:Detailed"
     )
+    people: list[PeopleSchema] = Field(default_factory=list, alias="People")
+    lights: list[LightsSchema] = Field(default_factory=list, alias="Lights")
 
     schedules: ScheduleCollectionSchema = Field(
         default_factory=ScheduleCollectionSchema, alias="Schedule"
@@ -112,6 +116,8 @@ class ConfigState(BaseSchema):
         self.schedules.schedules.clear()
         self.hvac.thermostats.clear()
         self.hvac.ideal_loads_systems.clear()
+        self.people.clear()
+        self.lights.clear()
         self.global_geometry_rules = GlobalGeometryRulesSchema()
         self.simulation_control = SimulationControlSchema()
         self.run_period = RunPeriodSchema()

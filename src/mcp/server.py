@@ -9,6 +9,12 @@ from src.mcp.tools import (
     SurfaceTool,
     WorkflowTool,
     ZoneTool,
+    SettingTool,
+    BuildingTool,
+    ThermostatTool,
+    IdealLoadsSystemTool,
+    ScheduleTool,
+    ScheduleTypeLimitsTool,
 )
 
 mcp = FastMCP(
@@ -25,6 +31,12 @@ material_tool = MaterialTool(state)
 construction_tool = ConstructionTool(state)
 surface_tool = SurfaceTool(state)
 fenestration_tool = FenestrationTool(state)
+setting_tool = SettingTool(state)
+building_tool = BuildingTool(state)
+schedule_tool = ScheduleTool(state)
+schedule_limits_tool = ScheduleTypeLimitsTool(state)
+hvac_thermostat_tool = ThermostatTool(state)
+hvac_ideal_tool = IdealLoadsSystemTool(state)
 
 
 @mcp.tool
@@ -472,6 +484,175 @@ def get_current_config() -> str:
 def get_summary_resource() -> str:
     return OmegaConf.to_yaml(state.get_summary().model_dump())
 
+
+@mcp.tool
+def update_building(
+    north_axis: float | None = None,
+    terrain: str | None = None,
+    solar_distribution: str | None = None,
+    loads_convergence_tolerance_value: float | None = None,
+    temperature_convergence_tolerance_value: float | None = None,
+    maximum_number_of_warmup_days: int | None = None,
+    minimum_number_of_warmup_days: int | None = None
+) -> dict:
+    """Update global Building parameters."""
+    data = {
+        "Name": "Building",
+        "North Axis": north_axis,
+        "Terrain": terrain,
+        "Solar Distribution": solar_distribution,
+        "Loads Convergence Tolerance Value": loads_convergence_tolerance_value,
+        "Temperature Convergence Tolerance Value": temperature_convergence_tolerance_value,
+        "Maximum Number of Warmup Days": maximum_number_of_warmup_days,
+        "Minimum Number of Warmup Days": minimum_number_of_warmup_days
+    }
+    if building_tool.storage:
+        return building_tool.update("Building", data).to_mcp_response()
+    else:
+        return building_tool.create(data).to_mcp_response()
+
+@mcp.tool
+def get_building() -> dict:
+    """Get current Building parameters."""
+    if not building_tool.storage:
+         return {"success": False, "message": "Building not initialized yet."}
+    return building_tool.read("Building").to_mcp_response()
+
+
+@mcp.tool
+def list_settings() -> dict:
+    """List all configured global settings (e.g., SimulationControl, Site:Location)."""
+    return setting_tool.list_all().to_mcp_response()
+
+@mcp.tool
+def get_setting(setting_type: str) -> dict:
+    """
+    Get a specific global setting.
+    Args:
+        setting_type: One of 'SimulationControl', 'Site:Location', 'RunPeriod', 'GlobalGeometryRules'.
+    """
+    return setting_tool.read(setting_type).to_mcp_response()
+
+@mcp.tool
+def update_setting(setting_type: str, parameters: dict) -> dict:
+    """
+    Update or create a global setting.
+    Args:
+        setting_type: The type name (e.g., 'SimulationControl', 'Site:Location', 'RunPeriod').
+        parameters: A dictionary of fields to update (e.g., {"do_zone_sizing_calculation": true}).
+    """
+    data = parameters.copy()
+    data["Name"] = setting_type
+    if setting_type in setting_tool.storage:
+        return setting_tool.update(setting_type, data).to_mcp_response()
+    else:
+        return setting_tool.create(data).to_mcp_response()
+
+@mcp.tool
+def delete_setting(setting_type: str) -> dict:
+    """Reset a setting to default or remove it if optional."""
+    return setting_tool.delete(setting_type).to_mcp_response()
+@mcp.tool
+def create_schedule_type_limits(
+    name: str,
+    lower_limit_value: float | str | None = None,
+    upper_limit_value: float | str | None = None,
+    numeric_type: str = "CONTINUOUS",
+    unit_type: str = "Dimensionless"
+) -> dict:
+    """Create ScheduleTypeLimits."""
+    data = {
+        "Name": name,
+        "Lower Limit Value": lower_limit_value if lower_limit_value is not None else "",
+        "Upper Limit Value": upper_limit_value if upper_limit_value is not None else "",
+        "Numeric Type": numeric_type,
+        "Unit Type": unit_type
+    }
+    return schedule_limits_tool.create(data).to_mcp_response()
+
+@mcp.tool
+def list_schedule_type_limits() -> dict:
+    return schedule_limits_tool.list_all().to_mcp_response()
+
+@mcp.tool
+def delete_schedule_type_limits(name: str) -> dict:
+    return schedule_limits_tool.delete(name).to_mcp_response()
+
+@mcp.tool
+def create_schedule_compact(
+    name: str,
+    schedule_type_limits_name: str,
+    data_points: list[dict]
+) -> dict:
+    """
+    Create a Schedule:Compact.
+    Args:
+        data_points: List of nested dicts structure.
+        Example: [{"Through": "12/31", "Days": [{"For": "AllDays", "Times": [{"Until": "24:00", "Value": 1.0}]}]}]
+    """
+    data = {
+        "Name": name,
+        "Schedule Type Limits Name": schedule_type_limits_name,
+        "Data": data_points
+    }
+    return schedule_tool.create(data).to_mcp_response()
+
+@mcp.tool
+def list_schedules() -> dict:
+    return schedule_tool.list_all().to_mcp_response()
+
+@mcp.tool
+def delete_schedule(name: str) -> dict:
+    return schedule_tool.delete(name).to_mcp_response()
+@mcp.tool
+def create_thermostat(
+    name: str,
+    heating_setpoint_schedule_name: str,
+    cooling_setpoint_schedule_name: str
+) -> dict:
+    """Create a HVACTemplate:Thermostat."""
+    data = {
+        "Name": name,
+        "Heating Setpoint Schedule Name": heating_setpoint_schedule_name,
+        "Cooling Setpoint Schedule Name": cooling_setpoint_schedule_name
+    }
+    return hvac_thermostat_tool.create(data).to_mcp_response()
+
+@mcp.tool
+def delete_thermostat(name: str) -> dict:
+    return hvac_thermostat_tool.delete(name).to_mcp_response()
+
+@mcp.tool
+def create_ideal_loads_system(
+    zone_name: str,
+    template_thermostat_name: str,
+    system_availability_schedule_name: str | None = None
+) -> dict:
+    """
+    Create an Ideal Loads Air System for a specific Zone.
+    Note: The Zone Name serves as the unique identifier for this system.
+    """
+    data = {
+        "Zone Name": zone_name,
+        "Template Thermostat Name": template_thermostat_name,
+        "System Availability Schedule Name": system_availability_schedule_name
+    }
+    return hvac_ideal_tool.create(data).to_mcp_response()
+
+@mcp.tool
+def delete_ideal_loads_system(zone_name: str) -> dict:
+    """Delete Ideal Loads System by Zone Name."""
+    return hvac_ideal_tool.delete(zone_name).to_mcp_response()
+
+@mcp.tool
+def list_hvac_components() -> dict:
+    """List all Thermostats and Ideal Loads Systems."""
+    thermostats = hvac_thermostat_tool.list_all().to_mcp_response()
+    systems = hvac_ideal_tool.list_all().to_mcp_response()
+    return {
+        "thermostats": thermostats,
+        "ideal_loads_systems": systems
+    }
 
 if __name__ == "__main__":
     mcp.run()

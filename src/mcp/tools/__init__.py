@@ -4,6 +4,11 @@ from .material import MaterialTool
 from .surface import SurfaceTool
 from .workflow import WorkflowTool
 from .zone import ZoneTool
+from .setting import SettingTool
+from .building import BuildingTool
+from .hvac import ThermostatTool, IdealLoadsSystemTool
+from .schedule import ScheduleTool, ScheduleTypeLimitsTool
+from .load import PeopleTool, LightsTool
 
 __all__ = [
     "ConstructionTool",
@@ -12,4 +17,12 @@ __all__ = [
     "SurfaceTool",
     "WorkflowTool",
     "ZoneTool",
+    "SettingTool",
+    "BuildingTool",
+    "ThermostatTool",
+    "IdealLoadsSystemTool",
+    "ScheduleTool",
+    "ScheduleTypeLimitsTool",
+    "PeopleTool",
+    "LightsTool",
 ]
