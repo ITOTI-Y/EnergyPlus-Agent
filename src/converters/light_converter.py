@@ -20,7 +20,7 @@ class LightConverter(BaseConverter):
         Processes the Lights list from YAML, validating and adding each component.
         """
         self.logger.info("Light Converter Starting...")
-        lights_list = data.get("Lights") or data.get("lights", [])
+        lights_list = data.get("Lights") if "Lights" in data else data.get("lights", [])
         if not lights_list:
             self.logger.info("No Lights data found in YAML.")
             return
@@ -66,6 +66,7 @@ class LightConverter(BaseConverter):
                 Name=val_data.name,
                 Zone_or_ZoneList_or_Space_or_SpaceList_Name=val_data.zone_name,
                 Schedule_Name=val_data.schedule_name,
+                Design_Level_Calculation_Method=val_data.design_level_calc_method,
                 Lighting_Level=val_data.lighting_level,
                 Watts_per_Floor_Area=val_data.watts_per_floor_area,
                 Watts_per_Person=val_data.watts_per_person,

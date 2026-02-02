@@ -10,18 +10,6 @@ SimulationControl:
     Do HVAC Sizing Simulation for Sizing Periods: Yes
     Maximum Number of HVAC Sizing Simulation Passes: 1
 
-# ==================================================================
-Lights:
-  - Name: "Office_General_Lights"
-    Zone or ZoneList Name: "Zone_West"
-    Schedule Name: "Always On"
-    Design Level Calculation Method: "Watts/Area"
-    Watts per Zone Floor Area: 10.0
-    Return Air Fraction: 0.2
-    Fraction Radiant: 0.42
-    Fraction Visible: 0.18
-    Fraction Replaceable: 1.0
-    End-Use Subcategory: General
 # 建筑概况
 # ==================================================================
 Building:

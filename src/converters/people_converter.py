@@ -75,8 +75,8 @@ class PeopleConverter(BaseConverter):
             self.logger.success(f"People '{val_data.name}' added successfully to Zone '{val_data.zone_name}'.")
 
         except Exception as e:
-            self.state["failed"] += 1
-            self.logger.error(f"Failed to add People object: {e}")
+            self.logger.exception(f"failed to add people object: {e}")
+            raise
 
     def _check_schedule_exists(self, sched_name: str, field_desc: str):
         """
