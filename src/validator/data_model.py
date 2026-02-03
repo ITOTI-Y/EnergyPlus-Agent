@@ -1472,3 +1472,174 @@ class LightSchema(BaseSchema):
                 "Watts per Person must be specified when Design Level Calculation Method is Watts/Person."
             )
         return self
+
+
+class PeopleSchema(BaseSchema):
+    name: str = Field(..., alias="Name")
+    zone_or_zonelist_or_space_or_spacelist_name: str = Field(
+        ..., alias="Zone or ZoneList or Space or SpaceList Name"
+    )
+    number_of_people_schedule_name: str = Field(
+        ..., alias="Number of People Schedule Name"
+    )
+    number_of_people_calculation_method: str = Field(
+        default="People", alias="Number of People Calculation Method"
+    )
+    number_of_people: float | None = Field(default=0.0, ge=0.0)
+    people_per_floor_area: float | None = Field(
+        default=0.0, ge=0.0, alias="People per Floor Area"
+    )
+    floor_area_per_person: float | None = Field(
+        default=0.0, ge=0.0, alias="Floor Area per Person"
+    )
+    fraction_radiant: float | None = Field(
+        default=0.3, ge=0.0, le=1.0, alias="Fraction Radiant"
+    )
+    sensible_heat_fraction: float | str | None = Field(
+        default="Autocalculate", alias="Sensible Heat Fraction"
+    )
+    activity_level_schedule_name: str = Field(..., alias="Activity Level Schedule Name")
+    carbon_dioxide_generation_rate: float | None = Field(
+        default=3.82e-08, ge=0.0, le=3.82e-07, alias="Carbon Dioxide Generation Rate"
+    )
+    enable_ashrae_55_comfort_warnings: str | None = Field(
+        default="No", alias="Enable ASHRAE 55 Comfort Warnings"
+    )
+    mean_radiant_temperature_calculation_type: str | None = Field(
+        default="EnclosureAveraged", alias="Mean Radiant Temperature Calculation Type"
+    )
+    surface_name_angle_factor_list_name: str | None = Field(
+        default="", alias="Surface Name Angle Factor List Name"
+    )
+    work_efficiency_schedule_name: str | None = Field(
+        default="", alias="Work Efficiency Schedule Name"
+    )
+    clothing_insulation_calculation_method: str | None = Field(
+        default="ClothingInsulationSchedule",
+        alias="Clothing Insulation Calculation Method",
+    )
+    clothing_insulation_calculation_method_schedule_name: str | None = Field(
+        default="", alias="Clothing Insulation Calculation Method Schedule Name"
+    )
+    clothing_insulation_schedule_name: str | None = Field(
+        default="", alias="Clothing Insulation Schedule Name"
+    )
+    air_velocity_schedule_name: str | None = Field(
+        default="", alias="Air Velocity Schedule Name"
+    )
+    thermal_comfort_model_1_type: str | None = Field(
+        default="", alias="Thermal Comfort Model 1 Type"
+    )
+    thermal_comfort_model_2_type: str | None = Field(
+        default="", alias="Thermal Comfort Model 2 Type"
+    )
+    thermal_comfort_model_3_type: str | None = Field(
+        default="", alias="Thermal Comfort Model 3 Type"
+    )
+    thermal_comfort_model_4_type: str | None = Field(
+        default="", alias="Thermal Comfort Model 4 Type"
+    )
+    thermal_comfort_model_5_type: str | None = Field(
+        default="", alias="Thermal Comfort Model 5 Type"
+    )
+    thermal_comfort_model_6_type: str | None = Field(
+        default="", alias="Thermal Comfort Model 6 Type"
+    )
+    thermal_comfort_model_7_type: str | None = Field(
+        default="", alias="Thermal Comfort Model 7 Type"
+    )
+    ankle_level_air_velocity_schedule_name: str | None = Field(
+        default="", alias="Ankle Level Air Velocity Schedule Name"
+    )
+    cold_stress_temperature_threshold: float | None = Field(
+        default=15.56, alias="Cold Stress Temperature Threshold"
+    )
+    heat_stress_temperature_threshold: float | None = Field(
+        default=30.0, alias="Heat Stress Temperature Threshold"
+    )
+
+    def to_yaml_dict(self) -> dict[str, Any]:
+        return {"People": self.model_dump(by_alias=True)}
+
+    @model_validator(mode="after")
+    def validate_number_of_people(self):
+        count = sum(
+            bool(x)
+            for x in [
+                self.number_of_people,
+                self.people_per_floor_area,
+                self.floor_area_per_person,
+            ]
+        )
+        if count > 1:
+            raise ValueError(
+                "Only one of Number of People, People per Floor Area, or Floor Area per Person must be specified."
+            )
+        if self.number_of_people_calculation_method == "People":
+            assert self.number_of_people is not None
+        elif self.number_of_people_calculation_method == "People/Area":
+            assert self.people_per_floor_area is not None
+        elif self.number_of_people_calculation_method == "People/Person":
+            assert self.floor_area_per_person is not None
+        else:
+            raise ValueError("Invalid Number of People Calculation Method.")
+        return self
+
+    @field_validator("number_of_people_calculation_method")
+    def validate_number_of_people_calculation_method(cls, v):
+        valid_choices = cls._idf_field.People.Number_of_People_Calculation_Method.key
+        return cls.validate_choice_field(
+            v,
+            valid_choices,  # type: ignore
+            "Number of People Calculation Method",
+        )
+
+    @field_validator("sensible_heat_fraction")
+    def validate_sensible_heat_fraction(cls, v):
+        if v == "autocalculate":
+            return v
+        if isinstance(v, (float, int)):
+            v = float(v)
+            if v < 0.0 or v > 1.0:
+                raise ValueError("Sensible Heat Fraction must be between 0.0 and 1.0.")
+            return v
+        raise ValueError(
+            "Sensible Heat Fraction must be a number between 0.0 and 1.0 or 'autocalculate'."
+        )
+
+    @field_validator("mean_radiant_temperature_calculation_type")
+    def validate_mean_radiant_temperature_calculation_type(cls, v):
+        valid_choices = (
+            cls._idf_field.People.Mean_Radiant_Temperature_Calculation_Type.key
+        )
+        return cls.validate_choice_field(
+            v,
+            valid_choices,  # type: ignore
+            "Mean Radiant Temperature Calculation Type",
+        )
+
+    @field_validator("clothing_insulation_calculation_method")
+    def validate_clothing_insulation_calculation_method(cls, v):
+        valid_choices = cls._idf_field.People.Clothing_Insulation_Calculation_Method.key
+        return cls.validate_choice_field(
+            v,
+            valid_choices,  # type: ignore
+            "Clothing Insulation Calculation Method",
+        )
+
+    @field_validator(
+        "thermal_comfort_model_1_type",
+        "thermal_comfort_model_2_type",
+        "thermal_comfort_model_3_type",
+        "thermal_comfort_model_4_type",
+        "thermal_comfort_model_5_type",
+        "thermal_comfort_model_6_type",
+        "thermal_comfort_model_7_type",
+    )
+    def validate_thermal_comfort_model_type(cls, v):
+        valid_choices = cls._idf_field.People.Thermal_Comfort_Model_1_Type.key
+        return cls.validate_choice_field(
+            v,
+            valid_choices,  # type: ignore
+            "Thermal Comfort Model Type",
+        )
