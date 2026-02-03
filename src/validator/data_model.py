@@ -175,8 +175,8 @@ class BuildingSchema(BaseSchema):
 
     @field_validator("terrain")
     def validate_terrain(cls, v):
-        valid_terrains = {"Suburbs", "Country", "City", "Ocean", "Urban"}
-        if v not in valid_terrains:
+        valid_terrains = cls._idf_field.Building.Terrain.key
+        if v not in valid_terrains:  # type: ignore[operator]
             raise ValueError(f"Terrain must be one of {valid_terrains}.")
         return v
 
