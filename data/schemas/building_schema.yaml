@@ -391,6 +391,63 @@ Schedule:
                 Time: "24:00"
                 Value: 26
 
+    - Name: "MediumOffice_Lighting_Schedule"
+      Schedule Type Limits Name: "Fraction" 
+      Data:
+        - Through: "12/31"
+          Days:
+          - For: "Weekdays"
+            Times:
+            - Until:
+                Time: "05:00"
+                Value: 0.05
+            - Until:
+                Time: "07:00"
+                Value: 0.10
+            - Until:
+                Time: "08:00"
+                Value: 0.30
+            - Until:
+                Time: "17:00"
+                Value: 0.90
+            - Until:
+                Time: "18:00"
+                Value: 0.70
+            - Until:
+                Time: "20:00"
+                Value: 0.50
+            - Until:
+                Time: "22:00"
+                Value: 0.30
+            - Until:
+                Time: "23:00"
+                Value: 0.10
+            - Until:
+                Time: "24:00"
+                Value: 0.05
+          - For: "Saturday"
+            Times:
+            - Until:
+                Time: "06:00"
+                Value: 0.05
+            - Until:
+                Time: "08:00"
+                Value: 0.10
+            - Until:
+                Time: "14:00"
+                Value: 0.50
+            - Until:
+                Time: "17:00"
+                Value: 0.15
+            - Until:
+                Time: "24:00"
+                Value: 0.05
+          - For: "AllOtherDays"
+            Times:
+            - Until:
+                Time: "24:00"
+                Value: 0.05
+
 HVAC:
   HVACTemplate:Zone:IdealLoadsAirSystem:
     - Zone Name: Zone_West
@@ -405,6 +462,33 @@ HVAC:
     - Name: Ideal Loads Thermostat
       Heating Setpoint Schedule Name: Heating_Setpoint_Schedule
       Cooling Setpoint Schedule Name: Cooling_Setpoint_Schedule
+
+Light:
+  - Name: "Zone_West_Light"
+    Zone or ZoneList or Space or SpaceList Name: "Zone_West"
+    Schedule Name: "MediumOffice_Lighting_Schedule"
+    Design Level Calculation Method: "Watts/Area"
+    Lighting Level: 0.0
+    Watts per Floor Area: 12.0
+    Watts per Person: 0.0
+    Return Air Fraction: 0.2
+    Fraction Radiant: 0.42
+    Fraction Visible: 0.18
+    Fraction Replaceable: 1.0
+    End-Use Subcategory: General  
+
+  - Name: "Zone_East_Light"
+    Zone or ZoneList or Space or SpaceList Name: "Zone_East"
+    Schedule Name: "MediumOffice_Lighting_Schedule"
+    Design Level Calculation Method: "Watts/Area"
+    Lighting Level: 0.0
+    Watts per Floor Area: 12.0
+    Watts per Person: 0.0
+    Return Air Fraction: 0.2
+    Fraction Radiant: 0.42
+    Fraction Visible: 0.18
+    Fraction Replaceable: 1.0
+    End-Use Subcategory: General
 # ==================================================================
 # 输出设置
 # ==================================================================

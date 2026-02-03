@@ -91,6 +91,7 @@ class BaseSchema(BaseModel):
 
     @classmethod
     def _process_idf_field(cls) -> IDDField:
+        assert cls._idf is not None
         _idd_info = cast(list[dict], cls._idf.idd_info)
         idd_field = IDDField(_idd_info)
         return idd_field
@@ -1366,3 +1367,108 @@ class HVACSchema(BaseSchema):
 
     def to_yaml_dict(self) -> dict[str, Any]:
         return {"HVAC": self.model_dump(by_alias=True)}
+
+
+class LightSchema(BaseSchema):
+    name: str = Field(..., alias="Name")
+    zone_or_zone_list_or_space_or_space_list_name: str = Field(
+        ..., alias="Zone or ZoneList or Space or SpaceList Name"
+    )
+    schedule_name: str = Field(..., alias="Schedule Name")
+    design_level_calculation_method: str = Field(
+        default="LightingLevel", alias="Design Level Calculation Method"
+    )
+    lighting_level: float | None = Field(default=0.0, alias="Lighting Level", ge=0.0)
+    watts_per_floor_area: float | None = Field(
+        default=0.0, alias="Watts per Floor Area", ge=0.0
+    )
+    watts_per_person: float | None = Field(
+        default=0.0, alias="Watts per Person", ge=0.0
+    )
+    return_air_fraction: float | None = Field(
+        default=0.0, alias="Return Air Fraction", ge=0.0, le=1.0
+    )
+    fraction_radiant: float | None = Field(
+        default=0.0, alias="Fraction Radiant", ge=0.0, le=1.0
+    )
+    fraction_visible: float | None = Field(
+        default=0.0, alias="Fraction Visible", ge=0.0, le=1.0
+    )
+    fraction_replaceable: float | None = Field(
+        default=1.0, alias="Fraction Replaceable", ge=0.0, le=1.0
+    )
+    end_use_subcategory: str | None = Field(
+        default="General", alias="End Use Subcategory"
+    )
+    return_air_fraction_calculated_from_plenum_temperature: str | None = Field(
+        default="No", alias="Return Air Fraction Calculated from Plenum Temperature"
+    )
+    return_air_fraction_function_of_plenum_temperature_coefficient_1: float | None = (
+        Field(
+            default=0.0,
+            alias="Return Air Fraction Function of Plenum Temperature Coefficient 1",
+            ge=0.0,
+        )
+    )
+    return_air_fraction_function_of_plenum_temperature_coefficient_2: float | None = (
+        Field(
+            default=0.0,
+            alias="Return Air Fraction Function of Plenum Temperature Coefficient 2",
+            ge=0.0,
+        )
+    )
+    return_air_heat_gain_node_name: str | None = Field(
+        "", alias="Return Air Heat Gain Node Name"
+    )
+    exhaust_air_heat_gain_node_name: str | None = Field(
+        "", alias="Exhaust Air Heat Gain Node Name"
+    )
+
+    def to_yaml_dict(self) -> dict[str, Any]:
+        return {"Light": self.model_dump(by_alias=True)}
+
+    @field_validator("design_level_calculation_method")
+    def validate_design_level_calculation_method(cls, v: str) -> str:
+        valid_choices = cls._idf_field.Lights.Design_Level_Calculation_Method.key
+        return cls.validate_choice_field(
+            v,
+            valid_choices,  # type: ignore
+            "Design Level Calculation Method",
+        )
+
+    @model_validator(mode="after")
+    def validate_calculation_method(self):
+        count = sum(
+            bool(x)
+            for x in [
+                self.lighting_level,
+                self.watts_per_floor_area,
+                self.watts_per_person,
+            ]
+        )
+        if count != 1:
+            raise ValueError(
+                "Exactly one of Lighting Level, Watts per Floor Area, or Watts per Person must be specified."
+            )
+        if (
+            self.design_level_calculation_method == "LightingLevel"
+            and self.lighting_level == 0.0
+        ):
+            raise ValueError(
+                "Lighting Level must be specified when Design Level Calculation Method is LightingLevel."
+            )
+        if (
+            self.design_level_calculation_method == "Watts/Area"
+            and self.watts_per_floor_area == 0.0
+        ):
+            raise ValueError(
+                "Watts per Floor Area must be specified when Design Level Calculation Method is Watts/Area."
+            )
+        if (
+            self.design_level_calculation_method == "Watts/Person"
+            and self.watts_per_person == 0.0
+        ):
+            raise ValueError(
+                "Watts per Person must be specified when Design Level Calculation Method is Watts/Person."
+            )
+        return self

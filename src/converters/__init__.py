@@ -3,6 +3,7 @@ from .building_converter import BuildingConverter
 from .construction_converter import ConstructionConverter
 from .fenestration_converter import FenestrationConverter
 from .hvac_converter import HVACConverter
+from .light_converter import LightConverter
 from .material_converter import MaterialConverter
 from .schedule_converter import ScheduleConverter
 from .setting_converter import SettingsConverter
@@ -15,6 +16,7 @@ __all__ = [
     "ConstructionConverter",
     "FenestrationConverter",
     "HVACConverter",
+    "LightConverter",
     "MaterialConverter",
     "ScheduleConverter",
     "SettingsConverter",
