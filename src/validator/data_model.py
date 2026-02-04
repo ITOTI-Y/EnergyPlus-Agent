@@ -1581,11 +1581,20 @@ class PeopleSchema(BaseSchema):
                 "Only one of Number of People, People per Floor Area, or Floor Area per Person must be specified."
             )
         if self.number_of_people_calculation_method == "People":
-            assert self.number_of_people is not None
+            if self.number_of_people is None:
+                raise ValueError(
+                    'number_of_people must be provided when calculation method is "People"'
+                )
         elif self.number_of_people_calculation_method == "People/Area":
-            assert self.people_per_floor_area is not None
+            if self.people_per_floor_area is None:
+                raise ValueError(
+                    'people_per_floor_area must be provided when calculation method is "People/Area"'
+                )
         elif self.number_of_people_calculation_method == "Area/Person":
-            assert self.floor_area_per_person is not None
+            if self.floor_area_per_person is None:
+                raise ValueError(
+                    'floor_area_per_person must be provided when calculation method is "Area/Person"'
+                )
         else:
             raise ValueError("Invalid Number of People Calculation Method.")
         return self
