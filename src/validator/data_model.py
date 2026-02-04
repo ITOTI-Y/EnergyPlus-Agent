@@ -91,7 +91,10 @@ class BaseSchema(BaseModel):
 
     @classmethod
     def _process_idf_field(cls) -> IDDField:
-        assert cls._idf is not None
+        if cls._idf is None:
+            raise RuntimeError(
+                "IDF has not been initialized. Call IDFBaseModel.initialize() before using _process_idf_field."
+            )
         _idd_info = cast(list[dict], cls._idf.idd_info)
         idd_field = IDDField(_idd_info)
         return idd_field
@@ -1579,7 +1582,7 @@ class PeopleSchema(BaseSchema):
             assert self.number_of_people is not None
         elif self.number_of_people_calculation_method == "People/Area":
             assert self.people_per_floor_area is not None
-        elif self.number_of_people_calculation_method == "People/Person":
+        elif self.number_of_people_calculation_method == "Area/Person":
             assert self.floor_area_per_person is not None
         else:
             raise ValueError("Invalid Number of People Calculation Method.")
@@ -1596,7 +1599,7 @@ class PeopleSchema(BaseSchema):
 
     @field_validator("sensible_heat_fraction")
     def validate_sensible_heat_fraction(cls, v):
-        if v == "autocalculate":
+        if isinstance(v, str) and v.lower() == "autocalculate":
             return v
         if isinstance(v, (float, int)):
             v = float(v)

@@ -357,6 +357,14 @@ Schedule:
     - Name: Temperature
       Numeric Type: CONTINUOUS  
       Unit Type: Temperature
+    - Name: Fraction
+      Lower Limit Value: 0.0
+      Upper Limit Value: 1.0
+      Numeric Type: CONTINUOUS
+      Unit Type: Dimensionless
+    - Name: Any Number
+      Numeric Type: CONTINUOUS
+      Unit Type: Dimensionless
   Schedule:Compact:
     - Name: Always On
       Schedule Type Limits Name: On/Off

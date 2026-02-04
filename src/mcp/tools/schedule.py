@@ -39,6 +39,16 @@ class ScheduleTool(BaseTool):
             raise ValueError(f"Invalid schedule type: {type(instance)}")
 
     def _remove_from_storage(self, name: str) -> None:
+        found_in_type_limits = any(
+            limit.name == name for limit in self.state.schedules.schedule_type_limits
+        )
+        found_in_schedules = any(
+            schedule.name == name for schedule in self.state.schedules.schedules
+        )
+
+        if not found_in_type_limits and not found_in_schedules:
+            raise ValueError(f"Schedule not found: {name}")
+
         self.state.schedules.schedule_type_limits = [
             limit
             for limit in self.state.schedules.schedule_type_limits
