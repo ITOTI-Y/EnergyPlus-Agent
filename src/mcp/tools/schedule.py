@@ -15,16 +15,17 @@ class ScheduleTool(BaseTool):
     @property
     def storage(
         self,
-    ) -> dict[str, dict[str, ScheduleTypeLimitsSchema | ScheduleCompactSchema]]:
-        if self.state.schedules:
-            type_limits = {
-                limit.name: limit for limit in self.state.schedules.schedule_type_limits
-            }
-            schedules = {
-                schedule.name: schedule for schedule in self.state.schedules.schedules
-            }
-            return {"ScheduleTypeLimits": type_limits, "Schedule:Compact": schedules}
-        return {}
+    ) -> dict[str, ScheduleTypeLimitsSchema | ScheduleCompactSchema]:
+        if not self.state.schedules:
+            return {}
+
+        storage: dict[str, ScheduleTypeLimitsSchema |
+                      ScheduleCompactSchema] = {}
+        for limit in self.state.schedules.schedule_type_limits:
+            storage[f"ScheduleTypeLimits:{limit.name}"] = limit
+        for schedule in self.state.schedules.schedules:
+            storage[f"Schedule:Compact:{schedule.name}"] = schedule
+        return storage
 
     def _add_to_storage(
         self, instance: ScheduleTypeLimitsSchema | ScheduleCompactSchema
@@ -103,7 +104,8 @@ class ScheduleTool(BaseTool):
         refs = []
         for schedule in self.state.schedules.schedules:
             if schedule.schedule_type_limits_name == name:
-                refs.append(f"ScheduleTypeLimits:{schedule.schedule_type_limits_name}")
+                refs.append(
+                    f"ScheduleTypeLimits:{schedule.schedule_type_limits_name}")
 
         for thermostat in self.state.hvac.thermostats:
             if thermostat.heating_setpoint_schedule_name == name:
@@ -113,7 +115,8 @@ class ScheduleTool(BaseTool):
 
         for ils in self.state.hvac.ideal_loads_systems:
             if ils.system_availability_schedule_name == name:
-                refs.append(f"IdealLoadsSystem:{ils.system_availability_schedule_name}")
+                refs.append(
+                    f"IdealLoadsSystem:{ils.system_availability_schedule_name}")
 
         for people in self.state.people:
             if people.number_of_people_schedule_name == name:

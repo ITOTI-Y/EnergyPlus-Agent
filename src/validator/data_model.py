@@ -93,7 +93,7 @@ class BaseSchema(BaseModel):
     def _process_idf_field(cls) -> IDDField:
         if cls._idf is None:
             raise RuntimeError(
-                "IDF has not been initialized. Call IDFBaseModel.initialize() before using _process_idf_field."
+                "IDF has not been initialized. Call BaseSchema.set_idf(...) before using _process_idf_field."
             )
         _idd_info = cast(list[dict], cls._idf.idd_info)
         idd_field = IDDField(_idd_info)
@@ -106,8 +106,10 @@ class BaseSchema(BaseModel):
         return IDF(fhandle)
 
     @staticmethod
-    def validate_choice_field(value: str, valid_choices: list, field_name: str) -> str:
-        choice_mapping = {choice.lower(): choice for choice in valid_choices}
+    def validate_choice_field(
+        value: str, valid_choices: list | IDDField, field_name: str
+    ) -> str:
+        choice_mapping = {choice.lower(): choice for choice in valid_choices}  # type: ignore
         value_lower = value.lower()
 
         if value_lower not in choice_mapping:
@@ -116,7 +118,7 @@ class BaseSchema(BaseModel):
             )
             raise ValueError(f"{field_name} must be one of {valid_choices}.")
 
-        if value not in valid_choices:
+        if value not in valid_choices:  # type: ignore
             logger.warning(
                 f"{field_name} '{value}' is not in the standard casing. Using '{choice_mapping[value_lower]}' instead."
             )
@@ -689,12 +691,12 @@ class GlobalGeometryRulesSchema(BaseSchema):
     @field_validator("vertex_entry_direction")
     def validate_vertex_entry_direction(cls, v):
         valid_directions = cls._idf_field.GlobalGeometryRules.Vertex_Entry_Direction.key
-        return cls.validate_choice_field(v, valid_directions, "Vertex Entry Direction")  # type: ignore
+        return cls.validate_choice_field(v, valid_directions, "Vertex Entry Direction")
 
     @field_validator("coordinate_system")
     def validate_coordinate_system(cls, v):
         valid_systems = cls._idf_field.GlobalGeometryRules.Coordinate_System.key
-        return cls.validate_choice_field(v, valid_systems, "Coordinate System")  # type: ignore
+        return cls.validate_choice_field(v, valid_systems, "Coordinate System")
 
     def to_yaml_dict(self) -> dict[str, Any]:
         return {"GlobalGeometryRules": self.model_dump(by_alias=True)}
@@ -706,7 +708,7 @@ class OutputVariableDictionarySchema(BaseSchema):
     @field_validator("key_field")
     def validate_key_field(cls, v):
         valid_key_field = cls._idf_field.Output_VariableDictionary.Key_Field.key
-        return cls.validate_choice_field(v, valid_key_field, "Key Field")  # type: ignore
+        return cls.validate_choice_field(v, valid_key_field, "Key Field")
 
     def to_yaml_dict(self) -> dict[str, Any]:
         return {"Output:VariableDictionary": self.model_dump(by_alias=True)}
@@ -718,7 +720,7 @@ class OutputDiagnosticsSchema(BaseSchema):
     @field_validator("key_1")
     def validate_key_1(cls, v):
         valid_key_1 = cls._idf_field.Output_Diagnostics.Key_1.key
-        return cls.validate_choice_field(v, valid_key_1, "Key 1")  # type: ignore
+        return cls.validate_choice_field(v, valid_key_1, "Key 1")
 
     def to_yaml_dict(self) -> dict[str, Any]:
         return {"Output:Diagnostics": self.model_dump(by_alias=True)}
@@ -732,7 +734,7 @@ class OutputTableSummaryReportsSchema(BaseSchema):
         valid_report_names = (
             cls._idf_field.Output_Table_SummaryReports.Report_1_Name.key
         )
-        return cls.validate_choice_field(v, valid_report_names, "Report 1 Name")  # type: ignore
+        return cls.validate_choice_field(v, valid_report_names, "Report 1 Name")
 
     def to_yaml_dict(self) -> dict[str, Any]:
         return {"Output:Table:SummaryReports": self.model_dump(by_alias=True)}
@@ -745,12 +747,12 @@ class OutputControlTableStyleSchema(BaseSchema):
     @field_validator("column_separator")
     def validate_column_separator(cls, v):
         valid_separators = cls._idf_field.OutputControl_Table_Style.Column_Separator.key
-        return cls.validate_choice_field(v, valid_separators, "Column Separator")  # type: ignore
+        return cls.validate_choice_field(v, valid_separators, "Column Separator")
 
     @field_validator("unit_conversion")
     def validate_unit_conversion(cls, v):
         valid_conversions = cls._idf_field.OutputControl_Table_Style.Unit_Conversion.key
-        return cls.validate_choice_field(v, valid_conversions, "Unit Conversion")  # type: ignore
+        return cls.validate_choice_field(v, valid_conversions, "Unit Conversion")
 
     def to_yaml_dict(self) -> dict[str, Any]:
         return {"OutputControl:Table:Style": self.model_dump(by_alias=True)}
@@ -764,7 +766,7 @@ class OutputVariableSchema(BaseSchema):
     @field_validator("reporting_frequency")
     def validate_reporting_frequency(cls, v):
         valid_frequencies = cls._idf_field.Output_Variable.Reporting_Frequency.key
-        return cls.validate_choice_field(v, valid_frequencies, "Reporting Frequency")  # type: ignore
+        return cls.validate_choice_field(v, valid_frequencies, "Reporting Frequency")
 
     def to_yaml_dict(self) -> dict[str, Any]:
         return {"Output:Variable": self.model_dump(by_alias=True)}
@@ -1435,7 +1437,7 @@ class LightSchema(BaseSchema):
         valid_choices = cls._idf_field.Lights.Design_Level_Calculation_Method.key
         return cls.validate_choice_field(
             v,
-            valid_choices,  # type: ignore
+            valid_choices,
             "Design Level Calculation Method",
         )
 
@@ -1593,7 +1595,7 @@ class PeopleSchema(BaseSchema):
         valid_choices = cls._idf_field.People.Number_of_People_Calculation_Method.key
         return cls.validate_choice_field(
             v,
-            valid_choices,  # type: ignore
+            valid_choices,
             "Number of People Calculation Method",
         )
 
@@ -1617,7 +1619,7 @@ class PeopleSchema(BaseSchema):
         )
         return cls.validate_choice_field(
             v,
-            valid_choices,  # type: ignore
+            valid_choices,
             "Mean Radiant Temperature Calculation Type",
         )
 
@@ -1626,7 +1628,7 @@ class PeopleSchema(BaseSchema):
         valid_choices = cls._idf_field.People.Clothing_Insulation_Calculation_Method.key
         return cls.validate_choice_field(
             v,
-            valid_choices,  # type: ignore
+            valid_choices,
             "Clothing Insulation Calculation Method",
         )
 
@@ -1640,9 +1642,11 @@ class PeopleSchema(BaseSchema):
         "thermal_comfort_model_7_type",
     )
     def validate_thermal_comfort_model_type(cls, v):
+        if v in (None, ""):
+            return v
         valid_choices = cls._idf_field.People.Thermal_Comfort_Model_1_Type.key
         return cls.validate_choice_field(
             v,
-            valid_choices,  # type: ignore
+            valid_choices,
             "Thermal Comfort Model Type",
         )
