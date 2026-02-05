@@ -3,9 +3,12 @@ from omegaconf import OmegaConf
 
 from src.mcp.state import ConfigState
 from src.mcp.tools import (
+    BuildingTool,
     ConstructionTool,
     FenestrationTool,
+    LocationTool,
     MaterialTool,
+    ScheduleTool,
     SurfaceTool,
     WorkflowTool,
     ZoneTool,
@@ -20,11 +23,200 @@ mcp = FastMCP(
 state = ConfigState()
 
 zone_tool = ZoneTool(state)
+building_tool = BuildingTool(state)
+location_tool = LocationTool(state)
 workflow_tool = WorkflowTool(state)
 material_tool = MaterialTool(state)
 construction_tool = ConstructionTool(state)
 surface_tool = SurfaceTool(state)
 fenestration_tool = FenestrationTool(state)
+schedule_tool = ScheduleTool(state)
+
+
+@mcp.tool
+def create_building(
+    name: str,
+    north_axis: float,
+    terrain: str,
+) -> dict:
+    data = {
+        "Name": name,
+        "North Axis": north_axis,
+        "Terrain": terrain,
+    }
+    return building_tool.create(data).to_mcp_response()
+
+
+@mcp.tool
+def get_building(name: str) -> dict:
+    return building_tool.read(name).to_mcp_response()
+
+
+@mcp.tool
+def update_building(name: str, north_axis: float, terrain: str) -> dict:
+    data = {
+        "Name": name,
+        "North Axis": north_axis,
+        "Terrain": terrain,
+    }
+    return building_tool.update(name, data).to_mcp_response()
+
+
+@mcp.tool
+def delete_building(name: str) -> dict:
+    return building_tool.delete(name).to_mcp_response()
+
+
+@mcp.tool
+def list_buildings() -> dict:
+    return building_tool.list_all().to_mcp_response()
+
+
+@mcp.tool
+def create_location(
+    name: str,
+    latitude: float,
+    longitude: float,
+    time_zone: float,
+    elevation: float,
+) -> dict:
+    data = {
+        "Name": name,
+        "Latitude": latitude,
+        "Longitude": longitude,
+        "Time Zone": time_zone,
+        "Elevation": elevation,
+    }
+    return location_tool.create(data).to_mcp_response()
+
+
+@mcp.tool
+def get_location(name: str) -> dict:
+    return location_tool.read(name).to_mcp_response()
+
+
+@mcp.tool
+def update_location(
+    name: str, latitude: float, longitude: float, time_zone: float, elevation: float
+) -> dict:
+    data = {
+        "Name": name,
+        "Latitude": latitude,
+        "Longitude": longitude,
+        "Time Zone": time_zone,
+        "Elevation": elevation,
+    }
+    return location_tool.update(name, data).to_mcp_response()
+
+
+@mcp.tool
+def delete_location(name: str) -> dict:
+    return location_tool.delete(name).to_mcp_response()
+
+
+@mcp.tool
+def list_locations() -> dict:
+    return location_tool.list_all().to_mcp_response()
+
+
+@mcp.tool
+def create_schedule_type_limits(
+    name: str,
+    lower_limit_value: float,
+    upper_limit_value: float,
+    numeric_type: str,
+    unit_type: str,
+) -> dict:
+    data = {
+        "ScheduleTypeLimits": {
+            "Name": name,
+            "Lower Limit Value": lower_limit_value,
+            "Upper Limit Value": upper_limit_value,
+            "Numeric Type": numeric_type,
+            "Unit Type": unit_type,
+        }
+    }
+    return schedule_tool.create(data).to_mcp_response()
+
+
+@mcp.tool
+def get_schedule_type_limits(name: str) -> dict:
+    return schedule_tool.read(name).to_mcp_response()
+
+
+@mcp.tool
+def update_schedule_type_limits(
+    name: str,
+    lower_limit_value: float,
+    upper_limit_value: float,
+    numeric_type: str,
+    unit_type: str,
+) -> dict:
+    data = {
+        "ScheduleTypeLimits": {
+            "Name": name,
+            "Lower Limit Value": lower_limit_value,
+            "Upper Limit Value": upper_limit_value,
+            "Numeric Type": numeric_type,
+            "Unit Type": unit_type,
+        }
+    }
+    return schedule_tool.update(name, data).to_mcp_response()
+
+
+@mcp.tool
+def delete_schedule_type_limits(name: str) -> dict:
+    return schedule_tool.delete(name).to_mcp_response()
+
+
+@mcp.tool
+def list_schedule_type_limits() -> dict:
+    return schedule_tool.list_all().to_mcp_response()
+
+
+@mcp.tool
+def create_schedule_compact(
+    name: str,
+    schedule_type_limits_name: str,
+    times: list[dict],
+) -> dict:
+    data = {
+        "Schedule:Compact": {
+            "Name": name,
+            "Schedule Type Limits Name": schedule_type_limits_name,
+            "Data": times,
+        }
+    }
+    return schedule_tool.create(data).to_mcp_response()
+
+
+@mcp.tool
+def get_schedule_compact(name: str) -> dict:
+    return schedule_tool.read(name).to_mcp_response()
+
+
+@mcp.tool
+def update_schedule_compact(
+    name: str, schedule_type_limits_name: str, times: list[dict]
+) -> dict:
+    data = {
+        "Schedule:Compact": {
+            "Name": name,
+            "Schedule Type Limits Name": schedule_type_limits_name,
+            "Data": times,
+        }
+    }
+    return schedule_tool.update(name, data).to_mcp_response()
+
+
+@mcp.tool
+def delete_schedule_compact(name: str) -> dict:
+    return schedule_tool.delete(name).to_mcp_response()
+
+
+@mcp.tool
+def list_schedule_compacts() -> dict:
+    return schedule_tool.list_all().to_mcp_response()
 
 
 @mcp.tool

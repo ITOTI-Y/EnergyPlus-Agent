@@ -92,8 +92,8 @@ class BaseSchema(BaseModel):
     @classmethod
     def _process_idf_field(cls) -> IDDField:
         if cls._idf is None:
-            raise ValueError(
-                "IDF is not set. Please set the IDF using BaseSchema.set_idf."
+            raise RuntimeError(
+                "IDF has not been initialized. Call BaseSchema.set_idf(...) before using _process_idf_field."
             )
         _idd_info = cast(list[dict], cls._idf.idd_info)
         idd_field = IDDField(_idd_info)
@@ -106,8 +106,10 @@ class BaseSchema(BaseModel):
         return IDF(fhandle)
 
     @staticmethod
-    def validate_choice_field(value: str, valid_choices: list, field_name: str) -> str:
-        choice_mapping = {choice.lower(): choice for choice in valid_choices}
+    def validate_choice_field(
+        value: str, valid_choices: list | IDDField, field_name: str
+    ) -> str:
+        choice_mapping = {choice.lower(): choice for choice in valid_choices}  # type: ignore
         value_lower = value.lower()
 
         if value_lower not in choice_mapping:
@@ -116,7 +118,7 @@ class BaseSchema(BaseModel):
             )
             raise ValueError(f"{field_name} must be one of {valid_choices}.")
 
-        if value not in valid_choices:
+        if value not in valid_choices:  # type: ignore
             logger.warning(
                 f"{field_name} '{value}' is not in the standard casing. Using '{choice_mapping[value_lower]}' instead."
             )
@@ -178,8 +180,8 @@ class BuildingSchema(BaseSchema):
 
     @field_validator("terrain")
     def validate_terrain(cls, v):
-        valid_terrains = {"Suburbs", "Country", "City", "Ocean", "Urban"}
-        if v not in valid_terrains:
+        valid_terrains = cls._idf_field.Building.Terrain.key
+        if v not in valid_terrains:  # type: ignore[operator]
             raise ValueError(f"Terrain must be one of {valid_terrains}.")
         return v
 
@@ -689,12 +691,12 @@ class GlobalGeometryRulesSchema(BaseSchema):
     @field_validator("vertex_entry_direction")
     def validate_vertex_entry_direction(cls, v):
         valid_directions = cls._idf_field.GlobalGeometryRules.Vertex_Entry_Direction.key
-        return cls.validate_choice_field(v, valid_directions, "Vertex Entry Direction")  # type: ignore
+        return cls.validate_choice_field(v, valid_directions, "Vertex Entry Direction")
 
     @field_validator("coordinate_system")
     def validate_coordinate_system(cls, v):
         valid_systems = cls._idf_field.GlobalGeometryRules.Coordinate_System.key
-        return cls.validate_choice_field(v, valid_systems, "Coordinate System")  # type: ignore
+        return cls.validate_choice_field(v, valid_systems, "Coordinate System")
 
     def to_yaml_dict(self) -> dict[str, Any]:
         return {"GlobalGeometryRules": self.model_dump(by_alias=True)}
@@ -706,7 +708,7 @@ class OutputVariableDictionarySchema(BaseSchema):
     @field_validator("key_field")
     def validate_key_field(cls, v):
         valid_key_field = cls._idf_field.Output_VariableDictionary.Key_Field.key
-        return cls.validate_choice_field(v, valid_key_field, "Key Field")  # type: ignore
+        return cls.validate_choice_field(v, valid_key_field, "Key Field")
 
     def to_yaml_dict(self) -> dict[str, Any]:
         return {"Output:VariableDictionary": self.model_dump(by_alias=True)}
@@ -718,7 +720,7 @@ class OutputDiagnosticsSchema(BaseSchema):
     @field_validator("key_1")
     def validate_key_1(cls, v):
         valid_key_1 = cls._idf_field.Output_Diagnostics.Key_1.key
-        return cls.validate_choice_field(v, valid_key_1, "Key 1")  # type: ignore
+        return cls.validate_choice_field(v, valid_key_1, "Key 1")
 
     def to_yaml_dict(self) -> dict[str, Any]:
         return {"Output:Diagnostics": self.model_dump(by_alias=True)}
@@ -732,7 +734,7 @@ class OutputTableSummaryReportsSchema(BaseSchema):
         valid_report_names = (
             cls._idf_field.Output_Table_SummaryReports.Report_1_Name.key
         )
-        return cls.validate_choice_field(v, valid_report_names, "Report 1 Name")  # type: ignore
+        return cls.validate_choice_field(v, valid_report_names, "Report 1 Name")
 
     def to_yaml_dict(self) -> dict[str, Any]:
         return {"Output:Table:SummaryReports": self.model_dump(by_alias=True)}
@@ -745,12 +747,12 @@ class OutputControlTableStyleSchema(BaseSchema):
     @field_validator("column_separator")
     def validate_column_separator(cls, v):
         valid_separators = cls._idf_field.OutputControl_Table_Style.Column_Separator.key
-        return cls.validate_choice_field(v, valid_separators, "Column Separator")  # type: ignore
+        return cls.validate_choice_field(v, valid_separators, "Column Separator")
 
     @field_validator("unit_conversion")
     def validate_unit_conversion(cls, v):
         valid_conversions = cls._idf_field.OutputControl_Table_Style.Unit_Conversion.key
-        return cls.validate_choice_field(v, valid_conversions, "Unit Conversion")  # type: ignore
+        return cls.validate_choice_field(v, valid_conversions, "Unit Conversion")
 
     def to_yaml_dict(self) -> dict[str, Any]:
         return {"OutputControl:Table:Style": self.model_dump(by_alias=True)}
@@ -764,7 +766,7 @@ class OutputVariableSchema(BaseSchema):
     @field_validator("reporting_frequency")
     def validate_reporting_frequency(cls, v):
         valid_frequencies = cls._idf_field.Output_Variable.Reporting_Frequency.key
-        return cls.validate_choice_field(v, valid_frequencies, "Reporting Frequency")  # type: ignore
+        return cls.validate_choice_field(v, valid_frequencies, "Reporting Frequency")
 
     def to_yaml_dict(self) -> dict[str, Any]:
         return {"Output:Variable": self.model_dump(by_alias=True)}
@@ -1370,3 +1372,290 @@ class HVACSchema(BaseSchema):
 
     def to_yaml_dict(self) -> dict[str, Any]:
         return {"HVAC": self.model_dump(by_alias=True)}
+
+
+class LightSchema(BaseSchema):
+    name: str = Field(..., alias="Name")
+    zone_or_zone_list_or_space_or_space_list_name: str = Field(
+        ..., alias="Zone or ZoneList or Space or SpaceList Name"
+    )
+    schedule_name: str = Field(..., alias="Schedule Name")
+    design_level_calculation_method: str = Field(
+        default="LightingLevel", alias="Design Level Calculation Method"
+    )
+    lighting_level: float | None = Field(default=0.0, alias="Lighting Level", ge=0.0)
+    watts_per_floor_area: float | None = Field(
+        default=0.0, alias="Watts per Floor Area", ge=0.0
+    )
+    watts_per_person: float | None = Field(
+        default=0.0, alias="Watts per Person", ge=0.0
+    )
+    return_air_fraction: float | None = Field(
+        default=0.0, alias="Return Air Fraction", ge=0.0, le=1.0
+    )
+    fraction_radiant: float | None = Field(
+        default=0.0, alias="Fraction Radiant", ge=0.0, le=1.0
+    )
+    fraction_visible: float | None = Field(
+        default=0.0, alias="Fraction Visible", ge=0.0, le=1.0
+    )
+    fraction_replaceable: float | None = Field(
+        default=1.0, alias="Fraction Replaceable", ge=0.0, le=1.0
+    )
+    end_use_subcategory: str | None = Field(
+        default="General", alias="End Use Subcategory"
+    )
+    return_air_fraction_calculated_from_plenum_temperature: str | None = Field(
+        default="No", alias="Return Air Fraction Calculated from Plenum Temperature"
+    )
+    return_air_fraction_function_of_plenum_temperature_coefficient_1: float | None = (
+        Field(
+            default=0.0,
+            alias="Return Air Fraction Function of Plenum Temperature Coefficient 1",
+            ge=0.0,
+        )
+    )
+    return_air_fraction_function_of_plenum_temperature_coefficient_2: float | None = (
+        Field(
+            default=0.0,
+            alias="Return Air Fraction Function of Plenum Temperature Coefficient 2",
+            ge=0.0,
+        )
+    )
+    return_air_heat_gain_node_name: str | None = Field(
+        "", alias="Return Air Heat Gain Node Name"
+    )
+    exhaust_air_heat_gain_node_name: str | None = Field(
+        "", alias="Exhaust Air Heat Gain Node Name"
+    )
+
+    def to_yaml_dict(self) -> dict[str, Any]:
+        return {"Light": self.model_dump(by_alias=True)}
+
+    @field_validator("design_level_calculation_method")
+    def validate_design_level_calculation_method(cls, v: str) -> str:
+        valid_choices = cls._idf_field.Lights.Design_Level_Calculation_Method.key
+        return cls.validate_choice_field(
+            v,
+            valid_choices,
+            "Design Level Calculation Method",
+        )
+
+    @model_validator(mode="after")
+    def validate_calculation_method(self):
+        count = sum(
+            bool(x)
+            for x in [
+                self.lighting_level,
+                self.watts_per_floor_area,
+                self.watts_per_person,
+            ]
+        )
+        if count != 1:
+            raise ValueError(
+                "Exactly one of Lighting Level, Watts per Floor Area, or Watts per Person must be specified."
+            )
+        if (
+            self.design_level_calculation_method == "LightingLevel"
+            and self.lighting_level == 0.0
+        ):
+            raise ValueError(
+                "Lighting Level must be specified when Design Level Calculation Method is LightingLevel."
+            )
+        if (
+            self.design_level_calculation_method == "Watts/Area"
+            and self.watts_per_floor_area == 0.0
+        ):
+            raise ValueError(
+                "Watts per Floor Area must be specified when Design Level Calculation Method is Watts/Area."
+            )
+        if (
+            self.design_level_calculation_method == "Watts/Person"
+            and self.watts_per_person == 0.0
+        ):
+            raise ValueError(
+                "Watts per Person must be specified when Design Level Calculation Method is Watts/Person."
+            )
+        return self
+
+
+class PeopleSchema(BaseSchema):
+    name: str = Field(..., alias="Name")
+    zone_or_zonelist_or_space_or_spacelist_name: str = Field(
+        ..., alias="Zone or ZoneList or Space or SpaceList Name"
+    )
+    number_of_people_schedule_name: str = Field(
+        ..., alias="Number of People Schedule Name"
+    )
+    number_of_people_calculation_method: str = Field(
+        default="People", alias="Number of People Calculation Method"
+    )
+    number_of_people: float | None = Field(default=0.0, ge=0.0, alias="Number of People")
+    people_per_floor_area: float | None = Field(
+        default=0.0, ge=0.0, alias="People per Floor Area"
+    )
+    floor_area_per_person: float | None = Field(
+        default=0.0, ge=0.0, alias="Floor Area per Person"
+    )
+    fraction_radiant: float | None = Field(
+        default=0.3, ge=0.0, le=1.0, alias="Fraction Radiant"
+    )
+    sensible_heat_fraction: float | str | None = Field(
+        default="Autocalculate", alias="Sensible Heat Fraction"
+    )
+    activity_level_schedule_name: str = Field(..., alias="Activity Level Schedule Name")
+    carbon_dioxide_generation_rate: float | None = Field(
+        default=3.82e-08, ge=0.0, le=3.82e-07, alias="Carbon Dioxide Generation Rate"
+    )
+    enable_ashrae_55_comfort_warnings: str | None = Field(
+        default="No", alias="Enable ASHRAE 55 Comfort Warnings"
+    )
+    mean_radiant_temperature_calculation_type: str | None = Field(
+        default="EnclosureAveraged", alias="Mean Radiant Temperature Calculation Type"
+    )
+    surface_name_angle_factor_list_name: str | None = Field(
+        default="", alias="Surface Name Angle Factor List Name"
+    )
+    work_efficiency_schedule_name: str | None = Field(
+        default="", alias="Work Efficiency Schedule Name"
+    )
+    clothing_insulation_calculation_method: str | None = Field(
+        default="ClothingInsulationSchedule",
+        alias="Clothing Insulation Calculation Method",
+    )
+    clothing_insulation_calculation_method_schedule_name: str | None = Field(
+        default="", alias="Clothing Insulation Calculation Method Schedule Name"
+    )
+    clothing_insulation_schedule_name: str | None = Field(
+        default="", alias="Clothing Insulation Schedule Name"
+    )
+    air_velocity_schedule_name: str | None = Field(
+        default="", alias="Air Velocity Schedule Name"
+    )
+    thermal_comfort_model_1_type: str | None = Field(
+        default="", alias="Thermal Comfort Model 1 Type"
+    )
+    thermal_comfort_model_2_type: str | None = Field(
+        default="", alias="Thermal Comfort Model 2 Type"
+    )
+    thermal_comfort_model_3_type: str | None = Field(
+        default="", alias="Thermal Comfort Model 3 Type"
+    )
+    thermal_comfort_model_4_type: str | None = Field(
+        default="", alias="Thermal Comfort Model 4 Type"
+    )
+    thermal_comfort_model_5_type: str | None = Field(
+        default="", alias="Thermal Comfort Model 5 Type"
+    )
+    thermal_comfort_model_6_type: str | None = Field(
+        default="", alias="Thermal Comfort Model 6 Type"
+    )
+    thermal_comfort_model_7_type: str | None = Field(
+        default="", alias="Thermal Comfort Model 7 Type"
+    )
+    ankle_level_air_velocity_schedule_name: str | None = Field(
+        default="", alias="Ankle Level Air Velocity Schedule Name"
+    )
+    cold_stress_temperature_threshold: float | None = Field(
+        default=15.56, alias="Cold Stress Temperature Threshold"
+    )
+    heat_stress_temperature_threshold: float | None = Field(
+        default=30.0, alias="Heat Stress Temperature Threshold"
+    )
+
+    def to_yaml_dict(self) -> dict[str, Any]:
+        return {"People": self.model_dump(by_alias=True)}
+
+    @model_validator(mode="after")
+    def validate_number_of_people(self):
+        count = sum(
+            bool(x)
+            for x in [
+                self.number_of_people,
+                self.people_per_floor_area,
+                self.floor_area_per_person,
+            ]
+        )
+        if count > 1:
+            raise ValueError(
+                "Only one of Number of People, People per Floor Area, or Floor Area per Person must be specified."
+            )
+        if self.number_of_people_calculation_method == "People":
+            if self.number_of_people is None:
+                raise ValueError(
+                    'number_of_people must be provided when calculation method is "People"'
+                )
+        elif self.number_of_people_calculation_method == "People/Area":
+            if self.people_per_floor_area is None:
+                raise ValueError(
+                    'people_per_floor_area must be provided when calculation method is "People/Area"'
+                )
+        elif self.number_of_people_calculation_method == "Area/Person":
+            if self.floor_area_per_person is None:
+                raise ValueError(
+                    'floor_area_per_person must be provided when calculation method is "Area/Person"'
+                )
+        else:
+            raise ValueError("Invalid Number of People Calculation Method.")
+        return self
+
+    @field_validator("number_of_people_calculation_method")
+    def validate_number_of_people_calculation_method(cls, v):
+        valid_choices = cls._idf_field.People.Number_of_People_Calculation_Method.key
+        return cls.validate_choice_field(
+            v,
+            valid_choices,
+            "Number of People Calculation Method",
+        )
+
+    @field_validator("sensible_heat_fraction")
+    def validate_sensible_heat_fraction(cls, v):
+        if isinstance(v, str) and v.lower() == "autocalculate":
+            return v
+        if isinstance(v, (float, int)):
+            v = float(v)
+            if v < 0.0 or v > 1.0:
+                raise ValueError("Sensible Heat Fraction must be between 0.0 and 1.0.")
+            return v
+        raise ValueError(
+            "Sensible Heat Fraction must be a number between 0.0 and 1.0 or 'autocalculate'."
+        )
+
+    @field_validator("mean_radiant_temperature_calculation_type")
+    def validate_mean_radiant_temperature_calculation_type(cls, v):
+        valid_choices = (
+            cls._idf_field.People.Mean_Radiant_Temperature_Calculation_Type.key
+        )
+        return cls.validate_choice_field(
+            v,
+            valid_choices,
+            "Mean Radiant Temperature Calculation Type",
+        )
+
+    @field_validator("clothing_insulation_calculation_method")
+    def validate_clothing_insulation_calculation_method(cls, v):
+        valid_choices = cls._idf_field.People.Clothing_Insulation_Calculation_Method.key
+        return cls.validate_choice_field(
+            v,
+            valid_choices,
+            "Clothing Insulation Calculation Method",
+        )
+
+    @field_validator(
+        "thermal_comfort_model_1_type",
+        "thermal_comfort_model_2_type",
+        "thermal_comfort_model_3_type",
+        "thermal_comfort_model_4_type",
+        "thermal_comfort_model_5_type",
+        "thermal_comfort_model_6_type",
+        "thermal_comfort_model_7_type",
+    )
+    def validate_thermal_comfort_model_type(cls, v):
+        if v in (None, ""):
+            return v
+        valid_choices = cls._idf_field.People.Thermal_Comfort_Model_1_Type.key
+        return cls.validate_choice_field(
+            v,
+            valid_choices,
+            "Thermal Comfort Model Type",
+        )

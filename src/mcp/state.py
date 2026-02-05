@@ -13,12 +13,14 @@ from src.validator import (
     FenestrationSurfaceSchema,
     GlobalGeometryRulesSchema,
     HVACSchema,
+    LightSchema,
     MaterialSchema,
     OutputControlTableStyleSchema,
     OutputDiagnosticsSchema,
     OutputTableSummaryReportsSchema,
     OutputVariableDictionarySchema,
     OutputVariableSchema,
+    PeopleSchema,
     RunPeriodSchema,
     ScheduleCollectionSchema,
     SimulationControlSchema,
@@ -49,6 +51,9 @@ class ConfigState(BaseSchema):
     schedules: ScheduleCollectionSchema = Field(
         default_factory=ScheduleCollectionSchema, alias="Schedule"
     )
+    people: list[PeopleSchema] = Field(default_factory=list, alias="People")
+
+    lights: list[LightSchema] = Field(default_factory=list, alias="Light")
 
     hvac: HVACSchema = Field(default_factory=HVACSchema, alias="HVAC")
 
