@@ -115,6 +115,8 @@ class ConfigState(BaseSchema):
         self.fenestrations.clear()
         self.schedules.schedule_type_limits.clear()
         self.schedules.schedules.clear()
+        self.people.clear()
+        self.lights.clear()
         self.hvac.thermostats.clear()
         self.hvac.ideal_loads_systems.clear()
         self.global_geometry_rules = GlobalGeometryRulesSchema()
