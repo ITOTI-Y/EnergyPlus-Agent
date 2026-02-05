@@ -1490,7 +1490,7 @@ class PeopleSchema(BaseSchema):
     number_of_people_calculation_method: str = Field(
         default="People", alias="Number of People Calculation Method"
     )
-    number_of_people: float | None = Field(default=0.0, ge=0.0)
+    number_of_people: float | None = Field(default=0.0, ge=0.0, alias="Number of People")
     people_per_floor_area: float | None = Field(
         default=0.0, ge=0.0, alias="People per Floor Area"
     )
