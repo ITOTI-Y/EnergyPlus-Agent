@@ -6,10 +6,14 @@ from src.mcp.tools import (
     BuildingTool,
     ConstructionTool,
     FenestrationTool,
+    IdealLoadsSystemTool,
+    LightTool,
     LocationTool,
     MaterialTool,
+    PeopleTool,
     ScheduleTool,
     SurfaceTool,
+    ThermostatTool,
     WorkflowTool,
     ZoneTool,
 )
@@ -31,6 +35,10 @@ construction_tool = ConstructionTool(state)
 surface_tool = SurfaceTool(state)
 fenestration_tool = FenestrationTool(state)
 schedule_tool = ScheduleTool(state)
+thermostat_tool = ThermostatTool(state)
+ideal_loads_system_tool = IdealLoadsSystemTool(state)
+people_tool = PeopleTool(state)
+light_tool = LightTool(state)
 
 
 @mcp.tool
@@ -621,6 +629,242 @@ def delete_fenestration_surface(name: str) -> dict:
 @mcp.tool
 def list_fenestration_surfaces() -> dict:
     return fenestration_tool.list_all().to_mcp_response()
+
+
+@mcp.tool
+def create_hvac_thermostat(
+    name: str,
+    heating_setpoint_schedule_name: str,
+    cooling_setpoint_schedule_name: str,
+) -> dict:
+    data = {
+        "Name": name,
+        "Heating Setpoint Schedule Name": heating_setpoint_schedule_name,
+        "Cooling Setpoint Schedule Name": cooling_setpoint_schedule_name,
+    }
+    return thermostat_tool.create(data).to_mcp_response()
+
+
+@mcp.tool
+def get_hvac_thermostat(name: str) -> dict:
+    return thermostat_tool.read(name).to_mcp_response()
+
+
+@mcp.tool
+def update_hvac_thermostat(
+    name: str,
+    heating_setpoint_schedule_name: str | None = None,
+    cooling_setpoint_schedule_name: str | None = None,
+) -> dict:
+    data = {
+        "Name": name,
+        "Heating Setpoint Schedule Name": heating_setpoint_schedule_name,
+        "Cooling Setpoint Schedule Name": cooling_setpoint_schedule_name,
+    }
+    return thermostat_tool.update(name, data).to_mcp_response()
+
+
+@mcp.tool
+def delete_hvac_thermostat(name: str) -> dict:
+    return thermostat_tool.delete(name).to_mcp_response()
+
+
+@mcp.tool
+def list_hvac_thermostats() -> dict:
+    return thermostat_tool.list_all().to_mcp_response()
+
+
+@mcp.tool
+def create_hvac_ideal_loads_system(
+    zone_name: str,
+    template_thermostat_name: str,
+    system_availability_schedule_name: str | None = None,
+) -> dict:
+    data = {
+        "Zone Name": zone_name,
+        "Template Thermostat Name": template_thermostat_name,
+        "System Availability Schedule Name": system_availability_schedule_name,
+    }
+    return ideal_loads_system_tool.create(data).to_mcp_response()
+
+
+@mcp.tool
+def get_hvac_ideal_loads_system(zone_name: str) -> dict:
+    return ideal_loads_system_tool.read(zone_name).to_mcp_response()
+
+
+@mcp.tool
+def update_hvac_ideal_loads_system(
+    zone_name: str,
+    template_thermostat_name: str | None = None,
+    system_availability_schedule_name: str | None = None,
+) -> dict:
+    data = {
+        "Zone Name": zone_name,
+        "Template Thermostat Name": template_thermostat_name,
+        "System Availability Schedule Name": system_availability_schedule_name,
+    }
+    return ideal_loads_system_tool.update(zone_name, data).to_mcp_response()
+
+
+@mcp.tool
+def delete_hvac_ideal_loads_system(zone_name: str) -> dict:
+    return ideal_loads_system_tool.delete(zone_name).to_mcp_response()
+
+
+@mcp.tool
+def list_hvac_ideal_loads_systems() -> dict:
+    return ideal_loads_system_tool.list_all().to_mcp_response()
+
+
+@mcp.tool
+def create_people(
+    name: str,
+    zone_or_zonelist_or_space_or_spacelist_name: str,
+    number_of_people_schedule_name: str,
+    activity_level_schedule_name: str,
+    number_of_people_calculation_method: str = "People",
+    number_of_people: float | None = None,
+    people_per_floor_area: float | None = None,
+    floor_area_per_person: float | None = None,
+    fraction_radiant: float = 0.3,
+    sensible_heat_fraction: float | str = "Autocalculate",
+) -> dict:
+    data = {
+        "Name": name,
+        "Zone or ZoneList or Space or SpaceList Name": zone_or_zonelist_or_space_or_spacelist_name,
+        "Number of People Schedule Name": number_of_people_schedule_name,
+        "Number of People Calculation Method": number_of_people_calculation_method,
+        "Number of People": number_of_people,
+        "People per Floor Area": people_per_floor_area,
+        "Floor Area per Person": floor_area_per_person,
+        "Fraction Radiant": fraction_radiant,
+        "Sensible Heat Fraction": sensible_heat_fraction,
+        "Activity Level Schedule Name": activity_level_schedule_name,
+    }
+    return people_tool.create(data).to_mcp_response()
+
+
+@mcp.tool
+def get_people(name: str) -> dict:
+    return people_tool.read(name).to_mcp_response()
+
+
+@mcp.tool
+def update_people(
+    name: str,
+    zone_or_zonelist_or_space_or_spacelist_name: str | None = None,
+    number_of_people_schedule_name: str | None = None,
+    activity_level_schedule_name: str | None = None,
+    number_of_people_calculation_method: str | None = None,
+    number_of_people: float | None = None,
+    people_per_floor_area: float | None = None,
+    floor_area_per_person: float | None = None,
+    fraction_radiant: float | None = None,
+    sensible_heat_fraction: float | str | None = None,
+) -> dict:
+    data = {
+        "Name": name,
+        "Zone or ZoneList or Space or SpaceList Name": zone_or_zonelist_or_space_or_spacelist_name,
+        "Number of People Schedule Name": number_of_people_schedule_name,
+        "Number of People Calculation Method": number_of_people_calculation_method,
+        "Number of People": number_of_people,
+        "People per Floor Area": people_per_floor_area,
+        "Floor Area per Person": floor_area_per_person,
+        "Fraction Radiant": fraction_radiant,
+        "Sensible Heat Fraction": sensible_heat_fraction,
+        "Activity Level Schedule Name": activity_level_schedule_name,
+    }
+    return people_tool.update(name, data).to_mcp_response()
+
+
+@mcp.tool
+def delete_people(name: str) -> dict:
+    return people_tool.delete(name).to_mcp_response()
+
+
+@mcp.tool
+def list_people() -> dict:
+    return people_tool.list_all().to_mcp_response()
+
+
+@mcp.tool
+def create_light(
+    name: str,
+    zone_or_zone_list_or_space_or_space_list_name: str,
+    schedule_name: str,
+    design_level_calculation_method: str = "LightingLevel",
+    lighting_level: float | None = None,
+    watts_per_floor_area: float | None = None,
+    watts_per_person: float | None = None,
+    return_air_fraction: float = 0.0,
+    fraction_radiant: float = 0.0,
+    fraction_visible: float = 0.0,
+    fraction_replaceable: float = 1.0,
+    end_use_subcategory: str = "General",
+) -> dict:
+    data = {
+        "Name": name,
+        "Zone or ZoneList or Space or SpaceList Name": zone_or_zone_list_or_space_or_space_list_name,
+        "Schedule Name": schedule_name,
+        "Design Level Calculation Method": design_level_calculation_method,
+        "Lighting Level": lighting_level,
+        "Watts per Floor Area": watts_per_floor_area,
+        "Watts per Person": watts_per_person,
+        "Return Air Fraction": return_air_fraction,
+        "Fraction Radiant": fraction_radiant,
+        "Fraction Visible": fraction_visible,
+        "Fraction Replaceable": fraction_replaceable,
+        "End Use Subcategory": end_use_subcategory,
+    }
+    return light_tool.create(data).to_mcp_response()
+
+
+@mcp.tool
+def get_light(name: str) -> dict:
+    return light_tool.read(name).to_mcp_response()
+
+
+@mcp.tool
+def update_light(
+    name: str,
+    zone_or_zone_list_or_space_or_space_list_name: str | None = None,
+    schedule_name: str | None = None,
+    design_level_calculation_method: str | None = None,
+    lighting_level: float | None = None,
+    watts_per_floor_area: float | None = None,
+    watts_per_person: float | None = None,
+    return_air_fraction: float | None = None,
+    fraction_radiant: float | None = None,
+    fraction_visible: float | None = None,
+    fraction_replaceable: float | None = None,
+    end_use_subcategory: str | None = None,
+) -> dict:
+    data = {
+        "Name": name,
+        "Zone or ZoneList or Space or SpaceList Name": zone_or_zone_list_or_space_or_space_list_name,
+        "Schedule Name": schedule_name,
+        "Design Level Calculation Method": design_level_calculation_method,
+        "Lighting Level": lighting_level,
+        "Watts per Floor Area": watts_per_floor_area,
+        "Watts per Person": watts_per_person,
+        "Return Air Fraction": return_air_fraction,
+        "Fraction Radiant": fraction_radiant,
+        "Fraction Visible": fraction_visible,
+        "Fraction Replaceable": fraction_replaceable,
+        "End Use Subcategory": end_use_subcategory,
+    }
+    return light_tool.update(name, data).to_mcp_response()
+
+
+@mcp.tool
+def delete_light(name: str) -> dict:
+    return light_tool.delete(name).to_mcp_response()
+
+
+@mcp.tool
+def list_lights() -> dict:
+    return light_tool.list_all().to_mcp_response()
 
 
 @mcp.tool
