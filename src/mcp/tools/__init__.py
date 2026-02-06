@@ -6,7 +6,7 @@ from .light import LightTool
 from .location import LocationTool
 from .material import MaterialTool
 from .people import PeopleTool
-from .schedule import ScheduleTool
+from .schedule import ScheduleCompactTool, ScheduleTypeLimitsTool
 from .surface import SurfaceTool
 from .workflow import WorkflowTool
 from .zone import ZoneTool
@@ -20,7 +20,8 @@ __all__ = [
     "LocationTool",
     "MaterialTool",
     "PeopleTool",
-    "ScheduleTool",
+    "ScheduleCompactTool",
+    "ScheduleTypeLimitsTool",
     "SurfaceTool",
     "ThermostatTool",
     "WorkflowTool",
