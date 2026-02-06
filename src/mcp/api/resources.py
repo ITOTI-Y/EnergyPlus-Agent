@@ -11,4 +11,6 @@ def register_resources(mcp: FastMCP, state: ConfigState) -> None:
 
     @mcp.resource("config://summary")
     def get_summary_resource() -> str:
-        return OmegaConf.to_yaml(state.get_summary().model_dump())
+        return OmegaConf.to_yaml(
+            state.get_summary().model_dump(by_alias=True, exclude_none=True)
+        )

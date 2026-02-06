@@ -72,7 +72,9 @@ class GlazingMaterialUpdateInput(ToolInput):
         default=None,
         alias="Solar_Heat_Gain_Coefficient",
     )
-    visible_transmittance: float | None = Field(default=None, alias="Visible_Transmittance")
+    visible_transmittance: float | None = Field(
+        default=None, alias="Visible_Transmittance"
+    )
 
 
 class ConstructionCreateInput(ToolInput):
@@ -103,7 +105,9 @@ class SurfaceCreateInput(ToolInput):
         default="autocalculate",
         alias="View Factor to Ground",
     )
-    number_of_vertices: int | str = Field(default="autocalculate", alias="Number of Vertices")
+    number_of_vertices: int | str = Field(
+        default="autocalculate", alias="Number of Vertices"
+    )
 
 
 class SurfaceUpdateInput(ToolInput):
@@ -126,7 +130,6 @@ class SurfaceUpdateInput(ToolInput):
         default=None,
         alias="View Factor to Ground",
     )
-    number_of_vertices: int | str | None = Field(default=None, alias="Number of Vertices")
     vertices: list[dict] | None = Field(default=None, alias="Vertices")
 
 
@@ -144,16 +147,22 @@ class FenestrationCreateInput(ToolInput):
         default="autocalculate",
         alias="View Factor to Ground",
     )
-    frame_and_divider_name: str | None = Field(default=None, alias="Frame and Divider Name")
+    frame_and_divider_name: str | None = Field(
+        default=None, alias="Frame and Divider Name"
+    )
     multiplier: int = Field(default=1, alias="Multiplier")
-    number_of_vertices: int | str = Field(default="autocalculate", alias="Number of Vertices")
+    number_of_vertices: int | str = Field(
+        default="autocalculate", alias="Number of Vertices"
+    )
 
 
 class FenestrationUpdateInput(ToolInput):
     name: str = Field(alias="Name")
     surface_type: str | None = Field(default=None, alias="Surface Type")
     construction_name: str | None = Field(default=None, alias="Construction Name")
-    building_surface_name: str | None = Field(default=None, alias="Building Surface Name")
+    building_surface_name: str | None = Field(
+        default=None, alias="Building Surface Name"
+    )
     outside_boundary_condition_object: str | None = Field(
         default=None,
         alias="Outside Boundary Condition Object",
@@ -162,9 +171,13 @@ class FenestrationUpdateInput(ToolInput):
         default=None,
         alias="View Factor to Ground",
     )
-    frame_and_divider_name: str | None = Field(default=None, alias="Frame and Divider Name")
+    frame_and_divider_name: str | None = Field(
+        default=None, alias="Frame and Divider Name"
+    )
     multiplier: int | None = Field(default=None, alias="Multiplier")
-    number_of_vertices: int | str | None = Field(default=None, alias="Number of Vertices")
+    number_of_vertices: int | str | None = Field(
+        default=None, alias="Number of Vertices"
+    )
     vertices: list[dict] | None = Field(default=None, alias="Vertices")
 
 
@@ -428,7 +441,6 @@ def register_envelope_tools(
         sun_exposure: str | None = None,
         wind_exposure: str | None = None,
         view_factor_to_ground: float | str | None = None,
-        number_of_vertices: int | str | None = None,
         vertices: list[dict] | None = None,
     ) -> dict:
         payload = to_payload(
@@ -444,7 +456,6 @@ def register_envelope_tools(
                     "sun_exposure": sun_exposure,
                     "wind_exposure": wind_exposure,
                     "view_factor_to_ground": view_factor_to_ground,
-                    "number_of_vertices": number_of_vertices,
                     "vertices": vertices,
                 }
             )

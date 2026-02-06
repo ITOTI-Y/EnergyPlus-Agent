@@ -17,8 +17,12 @@ class PeopleCreateInput(ToolInput):
         alias="Number of People Calculation Method",
     )
     number_of_people: float | None = Field(default=None, alias="Number of People")
-    people_per_floor_area: float | None = Field(default=None, alias="People per Floor Area")
-    floor_area_per_person: float | None = Field(default=None, alias="Floor Area per Person")
+    people_per_floor_area: float | None = Field(
+        default=None, alias="People per Floor Area"
+    )
+    floor_area_per_person: float | None = Field(
+        default=None, alias="Floor Area per Person"
+    )
     fraction_radiant: float = Field(default=0.3, alias="Fraction Radiant")
     sensible_heat_fraction: float | str = Field(
         default="Autocalculate",
@@ -45,8 +49,12 @@ class PeopleUpdateInput(ToolInput):
         alias="Number of People Calculation Method",
     )
     number_of_people: float | None = Field(default=None, alias="Number of People")
-    people_per_floor_area: float | None = Field(default=None, alias="People per Floor Area")
-    floor_area_per_person: float | None = Field(default=None, alias="Floor Area per Person")
+    people_per_floor_area: float | None = Field(
+        default=None, alias="People per Floor Area"
+    )
+    floor_area_per_person: float | None = Field(
+        default=None, alias="Floor Area per Person"
+    )
     fraction_radiant: float | None = Field(default=None, alias="Fraction Radiant")
     sensible_heat_fraction: float | str | None = Field(
         default=None,
@@ -65,7 +73,9 @@ class LightCreateInput(ToolInput):
         alias="Design Level Calculation Method",
     )
     lighting_level: float | None = Field(default=None, alias="Lighting Level")
-    watts_per_floor_area: float | None = Field(default=None, alias="Watts per Floor Area")
+    watts_per_floor_area: float | None = Field(
+        default=None, alias="Watts per Floor Area"
+    )
     watts_per_person: float | None = Field(default=None, alias="Watts per Person")
     return_air_fraction: float = Field(default=0.0, alias="Return Air Fraction")
     fraction_radiant: float = Field(default=0.0, alias="Fraction Radiant")
@@ -86,12 +96,16 @@ class LightUpdateInput(ToolInput):
         alias="Design Level Calculation Method",
     )
     lighting_level: float | None = Field(default=None, alias="Lighting Level")
-    watts_per_floor_area: float | None = Field(default=None, alias="Watts per Floor Area")
+    watts_per_floor_area: float | None = Field(
+        default=None, alias="Watts per Floor Area"
+    )
     watts_per_person: float | None = Field(default=None, alias="Watts per Person")
     return_air_fraction: float | None = Field(default=None, alias="Return Air Fraction")
     fraction_radiant: float | None = Field(default=None, alias="Fraction Radiant")
     fraction_visible: float | None = Field(default=None, alias="Fraction Visible")
-    fraction_replaceable: float | None = Field(default=None, alias="Fraction Replaceable")
+    fraction_replaceable: float | None = Field(
+        default=None, alias="Fraction Replaceable"
+    )
     end_use_subcategory: str | None = Field(default=None, alias="End Use Subcategory")
 
 

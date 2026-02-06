@@ -61,12 +61,16 @@ class ScheduleCompactTool(BaseTool):
 
     def _remove_from_storage(self, name: str) -> None:
         self.state.schedules.schedules = [
-            schedule for schedule in self.state.schedules.schedules if schedule.name != name
+            schedule
+            for schedule in self.state.schedules.schedules
+            if schedule.name != name
         ]
 
     def _update_storage(self, name: str, instance: ScheduleCompactSchema) -> None:
         self.state.schedules.schedules = [
-            schedule for schedule in self.state.schedules.schedules if schedule.name != name
+            schedule
+            for schedule in self.state.schedules.schedules
+            if schedule.name != name
         ]
         self.state.schedules.schedules.append(instance)
 

@@ -13,10 +13,26 @@ class ScheduleTypeLimitsInput(ToolInput):
     unit_type: str = Field(alias="Unit Type")
 
 
+class ScheduleTypeLimitsUpdateInput(ToolInput):
+    name: str = Field(alias="Name")
+    lower_limit_value: float | None = Field(default=None, alias="Lower Limit Value")
+    upper_limit_value: float | None = Field(default=None, alias="Upper Limit Value")
+    numeric_type: str | None = Field(default=None, alias="Numeric Type")
+    unit_type: str | None = Field(default=None, alias="Unit Type")
+
+
 class ScheduleCompactInput(ToolInput):
     name: str = Field(alias="Name")
     schedule_type_limits_name: str = Field(alias="Schedule Type Limits Name")
     times: list[dict] = Field(alias="Data")
+
+
+class ScheduleCompactUpdateInput(ToolInput):
+    name: str = Field(alias="Name")
+    schedule_type_limits_name: str | None = Field(
+        default=None, alias="Schedule Type Limits Name"
+    )
+    times: list[dict] | None = Field(default=None, alias="Data")
 
 
 def register_schedule_tools(
@@ -58,7 +74,7 @@ def register_schedule_tools(
         unit_type: str,
     ) -> dict:
         payload = to_payload(
-            ScheduleTypeLimitsInput.model_validate(
+            ScheduleTypeLimitsUpdateInput.model_validate(
                 {
                     "name": name,
                     "lower_limit_value": lower_limit_value,
@@ -106,7 +122,7 @@ def register_schedule_tools(
         times: list[dict],
     ) -> dict:
         payload = to_payload(
-            ScheduleCompactInput.model_validate(
+            ScheduleCompactUpdateInput.model_validate(
                 {
                     "name": name,
                     "schedule_type_limits_name": schedule_type_limits_name,
