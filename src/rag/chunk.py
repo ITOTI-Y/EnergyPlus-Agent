@@ -2,7 +2,6 @@ import json
 import uuid
 from pathlib import Path
 import sqlite3
-from datetime import datetime
 from markdownify import markdownify as md
 from pydantic import BaseModel, ConfigDict, Field
 from loguru import logger
@@ -47,6 +46,11 @@ class SQLiteProcessor:
             with sqlite3.connect(self.db_path) as conn:
                 conn.row_factory = sqlite3.Row
                 cursor = conn.cursor()
+                # Validate table_name to prevent SQL injection  
+                cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name=?", (table_name,))  
+                if not cursor.fetchone():  
+                    logger.error(f"Table {table_name} does not exist")  
+                    return None
                 cursor.execute(f"SELECT * FROM {table_name} WHERE id = ?", (data_id,))
                 result = cursor.fetchone()
                 

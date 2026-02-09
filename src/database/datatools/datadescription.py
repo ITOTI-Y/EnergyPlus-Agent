@@ -28,67 +28,32 @@ def _gen_description_all_materials(data:list):
     des = f"这是energyplus中的all_materials下的材料数据，在数据库中的id为{data[0]}，名称为{data[1]}，其材料类型为{data[2]}，如果是standard_material则在standard_materials表中的id为{data[3]}，如果是no_mass_material则在no_mass_materials表中的id为{data[4]}。"
     return des
 
-
+def _update_description(db_path, table_name, data, gen_func):
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    description = gen_func(data)
+    sql = "UPDATE " + table_name + " SET description = ? WHERE id = ?"
+    cursor.execute(sql, (description, data[0]))
+    conn.commit()
+    conn.close()
 
 def update_description_material(db_path, data:list):
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-    description = _gen_description_material(data)
-    sql = f"UPDATE standard_materials SET description = ? WHERE id = ?"
-    cursor.execute(sql, (description, data[0]))
-    conn.commit()
-    conn.close()
+    _update_description(db_path, "standard_materials", data, _gen_description_material)
 
 def update_description_nomass_material(db_path, data:list):
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-    description = _gen_description_nomass_material(data)
-    sql = f"UPDATE no_mass_materials SET description = ? WHERE id = ?"
-    cursor.execute(sql, (description, data[0]))
-    conn.commit()
-    conn.close()
+    _update_description(db_path, "no_mass_materials", data, _gen_description_material)
 
 def update_description_construction(db_path, data:list):
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-    description = _gen_description_construction(data)
-    sql = f"UPDATE constructions SET description = ? WHERE id = ?"
-    cursor.execute(sql, (description, data[0]))
-    conn.commit()
-    conn.close()
+    _update_description(db_path, "constructions", data, _gen_description_material)
 
 def update_description_schedule_type_limits(db_path, data:list):
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-    description = _gen_description_schedule_type_limits(data)
-    sql = f"UPDATE schedule_type_limits SET description = ? WHERE id = ?"
-    cursor.execute(sql, (description, data[0]))
-    conn.commit()
-    conn.close()
+    _update_description(db_path, "schedule_type_limits", data, _gen_description_material)
 
 def update_description_schedule_compact(db_path, data:list):
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-    description = _gen_description_schedule_compact(data)
-    sql = f"UPDATE schedule_compact SET description = ? WHERE id = ?"
-    cursor.execute(sql, (description, data[0]))
-    conn.commit()
-    conn.close()
+    _update_description(db_path, "schedule_compact", data, _gen_description_material)
 
 def update_description_sizingperiod_designday(db_path, data:list):
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-    description = _gen_description_sizingperiod_designday(data)
-    sql = f"UPDATE sizingperiod_designday SET description = ? WHERE id = ?"
-    cursor.execute(sql, (description, data[0]))
-    conn.commit()
-    conn.close()
+    _update_description(db_path, "sizingperiod_designday", data, _gen_description_material)
 
 def update_description_all_materials(db_path, data:list):
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-    description = _gen_description_all_materials(data)
-    sql = f"UPDATE all_materials SET description = ? WHERE id = ?"
-    cursor.execute(sql, (description, data[0]))
-    conn.commit()
-    conn.close()
+    _update_description(db_path, "all_materials", data, _gen_description_material)

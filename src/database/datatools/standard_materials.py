@@ -20,38 +20,37 @@ def create_standard_materials(db_path: str,
                               visible_absorptance: Optional[float] = None) -> None:
     
     conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
+    try:
+        cursor = conn.cursor()
+        table_name = "standard_materials"
+        sql = f"INSERT INTO {table_name} (name, latitude, longitude, architecture_type, roughness, thickness, conductivity, density, specific_heat, thermal_absorptance, solar_absorptance, visible_absorptance, datetime) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        des_data = [name, latitude, longitude, architecture_type, roughness, thickness, conductivity, density, specific_heat, thermal_absorptance, solar_absorptance, visible_absorptance]
 
-    table_name = "standard_materials"
+        now = datetime.now()
+        timestamp = now.strftime("%Y%m%d%H%M")
+        timestamp_int = int(timestamp)
 
-    sql = f"INSERT INTO {table_name} (name, latitude, longitude, architecture_type, roughness, thickness, conductivity, density, specific_heat, thermal_absorptance, solar_absorptance, visible_absorptance, datetime) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        dt = des_data.copy()
+        dt.append(timestamp_int)
 
-    des_data = [name, latitude, longitude, architecture_type, roughness, thickness, conductivity, density, specific_heat, thermal_absorptance, solar_absorptance, visible_absorptance]
+        cursor.execute(sql, dt)
+        new_id = cursor.lastrowid
+        des_data.insert(0, new_id)
 
-    now = datetime.now()
-    timestamp = now.strftime("%Y%m%d%H%M")
-    timestamp_int = int(timestamp)
+        cursor.execute("""
+            INSERT INTO all_materials (
+                name, material_type, standard_material_id, no_mass_material_id
+            ) VALUES (?, 'Mass', ?, NULL)
+        """, (
+            name,
+            new_id  # 使用刚刚获取的真实 ID，而不是 count
+        ))
 
-    dt = des_data.copy()
-    dt.append(timestamp_int)
-
-    cursor.execute(sql, dt)
-    new_id = cursor.lastrowid
-    des_data.insert(0, new_id)
-
-    cursor.execute("""
-        INSERT INTO all_materials (
-            name, material_type, standard_material_id, no_mass_material_id
-        ) VALUES (?, 'Mass', ?, NULL)
-    """, (
-        name,
-        new_id  # 使用刚刚获取的真实 ID，而不是 count
-    ))
-
-    new_am_id = cursor.lastrowid
+        new_am_id = cursor.lastrowid
     
-    conn.commit()
-    conn.close()
+        conn.commit()
+    finally:
+        conn.close()
 
     update_description_material(db_path, des_data)
     update_description_all_materials(db_path, [new_am_id, name, 'Mass', new_id, None])
@@ -119,6 +118,9 @@ def update_standard_material(db_path: str,
         cursor.execute("SELECT id FROM all_materials WHERE standard_material_id = ?", (material_id,))
         am_row = cursor.fetchone()
 
+        if am_row is None:
+            conn.close()
+            raise ValueError(f"No all_materials entry found for no_mass_material_id {material_id}")
         am_id = am_row['id']
         cursor.execute("UPDATE all_materials SET name = ? WHERE id = ?", (name, am_id))
         cursor.execute("UPDATE all_materials SET datetime = ? WHERE id = ?", (timestamp_int, am_id))
@@ -138,7 +140,9 @@ def delete_standard_material(db_path: str, material_id: int) -> None:
     table_name = "standard_materials"
 
     sql = f"DELETE FROM {table_name} WHERE id = ?"
+    cursor.execute(sql, (material_id,))
 
+    sql = f"DELETE FROM all_materials WHERE standard_material_id = ?"
     cursor.execute(sql, (material_id,))
 
     conn.commit()

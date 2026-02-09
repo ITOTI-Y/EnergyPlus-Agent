@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from chunk import Chunk
+from src.rag.chunk import Chunk
 
 from loguru import logger
 
@@ -105,16 +105,20 @@ class QdrantVectorStore(IVectorStore):
             with_payload=True,
         ).points
 
-        results = [{
-            "data_description": result.payload["data_description"] if result.payload else "",
-            "vectored_table_name": result.payload["vectored_table_name"] if result.payload else "",
-            "record_id": result.payload["record_id"] if result.payload else "",
-            "full_data": result.payload["data_dict"] if result.payload else "",
-            "score": result.score,
-            "metadata": {
-                k: v for k, v in result.payload.items() if k not in ["data_description", "vectored_table_name", "record_id", "data_dict"] # type: ignore
-            }
-        } for result in query_results]
+        results = []  
+        for result in query_results:  
+            payload = result.payload or {}  
+            results.append({  
+                "data_description": payload.get("data_description", ""),  
+                "vectored_table_name": payload.get("vectored_table_name", ""),  
+                "record_id": payload.get("record_id", ""),  
+                "full_data": payload.get("data_dict", ""),  
+                "score": result.score,  
+                "metadata": {  
+                    k: v for k, v in payload.items()  
+                    if k not in {"data_description", "vectored_table_name", "record_id", "data_dict"}  
+                },  
+            }) 
 
         return results
     

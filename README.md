@@ -154,6 +154,26 @@ cd docker
 
 # 构建并启动服务
 docker-compose up -d
+
+# 连接本地 docker 服务
+docker run -p 6333:6333 -p 6334:6334     -v $(pwd)/qdrant_storage:/qdrant/storage:z     qdrant/qdrant
+```
+
+#### 4. .env 环境配置
+
+```.env
+# RAG data configuration
+# Gemini API Configuration
+GEMINI_API_KEY=Your Gemini api key
+
+# Qdrant Configuration
+QDRANT_API_KEY=
+QDRANT_ENDPOINT=http://localhost:6333
+QDRANT_COLLECTION_NAME=energyplus_database
+
+# Database Index Building Configuration
+# Note: Paths are relative to the rag/ directory
+INDEX_DB_PATH=data/data_base/EP_Agent_data.db
 ```
 
 ### 配置 Claude Desktop

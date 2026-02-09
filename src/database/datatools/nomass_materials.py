@@ -102,7 +102,9 @@ def update_nomass_material(db_path: str,
     if name:
         cursor.execute("SELECT id FROM all_materials WHERE no_mass_material_id = ?", (material_id,))
         am_row = cursor.fetchone()
-
+        if am_row is None:
+            conn.close()
+            raise ValueError(f"No all_materials entry found for no_mass_material_id {material_id}")
         am_id = am_row['id']
         cursor.execute("UPDATE all_materials SET name = ? WHERE id = ?", (name, am_id))
         cursor.execute("UPDATE all_materials SET datetime = ? WHERE id = ?", (timestamp_int, am_id))
@@ -121,7 +123,9 @@ def delete_nomass_material(db_path: str, nomass_id: int) -> None:
     table_name = "no_mass_materials"
 
     sql = f"DELETE FROM {table_name} WHERE id = ?"
+    cursor.execute(sql, (nomass_id,))
 
+    sql = f"DELETE FROM all_materials WHERE no_mass_material_id = ?"
     cursor.execute(sql, (nomass_id,))
 
     conn.commit()

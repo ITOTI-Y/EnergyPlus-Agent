@@ -35,7 +35,6 @@ class GeminiEmbeddingModel(IEmbeddingModel):
         from google.genai import Client
 
         self.client: Client = Client(api_key=api_key)
-        self.api_key = api_key
         self.model_name = model_name
         self.dimension = dimension
         self.logger = get_logger(__name__)
@@ -61,7 +60,7 @@ class GeminiEmbeddingModel(IEmbeddingModel):
             )
                 
             if not result.embeddings:
-                print(f"Batch returned no embeddings. Filling with zeros.")
+                print("Batch returned no embeddings. Filling with zeros.")
                 current_embeddings = [[0.0] * self.dimension for _ in batch]
             else:
                 current_embeddings = []

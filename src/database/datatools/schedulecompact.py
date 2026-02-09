@@ -81,7 +81,7 @@ def update_schedule_compact(db_path: str,
         schedule_type_limit_name if schedule_type_limit_name is not None else row['schedule_type_limit_name'],
     ]
     if compact_values is not None:
-        dt.extend(compact_values)
+        dt.extend((compact_values + [None] * 200)[:200])
     else:
         dt.extend([row[f'field_{i}'] for i in range(1, 201)])
     
