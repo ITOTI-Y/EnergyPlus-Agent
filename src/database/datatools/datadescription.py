@@ -1,32 +1,128 @@
 import sqlite3
 
-def _gen_description_material(data:list):
-    des = f"这是energyplus中的standard_materials下的材料数据，在数据库中的id为{data[0]}，名称为{data[1]}，该材料数据来源被应用于纬度为{data[2]}经度为{data[3]}的地区，其用于建筑类型为{data[4]}，粗糙度为{data[5]} ，厚度为{data[6]}m，导热性为{data[7]}W/(m*k)，密度为{data[8]}kg/m3，比热容为{data[9]}J/(kg*k),热吸收率为{data[10]}，太阳辐射吸收率为{data[11]}J/(kg*k)，可见光吸收率为{data[12]}。"
-    return des
+def _format_field(label: str, value: any, unit: str = "") -> str:
+    if value is None or str(value).strip().lower() == 'none' or value == "":
+        return ""
+    return f"{label}: {value}{unit}"
 
-def _gen_description_nomass_material(data:list):
-    des = f"这是energyplus中的no_mass_materials下的材料数据，在数据库中的id为{data[0]}，名称为{data[1]}，该材料数据来源被应用于纬度为{data[2]}经度为{data[3]}的地区，其用于建筑类型为{data[4]}，粗糙度为{data[5]} ，热阻为{data[6]}m^2*K/W，热吸收率为{data[7]}，太阳辐射吸收率为{data[8]}J/(kg*k)，可见光吸收率为{data[9]}。"
-    return des
+def _gen_description_material(data: list):
+    fields = [
+        _format_field("ID", data[0]),
+        _format_field("Name", data[1]),
+        _format_field("Latitude", data[2]),
+        _format_field("Longitude", data[3]),
+        _format_field("Building Type", data[4]),
+        _format_field("Roughness", data[5]),
+        _format_field("Thickness", data[6], "m"),
+        _format_field("Thermal Conductivity", data[7], "W/(m*k)"),
+        _format_field("Density", data[8], "kg/m3"),
+        _format_field("Specific Heat", data[9], "J/(kg*k)"),
+        _format_field("Thermal Absorptance", data[10]),
+        _format_field("Solar Absorptance", data[11]),
+        _format_field("Visible Absorptance", data[12])
+    ]
+    content = " | ".join([f for f in fields if f])
+    de = 'This data includes parameter data defined for a standard_material in EnergyPlus. The ID represents its ID in the standard_materials table, the longitude and latitude data indicate the geographical location of the building in its source data, and the building type refers to its metadata building type.'
+    return f"This is a standard material data in our EnergyPlus database. {de} EnergyPlus Standard Material Details: {content}"
 
-def _gen_description_construction(data:list):
-    des = f"这是energyplus中的constructions下的构造数据，在数据库中的id为{data[0]}，名称为{data[1]}，该构造数据来源被应用于纬度为{data[2]}经度为{data[3]}的地区，其用于建筑类型为{data[4]}，材料层依次为：{', '.join([str(layer) for layer in data[5:25] if layer is not None])}，layer中的数据指向all_materials表中对应的材料id。"
-    return des
+def _gen_description_nomass_material(data: list):
+    fields = [
+        _format_field("ID", data[0]),
+        _format_field("Name", data[1]),
+        _format_field("Latitude", data[2]),
+        _format_field("Longitude", data[3]),
+        _format_field("Building Type", data[4]),
+        _format_field("Roughness", data[5]),
+        _format_field("Thermal Resistance (R-value)", data[6], "m^2*K/W"),
+        _format_field("Thermal Absorptance", data[7]),
+        _format_field("Solar Absorptance", data[8]),
+        _format_field("Visible Absorptance", data[9])
+    ]
+    content = " | ".join([f for f in fields if f])
+    de = 'This data includes parameter data defined for a no mass material in EnergyPlus. The ID represents its ID in the nomass_materials table, the longitude and latitude data indicate the geographical location of the building in its source data, and the building type refers to its metadata building type.'
+    return f"This is a no mass material data in our EnergyPlus database. {de} EnergyPlus No-Mass Material Details: {content}"
 
-def _gen_description_schedule_type_limits(data:list):
-    des = f"这是energyplus中的schedule_type_limits下的时间表类型限制数据，在数据库中的id为{data[0]}，名称为{data[1]}，该时间表类型限制数据来源被应用于纬度为{data[2]}经度为{data[3]}的地区，其用于建筑类型为{data[4]}，下限值为{data[5]}，上限值为{data[6]}，数值类型为{data[7]}，单位类型为{data[8]}。"
-    return des
+def _gen_description_construction(data: list):
+    layers = [str(layer) for layer in data[5:25] if layer is not None]
+    layers_str = f"Layers(All_Materials IDs): {', '.join(layers)}" if layers else ""
+    
+    fields = [
+        _format_field("ID", data[0]),
+        _format_field("Name", data[1]),
+        _format_field("Latitude", data[2]),
+        _format_field("Longitude", data[3]),
+        _format_field("Building Type", data[4]),
+        layers_str
+    ]
+    content = " | ".join([f for f in fields if f])
+    de = 'This construction data contains the parameters required in EnergyPlus. The ID represents its ID in the constructions table, the longitude and latitude data indicate the geographical location of the building in its source data, and the building type refers to its metadata building type. The layer data in this dataset points to the id of the all_materials table.'
+    logic_note = "Syntax Note: The construction Layers data ID is the All Materials index ID in our database."
+    return f"This is a construction data in our EnergyPlus database. {de} EnergyPlus Construction Assembly: {content} | {logic_note}"
 
-def _gen_description_schedule_compact(data:list):
-    des = f"这是energyplus中的schedule_compact下的时间表压缩数据，在数据库中的id为{data[0]}，名称为{data[1]}，该时间表压缩数据来源被应用于纬度为{data[2]}经度为{data[3]}的地区，其用于建筑类型为{data[4]}，时间表类型限制名称为{data[5]}，时间表安排为：{' | '.join([str(layer) for layer in data[6:-2] if layer is not None])}，计划表中through表示到一年中前一个through到这一天前执行后面写的计划，for表示对于一周中哪些天生效后面写的计划，until表示一天中上一个until到这一个时刻保持下一个数值，如果是第一个through或者until则表示从一年的第一天到这一天或者一天的开始到这一时刻。"
-    return des
+def _gen_description_schedule_type_limits(data: list):
+    fields = [
+        _format_field("ID", data[0]),
+        _format_field("Name", data[1]),
+        _format_field("Latitude", data[2]),
+        _format_field("Longitude", data[3]),
+        _format_field("Building Type", data[4]),
+        _format_field("Lower Limit", data[5]),
+        _format_field("Upper Limit", data[6]),
+        _format_field("Numeric Type", data[7]),
+        _format_field("Unit Type", data[8])
+    ]
+    content = " | ".join([f for f in fields if f])
+    de = 'This schedule type limits the data to include the parameters required in EnergyPlus. It will be referenced by schedule_compact data as a data type limits. The ID represents its ID in the schedule_type_limits table, the longitude and latitude data indicate the geographical location of the building in its source data, and the building type refers to its metadata building type. '
+    return f"This is a schedule type limits data in our EnergyPlus database. {de} EnergyPlus Schedule Type Limits: {content}"
 
-def _gen_description_sizingperiod_designday(data:list):
-    des = f"这是energyplus中的sizingperiod_designday下的设计日数据，在数据库中的id为{data[0]}，名称为{data[1]}，该设计日数据来源被应用于纬度为{data[2]}经度为{data[3]}的地区，其用于建筑类型为{data[4]}，月份为{data[5]}，日期为{data[6]}，日期类型为{data[7]}，最大干球温度为{data[8]}℃，日干球温度范围为{data[9]}℃，干球温度范围修正器类型为{data[10]}，干球温度范围修正日程表名称为{data[11]}，湿度条件类型为{data[12]}，最大干球温度下的湿球温度或露点温度为{data[13]}℃，湿度条件日计划名称为{data[14]}，最大干球湿度比为{data[15]}，最大干球温度下的焓为{data[16]}kJ/kg，日湿球温度范围为{data[17]}℃，气压为{data[18]}Pa，风速为{data[19]}m/s，风向为{data[20]}度，雨量指示器为{data[21]}，雪量指示器为{data[22]}，夏令时指示器为{data[23]}，太阳能模型指示器为{data[24]}，光束太阳能日计划名称为{data[25]}，漫射太阳日计划名称为{data[26]}，美国采暖、制冷与空调工程师学会（ASHRAE）光束辐照度晴空光学厚度为{data[27]}，美国采暖、制冷与空调工程师学会（ASHRAE）针对漫射辐照度的晴空光学厚度为{data[28]}，天空清澈度为{data[29]}，最大预热天数为{data[30]}，开始环境重置模式为{data[31]}。"
-    return des
+def _gen_description_schedule_compact(data: list):
+    schedule_parts = [str(item) for item in data[6:-2] if item is not None]
+    schedule_str = f"Schedule Definition: {' '.join(schedule_parts)}" if schedule_parts else ""
+    
+    fields = [
+        _format_field("ID", data[0]),
+        _format_field("Name", data[1]),
+        _format_field("Latitude", data[2]),
+        _format_field("Longitude", data[3]),
+        _format_field("Building Type", data[4]),
+        _format_field("Schedule Type Limits", data[5]),
+        schedule_str
+    ]
+    content = " | ".join([f for f in fields if f])
+    de = 'The schedule_compact data contains the parameters required in EnergyPlus. The Schedule Type Limits attribute will reference the id of the schedule_type_limits table. The ID represents its ID in the schedule_compact table, the longitude and latitude data indicate the geographical location of the building in its source data, and the building type refers to its metadata building type. '
+    logic_note = "Syntax Note: 'Through' defines date range, 'For' defines day types, 'Until' defines time value."
+    return f"This is a schedule compact data in our EnergyPlus database. {de} EnergyPlus Compact Schedule: {content} | {logic_note}"
 
-def _gen_description_all_materials(data:list):
-    des = f"这是energyplus中的all_materials下的材料数据，在数据库中的id为{data[0]}，名称为{data[1]}，其材料类型为{data[2]}，如果是standard_material则在standard_materials表中的id为{data[3]}，如果是no_mass_material则在no_mass_materials表中的id为{data[4]}。"
-    return des
+def _gen_description_sizingperiod_designday(data: list):
+    fields = [
+        _format_field("ID", data[0]), _format_field("Name", data[1]),
+        _format_field("Latitude", data[2]), _format_field("Longitude", data[3]),
+        _format_field("Building Type", data[4]), _format_field("Month", data[5]),
+        _format_field("Day", data[6]), _format_field("Day Type", data[7]),
+        _format_field("Max Dry Bulb Temp", data[8], "C"),
+        _format_field("Daily DB Range", data[9], "C"),
+        _format_field("Humidity Type", data[12]),
+        _format_field("Wet Bulb/Dew Point at Max DB", data[13], "C"),
+        _format_field("Barometric Pressure", data[18], "Pa"),
+        _format_field("Wind Speed", data[19], "m/s"),
+        _format_field("Wind Direction", data[20], "deg"),
+        _format_field("Sky Clearness", data[29])
+    ]
+    content = " | ".join([f for f in fields if f])
+    de = 'The sizingperiod designday data contains the parameters required in EnergyPlus. The ID represents its ID in the sizingperiod_designday table, the longitude and latitude data indicate the geographical location of the building in its source data, and the building type refers to its metadata building type. '
+    return f"This is a sizingperiod designday data in our EnergyPlus database. {de} EnergyPlus Design Day Weather Data: {content}"
+
+def _gen_description_all_materials(data: list):
+    fields = [
+        _format_field("Global ID", data[0]),
+        _format_field("Name", data[1]),
+        _format_field("Material Category", data[2]),
+        _format_field("Standard Material Ref ID", data[3]),
+        _format_field("No-Mass Material Ref ID", data[4])
+    ]
+    content = " | ".join([f for f in fields if f])
+    de = 'The all_materials index data contains the parameters required in EnergyPlus. The attribute id corresponds to the id of this material in the corresponding data table. The ID represents its ID in the all_materials table, the longitude and latitude data indicate the geographical location of the building in its source data, and the building type refers to its metadata building type. '
+    return f"This is all_materials index data in our EnergyPlus database. {de} EnergyPlus Material Cross-Reference: {content}"
 
 def _update_description(db_path, table_name, data, gen_func):
     conn = sqlite3.connect(db_path)
