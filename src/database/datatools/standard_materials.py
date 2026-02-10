@@ -120,14 +120,14 @@ def update_standard_material(db_path: str,
 
         if am_row is None:
             conn.close()
-            raise ValueError(f"No all_materials entry found for no_mass_material_id {material_id}")
+            raise ValueError(f"No all_materials entry found for standard_material_id {material_id}")
         am_id = am_row['id']
         cursor.execute("UPDATE all_materials SET name = ? WHERE id = ?", (name, am_id))
         cursor.execute("UPDATE all_materials SET datetime = ? WHERE id = ?", (timestamp_int, am_id))
 
     conn.commit()
     conn.close()
-    des_data = [material_id] + dt[:-1] 
+    des_data = [material_id] + dt[:-2] 
     update_description_material(db_path, des_data)
     if name:
         update_description_all_materials(db_path, [am_id, name, 'Mass', material_id, None])
@@ -142,7 +142,7 @@ def delete_standard_material(db_path: str, material_id: int) -> None:
     sql = f"DELETE FROM {table_name} WHERE id = ?"
     cursor.execute(sql, (material_id,))
 
-    sql = f"DELETE FROM all_materials WHERE standard_material_id = ?"
+    sql = "DELETE FROM all_materials WHERE standard_material_id = ?"
     cursor.execute(sql, (material_id,))
 
     conn.commit()

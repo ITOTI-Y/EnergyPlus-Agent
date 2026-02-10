@@ -149,7 +149,7 @@ def update_sizingperiod_designday(db_path: str,
     updated_wetbulb_or_dewpoint_at_maximum_drybulb = wetbulb_or_dewpoint_at_maximum_drybulb if wetbulb_or_dewpoint_at_maximum_drybulb is not None else row['wetbulb_or_dewpoint_at_maximum_drybulb']
     updated_humidity_condition_day_schedule_name = humidity_condition_day_schedule_name if humidity_condition_day_schedule_name is not None else row['humidity_condition_day_schedule_name']
     updated_humidity_ratio_at_maximum_drybulb = humidity_ratio_at_maximum_drybulb if humidity_ratio_at_maximum_drybulb is not None else row['humidity_ratio_at_maximum_drybulb']
-    updated_ethalpy_at_maximum_drybulb = enthalpy_at_maximum_drybulb if enthalpy_at_maximum_drybulb is not None else row['ethalpy_at_maximum_drybulb']
+    updated_enthalpy_at_maximum_drybulb = enthalpy_at_maximum_drybulb if enthalpy_at_maximum_drybulb is not None else row['enthalpy_at_maximum_drybulb']
     updated_daily_wetbulb_temperature_range = daily_wetbulb_temperature_range if daily_wetbulb_temperature_range is not None else row['daily_wetbulb_temperature_range']
     updated_barometric_pressure = barometric_pressure if barometric_pressure is not None else row['barometric_pressure']
     updated_rain_indicator = rain_indicator if rain_indicator is not None else row['rain_indicator']
@@ -170,7 +170,7 @@ def update_sizingperiod_designday(db_path: str,
             daily_drybulb_temperature_range = ?, drybulb_temperature_range_modifier_type = ?, 
             drybulb_temperature_range_modifier_day_schedule_name = ?, humidity_condition_type = ?, 
             wetbulb_or_dewpoint_at_maximum_drybulb = ?, humidity_condition_day_schedule_name = ?, 
-            humidity_ratio_at_maximum_drybulb = ?, ethalpy_at_maximum_drybulb = ?, 
+            humidity_ratio_at_maximum_drybulb = ?, enthalpy_at_maximum_drybulb = ?, 
             daily_wetbulb_temperature_range = ?, barometric_pressure = ?, wind_speed = ?, 
             wind_direction = ?, rain_indicator = ?, snow_indicator = ?, 
             daylight_saving_time_indicator = ?, solar_model_indicator = ?, 
@@ -190,7 +190,7 @@ def update_sizingperiod_designday(db_path: str,
         updated_daily_dry_bulb_range, updated_dry_bulb_temp_range_modifier_type,
         updated_dry_bulb_temp_range_modifier_day_schedule_name, updated_humidity_condition_type,
         updated_wetbulb_or_dewpoint_at_maximum_drybulb, updated_humidity_condition_day_schedule_name,
-        updated_humidity_ratio_at_maximum_drybulb, updated_ethalpy_at_maximum_drybulb,
+        updated_humidity_ratio_at_maximum_drybulb, updated_enthalpy_at_maximum_drybulb,
         updated_daily_wetbulb_temperature_range, updated_barometric_pressure, updated_wind_speed,
         updated_wind_direction, updated_rain_indicator, updated_snow_indicator,
         updated_daylight_saving_time_indicator, updated_solar_model_indicator,

@@ -1,7 +1,7 @@
 from src.rag.chunk import Chunk, SQLiteProcessor
 from src.rag.embedding import GeminiEmbeddingModel, GeminiTaskType
 from src.rag.vector import QdrantVectorStore
-from loguru import logger
+from src.utils.logging import get_logger
 from datetime import datetime
 from pathlib import Path
 import sqlite3
@@ -21,6 +21,7 @@ class RAGSystem:
             collection_name=qdrant_collection_name,
         )
         self.embedding_model = GeminiEmbeddingModel(api_key=gemini_api_key)
+        self.logger = get_logger(__name__)
 
     def search(
         self,
@@ -71,8 +72,11 @@ class RAGSystem:
         self,
         table_name: str,
         data_id: int,
-    ) -> Chunk | None:
+    ) -> Chunk:
         ck = self.sqlite_processor.process_data(table_name=table_name, data_id=data_id)
+        if ck is None:
+            self.logger.error(f'failed chunk {table_name}-{data_id}.')
+            raise ValueError(f'failed chunk {table_name}-{data_id}.')
         return ck
     
     def _get_all_chunks_table_id(self) -> list[dict]:
@@ -117,20 +121,20 @@ class RAGSystem:
         return unsync_data
         
     def _embed_and_upsert(self, cks: list[Chunk], batch_count: int = 100):
-        print("--------Begin embedding-------")
+        self.logger.info("--------Begin embedding-------")
         for i in range(0, len(cks), batch_count):
             time.sleep(1)
             batch = cks[i:i + batch_count]
             try:
                 descriptions = [chunk.data_description for chunk in batch]
                 now_str = datetime.now().strftime("%Y-%m-%d %H:%M")
-                print(f"Embedding: {min(i + batch_count, len(cks))}/{len(cks)} [{now_str}]")
+                self.logger.info(f"Embedding: {min(i + batch_count, len(cks))}/{len(cks)} [{now_str}]")
                 embeddings = self.embed(descriptions)
                 self.vector_store.add(batch, embeddings) # type: ignore
                 now_str = datetime.now().strftime("%Y-%m-%d %H:%M")
-                print(f"Finish: {min(i + batch_count, len(cks))}/{len(cks)} [{now_str}]")
+                self.logger.info(f"Finish: {min(i + batch_count, len(cks))}/{len(cks)} [{now_str}]")
             except Exception as e:
-                print(f"Failed to process batch {i // batch_count}: {e}")
+                self.logger.error(f"Failed to process batch {i // batch_count}: {e}")
                 continue
 
     def sync_rag(
@@ -138,13 +142,13 @@ class RAGSystem:
             batch_count: int = 100,
     ):
         unsync_data = self.check_rag_sync()
-        print(f"Find {len(unsync_data)} data needs vectorized.")
+        self.logger.info(f"Find {len(unsync_data)} data needs vectorized.")
         cks = []
         for ud in unsync_data:
-            print(f'chunking {ud['table_name']}-{ud["record_id"]}')
+            self.logger.info(f'chunking {ud['table_name']}-{ud["record_id"]}')
             ck = self.chunk(ud['table_name'], ud['record_id'])
             if ck is None:
-                print(f'skipping {ud['table_name']}-{ud['record_id']}: chunk not found')
+                self.logger.error(f'skipping {ud['table_name']}-{ud['record_id']}: chunk not found')
                 continue
             cks.append(ck)
         self._embed_and_upsert(cks, batch_count)
@@ -154,13 +158,13 @@ class RAGSystem:
             batch_count: int = 100,
     ):
         zero_points = self.vector_store.get_zero_vector_points()
-        print(f"Find {len(zero_points)} data needs re_vectorized.")
+        self.logger.info(f"Find {len(zero_points)} data needs re_vectorized.")
         cks = []
         for ud in zero_points:
-            print(f'chunking {ud['table_name']} - {ud['record_id']}')
+            self.logger.info(f'chunking {ud['table_name']} - {ud['record_id']}')
             ck = self.chunk(ud['table_name'], ud['record_id'])
             if ck is None:
-                print(f'skipping {ud['table_name']}-{ud['record_id']}: chunk not found')
+                self.logger.error(f'skipping {ud['table_name']}-{ud['record_id']}: chunk not found')
                 continue
             cks.append(ck)
         self._embed_and_upsert(cks, batch_count)

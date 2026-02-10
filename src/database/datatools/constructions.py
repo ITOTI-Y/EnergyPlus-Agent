@@ -78,7 +78,7 @@ def create_construction(db_path: str,
     conn.commit()
     conn.close()
 
-    update_description_construction(db_path, des_data)
+    update_description_construction(db_path, des_data[:-1])
 
 def update_construction(db_path: str,
                         construction_id: int,

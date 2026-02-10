@@ -21,7 +21,7 @@ def create_schedule_compact(db_path: str,
     
     
     sql = f"""
-            INSERT OR REPLACE INTO schedule_compact (
+            INSERT INTO schedule_compact (
                 name, latitude, longitude, architecture_type,
                 schedule_type_limit_name,
                 {field_cols},

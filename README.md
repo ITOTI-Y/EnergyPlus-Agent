@@ -153,10 +153,13 @@ uv run main.py mcp-server --transport http --host 0.0.0.0 --port 8000
 cd docker
 
 # 构建并启动服务
+# 方式 A：使用 docker-compose 启动
 docker-compose up -d
 
-# 连接本地 docker 服务
-docker run -p 6333:6333 -p 6334:6334     -v $(pwd)/qdrant_storage:/qdrant/storage:z     qdrant/qdrant
+# 方式 B：仅使用 docker run （不要与方式 A 同时运行）
+docker run -p 6333:6333 -p 6334:6334 \
+  -v $(pwd)/qdrant_storage:/qdrant/storage:z \
+  qdrant/qdrant
 ```
 
 #### 4. .env 环境配置

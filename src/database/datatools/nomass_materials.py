@@ -111,7 +111,7 @@ def update_nomass_material(db_path: str,
     
     conn.commit()
     conn.close()
-    des_data = [material_id] + dt[:-1] 
+    des_data = [material_id] + dt[:-2] 
     update_description_nomass_material(db_path, des_data)
     if name:
         update_description_all_materials(db_path, [am_id, name, 'NoMass', None, material_id])
@@ -125,7 +125,7 @@ def delete_nomass_material(db_path: str, nomass_id: int) -> None:
     sql = f"DELETE FROM {table_name} WHERE id = ?"
     cursor.execute(sql, (nomass_id,))
 
-    sql = f"DELETE FROM all_materials WHERE no_mass_material_id = ?"
+    sql = "DELETE FROM all_materials WHERE no_mass_material_id = ?"
     cursor.execute(sql, (nomass_id,))
 
     conn.commit()

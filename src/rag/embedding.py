@@ -1,7 +1,5 @@
 from abc import ABC, abstractmethod
 from enum import Enum
-from time import sleep
-from datetime import datetime
 import numpy as np
 from dotenv import load_dotenv
 from src.utils.logging import get_logger
@@ -60,28 +58,23 @@ class GeminiEmbeddingModel(IEmbeddingModel):
             )
                 
             if not result.embeddings:
-                print("Batch returned no embeddings. Filling with zeros.")
-                current_embeddings = [[0.0] * self.dimension for _ in batch]
+                self.logger.error("Batch returned no embeddings. Filling with zeros.")
+                raise ValueError('This embedding dimension is not 3072, there is something wrong about embedding')
             else:
                 current_embeddings = []
                 for embedding in result.embeddings:
                     vals = embedding.values
                         
                     if self.dimension < 3072: 
-                        emb_np = np.array(vals)
-                        norm = np.linalg.norm(emb_np)
-                        if norm > 0:
-                            emb_np = emb_np / norm
-                        current_embeddings.append(emb_np.tolist())
+                        self.logger.error('This embedding dimension is not 3072')
+                        raise ValueError('This embedding dimension is not 3072, there is something wrong about embedding')
                     else:
                         current_embeddings.append(vals)
                             
-                
             all_values.extend(current_embeddings)
 
         except Exception as e:
-            print(f"Embedding API error at batch: {e}")
-                
-            all_values.extend([[0.0] * self.dimension for _ in batch])
+            self.logger.error(f"Embedding API error at batch: {e}")
+            raise ValueError('This embedding dimension is not 3072, there is something wrong about embedding')
 
         return all_values

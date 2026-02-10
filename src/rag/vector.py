@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from src.rag.chunk import Chunk
 
-from loguru import logger
+from src.utils.logging import get_logger
 
 
 class IVectorStore(ABC):
@@ -40,6 +40,7 @@ class QdrantVectorStore(IVectorStore):
         self.vector_params = VectorParams
         self.dimension = dimension
         self._create_collection()
+        self.logger = get_logger(__name__)
 
     def _create_collection(self) -> None:
         if not self.client.collection_exists(self.collection_name):
@@ -51,7 +52,7 @@ class QdrantVectorStore(IVectorStore):
                 ),
             )
         else:
-            logger.info(f"Collection {self.collection_name} already exists")
+            self.logger.error(f"Collection {self.collection_name} already exists")
 
     def add(
         self,
@@ -76,7 +77,7 @@ class QdrantVectorStore(IVectorStore):
                 points=batch_points,
             )
 
-        logger.info(f"Added {len(chunks)} chunks to {self.collection_name}")
+        self.logger.info(f"Added {len(chunks)} chunks to {self.collection_name}")
 
     def search(
         self,
@@ -155,7 +156,7 @@ class QdrantVectorStore(IVectorStore):
             if offset is None:
                 break
 
-        logger.info(f"Retrieved total {len(all_results)} points from {self.collection_name}")
+        self.logger.info(f"Retrieved total {len(all_results)} points from {self.collection_name}")
         return all_results
     
     def get_zero_vector_points(self) -> list[dict]:
@@ -163,7 +164,7 @@ class QdrantVectorStore(IVectorStore):
         zero_points = []
         offset = None
 
-        print(f"开始扫描 {self.collection_name} 中的全零向量...")
+        self.logger.info(f"开始扫描 {self.collection_name} 中的全零向量...")
 
         while True:
             scroll_result, next_offset = self.client.scroll(
@@ -191,5 +192,5 @@ class QdrantVectorStore(IVectorStore):
             if offset is None:
                 break
 
-        print(f"扫描完成。共发现 {len(zero_points)} 个全零向量。")
+        self.logger.info(f"扫描完成。共发现 {len(zero_points)} 个全零向量。")
         return zero_points

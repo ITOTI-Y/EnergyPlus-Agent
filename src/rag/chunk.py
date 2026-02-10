@@ -4,7 +4,7 @@ from pathlib import Path
 import sqlite3
 from markdownify import markdownify as md
 from pydantic import BaseModel, ConfigDict, Field
-from loguru import logger
+from src.utils.logging import get_logger
 
 class Chunk(BaseModel):
     model_config = ConfigDict(
@@ -40,6 +40,7 @@ class Chunk(BaseModel):
 class SQLiteProcessor:
     def __init__(self, db_path: str = "data/data_base/EP_Agent_data.db"):
         self.db_path = db_path
+        self.logger = get_logger(__name__)
 
     def process_data(self, table_name: str, data_id: int, content_column: str = "description") -> Chunk | None:
         try:
@@ -49,9 +50,9 @@ class SQLiteProcessor:
                 # Validate table_name to prevent SQL injection  
                 cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name=?", (table_name,))  
                 if not cursor.fetchone():  
-                    logger.error(f"Table {table_name} does not exist")  
+                    self.logger.error(f"Table {table_name} does not exist")  
                     return None
-                cursor.execute(f"SELECT * FROM {table_name} WHERE id = ?", (data_id,))
+                cursor.execute(f"SELECT * FROM [{table_name}] WHERE id = ?", (data_id,))
                 result = cursor.fetchone()
                 
                 if result is None:
@@ -69,5 +70,5 @@ class SQLiteProcessor:
                     datetime=result['datetime']
                 )
         except Exception as e:
-            logger.error(f"Error processing {table_name} ID {data_id}: {e}")
+            self.logger.error(f"Error processing {table_name} ID {data_id}: {e}")
             return None

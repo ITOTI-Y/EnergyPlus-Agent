@@ -9,7 +9,7 @@ def _gen_description_nomass_material(data:list):
     return des
 
 def _gen_description_construction(data:list):
-    des = f"这是energyplus中的constructions下的构造数据，在数据库中的id为{data[0]}，名称为{data[1]}，该构造数据来源被应用于纬度为{data[2]}经度为{data[3]}的地区，其用于建筑类型为{data[4]}，材料层依次为：{', '.join([str(layer) for layer in data[5:24] if layer is not None])}，layer中的数据指向all_materials表中对应的材料id。"
+    des = f"这是energyplus中的constructions下的构造数据，在数据库中的id为{data[0]}，名称为{data[1]}，该构造数据来源被应用于纬度为{data[2]}经度为{data[3]}的地区，其用于建筑类型为{data[4]}，材料层依次为：{', '.join([str(layer) for layer in data[5:25] if layer is not None])}，layer中的数据指向all_materials表中对应的材料id。"
     return des
 
 def _gen_description_schedule_type_limits(data:list):
@@ -41,19 +41,19 @@ def update_description_material(db_path, data:list):
     _update_description(db_path, "standard_materials", data, _gen_description_material)
 
 def update_description_nomass_material(db_path, data:list):
-    _update_description(db_path, "no_mass_materials", data, _gen_description_material)
+    _update_description(db_path, "no_mass_materials", data, _gen_description_nomass_material) # 误用
 
 def update_description_construction(db_path, data:list):
-    _update_description(db_path, "constructions", data, _gen_description_material)
+    _update_description(db_path, "constructions", data, _gen_description_construction)
 
 def update_description_schedule_type_limits(db_path, data:list):
-    _update_description(db_path, "schedule_type_limits", data, _gen_description_material)
+    _update_description(db_path, "schedule_type_limits", data, _gen_description_schedule_type_limits)
 
 def update_description_schedule_compact(db_path, data:list):
-    _update_description(db_path, "schedule_compact", data, _gen_description_material)
+    _update_description(db_path, "schedule_compact", data, _gen_description_schedule_compact)
 
 def update_description_sizingperiod_designday(db_path, data:list):
-    _update_description(db_path, "sizingperiod_designday", data, _gen_description_material)
+    _update_description(db_path, "sizingperiod_designday", data, _gen_description_sizingperiod_designday)
 
 def update_description_all_materials(db_path, data:list):
-    _update_description(db_path, "all_materials", data, _gen_description_material)
+    _update_description(db_path, "all_materials", data, _gen_description_all_materials)
