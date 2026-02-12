@@ -76,7 +76,7 @@ def _gen_description_schedule_type_limits(data: list):
     return f"This is a schedule type limits data in our EnergyPlus database. {de} EnergyPlus Schedule Type Limits: {content}"
 
 def _gen_description_schedule_compact(data: list):
-    schedule_parts = [str(item) for item in data[6:-2] if item is not None]
+    schedule_parts = [str(item) for item in data[6:] if item is not None]
     schedule_str = f"Schedule Definition: {' '.join(schedule_parts)}" if schedule_parts else ""
     
     fields = [

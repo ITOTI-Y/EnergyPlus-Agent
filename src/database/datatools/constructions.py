@@ -5,6 +5,15 @@ from typing import Dict, Any, List, Tuple, Union, Optional
 from datetime import datetime
 from src.database.datatools.datadescription import update_description_construction
 
+def _fetch_id(cursor, mat_name):
+    if mat_name is None:
+        return None
+    cursor.execute("SELECT id FROM all_materials WHERE name=?", (mat_name,))
+    res = cursor.fetchone()
+    if res:
+        return res['id']
+    raise ValueError(f"Material '{mat_name}' not found in all_materials.")
+
 def create_construction(db_path: str,
                         name: str,
                         latitude: float,
@@ -34,49 +43,43 @@ def create_construction(db_path: str,
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
-    def fetch_id(mat_name):
-        if mat_name is None: return None
-        cursor.execute("SELECT id FROM all_materials WHERE name=?", (mat_name,))
-        res = cursor.fetchone()
-        if res:
-            return res['id']
-        raise ValueError(f"Material '{mat_name}' not found in all_materials.")
-        
-    
+  
     table_name = "constructions"
 
     sql = f"INSERT INTO {table_name} (name, latitude, longitude, architecture_type, layer_1, layer_2, layer_3, layer_4, layer_5, layer_6, layer_7, layer_8, layer_9, layer_10, layer_11, layer_12, layer_13, layer_14, layer_15, layer_16, layer_17, layer_18, layer_19, layer_20, datetime) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-    lay1 = fetch_id(layer1)
-    lay2 = fetch_id(layer2) if layer2 else None
-    lay3 = fetch_id(layer3) if layer3 else None
-    lay4 = fetch_id(layer4) if layer4 else None
-    lay5 = fetch_id(layer5) if layer5 else None
-    lay6 = fetch_id(layer6) if layer6 else None
-    lay7 = fetch_id(layer7) if layer7 else None
-    lay8 = fetch_id(layer8) if layer8 else None
-    lay9 = fetch_id(layer9) if layer9 else None
-    lay10 = fetch_id(layer10) if layer10 else None
-    lay11 = fetch_id(layer11) if layer11 else None
-    lay12 = fetch_id(layer12) if layer12 else None
-    lay13 = fetch_id(layer13) if layer13 else None
-    lay14 = fetch_id(layer14) if layer14 else None
-    lay15 = fetch_id(layer15) if layer15 else None
-    lay16 = fetch_id(layer16) if layer16 else None
-    lay17 = fetch_id(layer17) if layer17 else None
-    lay18 = fetch_id(layer18) if layer18 else None
-    lay19 = fetch_id(layer19) if layer19 else None
-    lay20 = fetch_id(layer20) if layer20 else None
+    try:
+        lay1 = _fetch_id(layer1)
+        lay2 = _fetch_id(layer2) if layer2 else None
+        lay3 = _fetch_id(layer3) if layer3 else None
+        lay4 = _fetch_id(layer4) if layer4 else None
+        lay5 = _fetch_id(layer5) if layer5 else None
+        lay6 = _fetch_id(layer6) if layer6 else None
+        lay7 = _fetch_id(layer7) if layer7 else None
+        lay8 = _fetch_id(layer8) if layer8 else None
+        lay9 = _fetch_id(layer9) if layer9 else None
+        lay10 = _fetch_id(layer10) if layer10 else None
+        lay11 = _fetch_id(layer11) if layer11 else None
+        lay12 = _fetch_id(layer12) if layer12 else None
+        lay13 = _fetch_id(layer13) if layer13 else None
+        lay14 = _fetch_id(layer14) if layer14 else None
+        lay15 = _fetch_id(layer15) if layer15 else None
+        lay16 = _fetch_id(layer16) if layer16 else None
+        lay17 = _fetch_id(layer17) if layer17 else None
+        lay18 = _fetch_id(layer18) if layer18 else None
+        lay19 = _fetch_id(layer19) if layer19 else None
+        lay20 = _fetch_id(layer20) if layer20 else None
 
-    now = datetime.now()
-    timestamp = now.strftime("%Y%m%d%H%M")
-    timestamp_int = int(timestamp)
-    des_data = [name, latitude, longitude, architecture_type, lay1, lay2, lay3, lay4, lay5, lay6, lay7, lay8, lay9, lay10, lay11, lay12, lay13, lay14, lay15, lay16, lay17, lay18, lay19, lay20, timestamp_int]
-    cursor.execute(sql, des_data)
-    new_id = cursor.lastrowid
-    des_data.insert(0, new_id)
+        now = datetime.now()
+        timestamp = now.strftime("%Y%m%d%H%M")
+        timestamp_int = int(timestamp)
+        des_data = [name, latitude, longitude, architecture_type, lay1, lay2, lay3, lay4, lay5, lay6, lay7, lay8, lay9, lay10, lay11, lay12, lay13, lay14, lay15, lay16, lay17, lay18, lay19, lay20, timestamp_int]
+        cursor.execute(sql, des_data)
+        new_id = cursor.lastrowid
+        des_data.insert(0, new_id)
 
-    conn.commit()
-    conn.close()
+        conn.commit()
+    finally:
+        conn.close()
 
     update_description_construction(db_path, des_data[:-1])
 
