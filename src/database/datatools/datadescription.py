@@ -121,7 +121,7 @@ def _gen_description_all_materials(data: list):
         _format_field("No-Mass Material Ref ID", data[4])
     ]
     content = " | ".join([f for f in fields if f])
-    de = 'The all_materials index data contains the parameters required in EnergyPlus. The attribute id corresponds to the id of this material in the corresponding data table. The ID represents its ID in the all_materials table, the longitude and latitude data indicate the geographical location of the building in its source data, and the building type refers to its metadata building type. '
+    de = 'The all_materials index data contains the parameters required in EnergyPlus. The attribute id corresponds to the id of this material in the corresponding data table. The ID represents its ID in the all_materials table. '
     return f"This is all_materials index data in our EnergyPlus database. {de} EnergyPlus Material Cross-Reference: {content}"
 
 def _update_description(db_path, table_name, data, gen_func):
@@ -137,7 +137,7 @@ def update_description_material(db_path, data:list):
     _update_description(db_path, "standard_materials", data, _gen_description_material)
 
 def update_description_nomass_material(db_path, data:list):
-    _update_description(db_path, "no_mass_materials", data, _gen_description_nomass_material) # 误用
+    _update_description(db_path, "no_mass_materials", data, _gen_description_nomass_material)
 
 def update_description_construction(db_path, data:list):
     _update_description(db_path, "constructions", data, _gen_description_construction)

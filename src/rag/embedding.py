@@ -44,37 +44,21 @@ class GeminiEmbeddingModel(IEmbeddingModel):
     ) -> list[list[float]]:
         from google.genai import types
 
-        all_values = []
-        batch = texts
-
         try:
             result = self.client.models.embed_content(
                 model=self.model_name,
-                contents=batch, # type: ignore
+                contents=texts,
                 config=types.EmbedContentConfig(
                     task_type=task_type.value,
                     output_dimensionality=self.dimension,
                 ),
             )
-                
-            if not result.embeddings:
-                self.logger.error("Batch returned no embeddings. Filling with zeros.")
-                raise ValueError('This embedding dimension is not 3072, there is something wrong about embedding')
-            else:
-                current_embeddings = []
-                for embedding in result.embeddings:
-                    vals = embedding.values
-                        
-                    if self.dimension < 3072: 
-                        self.logger.error('This embedding dimension is not 3072')
-                        raise ValueError('This embedding dimension is not 3072, there is something wrong about embedding')
-                    else:
-                        current_embeddings.append(vals)
-                            
-            all_values.extend(current_embeddings)
 
         except Exception as e:
-            self.logger.error(f"Embedding API error at batch: {e}")
-            raise ValueError('This embedding dimension is not 3072, there is something wrong about embedding')
+            self.logger.exception(f"Embedding API error: {e}")
+            raise ValueError(f"Embedding API call failed: {e}") from e
+        
+        if not result.embeddings:
+            raise ValueError("Embedding API returned no embeddings")
 
-        return all_values
+        return [emb.values for emb in result.embeddings]

@@ -39,8 +39,8 @@ class QdrantVectorStore(IVectorStore):
         self.distance = Distance
         self.vector_params = VectorParams
         self.dimension = dimension
-        self._create_collection()
         self.logger = get_logger(__name__)
+        self._create_collection()
 
     def _create_collection(self) -> None:
         if not self.client.collection_exists(self.collection_name):

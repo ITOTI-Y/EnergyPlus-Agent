@@ -99,7 +99,7 @@ def update_nomass_material(db_path: str,
     ]
     cursor.execute(sql, dt)
 
-    if name:
+    if name is not None:
         cursor.execute("SELECT id FROM all_materials WHERE no_mass_material_id = ?", (material_id,))
         am_row = cursor.fetchone()
         if am_row is None:
@@ -113,7 +113,7 @@ def update_nomass_material(db_path: str,
     conn.close()
     des_data = [material_id] + dt[:-2] 
     update_description_nomass_material(db_path, des_data)
-    if name:
+    if name is not None:
         update_description_all_materials(db_path, [am_id, name, 'NoMass', None, material_id])
 
 def delete_nomass_material(db_path: str, nomass_id: int) -> None:

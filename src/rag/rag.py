@@ -149,6 +149,13 @@ class RAGSystem:
             ck = self.chunk(ud['table_name'], ud['record_id'])
             if ck is None:
                 self.logger.error(f'skipping {ud['table_name']}-{ud['record_id']}: chunk not found')
+            table = ud['table_name']
+            rid = ud['record_id']
+            self.logger.info(f'chunking {table}-{rid}')
+            try:
+                ck = self.chunk(table, rid)
+            except ValueError:
+                self.logger.error(f'skipping {table}-{rid}: chunk not found')
                 continue
             cks.append(ck)
         self._embed_and_upsert(cks, batch_count)

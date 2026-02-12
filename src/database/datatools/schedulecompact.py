@@ -13,37 +13,38 @@ def create_schedule_compact(db_path: str,
                              schedule_type_limit_name: str,
                              compact_values: list[str]) -> None:
     
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
+    try:
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
 
-    field_cols = ", ".join([f"field_{i}" for i in range(1, 201)])
-    placeholders = ", ".join(["?"] * 200)
+        field_cols = ", ".join([f"field_{i}" for i in range(1, 201)])
+        placeholders = ", ".join(["?"] * 200)
     
+        sql = f"""
+                INSERT INTO schedule_compact (
+                    name, latitude, longitude, architecture_type,
+                    schedule_type_limit_name,
+                    {field_cols},
+                    datetime
+                ) VALUES (?, ?, ?, ?, ?, {placeholders}, ?)
+            """
+        full_compact_values = (compact_values + [None] * 200)[:200]
+        des_data = [name, latitude, longitude, architecture_type, schedule_type_limit_name] + full_compact_values
+
+        now = datetime.now()
+        timestamp = now.strftime("%Y%m%d%H%M")
+        timestamp_int = int(timestamp)
+
+        dt = des_data.copy()
+        dt.append(timestamp_int)
+
+        cursor.execute(sql, dt)
+        new_id = cursor.lastrowid
+        des_data.insert(0, new_id)
     
-    sql = f"""
-            INSERT INTO schedule_compact (
-                name, latitude, longitude, architecture_type,
-                schedule_type_limit_name,
-                {field_cols},
-                datetime
-            ) VALUES (?, ?, ?, ?, ?, {placeholders}, ?)
-        """
-    full_compact_values = (compact_values + [None] * 200)[:200]
-    des_data = [name, latitude, longitude, architecture_type, schedule_type_limit_name] + full_compact_values
-
-    now = datetime.now()
-    timestamp = now.strftime("%Y%m%d%H%M")
-    timestamp_int = int(timestamp)
-
-    dt = des_data.copy()
-    dt.append(timestamp_int)
-
-    cursor.execute(sql, dt)
-    new_id = cursor.lastrowid
-    des_data.insert(0, new_id)
-    
-    conn.commit()
-    conn.close()
+        conn.commit()
+    finally:
+        conn.close()
 
     update_description_schedule_compact(db_path, des_data)
 

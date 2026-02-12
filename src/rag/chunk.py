@@ -59,15 +59,18 @@ class SQLiteProcessor:
                     return None
 
                 full_dict = dict(result)
+                if content_column not in full_dict:
+                    self.logger.error(f"Column '{content_column}' not found in table {table_name}")
+                    return None
                 exclude_keys = {content_column, 'id', 'datetime'}
                 clean_data = {k: v for k, v in full_dict.items() if k not in exclude_keys}
 
                 return Chunk(
                     vectored_table_name=table_name,
                     record_id=data_id,
-                    data_description=result[content_column],
+                    data_description=full_dict[content_column],
                     data_dict=clean_data,
-                    datetime=result['datetime']
+                    datetime=full_dict['datetime']
                 )
         except Exception as e:
             self.logger.error(f"Error processing {table_name} ID {data_id}: {e}")

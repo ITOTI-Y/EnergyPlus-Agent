@@ -114,7 +114,7 @@ def update_standard_material(db_path: str,
     ]
     cursor.execute(sql, dt)
 
-    if name:
+    if name is not None:
         cursor.execute("SELECT id FROM all_materials WHERE standard_material_id = ?", (material_id,))
         am_row = cursor.fetchone()
 
@@ -129,7 +129,7 @@ def update_standard_material(db_path: str,
     conn.close()
     des_data = [material_id] + dt[:-2] 
     update_description_material(db_path, des_data)
-    if name:
+    if name is not None:
         update_description_all_materials(db_path, [am_id, name, 'Mass', material_id, None])
 
 
