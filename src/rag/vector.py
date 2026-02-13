@@ -52,7 +52,7 @@ class QdrantVectorStore(IVectorStore):
                 ),
             )
         else:
-            self.logger.error(f"Collection {self.collection_name} already exists")
+            self.logger.info(f"Collection {self.collection_name} already exists")
 
     def add(
         self,

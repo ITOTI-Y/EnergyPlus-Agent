@@ -100,13 +100,29 @@ def _gen_description_sizingperiod_designday(data: list):
         _format_field("Building Type", data[4]), _format_field("Month", data[5]),
         _format_field("Day", data[6]), _format_field("Day Type", data[7]),
         _format_field("Max Dry Bulb Temp", data[8], "C"),
-        _format_field("Daily DB Range", data[9], "C"),
+        _format_field("Daily Drybulb temperature Range", data[9], "C"),
+        _format_field("Drybulb temperature range modifier type", data[10]),
+        _format_field("Drybulb temperature range modifier day schedule name", data[11]),
         _format_field("Humidity Type", data[12]),
-        _format_field("Wet Bulb/Dew Point at Max DB", data[13], "C"),
+        _format_field("Wet Bulb/Dew Point at Max DryBulb", data[13], "C"),
+        _format_field("Humidity Condition Day Schedule Name", data[14]),
+        _format_field("Humidity Ratio at Max Drybulb", data[15]),
+        _format_field("Enthalpy at Max Drybulb", data[16]),
+        _format_field("Daily Wetbulb Temperature Range", data[17]),
         _format_field("Barometric Pressure", data[18], "Pa"),
         _format_field("Wind Speed", data[19], "m/s"),
         _format_field("Wind Direction", data[20], "deg"),
-        _format_field("Sky Clearness", data[29])
+        _format_field("Rain Indicator", data[21]),
+        _format_field("Snow Indicator", data[22]),
+        _format_field("Daylight Saving Time Indicator", data[23]),
+        _format_field("Solar Model Indicator", data[24]),
+        _format_field("Beam Solar Day Schedule Name", data[25]),
+        _format_field("Diffuse Solar Day Schedule Name", data[26]),
+        _format_field("Ashrae Clear Sky Optical Depth for Beam Irradiance Taub", data[27]),
+        _format_field("Ashrae Clear Sky Optical Depth for Diffuse Irradiance Taub", data[28]),
+        _format_field("Sky Clearness", data[29]),
+        _format_field("Max Number Warmup Days", data[30]),
+        _format_field("Begin Environment Reset Mode", data[31])
     ]
     content = " | ".join([f for f in fields if f])
     de = 'The sizingperiod designday data contains the parameters required in EnergyPlus. The ID represents its ID in the sizingperiod_designday table, the longitude and latitude data indicate the geographical location of the building in its source data, and the building type refers to its metadata building type. '

@@ -145,10 +145,6 @@ class RAGSystem:
         self.logger.info(f"Find {len(unsync_data)} data needs vectorized.")
         cks = []
         for ud in unsync_data:
-            self.logger.info(f'chunking {ud['table_name']}-{ud["record_id"]}')
-            ck = self.chunk(ud['table_name'], ud['record_id'])
-            if ck is None:
-                self.logger.error(f'skipping {ud['table_name']}-{ud['record_id']}: chunk not found')
             table = ud['table_name']
             rid = ud['record_id']
             self.logger.info(f'chunking {table}-{rid}')
@@ -168,10 +164,13 @@ class RAGSystem:
         self.logger.info(f"Find {len(zero_points)} data needs re_vectorized.")
         cks = []
         for ud in zero_points:
-            self.logger.info(f'chunking {ud['table_name']} - {ud['record_id']}')
-            ck = self.chunk(ud['table_name'], ud['record_id'])
-            if ck is None:
-                self.logger.error(f'skipping {ud['table_name']}-{ud['record_id']}: chunk not found')
+            table = ud['table_name']
+            rid = ud['record_id']
+            self.logger.info(f'chunking {table} - {rid}')
+            try:
+                ck = self.chunk(table, rid)
+            except ValueError:
+                self.logger.error(f'skipping {table}-{rid}: chunk not found')
                 continue
             cks.append(ck)
         self._embed_and_upsert(cks, batch_count)

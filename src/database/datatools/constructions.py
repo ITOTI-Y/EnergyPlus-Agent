@@ -48,26 +48,26 @@ def create_construction(db_path: str,
 
     sql = f"INSERT INTO {table_name} (name, latitude, longitude, architecture_type, layer_1, layer_2, layer_3, layer_4, layer_5, layer_6, layer_7, layer_8, layer_9, layer_10, layer_11, layer_12, layer_13, layer_14, layer_15, layer_16, layer_17, layer_18, layer_19, layer_20, datetime) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
     try:
-        lay1 = _fetch_id(layer1)
-        lay2 = _fetch_id(layer2) if layer2 else None
-        lay3 = _fetch_id(layer3) if layer3 else None
-        lay4 = _fetch_id(layer4) if layer4 else None
-        lay5 = _fetch_id(layer5) if layer5 else None
-        lay6 = _fetch_id(layer6) if layer6 else None
-        lay7 = _fetch_id(layer7) if layer7 else None
-        lay8 = _fetch_id(layer8) if layer8 else None
-        lay9 = _fetch_id(layer9) if layer9 else None
-        lay10 = _fetch_id(layer10) if layer10 else None
-        lay11 = _fetch_id(layer11) if layer11 else None
-        lay12 = _fetch_id(layer12) if layer12 else None
-        lay13 = _fetch_id(layer13) if layer13 else None
-        lay14 = _fetch_id(layer14) if layer14 else None
-        lay15 = _fetch_id(layer15) if layer15 else None
-        lay16 = _fetch_id(layer16) if layer16 else None
-        lay17 = _fetch_id(layer17) if layer17 else None
-        lay18 = _fetch_id(layer18) if layer18 else None
-        lay19 = _fetch_id(layer19) if layer19 else None
-        lay20 = _fetch_id(layer20) if layer20 else None
+        lay1 = _fetch_id(cursor, layer1)
+        lay2 = _fetch_id(cursor, layer2) if layer2 else None
+        lay3 = _fetch_id(cursor, layer3) if layer3 else None
+        lay4 = _fetch_id(cursor, layer4) if layer4 else None
+        lay5 = _fetch_id(cursor, layer5) if layer5 else None
+        lay6 = _fetch_id(cursor, layer6) if layer6 else None
+        lay7 = _fetch_id(cursor, layer7) if layer7 else None
+        lay8 = _fetch_id(cursor, layer8) if layer8 else None
+        lay9 = _fetch_id(cursor, layer9) if layer9 else None
+        lay10 = _fetch_id(cursor, layer10) if layer10 else None
+        lay11 = _fetch_id(cursor, layer11) if layer11 else None
+        lay12 = _fetch_id(cursor, layer12) if layer12 else None
+        lay13 = _fetch_id(cursor, layer13) if layer13 else None
+        lay14 = _fetch_id(cursor, layer14) if layer14 else None
+        lay15 = _fetch_id(cursor, layer15) if layer15 else None
+        lay16 = _fetch_id(cursor, layer16) if layer16 else None
+        lay17 = _fetch_id(cursor, layer17) if layer17 else None
+        lay18 = _fetch_id(cursor, layer18) if layer18 else None
+        lay19 = _fetch_id(cursor, layer19) if layer19 else None
+        lay20 = _fetch_id(cursor, layer20) if layer20 else None
 
         now = datetime.now()
         timestamp = now.strftime("%Y%m%d%H%M")

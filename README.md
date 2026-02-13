@@ -175,7 +175,7 @@ QDRANT_ENDPOINT=http://localhost:6333
 QDRANT_COLLECTION_NAME=energyplus_database
 
 # Database Index Building Configuration
-# Note: Paths are relative to the rag/ directory
+
 INDEX_DB_PATH=data/data_base/EP_Agent_data.db
 ```
 
