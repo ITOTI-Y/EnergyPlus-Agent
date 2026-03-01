@@ -176,7 +176,7 @@ QDRANT_COLLECTION_NAME=energyplus_database
 
 # Database Index Building Configuration
 
-INDEX_DB_PATH=data/data_base/EP_Agent_data.db
+INDEX_DB_PATH=data/database/EP_Agent_data.db
 ```
 
 ### 配置 Claude Desktop

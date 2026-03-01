@@ -72,61 +72,63 @@ def update_standard_material(db_path: str,
                              visible_absorptance: Optional[float] = None) -> None:
     
     conn = sqlite3.connect(db_path)
-    conn.row_factory = sqlite3.Row
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM standard_materials WHERE id = ?", (material_id,))
-    row = cursor.fetchone()
-    if row is None:
-        conn.close()
-        raise ValueError(f"Material with id {material_id} does not exist.")
-    updated_name = name if name is not None else row['name']
-    updated_lat = latitude if latitude is not None else row['latitude']
-    updated_lon = longitude if longitude is not None else row['longitude']
-    updated_arch = architecture_type if architecture_type is not None else row['architecture_type']
-    updated_rough = roughness if roughness is not None else row['roughness']
-    updated_thick = thickness if thickness is not None else row['thickness']
-    updated_cond = conductivity if conductivity is not None else row['conductivity']
-    updated_dens = density if density is not None else row['density']
-    updated_spec = specific_heat if specific_heat is not None else row['specific_heat']
-    updated_ther = thermal_absorptance if thermal_absorptance is not None else row['thermal_absorptance']
-    updated_solr = solar_absorptance if solar_absorptance is not None else row['solar_absorptance']
-    updated_visb = visible_absorptance if visible_absorptance is not None else row['visible_absorptance']
-
-    sql = """
-        UPDATE standard_materials 
-        SET name = ?, latitude = ?, longitude = ?, architecture_type = ?, 
-            roughness = ?, thickness = ?, conductivity = ?, density = ?, 
-            specific_heat = ?, thermal_absorptance = ?, solar_absorptance = ?, 
-            visible_absorptance = ?, datetime = ?
-        WHERE id = ?
-    """
-
-    now = datetime.now()
-    timestamp = now.strftime("%Y%m%d%H%M")
-    timestamp_int = int(timestamp)
-
-    dt = [
-        updated_name, updated_lat, updated_lon, updated_arch,
-        updated_rough, updated_thick, updated_cond, updated_dens,
-        updated_spec, updated_ther, updated_solr, updated_visb,
-        timestamp_int,
-        material_id
-    ]
-    cursor.execute(sql, dt)
-
-    if name is not None:
-        cursor.execute("SELECT id FROM all_materials WHERE standard_material_id = ?", (material_id,))
-        am_row = cursor.fetchone()
-
-        if am_row is None:
+    try:
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM standard_materials WHERE id = ?", (material_id,))
+        row = cursor.fetchone()
+        if row is None:
             conn.close()
-            raise ValueError(f"No all_materials entry found for standard_material_id {material_id}")
-        am_id = am_row['id']
-        cursor.execute("UPDATE all_materials SET name = ? WHERE id = ?", (name, am_id))
-        cursor.execute("UPDATE all_materials SET datetime = ? WHERE id = ?", (timestamp_int, am_id))
+            raise ValueError(f"Material with id {material_id} does not exist.")
+        updated_name = name if name is not None else row['name']
+        updated_lat = latitude if latitude is not None else row['latitude']
+        updated_lon = longitude if longitude is not None else row['longitude']
+        updated_arch = architecture_type if architecture_type is not None else row['architecture_type']
+        updated_rough = roughness if roughness is not None else row['roughness']
+        updated_thick = thickness if thickness is not None else row['thickness']
+        updated_cond = conductivity if conductivity is not None else row['conductivity']
+        updated_dens = density if density is not None else row['density']
+        updated_spec = specific_heat if specific_heat is not None else row['specific_heat']
+        updated_ther = thermal_absorptance if thermal_absorptance is not None else row['thermal_absorptance']
+        updated_solr = solar_absorptance if solar_absorptance is not None else row['solar_absorptance']
+        updated_visb = visible_absorptance if visible_absorptance is not None else row['visible_absorptance']
 
-    conn.commit()
-    conn.close()
+        sql = """
+            UPDATE standard_materials 
+            SET name = ?, latitude = ?, longitude = ?, architecture_type = ?, 
+                roughness = ?, thickness = ?, conductivity = ?, density = ?, 
+                specific_heat = ?, thermal_absorptance = ?, solar_absorptance = ?, 
+                visible_absorptance = ?, datetime = ?
+            WHERE id = ?
+        """
+
+        now = datetime.now()
+        timestamp = now.strftime("%Y%m%d%H%M")
+        timestamp_int = int(timestamp)
+
+        dt = [
+            updated_name, updated_lat, updated_lon, updated_arch,
+            updated_rough, updated_thick, updated_cond, updated_dens,
+            updated_spec, updated_ther, updated_solr, updated_visb,
+            timestamp_int,
+            material_id
+        ]
+        cursor.execute(sql, dt)
+
+        if name is not None:
+            cursor.execute("SELECT id FROM all_materials WHERE standard_material_id = ?", (material_id,))
+            am_row = cursor.fetchone()
+
+            if am_row is None:
+                conn.close()
+                raise ValueError(f"No all_materials entry found for standard_material_id {material_id}")
+            am_id = am_row['id']
+            cursor.execute("UPDATE all_materials SET name = ? WHERE id = ?", (name, am_id))
+            cursor.execute("UPDATE all_materials SET datetime = ? WHERE id = ?", (timestamp_int, am_id))
+
+        conn.commit()
+    finally:
+        conn.close()
     des_data = [material_id] + dt[:-2] 
     update_description_material(db_path, des_data)
     if name is not None:

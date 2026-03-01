@@ -142,7 +142,7 @@ class RAGSystem:
                     break
                 continue
         if failed_batches:
-            self.logger.warring(f"Embedding completed with {failed_batches} failed batch(es).")
+            self.logger.warning(f"Embedding completed with {failed_batches} failed batch(es).")
 
     def sync_rag(
             self,

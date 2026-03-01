@@ -117,7 +117,7 @@ class QdrantVectorStore(IVectorStore):
                 "score": result.score,  
                 "metadata": {  
                     k: v for k, v in payload.items()  
-                    if k not in {"data_description", "vectored_table_name", "record_id", "data_dict" "datetime"}  
+                    if k not in {"data_description", "vectored_table_name", "record_id", "data_dict", "datetime"}  
                 },  
             }) 
 
