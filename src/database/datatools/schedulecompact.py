@@ -58,43 +58,45 @@ def update_schedule_compact(db_path: str,
                              compact_values: Optional[list[str]] = None) -> None:
     
     conn = sqlite3.connect(db_path)
-    conn.row_factory = sqlite3.Row
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM schedule_compact WHERE id = ?", (schedule_compact_id,))
-    row = cursor.fetchone()
-    if row is None:
-        conn.close()
-        raise ValueError(f"Schedule Compact with ID {schedule_compact_id} not found.")
+    try:
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM schedule_compact WHERE id = ?", (schedule_compact_id,))
+        row = cursor.fetchone()
+        if row is None:
+            conn.close()
+            raise ValueError(f"Schedule Compact with ID {schedule_compact_id} not found.")
 
-    sql = """
-        UPDATE schedule_compact 
-        SET name = ?, latitude = ?, longitude = ?, architecture_type = ?, 
-            schedule_type_limit_name = ?, 
-            """ + ", ".join([f"field_{i} = ?" for i in range(1, 201)]) + """,
-            datetime = ?
-        WHERE id = ?
-    """
-    dt = [
-        name if name is not None else row['name'],
-        latitude if latitude is not None else row['latitude'],
-        longitude if longitude is not None else row['longitude'],
-        architecture_type if architecture_type is not None else row['architecture_type'],
-        schedule_type_limit_name if schedule_type_limit_name is not None else row['schedule_type_limit_name'],
-    ]
-    if compact_values is not None:
-        dt.extend((compact_values + [None] * 200)[:200])
-    else:
-        dt.extend([row[f'field_{i}'] for i in range(1, 201)])
+        sql = """
+            UPDATE schedule_compact 
+            SET name = ?, latitude = ?, longitude = ?, architecture_type = ?, 
+                schedule_type_limit_name = ?, 
+                """ + ", ".join([f"field_{i} = ?" for i in range(1, 201)]) + """,
+                datetime = ?
+            WHERE id = ?
+        """
+        dt = [
+            name if name is not None else row['name'],
+            latitude if latitude is not None else row['latitude'],
+            longitude if longitude is not None else row['longitude'],
+            architecture_type if architecture_type is not None else row['architecture_type'],
+            schedule_type_limit_name if schedule_type_limit_name is not None else row['schedule_type_limit_name'],
+        ]
+        if compact_values is not None:
+            dt.extend((compact_values + [None] * 200)[:200])
+        else:
+            dt.extend([row[f'field_{i}'] for i in range(1, 201)])
     
-    now = datetime.now()
-    timestamp = now.strftime("%Y%m%d%H%M")
-    timestamp_int = int(timestamp)
-    dt.append(timestamp_int)
-    dt.append(schedule_compact_id)
+        now = datetime.now()
+        timestamp = now.strftime("%Y%m%d%H%M")
+        timestamp_int = int(timestamp)
+        dt.append(timestamp_int)
+        dt.append(schedule_compact_id)
 
-    cursor.execute(sql, dt)
-    conn.commit()
-    conn.close()
+        cursor.execute(sql, dt)
+        conn.commit()
+    finally:
+        conn.close()
 
     update_description_schedule_compact(db_path, [schedule_compact_id] + dt[:-2])
 

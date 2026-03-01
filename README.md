@@ -170,7 +170,7 @@ docker run -p 6333:6333 -p 6334:6334 \
 GEMINI_API_KEY=Your Gemini api key
 
 # Qdrant Configuration
-QDRANT_API_KEY=
+QDRANT_API_KEY=  # 本地 Docker 部署可留空；云端部署需配置
 QDRANT_ENDPOINT=http://localhost:6333
 QDRANT_COLLECTION_NAME=energyplus_database
 

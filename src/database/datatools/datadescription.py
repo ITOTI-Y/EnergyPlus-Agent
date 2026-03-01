@@ -1,6 +1,7 @@
 import sqlite3
+from typing import Any
 
-def _format_field(label: str, value: any, unit: str = "") -> str:
+def _format_field(label: str, value: Any, unit: str = "") -> str:
     if value is None or str(value).strip().lower() == 'none' or value == "":
         return ""
     return f"{label}: {value}{unit}"
@@ -76,7 +77,7 @@ def _gen_description_schedule_type_limits(data: list):
     return f"This is a schedule type limits data in our EnergyPlus database. {de} EnergyPlus Schedule Type Limits: {content}"
 
 def _gen_description_schedule_compact(data: list):
-    schedule_parts = [str(item) for item in data[6:] if item is not None]
+    schedule_parts = [str(item) for item in data[6:] if item is not None and item != 'null']
     schedule_str = f"Schedule Definition: {' '.join(schedule_parts)}" if schedule_parts else ""
     
     fields = [
@@ -142,12 +143,14 @@ def _gen_description_all_materials(data: list):
 
 def _update_description(db_path, table_name, data, gen_func):
     conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-    description = gen_func(data)
-    sql = "UPDATE " + table_name + " SET description = ? WHERE id = ?"
-    cursor.execute(sql, (description, data[0]))
-    conn.commit()
-    conn.close()
+    try:
+        cursor = conn.cursor()
+        description = gen_func(data)
+        sql = "UPDATE " + table_name + " SET description = ? WHERE id = ?"
+        cursor.execute(sql, (description, data[0]))
+        conn.commit()
+    finally:
+        conn.close()
 
 def update_description_material(db_path, data:list):
     _update_description(db_path, "standard_materials", data, _gen_description_material)

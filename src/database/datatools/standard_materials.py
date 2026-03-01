@@ -43,7 +43,7 @@ def create_standard_materials(db_path: str,
             ) VALUES (?, 'Mass', ?, NULL)
         """, (
             name,
-            new_id  # 使用刚刚获取的真实 ID，而不是 count
+            new_id
         ))
 
         new_am_id = cursor.lastrowid

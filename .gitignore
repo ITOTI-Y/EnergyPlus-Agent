@@ -220,3 +220,5 @@ output/
 
 # qdrant_storage
 qdrant_storage/
+
+data/database/

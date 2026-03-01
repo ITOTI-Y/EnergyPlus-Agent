@@ -122,6 +122,7 @@ class RAGSystem:
         
     def _embed_and_upsert(self, cks: list[Chunk], batch_count: int = 100):
         self.logger.info("--------Begin embedding-------")
+        failed_batches = 0
         for i in range(0, len(cks), batch_count):
             time.sleep(1)
             batch = cks[i:i + batch_count]
@@ -134,8 +135,14 @@ class RAGSystem:
                 now_str = datetime.now().strftime("%Y-%m-%d %H:%M")
                 self.logger.info(f"Finish: {min(i + batch_count, len(cks))}/{len(cks)} [{now_str}]")
             except Exception as e:
-                self.logger.error(f"Failed to process batch {i // batch_count}: {e}")
+                failed_batches += 1
+                self.logger.exception(f"Failed to process batch {i // batch_count}")
+                if failed_batches >= 10:
+                    self.logger.error("Too many consecutive failures, aborting.")
+                    break
                 continue
+        if failed_batches:
+            self.logger.warring(f"Embedding completed with {failed_batches} failed batch(es).")
 
     def sync_rag(
             self,

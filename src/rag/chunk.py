@@ -38,7 +38,7 @@ class Chunk(BaseModel):
         }
     
 class SQLiteProcessor:
-    def __init__(self, db_path: str = "data/data_base/EP_Agent_data.db"):
+    def __init__(self, db_path: str = "data/database/EP_Agent_data.db"):
         self.db_path = db_path
         self.logger = get_logger(__name__)
 
@@ -62,6 +62,10 @@ class SQLiteProcessor:
                 if content_column not in full_dict:
                     self.logger.error(f"Column '{content_column}' not found in table {table_name}")
                     return None
+                for required_col in ('id', 'datetime'):  
+                    if required_col not in full_dict:  
+                        self.logger.error(f"Required column '{required_col}' not found in table {table_name}")  
+                        return None  
                 exclude_keys = {content_column, 'id', 'datetime'}
                 clean_data = {k: v for k, v in full_dict.items() if k not in exclude_keys}
 
