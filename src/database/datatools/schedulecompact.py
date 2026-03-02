@@ -12,9 +12,9 @@ def create_schedule_compact(db_path: str,
                              architecture_type: str,
                              schedule_type_limit_name: str,
                              compact_values: list[str]) -> None:
-    
+
+    conn = sqlite3.connect(db_path)
     try:
-        conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
 
         field_cols = ", ".join([f"field_{i}" for i in range(1, 201)])
