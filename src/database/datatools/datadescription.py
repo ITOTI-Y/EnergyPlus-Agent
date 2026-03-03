@@ -144,11 +144,10 @@ def _gen_description_all_materials(data: list):
 def _update_description(table_name, data, gen_func, cur):
     if cur is None:
         raise ValueError("cursor cannot be None")
-    if not hasattr(cur, 'connection'):
-        raise ValueError("Invalid cursor: missing connection attribute")
-    if cur.connection.closed:
-        raise ValueError("Cursor connection is closed")
-    
+    try:
+        cur.execute("SELECT 1")
+    except sqlite3.ProgrammingError:
+        raise ValueError("Cursor connection is closed or invalid")
     cursor = cur
     description = gen_func(data)
     sql = "UPDATE " + table_name + " SET description = ? WHERE id = ?"

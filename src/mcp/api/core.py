@@ -209,8 +209,15 @@ def register_core_tools(
         if not zone_response.success:
             return zone_response.to_mcp_response()
         if floor_vertices:
-            vertices = convert_vertices_to_mcp_format(floor_vertices)
-            is_valid, error = validate_floor_vertices(vertices)
+            try:
+                vertices = convert_vertices_to_mcp_format(floor_vertices)
+                is_valid, error = validate_floor_vertices(vertices)
+            except (TypeError, ValueError) as e:
+                zone_tool.delete(name)
+                return ToolResponse(
+                    success=False,
+                    message=f"Invalid floor_vertices: {e}",
+                ).to_mcp_response()
 
             if not is_valid:
                 zone_tool.delete(name)
@@ -225,7 +232,14 @@ def register_core_tools(
                     success=False,
                     message="When using the floor_vertices parameter, a specific ceiling_height value must be specified",
                 ).to_mcp_response()
-            height = float(ceiling_height)
+            try:
+                height = float(ceiling_height)
+            except (TypeError, ValueError):
+                zone_tool.delete(name)
+                return ToolResponse(
+                    success=False,
+                    message="ceiling_height must be a numeric value when floor_vertices is provided",
+                ).to_mcp_response()
             created_surfaces = []
             failed_surfaces = []
             n = len(vertices)
@@ -273,7 +287,7 @@ def register_core_tools(
             if floor_response.success:
                 created_surfaces.append(f"{name}_Floor")
             else:
-                failed_surfaces.append({"name": surface_name, "error": surface_response.message})
+                failed_surfaces.append({"name": f"{name}_Floor", "error": surface_response.message})
 
             ceiling_vertices = [
                 {"X": v["X"], "Y": v["Y"], "Z": z_ceiling}
@@ -293,11 +307,16 @@ def register_core_tools(
             if ceiling_response.success:
                 created_surfaces.append(f"{name}_Ceiling")
             else:
-                failed_surfaces.append({"name": surface_name, "error": surface_response.message})
+                failed_surfaces.append({"name": f"{name}_Ceiling", "error": surface_response.message})
             
             return ToolResponse(
                 success=len(failed_surfaces) == 0,
-                message=f"Zone '{name}' created successfully with {len(created_surfaces)} surfaces.",
+                message=(
+                    f"Zone '{name}' created successfully with {len(created_surfaces)} surfaces."
+                    if not failed_surfaces
+                    else f"Zone '{name}' created with partial failures: "
+                         f"{len(created_surfaces)} succeeded, {len(failed_surfaces)} failed."
+                ),
                 data={
                     "zone": zone_response.data,
                     "surfaces_created": created_surfaces,

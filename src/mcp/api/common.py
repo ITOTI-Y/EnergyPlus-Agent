@@ -42,18 +42,20 @@ def validate_floor_vertices(
             message="There are duplicate or overly close vertices",
             details={"duplicate_pairs": duplicate_indices.tolist()}
         )
-    v1 = pts[1] - pts[0]
-    v2 = pts[2] - pts[0]
-    normal = np.cross(v1, v2)
-    normal_length = np.linalg.norm(normal)
-    
-    if normal_length < tolerance:
+    normal = None
+    for i in range(1, n - 1):
+        candidate = np.cross(pts[i] - pts[0], pts[i + 1] - pts[0])
+        if np.linalg.norm(candidate) >= tolerance:
+            normal = candidate
+            break
+
+    if normal is None:
         return False, VertexValidationError(
             error_type="not_coplanar",
             message="The first three vertices are collinear, so it is impossible to determine the plane"
         )
     
-    normal = normal / normal_length
+    normal = normal / np.linalg.norm(normal)
     for i in range(3, n):
         v = pts[i] - pts[0]
         distance_to_plane = abs(np.dot(v, normal))
@@ -80,8 +82,8 @@ def validate_floor_vertices(
         signed_area += (pts[j, 0] - pts[i, 0]) * (pts[j, 1] + pts[i, 1])
     if signed_area > 0:
         return False, VertexValidationError(
-            error_type="not_clockwise",
-            message=f"The vertex order is counterclockwise (signed area = {signed_area:.2f}), which should be clockwise",
+            error_type="not_counterclockwise",
+            message=f"The vertex order is clockwise (signed area = {signed_area:.2f}), which should be counterclockwise",
             details={"signed_area": signed_area}
         )
     
