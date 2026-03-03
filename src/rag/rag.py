@@ -132,9 +132,10 @@ class RAGSystem:
                 self.logger.info(f"Embedding: {min(i + batch_count, len(cks))}/{len(cks)} [{now_str}]")
                 embeddings = self.embed(descriptions)
                 self.vector_store.add(batch, embeddings) # type: ignore
+                failed_batches = 0
                 now_str = datetime.now().strftime("%Y-%m-%d %H:%M")
                 self.logger.info(f"Finish: {min(i + batch_count, len(cks))}/{len(cks)} [{now_str}]")
-            except Exception as e:
+            except Exception:
                 failed_batches += 1
                 self.logger.exception(f"Failed to process batch {i // batch_count}")
                 if failed_batches >= 10:

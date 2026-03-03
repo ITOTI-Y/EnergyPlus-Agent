@@ -78,4 +78,4 @@ class SQLiteProcessor:
                 )
         except Exception as e:
             self.logger.error(f"Error processing {table_name} ID {data_id}: {e}")
-            return None
+            raise
