@@ -187,28 +187,19 @@ def update_construction(db_path: str,
 
 def delete_construction(db_path: str, construction_id: int) -> None:
     conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-
-    table_name = "constructions"
-
-    sql = f"DELETE FROM {table_name} WHERE id = ?"
-
-    cursor.execute(sql, (construction_id,))
-
-    conn.commit()
-    conn.close()
+    try:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM constructions WHERE id = ?", (construction_id,))
+        conn.commit()
+    finally:
+        conn.close()
 
 def list_constructions(db_path: str) -> List[Tuple]:
     conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-
-    table_name = "constructions"
-
-    sql = f"SELECT * FROM {table_name}"
-
-    cursor.execute(sql)
-    rows = cursor.fetchall()
-
-    conn.close()
-    return rows
-    
+    try:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM constructions")
+        rows = cursor.fetchall()
+        return rows
+    finally:
+        conn.close()

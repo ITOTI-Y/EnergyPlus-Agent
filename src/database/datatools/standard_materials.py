@@ -137,29 +137,20 @@ def update_standard_material(db_path: str,
 
 def delete_standard_material(db_path: str, material_id: int) -> None:
     conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-
-    table_name = "standard_materials"
-
-    sql = f"DELETE FROM {table_name} WHERE id = ?"
-    cursor.execute(sql, (material_id,))
-
-    sql = "DELETE FROM all_materials WHERE standard_material_id = ?"
-    cursor.execute(sql, (material_id,))
-
-    conn.commit()
-    conn.close()
+    try:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM standard_materials WHERE id = ?", (material_id,))
+        cursor.execute("DELETE FROM all_materials WHERE standard_material_id = ?", (material_id,))
+        conn.commit()
+    finally:
+        conn.close()
 
 def list_standard_materials(db_path: str) -> List[Tuple]:
     conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-
-    table_name = "standard_materials"
-
-    sql = f"SELECT * FROM {table_name}"
-
-    cursor.execute(sql)
-    rows = cursor.fetchall()
-
-    conn.close()
-    return rows
+    try:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM standard_materials")
+        rows = cursor.fetchall()
+        return rows
+    finally:
+        conn.close()

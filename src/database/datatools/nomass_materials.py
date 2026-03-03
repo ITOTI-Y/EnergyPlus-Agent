@@ -122,29 +122,20 @@ def update_nomass_material(db_path: str,
 
 def delete_nomass_material(db_path: str, nomass_id: int) -> None:
     conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-
-    table_name = "no_mass_materials"
-
-    sql = f"DELETE FROM {table_name} WHERE id = ?"
-    cursor.execute(sql, (nomass_id,))
-
-    sql = "DELETE FROM all_materials WHERE no_mass_material_id = ?"
-    cursor.execute(sql, (nomass_id,))
-
-    conn.commit()
-    conn.close()
+    try:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM no_mass_materials WHERE id = ?", (nomass_id,))
+        cursor.execute("DELETE FROM all_materials WHERE no_mass_material_id = ?", (nomass_id,))
+        conn.commit()
+    finally:
+        conn.close()
 
 def list_nomass_materials(db_path: str) -> List[Tuple]:
     conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-
-    table_name = "no_mass_materials"
-
-    sql = f"SELECT * FROM {table_name}"
-
-    cursor.execute(sql)
-    rows = cursor.fetchall()
-
-    conn.close()
-    return rows
+    try:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM no_mass_materials")
+        rows = cursor.fetchall()
+        return rows
+    finally:
+        conn.close()

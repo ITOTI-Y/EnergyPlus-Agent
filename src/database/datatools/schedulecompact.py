@@ -64,7 +64,6 @@ def update_schedule_compact(db_path: str,
         cursor.execute("SELECT * FROM schedule_compact WHERE id = ?", (schedule_compact_id,))
         row = cursor.fetchone()
         if row is None:
-            conn.close()
             raise ValueError(f"Schedule Compact with ID {schedule_compact_id} not found.")
 
         sql = """
@@ -102,26 +101,19 @@ def update_schedule_compact(db_path: str,
 
 def delete_schedulecompact(db_path: str, schedule_compact_id: int) -> None:
     conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-
-    table_name = "schedule_compact"
-    sql = f"DELETE FROM {table_name} WHERE id = ?"
-
-    cursor.execute(sql, (schedule_compact_id,))
-
-    conn.commit()
-    conn.close()
+    try:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM schedule_compact WHERE id = ?", (schedule_compact_id,))
+        conn.commit()
+    finally:
+        conn.close()
 
 def list_schedule_compact(db_path: str) -> List[Tuple]:
     conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-
-    table_name = "schedule_compact"
-
-    sql = f"SELECT * FROM {table_name}"
-
-    cursor.execute(sql)
-    rows = cursor.fetchall()
-
-    conn.close()
-    return rows
+    try:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM schedule_compact")
+        rows = cursor.fetchall()
+        return rows
+    finally:
+        conn.close()

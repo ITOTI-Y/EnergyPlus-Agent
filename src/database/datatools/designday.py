@@ -214,25 +214,19 @@ def update_sizingperiod_designday(db_path: str,
 
 def delete_sizingperiod_designday(db_path: str, designday_id: int) -> None:
     conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-
-    table_name = "sizingperiod_designday"
-    sql = f"DELETE FROM {table_name} WHERE id = ?"
-
-    cursor.execute(sql, (designday_id,))
-
-    conn.commit()
-    conn.close()
+    try:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM sizingperiod_designday WHERE id = ?", (designday_id,))
+        conn.commit()
+    finally:
+        conn.close()
 
 def list_sizingperiod_designday(db_path: str) -> List[Tuple]:
     conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-
-    table_name = "sizingperiod_designday"
-    sql = f"SELECT * FROM {table_name}"
-
-    cursor.execute(sql)
-    rows = cursor.fetchall()
-
-    conn.close()
-    return rows
+    try:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM sizingperiod_designday")
+        rows = cursor.fetchall()
+        return rows
+    finally:
+        conn.close()
