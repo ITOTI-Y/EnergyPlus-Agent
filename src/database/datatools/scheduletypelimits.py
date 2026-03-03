@@ -35,12 +35,11 @@ def create_schedule_type_limits(db_path: str,
         cursor.execute(sql, dt)
         new_id = cursor.lastrowid
         des_data.insert(0, new_id)
-    
+        update_description_schedule_type_limits(des_data, cur=cursor)
         conn.commit()
     finally:
         conn.close()
 
-    update_description_schedule_type_limits(db_path, des_data)
 
 def update_schedule_type_limits(db_path: str,
                                 schedule_type_limits_id: int,
@@ -90,22 +89,21 @@ def update_schedule_type_limits(db_path: str,
         ]
 
         cursor.execute(sql, dt)
-    
+        des_data = [
+            schedule_type_limits_id, 
+            updated_name, 
+            updated_latitude, 
+            updated_longitude, 
+            updated_architecture_type,
+            updated_lower_limit_value, 
+            updated_upper_limit_value, 
+            updated_numeric_type, 
+            updated_unit_type
+        ]
+        update_description_schedule_type_limits(des_data, cur=cursor) 
         conn.commit()
     finally:
         conn.close()
-    des_data = [
-        schedule_type_limits_id, 
-        updated_name, 
-        updated_latitude, 
-        updated_longitude, 
-        updated_architecture_type,
-        updated_lower_limit_value, 
-        updated_upper_limit_value, 
-        updated_numeric_type, 
-        updated_unit_type
-    ]
-    update_description_schedule_type_limits(db_path, des_data) 
 
 def delete_scheduletypelimits(db_path: str, scheduletypelimits_id: int) -> None:
     conn = sqlite3.connect(db_path)

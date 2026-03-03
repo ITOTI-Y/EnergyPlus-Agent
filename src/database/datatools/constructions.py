@@ -76,12 +76,12 @@ def create_construction(db_path: str,
         cursor.execute(sql, des_data)
         new_id = cursor.lastrowid
         des_data.insert(0, new_id)
+        update_description_construction(des_data[:-1], cur=cursor)
 
         conn.commit()
     finally:
         conn.close()
 
-    update_description_construction(db_path, des_data[:-1])
 
 def update_construction(db_path: str,
                         construction_id: int,
@@ -178,13 +178,12 @@ def update_construction(db_path: str,
                     updated_ly6, updated_ly7, updated_ly8, updated_ly9, updated_ly10,
                     updated_ly11, updated_ly12, updated_ly13, updated_ly14, updated_ly15,
                     updated_ly16, updated_ly17, updated_ly18, updated_ly19, updated_ly20]
-    
+        
+        update_description_construction(des_data, cur=cursor)
         conn.commit()
     finally:
         conn.close()
     
-    update_description_construction(db_path, des_data)
-
 def delete_construction(db_path: str, construction_id: int) -> None:
     conn = sqlite3.connect(db_path)
     try:

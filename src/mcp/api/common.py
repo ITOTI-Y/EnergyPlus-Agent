@@ -1,9 +1,8 @@
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict
 import numpy as np
-from typing import Any
-from typing import Literal
+
 
 class ToolInput(BaseModel):
     model_config = ConfigDict(
@@ -99,5 +98,7 @@ def convert_vertices_to_mcp_format(vertices: list[dict]) -> list[dict]:
             })
         elif isinstance(v, (list, tuple)) and len(v) >= 3:
             result.append({"X": float(v[0]), "Y": float(v[1]), "Z": float(v[2])})
+        else:
+            raise ValueError(f"Invalid vertex format: {v}. Expected dict with X/Y/Z keys or sequence with at least 3 elements.")
     return result
 

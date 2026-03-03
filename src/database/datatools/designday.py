@@ -86,11 +86,11 @@ def create_sizingperiod_designday(db_path: str,
         new_id = cursor.lastrowid
         des_data.insert(0, new_id)
 
+        update_description_sizingperiod_designday(des_data[:-1], cur=cursor)
         conn.commit()
     finally:
         conn.close()
 
-    update_description_sizingperiod_designday(db_path, des_data[:-1])
 
 def update_sizingperiod_designday(db_path: str,
                                   designday_id: int,
@@ -207,10 +207,10 @@ def update_sizingperiod_designday(db_path: str,
         ]
         cursor.execute(sql, dt)
         des_data = [designday_id] + dt[:-2]
+        update_description_sizingperiod_designday(des_data, cur=cursor)
         conn.commit()
     finally:
         conn.close()
-    update_description_sizingperiod_designday(db_path, des_data)
 
 def delete_sizingperiod_designday(db_path: str, designday_id: int) -> None:
     conn = sqlite3.connect(db_path)

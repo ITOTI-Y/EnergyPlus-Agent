@@ -121,6 +121,8 @@ class RAGSystem:
         return unsync_data
         
     def _embed_and_upsert(self, cks: list[Chunk], batch_count: int = 100):
+        if batch_count <= 0:
+            raise ValueError("batch_count must be greater than 0")
         self.logger.info("--------Begin embedding-------")
         failed_batches = 0
         for i in range(0, len(cks), batch_count):

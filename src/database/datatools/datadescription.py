@@ -141,34 +141,36 @@ def _gen_description_all_materials(data: list):
     de = 'The all_materials index data contains the parameters required in EnergyPlus. The attribute id corresponds to the id of this material in the corresponding data table. The ID represents its ID in the all_materials table. '
     return f"This is all_materials index data in our EnergyPlus database. {de} EnergyPlus Material Cross-Reference: {content}"
 
-def _update_description(db_path, table_name, data, gen_func):
-    conn = sqlite3.connect(db_path)
-    try:
-        cursor = conn.cursor()
-        description = gen_func(data)
-        sql = "UPDATE " + table_name + " SET description = ? WHERE id = ?"
-        cursor.execute(sql, (description, data[0]))
-        conn.commit()
-    finally:
-        conn.close()
+def _update_description(table_name, data, gen_func, cur):
+    if cur is None:
+        raise ValueError("cursor cannot be None")
+    if not hasattr(cur, 'connection'):
+        raise ValueError("Invalid cursor: missing connection attribute")
+    if cur.connection.closed:
+        raise ValueError("Cursor connection is closed")
+    
+    cursor = cur
+    description = gen_func(data)
+    sql = "UPDATE " + table_name + " SET description = ? WHERE id = ?"
+    cursor.execute(sql, (description, data[0]))
+    
+def update_description_material(data:list, cur):
+    _update_description("standard_materials", data, _gen_description_material, cur=cur)
 
-def update_description_material(db_path, data:list):
-    _update_description(db_path, "standard_materials", data, _gen_description_material)
+def update_description_nomass_material(data:list, cur):
+    _update_description("no_mass_materials", data, _gen_description_nomass_material, cur=cur)
 
-def update_description_nomass_material(db_path, data:list):
-    _update_description(db_path, "no_mass_materials", data, _gen_description_nomass_material)
+def update_description_construction(data:list, cur):
+    _update_description("constructions", data, _gen_description_construction, cur=cur)
 
-def update_description_construction(db_path, data:list):
-    _update_description(db_path, "constructions", data, _gen_description_construction)
+def update_description_schedule_type_limits(data:list, cur):
+    _update_description("schedule_type_limits", data, _gen_description_schedule_type_limits, cur=cur)
 
-def update_description_schedule_type_limits(db_path, data:list):
-    _update_description(db_path, "schedule_type_limits", data, _gen_description_schedule_type_limits)
+def update_description_schedule_compact(data:list, cur):
+    _update_description("schedule_compact", data, _gen_description_schedule_compact, cur=cur)
 
-def update_description_schedule_compact(db_path, data:list):
-    _update_description(db_path, "schedule_compact", data, _gen_description_schedule_compact)
+def update_description_sizingperiod_designday(data:list, cur):
+    _update_description("sizingperiod_designday", data, _gen_description_sizingperiod_designday, cur=cur)
 
-def update_description_sizingperiod_designday(db_path, data:list):
-    _update_description(db_path, "sizingperiod_designday", data, _gen_description_sizingperiod_designday)
-
-def update_description_all_materials(db_path, data:list):
-    _update_description(db_path, "all_materials", data, _gen_description_all_materials)
+def update_description_all_materials(data:list, cur):
+    _update_description("all_materials", data, _gen_description_all_materials, cur=cur)

@@ -41,12 +41,11 @@ def create_schedule_compact(db_path: str,
         cursor.execute(sql, dt)
         new_id = cursor.lastrowid
         des_data.insert(0, new_id)
-    
+        update_description_schedule_compact(des_data, cur=cursor)
         conn.commit()
     finally:
         conn.close()
 
-    update_description_schedule_compact(db_path, des_data)
 
 def update_schedule_compact(db_path: str,
                              schedule_compact_id: int,
@@ -93,11 +92,11 @@ def update_schedule_compact(db_path: str,
         dt.append(schedule_compact_id)
 
         cursor.execute(sql, dt)
+        update_description_schedule_compact([schedule_compact_id] + dt[:-2], cur=cursor)
         conn.commit()
     finally:
         conn.close()
 
-    update_description_schedule_compact(db_path, [schedule_compact_id] + dt[:-2])
 
 def delete_schedulecompact(db_path: str, schedule_compact_id: int) -> None:
     conn = sqlite3.connect(db_path)

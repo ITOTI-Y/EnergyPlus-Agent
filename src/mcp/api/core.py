@@ -1,5 +1,4 @@
 from fastmcp import FastMCP
-from pydantic import Field
 
 from src.mcp.api.common import ToolInput, to_payload, validate_floor_vertices, convert_vertices_to_mcp_format, VertexValidationError
 from src.mcp.tools import BuildingTool, LocationTool, ZoneTool, SurfaceTool
@@ -221,12 +220,14 @@ def register_core_tools(
                     data={"validation_error": error.model_dump()}
                 ).to_mcp_response()
             if ceiling_height == "autocalculate":
+                zone_tool.delete(name)
                 return ToolResponse(
                     success=False,
                     message="When using the floor_vertices parameter, a specific ceiling_height value must be specified",
                 ).to_mcp_response()
             height = float(ceiling_height)
             created_surfaces = []
+            failed_surfaces = []
             n = len(vertices)
             z_floor = vertices[0]["Z"]
             z_ceiling = z_floor + height
@@ -254,6 +255,8 @@ def register_core_tools(
 
                 if surface_response.success:
                     created_surfaces.append(surface_name)
+                else:
+                    failed_surfaces.append({"name": surface_name, "error": surface_response.message})
 
             floor_vertices_reversed = vertices[::-1]
             floor_surface_data = {
@@ -269,6 +272,8 @@ def register_core_tools(
             floor_response = surface_tool.create(floor_surface_data)
             if floor_response.success:
                 created_surfaces.append(f"{name}_Floor")
+            else:
+                failed_surfaces.append({"name": surface_name, "error": surface_response.message})
 
             ceiling_vertices = [
                 {"X": v["X"], "Y": v["Y"], "Z": z_ceiling}
@@ -287,13 +292,16 @@ def register_core_tools(
             ceiling_response = surface_tool.create(ceiling_surface_data)
             if ceiling_response.success:
                 created_surfaces.append(f"{name}_Ceiling")
+            else:
+                failed_surfaces.append({"name": surface_name, "error": surface_response.message})
             
             return ToolResponse(
-                success=True,
+                success=len(failed_surfaces) == 0,
                 message=f"Zone '{name}' created successfully with {len(created_surfaces)} surfaces.",
                 data={
                     "zone": zone_response.data,
                     "surfaces_created": created_surfaces,
+                    "surfaces_failed": failed_surfaces if failed_surfaces else None,
                 }
             ).to_mcp_response()
         

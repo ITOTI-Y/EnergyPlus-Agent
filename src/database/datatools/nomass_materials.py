@@ -47,13 +47,14 @@ def create_nomass_materials(db_path: str,
         ))
 
         new_am_id = cursor.lastrowid
-    
+
+        update_description_nomass_material(des_data, cur=cursor)
+        update_description_all_materials([new_am_id, name, 'NoMass', None, new_id], cur=cursor)
+
         conn.commit()
     finally:
         conn.close()
 
-    update_description_nomass_material(db_path, des_data)
-    update_description_all_materials(db_path, [new_am_id, name, 'NoMass', None, new_id])
 
 def update_nomass_material(db_path: str,
                             material_id: int,
@@ -111,15 +112,15 @@ def update_nomass_material(db_path: str,
             am_id = am_row['id']
             cursor.execute("UPDATE all_materials SET name = ? WHERE id = ?", (name, am_id))
             cursor.execute("UPDATE all_materials SET datetime = ? WHERE id = ?", (timestamp_int, am_id))
-    
+        des_data = [material_id] + dt[:-2] 
+        update_description_nomass_material(des_data, cur=cursor)
+        if name is not None:
+            update_description_all_materials([am_id, name, 'NoMass', None, material_id], cur=cursor)
+
         conn.commit()
     finally:
         conn.close()
-    des_data = [material_id] + dt[:-2] 
-    update_description_nomass_material(db_path, des_data)
-    if name is not None:
-        update_description_all_materials(db_path, [am_id, name, 'NoMass', None, material_id])
-
+    
 def delete_nomass_material(db_path: str, nomass_id: int) -> None:
     conn = sqlite3.connect(db_path)
     try:
