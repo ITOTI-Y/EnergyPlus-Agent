@@ -68,6 +68,7 @@ def create_mcp_server() -> FastMCP:
         building_tool=building_tool,
         location_tool=location_tool,
         zone_tool=zone_tool,
+        surface_tool=surface_tool,
     )
     register_schedule_tools(
         mcp=mcp,

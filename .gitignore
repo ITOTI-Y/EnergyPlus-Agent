@@ -222,3 +222,5 @@ output/
 qdrant_storage/
 
 data/database/
+
+test/

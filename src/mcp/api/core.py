@@ -1,8 +1,10 @@
 from fastmcp import FastMCP
 from pydantic import Field
 
-from src.mcp.api.common import ToolInput, to_payload
-from src.mcp.tools import BuildingTool, LocationTool, ZoneTool
+from src.mcp.api.common import ToolInput, to_payload, validate_floor_vertices, convert_vertices_to_mcp_format, VertexValidationError
+from src.mcp.tools import BuildingTool, LocationTool, ZoneTool, SurfaceTool
+from pydantic import BaseModel, Field
+from src.mcp.interface import ToolResponse
 
 
 class BuildingCreateInput(ToolInput):
@@ -32,6 +34,11 @@ class LocationUpdateInput(ToolInput):
     time_zone: float = Field(alias="Time Zone")
     elevation: float = Field(alias="Elevation")
 
+class FloorVertexInput(ToolInput):
+    """Bottom-face vertex input model"""
+    x: float = Field(..., alias="X", description="X coordinates")
+    y: float = Field(..., alias="Y", description="Y coordinates")
+    z: float = Field(..., alias="Z", description="Z coordinates(All points on the same base should be identical)")
 
 class ZoneCreateInput(ToolInput):
     name: str = Field(alias="Name")
@@ -46,7 +53,11 @@ class ZoneCreateInput(ToolInput):
     ceiling_height: float | str = Field(default="autocalculate", alias="Ceiling Height")
     volume: float | str = Field(default="autocalculate", alias="Volume")
     floor_area: float | str = Field(default="autocalculate", alias="Floor Area")
-
+    floor_vertices: list[FloorVertexInput] | None = Field(
+        default=None, 
+        alias="Floor Vertices",
+        description="List of bottom vertices, arranged in clockwise order"
+    )
 
 class ZoneUpdateInput(ToolInput):
     name: str = Field(alias="Name")
@@ -68,6 +79,7 @@ def register_core_tools(
     building_tool: BuildingTool,
     location_tool: LocationTool,
     zone_tool: ZoneTool,
+    surface_tool: SurfaceTool,
 ) -> None:
     @mcp.tool
     def create_building(
@@ -176,6 +188,7 @@ def register_core_tools(
         ceiling_height: float | str = "autocalculate",
         volume: float | str = "autocalculate",
         floor_area: float | str = "autocalculate",
+        floor_vertices: list[dict] | None = None,  # [{"X": 0, "Y": 0, "Z": 0}, ...]
     ) -> dict:
         payload = to_payload(
             ZoneCreateInput.model_validate(
@@ -192,7 +205,99 @@ def register_core_tools(
                 }
             )
         )
-        return zone_tool.create(payload).to_mcp_response()
+        zone_response = zone_tool.create(payload)
+
+        if not zone_response.success:
+            return zone_response.to_mcp_response()
+        if floor_vertices:
+            vertices = convert_vertices_to_mcp_format(floor_vertices)
+            is_valid, error = validate_floor_vertices(vertices)
+
+            if not is_valid:
+                zone_tool.delete(name)
+                return ToolResponse(
+                    success=False,
+                    message=f"Vertex validation failed: {error.message}",
+                    data={"validation_error": error.model_dump()}
+                ).to_mcp_response()
+            if ceiling_height == "autocalculate":
+                return ToolResponse(
+                    success=False,
+                    message="When using the floor_vertices parameter, a specific ceiling_height value must be specified",
+                ).to_mcp_response()
+            height = float(ceiling_height)
+            created_surfaces = []
+            n = len(vertices)
+            z_floor = vertices[0]["Z"]
+            z_ceiling = z_floor + height
+            for i in range(n):
+                v1 = vertices[i]
+                v2 = vertices[(i + 1) % n]
+                wall_vertices = [
+                    {"X": v1["X"], "Y": v1["Y"], "Z": z_floor},
+                    {"X": v2["X"], "Y": v2["Y"], "Z": z_floor},
+                    {"X": v2["X"], "Y": v2["Y"], "Z": z_ceiling},
+                    {"X": v1["X"], "Y": v1["Y"], "Z": z_ceiling},
+                ]
+                surface_name = f"{name}_Wall_{i+1}"
+                surface_data = {
+                    "Name": surface_name,
+                    "Surface Type": "Wall",
+                    "Construction Name": "Default_Construction",  
+                    "Zone Name": name,
+                    "Outside Boundary Condition": "Outdoors",
+                    "Sun Exposure": "SunExposed",
+                    "Wind Exposure": "WindExposed",
+                    "Vertices": wall_vertices,
+                }
+                surface_response = surface_tool.create(surface_data)
+
+                if surface_response.success:
+                    created_surfaces.append(surface_name)
+
+            floor_vertices_reversed = vertices[::-1]
+            floor_surface_data = {
+                "Name": f"{name}_Floor",
+                "Surface Type": "Floor",
+                "Construction Name": "Default_Construction",
+                "Zone Name": name,
+                "Outside Boundary Condition": "Ground",
+                "Sun Exposure": "NoSun",
+                "Wind Exposure": "NoWind",
+                "Vertices": floor_vertices_reversed, 
+            }
+            floor_response = surface_tool.create(floor_surface_data)
+            if floor_response.success:
+                created_surfaces.append(f"{name}_Floor")
+
+            ceiling_vertices = [
+                {"X": v["X"], "Y": v["Y"], "Z": z_ceiling}
+                for v in vertices
+            ]
+            ceiling_surface_data = {
+                "Name": f"{name}_Ceiling",
+                "Surface Type": "Ceiling",
+                "Construction Name": "Default_Construction",
+                "Zone Name": name,
+                "Outside Boundary Condition": "Adiabatic", 
+                "Sun Exposure": "NoSun",
+                "Wind Exposure": "NoWind",
+                "Vertices": ceiling_vertices,
+            }
+            ceiling_response = surface_tool.create(ceiling_surface_data)
+            if ceiling_response.success:
+                created_surfaces.append(f"{name}_Ceiling")
+            
+            return ToolResponse(
+                success=True,
+                message=f"Zone '{name}' created successfully with {len(created_surfaces)} surfaces.",
+                data={
+                    "zone": zone_response.data,
+                    "surfaces_created": created_surfaces,
+                }
+            ).to_mcp_response()
+        
+        return zone_response.to_mcp_response()
 
     @mcp.tool
     def get_zone(name: str) -> dict:
