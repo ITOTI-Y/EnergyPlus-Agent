@@ -17,7 +17,7 @@ def to_payload(model: BaseModel) -> dict[str, Any]:
 
 class VertexValidationError(BaseModel):
     """Vertex validation error model"""
-    error_type: Literal["not_coplanar", "not_horizontal", "not_clockwise", "insufficient_vertices", "duplicate_vertices"]
+    error_type: Literal["not_coplanar", "not_horizontal", "not_clockwise", "insufficient_vertices", "duplicate_vertices", "not_counterclockwise"]
     message: str
     details: dict[str, Any] | None = None
 

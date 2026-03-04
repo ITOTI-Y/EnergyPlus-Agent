@@ -208,7 +208,7 @@ def register_core_tools(
 
         if not zone_response.success:
             return zone_response.to_mcp_response()
-        if floor_vertices:
+        if floor_vertices is not None:
             try:
                 vertices = convert_vertices_to_mcp_format(floor_vertices)
                 is_valid, error = validate_floor_vertices(vertices)
@@ -239,6 +239,12 @@ def register_core_tools(
                 return ToolResponse(
                     success=False,
                     message="ceiling_height must be a numeric value when floor_vertices is provided",
+                ).to_mcp_response()
+            if height <= 0:
+                zone_tool.delete(name)
+                return ToolResponse(
+                    success=False,
+                    message="ceiling_height must be greater than 0 when floor_vertices is provided",
                 ).to_mcp_response()
             created_surfaces = []
             failed_surfaces = []

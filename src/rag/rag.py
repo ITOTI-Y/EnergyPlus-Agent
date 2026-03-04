@@ -13,8 +13,9 @@ class RAGSystem:
         qdrant_api_key: str,
         qdrant_collection_name: str,
         gemini_api_key: str,
+        index_db_path: str = "data/database/EP_Agent_data.db",
     ):
-        self.sqlite_processor = SQLiteProcessor()
+        self.sqlite_processor = SQLiteProcessor(db_path=index_db_path)
         self.vector_store = QdrantVectorStore(
             url=qdrant_url,
             api_key=qdrant_api_key,
