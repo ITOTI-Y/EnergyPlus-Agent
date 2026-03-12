@@ -6,61 +6,153 @@ from src.mcp.tools import BuildingTool, LocationTool, ZoneTool
 
 
 class BuildingCreateInput(ToolInput):
-    name: str = Field(alias="Name")
-    north_axis: float = Field(alias="North Axis")
-    terrain: str = Field(alias="Terrain")
+    """Input schema for creating a new Building object."""
+
+    name: str = Field(alias="Name", description="Unique name for the building.")
+    north_axis: float = Field(
+        alias="North Axis",
+        description="Building north axis angle in degrees from true north.",
+    )
+    terrain: str = Field(
+        alias="Terrain",
+        description="Terrain type for wind and solar calculations (e.g. Suburbs, City, Ocean).",
+    )
 
 
 class BuildingUpdateInput(ToolInput):
-    name: str = Field(alias="Name")
-    north_axis: float = Field(alias="North Axis")
-    terrain: str = Field(alias="Terrain")
+    """Input schema for updating an existing Building object."""
+
+    name: str = Field(alias="Name", description="Name of the building to update.")
+    north_axis: float = Field(
+        alias="North Axis",
+        description="Building north axis angle in degrees from true north.",
+    )
+    terrain: str = Field(
+        alias="Terrain",
+        description="Terrain type for wind and solar calculations.",
+    )
 
 
 class LocationCreateInput(ToolInput):
-    name: str = Field(alias="Name")
-    latitude: float = Field(alias="Latitude")
-    longitude: float = Field(alias="Longitude")
-    time_zone: float = Field(alias="Time Zone")
-    elevation: float = Field(alias="Elevation")
+    """Input schema for creating a new Site:Location object."""
+
+    name: str = Field(alias="Name", description="Unique name for the site location.")
+    latitude: float = Field(
+        alias="Latitude", description="Site latitude in degrees (-90 to 90)."
+    )
+    longitude: float = Field(
+        alias="Longitude", description="Site longitude in degrees (-180 to 180)."
+    )
+    time_zone: float = Field(
+        alias="Time Zone", description="UTC time zone offset in hours (-12 to 14)."
+    )
+    elevation: float = Field(
+        alias="Elevation", description="Site elevation above sea level in meters."
+    )
 
 
 class LocationUpdateInput(ToolInput):
-    name: str = Field(alias="Name")
-    latitude: float = Field(alias="Latitude")
-    longitude: float = Field(alias="Longitude")
-    time_zone: float = Field(alias="Time Zone")
-    elevation: float = Field(alias="Elevation")
+    """Input schema for updating an existing Site:Location object."""
+
+    name: str = Field(alias="Name", description="Name of the location to update.")
+    latitude: float = Field(
+        alias="Latitude", description="Site latitude in degrees (-90 to 90)."
+    )
+    longitude: float = Field(
+        alias="Longitude", description="Site longitude in degrees (-180 to 180)."
+    )
+    time_zone: float = Field(
+        alias="Time Zone", description="UTC time zone offset in hours (-12 to 14)."
+    )
+    elevation: float = Field(
+        alias="Elevation", description="Site elevation above sea level in meters."
+    )
 
 
 class ZoneCreateInput(ToolInput):
-    name: str = Field(alias="Name")
-    x_origin: float = Field(default=0.0, alias="X Origin")
-    y_origin: float = Field(default=0.0, alias="Y Origin")
-    z_origin: float = Field(default=0.0, alias="Z Origin")
+    """Input schema for creating a new Zone object."""
+
+    name: str = Field(alias="Name", description="Unique name for the thermal zone.")
+    x_origin: float = Field(
+        default=0.0, alias="X Origin", description="Zone origin X coordinate in meters."
+    )
+    y_origin: float = Field(
+        default=0.0, alias="Y Origin", description="Zone origin Y coordinate in meters."
+    )
+    z_origin: float = Field(
+        default=0.0, alias="Z Origin", description="Zone origin Z coordinate in meters."
+    )
     direction_of_relative_north: float | None = Field(
         default=0.0,
         alias="Direction of Relative North",
+        description="Zone north axis angle in degrees relative to building north.",
     )
-    multiplier: int = Field(default=1, alias="Multiplier")
-    ceiling_height: float | str = Field(default="autocalculate", alias="Ceiling Height")
-    volume: float | str = Field(default="autocalculate", alias="Volume")
-    floor_area: float | str = Field(default="autocalculate", alias="Floor Area")
+    multiplier: int = Field(
+        default=1,
+        alias="Multiplier",
+        description="Zone multiplier for identical zones.",
+    )
+    ceiling_height: float | str = Field(
+        default="autocalculate",
+        alias="Ceiling Height",
+        description="Zone ceiling height in meters, or 'autocalculate'.",
+    )
+    volume: float | str = Field(
+        default="autocalculate",
+        alias="Volume",
+        description="Zone volume in cubic meters, or 'autocalculate'.",
+    )
+    floor_area: float | str = Field(
+        default="autocalculate",
+        alias="Floor Area",
+        description="Zone floor area in square meters, or 'autocalculate'.",
+    )
 
 
 class ZoneUpdateInput(ToolInput):
-    name: str = Field(alias="Name")
-    x_origin: float | None = Field(default=None, alias="X Origin")
-    y_origin: float | None = Field(default=None, alias="Y Origin")
-    z_origin: float | None = Field(default=None, alias="Z Origin")
+    """Input schema for updating an existing Zone object."""
+
+    name: str = Field(alias="Name", description="Name of the zone to update.")
+    x_origin: float | None = Field(
+        default=None,
+        alias="X Origin",
+        description="Zone origin X coordinate in meters.",
+    )
+    y_origin: float | None = Field(
+        default=None,
+        alias="Y Origin",
+        description="Zone origin Y coordinate in meters.",
+    )
+    z_origin: float | None = Field(
+        default=None,
+        alias="Z Origin",
+        description="Zone origin Z coordinate in meters.",
+    )
     direction_of_relative_north: float | None = Field(
         default=None,
         alias="Direction of Relative North",
+        description="Zone north axis angle in degrees relative to building north.",
     )
-    multiplier: int | None = Field(default=None, alias="Multiplier")
-    ceiling_height: float | str | None = Field(default=None, alias="Ceiling Height")
-    volume: float | str | None = Field(default=None, alias="Volume")
-    floor_area: float | str | None = Field(default=None, alias="Floor Area")
+    multiplier: int | None = Field(
+        default=None,
+        alias="Multiplier",
+        description="Zone multiplier for identical zones.",
+    )
+    ceiling_height: float | str | None = Field(
+        default=None,
+        alias="Ceiling Height",
+        description="Zone ceiling height in meters, or 'autocalculate'.",
+    )
+    volume: float | str | None = Field(
+        default=None,
+        alias="Volume",
+        description="Zone volume in cubic meters, or 'autocalculate'.",
+    )
+    floor_area: float | str | None = Field(
+        default=None,
+        alias="Floor Area",
+        description="Zone floor area in square meters, or 'autocalculate'.",
+    )
 
 
 def register_core_tools(
@@ -69,12 +161,31 @@ def register_core_tools(
     location_tool: LocationTool,
     zone_tool: ZoneTool,
 ) -> None:
+    """Register core EnergyPlus tools (Building, Location, Zone) with the MCP server.
+
+    Args:
+        mcp: FastMCP server instance.
+        building_tool: BuildingTool instance for building operations.
+        location_tool: LocationTool instance for location operations.
+        zone_tool: ZoneTool instance for zone operations.
+    """
+
     @mcp.tool
     def create_building(
         name: str,
         north_axis: float,
         terrain: str,
     ) -> dict:
+        """Create a new EnergyPlus Building object.
+
+        Args:
+            name: Unique name for the building.
+            north_axis: Building north axis angle in degrees.
+            terrain: Terrain type (e.g. Suburbs, City, Ocean).
+
+        Returns:
+            MCP response with the created building data.
+        """
         payload = to_payload(
             BuildingCreateInput.model_validate(
                 {
@@ -88,10 +199,28 @@ def register_core_tools(
 
     @mcp.tool
     def get_building(name: str) -> dict:
+        """Retrieve an existing Building object by name.
+
+        Args:
+            name: Name of the building to retrieve.
+
+        Returns:
+            MCP response with the building data.
+        """
         return building_tool.read(name).to_mcp_response()
 
     @mcp.tool
     def update_building(name: str, north_axis: float, terrain: str) -> dict:
+        """Update an existing Building object.
+
+        Args:
+            name: Name of the building to update.
+            north_axis: New north axis angle in degrees.
+            terrain: New terrain type.
+
+        Returns:
+            MCP response with the updated building data.
+        """
         payload = to_payload(
             BuildingUpdateInput.model_validate(
                 {
@@ -105,10 +234,23 @@ def register_core_tools(
 
     @mcp.tool
     def delete_building(name: str) -> dict:
+        """Delete a Building object by name.
+
+        Args:
+            name: Name of the building to delete.
+
+        Returns:
+            MCP response with deletion result.
+        """
         return building_tool.delete(name).to_mcp_response()
 
     @mcp.tool
     def list_buildings() -> dict:
+        """List all Building objects in the configuration.
+
+        Returns:
+            MCP response with a list of all buildings.
+        """
         return building_tool.list_all().to_mcp_response()
 
     @mcp.tool
@@ -119,6 +261,18 @@ def register_core_tools(
         time_zone: float,
         elevation: float,
     ) -> dict:
+        """Create a new Site:Location object.
+
+        Args:
+            name: Unique name for the site location.
+            latitude: Site latitude in degrees.
+            longitude: Site longitude in degrees.
+            time_zone: UTC time zone offset in hours.
+            elevation: Site elevation in meters.
+
+        Returns:
+            MCP response with the created location data.
+        """
         payload = to_payload(
             LocationCreateInput.model_validate(
                 {
@@ -134,6 +288,14 @@ def register_core_tools(
 
     @mcp.tool
     def get_location(name: str) -> dict:
+        """Retrieve an existing Site:Location object by name.
+
+        Args:
+            name: Name of the location to retrieve.
+
+        Returns:
+            MCP response with the location data.
+        """
         return location_tool.read(name).to_mcp_response()
 
     @mcp.tool
@@ -144,6 +306,18 @@ def register_core_tools(
         time_zone: float,
         elevation: float,
     ) -> dict:
+        """Update an existing Site:Location object.
+
+        Args:
+            name: Name of the location to update.
+            latitude: New latitude in degrees.
+            longitude: New longitude in degrees.
+            time_zone: New UTC time zone offset.
+            elevation: New elevation in meters.
+
+        Returns:
+            MCP response with the updated location data.
+        """
         payload = to_payload(
             LocationUpdateInput.model_validate(
                 {
@@ -159,10 +333,23 @@ def register_core_tools(
 
     @mcp.tool
     def delete_location(name: str) -> dict:
+        """Delete a Site:Location object by name.
+
+        Args:
+            name: Name of the location to delete.
+
+        Returns:
+            MCP response with deletion result.
+        """
         return location_tool.delete(name).to_mcp_response()
 
     @mcp.tool
     def list_locations() -> dict:
+        """List all Site:Location objects in the configuration.
+
+        Returns:
+            MCP response with a list of all locations.
+        """
         return location_tool.list_all().to_mcp_response()
 
     @mcp.tool
@@ -177,6 +364,22 @@ def register_core_tools(
         volume: float | str = "autocalculate",
         floor_area: float | str = "autocalculate",
     ) -> dict:
+        """Create a new thermal Zone object.
+
+        Args:
+            name: Unique name for the zone.
+            x_origin: Zone origin X coordinate in meters.
+            y_origin: Zone origin Y coordinate in meters.
+            z_origin: Zone origin Z coordinate in meters.
+            direction_of_relative_north: North axis angle in degrees.
+            multiplier: Zone multiplier for identical zones.
+            ceiling_height: Ceiling height in meters or 'autocalculate'.
+            volume: Volume in cubic meters or 'autocalculate'.
+            floor_area: Floor area in square meters or 'autocalculate'.
+
+        Returns:
+            MCP response with the created zone data.
+        """
         payload = to_payload(
             ZoneCreateInput.model_validate(
                 {
@@ -196,6 +399,14 @@ def register_core_tools(
 
     @mcp.tool
     def get_zone(name: str) -> dict:
+        """Retrieve an existing Zone object by name.
+
+        Args:
+            name: Name of the zone to retrieve.
+
+        Returns:
+            MCP response with the zone data.
+        """
         return zone_tool.read(name).to_mcp_response()
 
     @mcp.tool
@@ -210,6 +421,22 @@ def register_core_tools(
         volume: float | str | None = None,
         floor_area: float | str | None = None,
     ) -> dict:
+        """Update an existing Zone object.
+
+        Args:
+            name: Name of the zone to update.
+            x_origin: New X origin in meters.
+            y_origin: New Y origin in meters.
+            z_origin: New Z origin in meters.
+            direction_of_relative_north: New north axis angle in degrees.
+            multiplier: New zone multiplier.
+            ceiling_height: New ceiling height or 'autocalculate'.
+            volume: New volume or 'autocalculate'.
+            floor_area: New floor area or 'autocalculate'.
+
+        Returns:
+            MCP response with the updated zone data.
+        """
         payload = to_payload(
             ZoneUpdateInput.model_validate(
                 {
@@ -229,8 +456,21 @@ def register_core_tools(
 
     @mcp.tool
     def delete_zone(name: str) -> dict:
+        """Delete a Zone object by name.
+
+        Args:
+            name: Name of the zone to delete.
+
+        Returns:
+            MCP response with deletion result.
+        """
         return zone_tool.delete(name).to_mcp_response()
 
     @mcp.tool
     def list_zones() -> dict:
+        """List all Zone objects in the configuration.
+
+        Returns:
+            MCP response with a list of all zones.
+        """
         return zone_tool.list_all().to_mcp_response()

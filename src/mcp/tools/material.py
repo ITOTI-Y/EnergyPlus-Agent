@@ -6,6 +6,13 @@ from src.validator.data_model import MaterialSchema
 
 
 class MaterialTool(BaseTool):
+    """Tool for managing EnergyPlus Material objects.
+
+    Handles CRUD operations for all material types (Standard, NoMass,
+    AirGap, Glazing). Materials are referenced by constructions, so
+    deletion checks for construction dependencies.
+    """
+
     def __init__(self, state: ConfigState):
         super().__init__(state, "Material")
 

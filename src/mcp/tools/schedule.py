@@ -6,6 +6,13 @@ from src.validator.data_model import ScheduleCompactSchema, ScheduleTypeLimitsSc
 
 
 class ScheduleTypeLimitsTool(BaseTool):
+    """Tool for managing EnergyPlus ScheduleTypeLimits objects.
+
+    Handles CRUD operations for schedule type limits that define valid
+    ranges and units for schedule values. Referenced by compact schedules,
+    so deletion checks for schedule dependencies.
+    """
+
     def __init__(self, state: ConfigState):
         super().__init__(state, "ScheduleTypeLimits")
 
@@ -49,6 +56,13 @@ class ScheduleTypeLimitsTool(BaseTool):
 
 
 class ScheduleCompactTool(BaseTool):
+    """Tool for managing EnergyPlus Schedule:Compact objects.
+
+    Handles CRUD operations for compact schedules that define time-varying
+    values. Referenced by thermostats, ideal loads systems, people, and
+    lights, so deletion checks for all these dependencies.
+    """
+
     def __init__(self, state: ConfigState):
         super().__init__(state, "Schedule:Compact")
 

@@ -6,6 +6,12 @@ from src.validator.data_model import BuildingSchema
 
 
 class BuildingTool(BaseTool):
+    """Tool for managing EnergyPlus Building objects.
+
+    Handles CRUD operations for the building configuration, which is a
+    singleton object (only one building per configuration).
+    """
+
     def __init__(self, state: ConfigState):
         super().__init__(state, "Building")
 

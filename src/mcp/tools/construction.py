@@ -6,6 +6,13 @@ from src.validator.data_model import ConstructionSchema
 
 
 class ConstructionTool(BaseTool):
+    """Tool for managing EnergyPlus Construction objects.
+
+    Handles CRUD operations for construction assemblies composed of
+    material layers. Constructions are referenced by surfaces and
+    fenestrations, so deletion checks for these dependencies.
+    """
+
     def __init__(self, state: ConfigState):
         super().__init__(state, "Construction")
 

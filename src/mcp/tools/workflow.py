@@ -11,10 +11,26 @@ logger = get_logger(__name__)
 
 
 class WorkflowTool:
+    """Tool for EnergyPlus workflow operations.
+
+    Provides high-level operations for exporting/loading YAML configurations,
+    validating references, running simulations, and managing overall state.
+    Unlike other tools, this does not inherit from BaseTool as it operates
+    on the entire configuration rather than individual components.
+    """
+
     def __init__(self, state: ConfigState):
         self.state = state
 
     def export_yaml(self, output_path: str) -> ToolResponse:
+        """Export the current configuration state to a YAML file.
+
+        Args:
+            output_path: File path for the output YAML file.
+
+        Returns:
+            ToolResponse with the absolute path of the exported file.
+        """
         try:
             path = Path(output_path)
             self.state.export_yaml(path)
@@ -31,6 +47,14 @@ class WorkflowTool:
             )
 
     def load_yaml(self, yaml_path: str) -> ToolResponse:
+        """Load a YAML configuration file and replace the current state.
+
+        Args:
+            yaml_path: Path to the YAML file to load.
+
+        Returns:
+            ToolResponse with a configuration summary after loading.
+        """
         try:
             path = Path(yaml_path)
             new_state = ConfigState.load_yaml(path)
@@ -51,6 +75,12 @@ class WorkflowTool:
             )
 
     def validate_config(self) -> ToolResponse:
+        """Validate all cross-references in the current configuration.
+
+        Returns:
+            ToolResponse with validation result. Includes error list on failure
+            or configuration summary on success.
+        """
         errors = self.state.validate_references()
 
         if errors:
@@ -69,6 +99,18 @@ class WorkflowTool:
     def run_simulation(
         self, epw_path: str, output_dir: str = "./output"
     ) -> ToolResponse:
+        """Run an EnergyPlus simulation with the current configuration.
+
+        Validates references, exports to YAML, converts to IDF, and
+        executes the EnergyPlus simulation.
+
+        Args:
+            epw_path: Path to the EPW weather data file.
+            output_dir: Directory for simulation output files.
+
+        Returns:
+            ToolResponse with IDF path and output directory on success.
+        """
         try:
             validation = self.validate_config()
             if not validation.success:
@@ -107,6 +149,11 @@ class WorkflowTool:
             )
 
     def get_summary(self) -> ToolResponse:
+        """Get a summary of the current configuration state.
+
+        Returns:
+            ToolResponse with configuration summary data.
+        """
         return ToolResponse(
             success=True,
             message="Configuration summary.",
@@ -114,6 +161,11 @@ class WorkflowTool:
         )
 
     def clear_all(self) -> ToolResponse:
+        """Clear all configuration state, resetting to defaults.
+
+        Returns:
+            ToolResponse confirming the state has been cleared.
+        """
         self.state.clear()
         logger.info("All configuration cleared.")
         return ToolResponse(

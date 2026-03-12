@@ -6,6 +6,13 @@ from src.validator.data_model import SiteLocationSchema
 
 
 class LocationTool(BaseTool):
+    """Tool for managing the EnergyPlus Site:Location object.
+
+    Handles CRUD operations for site location settings including
+    latitude, longitude, time zone, and elevation. This is a
+    singleton object (only one location per configuration).
+    """
+
     def __init__(self, state: ConfigState):
         super().__init__(state, "Location")
 
