@@ -113,17 +113,17 @@ class ConfigState(BaseSchema):
     )
 
     output_variable_dictionary: OutputVariableDictionarySchema = Field(
-        default_factory=dict,
+        default_factory=OutputVariableDictionarySchema,
         alias="Output:VariableDictionary",
         description="Output variable dictionary reporting settings.",
     )
     output_diagnostics: OutputDiagnosticsSchema = Field(
-        default_factory=dict,
+        default_factory=OutputDiagnosticsSchema,
         alias="Output:Diagnostics",
         description="Output diagnostics settings.",
     )
     output_table_summary_reports: OutputTableSummaryReportsSchema = Field(
-        default_factory=dict,
+        default_factory=OutputTableSummaryReportsSchema,
         alias="Output:Table:SummaryReports",
         description="Output table summary report selections.",
     )
@@ -133,7 +133,7 @@ class ConfigState(BaseSchema):
         description="List of output variable requests for simulation results.",
     )
     output_control_table_style: OutputControlTableStyleSchema = Field(
-        default_factory=dict,
+        default_factory=OutputControlTableStyleSchema,
         alias="OutputControl:Table:Style",
         description="Output table style control (HTML, CSV, etc.).",
     )
