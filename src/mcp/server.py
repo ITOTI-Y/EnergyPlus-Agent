@@ -32,12 +32,25 @@ from src.validator.data_model import BaseSchema
 
 
 def _ensure_schema_initialized() -> None:
+    """Ensure the EnergyPlus IDD schema is loaded for validation.
+
+    Loads the Energy+.idd file into BaseSchema if not already initialized.
+    This must be called before creating any schema instances.
+    """
     if BaseSchema._idf is not None:
         return
     BaseSchema.set_idf(Path("./data/dependencies/Energy+.idd"))
 
 
 def create_mcp_server() -> FastMCP:
+    """Create and configure the MCP server with all EnergyPlus tools.
+
+    Initializes the schema, creates a shared ConfigState, instantiates all
+    tool classes, and registers them with the FastMCP server.
+
+    Returns:
+        Configured FastMCP server instance ready to run.
+    """
     _ensure_schema_initialized()
 
     mcp = FastMCP(

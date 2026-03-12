@@ -9,6 +9,13 @@ from src.validator.data_model import (
 
 
 class ThermostatTool(BaseTool):
+    """Tool for managing EnergyPlus HVACTemplate:Thermostat objects.
+
+    Handles CRUD operations for HVAC thermostats that define heating
+    and cooling setpoint schedules. Referenced by ideal loads systems,
+    so deletion checks for these dependencies.
+    """
+
     def __init__(self, state: ConfigState):
         super().__init__(state, "Thermostat")
 
@@ -55,6 +62,12 @@ class ThermostatTool(BaseTool):
 
 
 class IdealLoadsSystemTool(BaseTool):
+    """Tool for managing EnergyPlus HVACTemplate:Zone:IdealLoadsAirSystem objects.
+
+    Handles CRUD operations for ideal loads air systems, keyed by zone name.
+    These are leaf HVAC components with no downstream references.
+    """
+
     def __init__(self, state: ConfigState):
         super().__init__(state, "IdealLoadsSystem")
 

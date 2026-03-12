@@ -6,6 +6,12 @@ from src.validator.data_model import PeopleSchema
 
 
 class PeopleTool(BaseTool):
+    """Tool for managing EnergyPlus People (occupancy) objects.
+
+    Handles CRUD operations for internal people/occupancy loads including
+    occupancy counts, schedules, and heat gain fractions.
+    """
+
     def __init__(self, state: ConfigState):
         super().__init__(state, "People")
 

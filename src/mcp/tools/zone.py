@@ -6,6 +6,13 @@ from src.validator.data_model import ZoneSchema
 
 
 class ZoneTool(BaseTool):
+    """Tool for managing EnergyPlus Zone objects.
+
+    Handles CRUD operations for thermal zones. Zones are referenced by
+    surfaces and HVAC ideal loads systems, so deletion checks for
+    these dependencies.
+    """
+
     def __init__(self, state: ConfigState):
         super().__init__(state, "Zone")
 
