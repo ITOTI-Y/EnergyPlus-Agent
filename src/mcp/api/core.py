@@ -179,6 +179,7 @@ def register_core_tools(
     @mcp.tool
     def create_zone(
         name: str,
+        floor_vertices: list[dict], # [{"X": 0, "Y": 0, "Z": 0}, ...]
         x_origin: float = 0.0,
         y_origin: float = 0.0,
         z_origin: float = 0.0,
@@ -187,7 +188,7 @@ def register_core_tools(
         ceiling_height: float | str = "autocalculate",
         volume: float | str = "autocalculate",
         floor_area: float | str = "autocalculate",
-        floor_vertices: list[dict] | None = None,  # [{"X": 0, "Y": 0, "Z": 0}, ...]
+        
     ) -> dict:
         payload = to_payload(
             ZoneCreateInput.model_validate(
@@ -208,7 +209,15 @@ def register_core_tools(
 
         if not zone_response.success:
             return zone_response.to_mcp_response()
-        if floor_vertices is not None:
+        
+        if floor_vertices is None:
+            zone_tool.delete(name)
+            return ToolResponse(
+                success=False,
+                message="Error: zone created without floor_vertices, please provide floor_vertices to create the zone.",
+                data=zone_response.data
+            ).to_mcp_response()
+        else:
             try:
                 vertices = convert_vertices_to_mcp_format(floor_vertices)
                 is_valid, error = validate_floor_vertices(vertices)
@@ -329,8 +338,6 @@ def register_core_tools(
                     "surfaces_failed": failed_surfaces if failed_surfaces else None,
                 }
             ).to_mcp_response()
-        
-        return zone_response.to_mcp_response()
 
     @mcp.tool
     def get_zone(name: str) -> dict:
