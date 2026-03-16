@@ -113,7 +113,6 @@ class ZoneCreateInput(ToolInput):
         alias="Floor Area",
         description="Zone floor area in square meters, or 'autocalculate'.",
     )
-<<<<<<< HEAD
     multiplier: int = Field(default=1, alias="Multiplier")
     ceiling_height: float | str = Field(default="autocalculate", alias="Ceiling Height")
     volume: float | str = Field(default="autocalculate", alias="Volume")
@@ -123,9 +122,6 @@ class ZoneCreateInput(ToolInput):
         alias="Floor Vertices",
         description="List of bottom vertices, arranged in clockwise order"
     )
-=======
-
->>>>>>> 1897c12f58892a4abddc0e2e31f9bad1104d3302
 
 class ZoneUpdateInput(ToolInput):
     """Input schema for updating an existing Zone object."""
