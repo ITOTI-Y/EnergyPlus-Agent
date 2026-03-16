@@ -6,6 +6,12 @@ from src.validator.data_model import LightSchema
 
 
 class LightTool(BaseTool):
+    """Tool for managing EnergyPlus Lights objects.
+
+    Handles CRUD operations for internal lighting loads including
+    power levels, schedules, and heat gain fractions.
+    """
+
     def __init__(self, state: ConfigState):
         super().__init__(state, "Light")
 

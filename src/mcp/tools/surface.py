@@ -6,6 +6,13 @@ from src.validator.data_model import SurfaceSchema
 
 
 class SurfaceTool(BaseTool):
+    """Tool for managing EnergyPlus BuildingSurface:Detailed objects.
+
+    Handles CRUD operations for building surfaces (walls, floors, roofs,
+    ceilings). Surfaces are referenced by fenestration surfaces, so
+    deletion checks for fenestration dependencies.
+    """
+
     def __init__(self, state: ConfigState):
         super().__init__(state, "Surface")
 
@@ -32,8 +39,6 @@ class SurfaceTool(BaseTool):
     def _check_references(self, name: str) -> list[str]:
         refs = []
 
-        # Add logic to check for references to this surface in other components
-        # For example:
         for fen in self.state.fenestrations:
             if fen.building_surface_name and name == fen.building_surface_name:
                 refs.append(f"FenestrationSurface:{fen.name}")

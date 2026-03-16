@@ -10,6 +10,12 @@ from src.validator import (
 
 
 class ToolResponse(BaseModel):
+    """Standardized response object returned by all MCP tool operations.
+
+    Wraps the result of a tool call with success status, message, and optional data
+    payload for consistent API responses.
+    """
+
     success: bool = Field(..., description="Whether the tool call was successful.")
     message: str = Field(..., description="The message from the tool call.")
     data: dict | list | None = Field(
@@ -17,17 +23,30 @@ class ToolResponse(BaseModel):
     )
 
     def to_mcp_response(self) -> dict:
+        """Convert the tool response to an MCP-compatible response dict.
+
+        Returns:
+            Dictionary with a 'result' key containing the serialized response.
+        """
         return {
             "result": self.model_dump(),
         }
 
 
 class SchemaValidationError(BaseModel):
+    """Represents a single field-level validation error from Pydantic schema validation."""
+
     field: str = Field(..., description="The field that caused the validation error.")
     message: str = Field(..., description="The message from the validation error.")
 
 
 class ConfigSummary(BaseModel):
+    """Summary snapshot of the current EnergyPlus configuration state.
+
+    Provides a high-level overview including component counts and key
+    configuration objects for quick inspection.
+    """
+
     building: BuildingSchema | None = Field(
         default=None, description="The building configuration."
     )

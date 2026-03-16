@@ -20,7 +20,7 @@
             "request": "launch",
             "program": "${workspaceFolder}/main.py",
             "args": [
-                "mcp-server", "--transport", "http", "--port", "8000"
+                "mcp-server", "--transport", "streamable-http", "--host", "0.0.0.0", "--port", "8600"
             ]
         }
     ],

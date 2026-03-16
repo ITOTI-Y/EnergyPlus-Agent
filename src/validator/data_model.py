@@ -11,6 +11,7 @@ from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
+    SerializationInfo,
     ValidationInfo,
     field_serializer,
     field_validator,
@@ -477,7 +478,7 @@ class SurfaceSchema(BaseSchema):
         return pts
 
     @field_serializer("vertices")
-    def serialize_vertices(self, v: np.ndarray, _info: ValidationInfo) -> list[dict]:
+    def serialize_vertices(self, v: np.ndarray, _info: SerializationInfo) -> list[dict]:
         return [{"X": float(pt[0]), "Y": float(pt[1]), "Z": float(pt[2])} for pt in v]
 
     @model_validator(mode="after")
@@ -976,7 +977,7 @@ class FenestrationSurfaceSchema(BaseSchema):
         return pts
 
     @field_serializer("vertices")
-    def serialize_vertices(self, v: np.ndarray, _info: ValidationInfo) -> list[dict]:
+    def serialize_vertices(self, v: np.ndarray, _info: SerializationInfo) -> list[dict]:
         return [{"X": float(pt[0]), "Y": float(pt[1]), "Z": float(pt[2])} for pt in v]
 
     def to_yaml_dict(self) -> dict[str, Any]:

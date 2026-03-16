@@ -6,6 +6,13 @@ from src.validator.data_model import FenestrationSurfaceSchema
 
 
 class FenestrationTool(BaseTool):
+    """Tool for managing EnergyPlus FenestrationSurface:Detailed objects.
+
+    Handles CRUD operations for fenestration surfaces such as windows,
+    doors, and skylights. Fenestrations are leaf components with no
+    downstream references.
+    """
+
     def __init__(self, state: ConfigState):
         super().__init__(state, "FenestrationSurface")
 

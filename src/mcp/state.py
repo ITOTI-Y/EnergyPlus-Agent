@@ -31,62 +31,128 @@ from src.validator import (
 
 
 class ConfigState(BaseSchema):
-    building: BuildingSchema | None = Field(default=None, alias="Building")
+    """Central mutable state for the EnergyPlus building configuration.
+
+    Holds all EnergyPlus objects (building, zones, materials, surfaces, etc.)
+    and provides methods for serialization, deserialization, validation, and
+    summary generation.
+    """
+
+    building: BuildingSchema | None = Field(
+        default=None, alias="Building", description="Building object configuration."
+    )
     site_location: SiteLocationSchema | None = Field(
-        default=None, alias="Site:Location"
+        default=None,
+        alias="Site:Location",
+        description="Site location with latitude, longitude, and elevation.",
     )
 
-    zones: list[ZoneSchema] = Field(default_factory=list, alias="Zone")
-    materials: list[MaterialSchema] = Field(default_factory=list, alias="Material")
+    zones: list[ZoneSchema] = Field(
+        default_factory=list,
+        alias="Zone",
+        description="List of thermal zones in the building model.",
+    )
+    materials: list[MaterialSchema] = Field(
+        default_factory=list,
+        alias="Material",
+        description="List of material definitions for constructions.",
+    )
     constructions: list[ConstructionSchema] = Field(
-        default_factory=list, alias="Construction"
+        default_factory=list,
+        alias="Construction",
+        description="List of construction assemblies composed of material layers.",
     )
     surfaces: list[SurfaceSchema] = Field(
-        default_factory=list, alias="BuildingSurface:Detailed"
+        default_factory=list,
+        alias="BuildingSurface:Detailed",
+        description="List of detailed building surfaces (walls, floors, roofs).",
     )
     fenestrations: list[FenestrationSurfaceSchema] = Field(
-        default_factory=list, alias="FenestrationSurface:Detailed"
+        default_factory=list,
+        alias="FenestrationSurface:Detailed",
+        description="List of fenestration surfaces (windows, doors, skylights).",
     )
 
     schedules: ScheduleCollectionSchema = Field(
-        default_factory=ScheduleCollectionSchema, alias="Schedule"
+        default_factory=ScheduleCollectionSchema,
+        alias="Schedule",
+        description="Collection of schedule type limits and compact schedules.",
     )
-    people: list[PeopleSchema] = Field(default_factory=list, alias="People")
+    people: list[PeopleSchema] = Field(
+        default_factory=list,
+        alias="People",
+        description="List of people/occupancy load definitions.",
+    )
 
-    lights: list[LightSchema] = Field(default_factory=list, alias="Light")
+    lights: list[LightSchema] = Field(
+        default_factory=list,
+        alias="Light",
+        description="List of lighting load definitions.",
+    )
 
-    hvac: HVACSchema = Field(default_factory=HVACSchema, alias="HVAC")
+    hvac: HVACSchema = Field(
+        default_factory=HVACSchema,
+        alias="HVAC",
+        description="HVAC configuration including thermostats and ideal loads systems.",
+    )
 
     simulation_control: SimulationControlSchema = Field(
-        default_factory=SimulationControlSchema, alias="SimulationControl"
+        default_factory=SimulationControlSchema,
+        alias="SimulationControl",
+        description="Simulation control settings (design days, weather file, etc.).",
     )
     global_geometry_rules: GlobalGeometryRulesSchema = Field(
-        default_factory=GlobalGeometryRulesSchema, alias="GlobalGeometryRules"
+        default_factory=GlobalGeometryRulesSchema,
+        alias="GlobalGeometryRules",
+        description="Global geometry rules for vertex entry and coordinate system.",
     )
     run_period: RunPeriodSchema = Field(
-        default_factory=RunPeriodSchema, alias="RunPeriod"
+        default_factory=RunPeriodSchema,
+        alias="RunPeriod",
+        description="Simulation run period (start/end dates).",
     )
 
     output_variable_dictionary: OutputVariableDictionarySchema = Field(
-        default_factory=dict, alias="Output:VariableDictionary"
+        default_factory=OutputVariableDictionarySchema,
+        alias="Output:VariableDictionary",
+        description="Output variable dictionary reporting settings.",
     )
     output_diagnostics: OutputDiagnosticsSchema = Field(
-        default_factory=dict, alias="Output:Diagnostics"
+        default_factory=OutputDiagnosticsSchema,
+        alias="Output:Diagnostics",
+        description="Output diagnostics settings.",
     )
     output_table_summary_reports: OutputTableSummaryReportsSchema = Field(
-        default_factory=dict, alias="Output:Table:SummaryReports"
+        default_factory=OutputTableSummaryReportsSchema,
+        alias="Output:Table:SummaryReports",
+        description="Output table summary report selections.",
     )
     output_variable: list[OutputVariableSchema] = Field(
-        default_factory=list, alias="Output:Variable"
+        default_factory=list,
+        alias="Output:Variable",
+        description="List of output variable requests for simulation results.",
     )
     output_control_table_style: OutputControlTableStyleSchema = Field(
-        default_factory=dict, alias="OutputControl:Table:Style"
+        default_factory=OutputControlTableStyleSchema,
+        alias="OutputControl:Table:Style",
+        description="Output table style control (HTML, CSV, etc.).",
     )
 
     def to_yaml_dict(self) -> dict[str, Any]:
+        """Serialize the configuration state to a YAML-compatible dictionary.
+
+        Returns:
+            Dictionary with alias keys, None values excluded, suitable for
+            OmegaConf serialization.
+        """
         return self.model_dump(by_alias=True, exclude_none=True, serialize_as_any=True)
 
     def export_yaml(self, output_path: str | Path) -> None:
+        """Export the configuration state to a YAML file.
+
+        Args:
+            output_path: File path for the output YAML file.
+        """
         if isinstance(output_path, str):
             output_path = Path(output_path)
         output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -96,6 +162,17 @@ class ConfigState(BaseSchema):
 
     @classmethod
     def load_yaml(cls, input_path: str | Path) -> "ConfigState":
+        """Load configuration state from a YAML file.
+
+        Args:
+            input_path: Path to the YAML file to load.
+
+        Returns:
+            New ConfigState instance populated from the YAML data.
+
+        Raises:
+            FileNotFoundError: If the YAML file does not exist.
+        """
         if isinstance(input_path, str):
             input_path = Path(input_path)
         if not input_path.exists():
@@ -106,6 +183,11 @@ class ConfigState(BaseSchema):
             return cls.model_validate(config)
 
     def clear(self) -> None:
+        """Reset all configuration state to defaults.
+
+        Clears all component lists and resets singleton objects to their
+        default-constructed state.
+        """
         self.building = None
         self.site_location = None
         self.zones.clear()
@@ -129,10 +211,20 @@ class ConfigState(BaseSchema):
         self.output_control_table_style = OutputControlTableStyleSchema()
 
     def update_from(self, other: "ConfigState") -> None:
+        """Replace all fields with values from another ConfigState instance.
+
+        Args:
+            other: Source ConfigState to copy all field values from.
+        """
         for field_name in self.model_fields:
             setattr(self, field_name, getattr(other, field_name))
 
     def get_summary(self) -> ConfigSummary:
+        """Generate a summary snapshot of the current configuration.
+
+        Returns:
+            ConfigSummary with component counts and key configuration objects.
+        """
         return ConfigSummary(
             building=self.building if self.building else None,
             site_location=self.site_location if self.site_location else None,
@@ -156,6 +248,15 @@ class ConfigState(BaseSchema):
         )
 
     def validate_references(self) -> list[str]:
+        """Validate cross-references between all components in the configuration.
+
+        Checks that constructions reference existing materials, surfaces reference
+        existing constructions and zones, fenestrations reference existing surfaces,
+        and HVAC components reference existing zones, thermostats, and schedules.
+
+        Returns:
+            List of error messages for broken references. Empty if all valid.
+        """
         errors = []
 
         material_names = [material.name for material in self.materials]
