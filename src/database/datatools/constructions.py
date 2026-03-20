@@ -19,7 +19,18 @@ def _fetch_ids_batch(
         f"SELECT name, id FROM all_materials WHERE name IN ({placeholders})",
         list(non_null),
     )
-    name_to_id: dict[str, int] = {row["name"]: row["id"] for row in cursor.fetchall()}
+    rows = cursor.fetchall()
+
+    # Detect duplicate material names
+    seen: dict[str, int] = {}
+    for row in rows:
+        if row["name"] in seen:
+            raise ValueError(
+                f"Ambiguous material name '{row['name']}': multiple entries in all_materials "
+                f"(ids: {seen[row['name']]}, {row['id']}). Use a unique name or specify by id."
+            )
+        seen[row["name"]] = row["id"]
+    name_to_id = seen
 
     result: list[int | None] = []
     for name in layer_names:

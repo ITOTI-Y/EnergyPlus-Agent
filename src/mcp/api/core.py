@@ -259,6 +259,12 @@ def _create_zone_surfaces(
     else:
         failed.append({"name": ceiling_name, "error": ceiling_resp.message})
 
+    # Rollback all created surfaces if any failed
+    if failed:
+        for surface_name in created:
+            surface_tool.delete(surface_name)
+        created.clear()
+
     return created, failed
 
 
@@ -552,18 +558,21 @@ def register_core_tools(
             height,
         )
 
+        if failed_surfaces:
+            # Surfaces already rolled back by _create_zone_surfaces; now delete zone
+            zone_tool.delete(name)
+            return ToolResponse(
+                success=False,
+                message=f"Zone '{name}' creation rolled back due to surface failures.",
+                data={"surfaces_failed": failed_surfaces},
+            ).to_mcp_response()
+
         return ToolResponse(
-            success=len(failed_surfaces) == 0,
-            message=(
-                f"Zone '{name}' created successfully with {len(created_surfaces)} surfaces."
-                if not failed_surfaces
-                else f"Zone '{name}' created with partial failures: "
-                f"{len(created_surfaces)} succeeded, {len(failed_surfaces)} failed."
-            ),
+            success=True,
+            message=f"Zone '{name}' created successfully with {len(created_surfaces)} surfaces.",
             data={
                 "zone": zone_response.data,
                 "surfaces_created": created_surfaces,
-                "surfaces_failed": failed_surfaces if failed_surfaces else None,
             },
         ).to_mcp_response()
 

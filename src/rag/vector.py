@@ -10,6 +10,10 @@ class IVectorStore(ABC):
         pass
 
     @abstractmethod
+    def delete(self, ids: list[str]) -> None:
+        pass
+
+    @abstractmethod
     def search(
         self,
         query: list[float],
@@ -58,7 +62,16 @@ class QdrantVectorStore(IVectorStore):
                 ),
             )
         else:
-            self.logger.info(f"Collection {self.collection_name} already exists")
+            info = self.client.get_collection(self.collection_name)
+            existing_size = info.config.params.vectors.size  # type: ignore[union-attr]
+            if existing_size != self.dimension:
+                raise ValueError(
+                    f"Collection '{self.collection_name}' exists with dimension {existing_size}, "
+                    f"but expected {self.dimension}."
+                )
+            self.logger.info(
+                f"Collection {self.collection_name} already exists (dimension={existing_size})"
+            )
 
     def add(
         self,
@@ -86,6 +99,15 @@ class QdrantVectorStore(IVectorStore):
             )
 
         self.logger.info(f"Added {len(chunks)} chunks to {self.collection_name}")
+
+    def delete(self, ids: list[str]) -> None:
+        from qdrant_client.models import PointIdsList
+
+        self.client.delete(
+            collection_name=self.collection_name,
+            points_selector=PointIdsList(points=ids),  # ty: ignore[invalid-argument-type]
+        )
+        self.logger.info(f"Deleted {len(ids)} points from {self.collection_name}")
 
     def search(
         self,
@@ -169,12 +191,13 @@ class QdrantVectorStore(IVectorStore):
                             k: v
                             for k, v in payload.items()
                             if k
-                            not in [
+                            not in {
                                 "data_description",
                                 "vectored_table_name",
                                 "record_id",
                                 "data_dict",
-                            ]
+                                "datetime",
+                            }
                         },
                     }
                 )

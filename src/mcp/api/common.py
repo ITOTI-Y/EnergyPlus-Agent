@@ -113,15 +113,27 @@ def validate_floor_vertices(
     return True, None
 
 
+def _get_coord(v: dict, upper: str, lower: str) -> float:
+    """Extract a coordinate from a vertex dict, requiring the key to exist."""
+    if upper in v:
+        return float(v[upper])
+    if lower in v:
+        return float(v[lower])
+    raise ValueError(
+        f"Vertex {v} is missing required coordinate '{upper}'. "
+        f"Expected key '{upper}' or '{lower}'."
+    )
+
+
 def convert_vertices_to_mcp_format(vertices: list[dict]) -> list[dict]:
     result = []
     for v in vertices:
         if isinstance(v, dict):
             result.append(
                 {
-                    "X": float(v.get("X", v.get("x", 0))),
-                    "Y": float(v.get("Y", v.get("y", 0))),
-                    "Z": float(v.get("Z", v.get("z", 0))),
+                    "X": _get_coord(v, "X", "x"),
+                    "Y": _get_coord(v, "Y", "y"),
+                    "Z": _get_coord(v, "Z", "z"),
                 }
             )
         elif isinstance(v, (list, tuple)) and len(v) >= 3:

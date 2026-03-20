@@ -43,7 +43,7 @@ def _gen_description_nomass_material(data: list):
         _format_field("Visible Absorptance", data[9]),
     ]
     content = " | ".join([f for f in fields if f])
-    de = "This data includes parameter data defined for a no mass material in EnergyPlus. The ID represents its ID in the nomass_materials table, the longitude and latitude data indicate the geographical location of the building in its source data, and the building type refers to its metadata building type."
+    de = "This data includes parameter data defined for a no mass material in EnergyPlus. The ID represents its ID in the no_mass_materials table, the longitude and latitude data indicate the geographical location of the building in its source data, and the building type refers to its metadata building type."
     return f"This is a no mass material data in our EnergyPlus database. {de} EnergyPlus No-Mass Material Details: {content}"
 
 
