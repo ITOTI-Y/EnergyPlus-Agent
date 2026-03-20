@@ -6,6 +6,8 @@ from src.rag.chunk import Chunk, SQLiteProcessor
 from src.rag.embedding import GeminiEmbeddingModel, GeminiTaskType
 from src.rag.vector import QdrantVectorStore
 from src.utils.logging import get_logger
+
+
 class RAGSystem:
     def __init__(
         self,
@@ -31,7 +33,7 @@ class RAGSystem:
         chunk_type: str | None = None,
         score_threshold: float | None = 0.5,
     ) -> list[dict]:
-        embeddings = self.embedding_model.embed_batch([query],task_type=GeminiTaskType.RETRIEVAL_QUERY)[0]
+        embeddings = self.embedding_model.embed_batch([query], task_type=GeminiTaskType.RETRIEVAL_QUERY)[0]
         results = self.vector_store.search(
             embeddings, top_k, chunk_type, score_threshold
         )
@@ -66,84 +68,84 @@ class RAGSystem:
         self,
         texts: list[str],
     ) -> list[list[float]]:
-        result = self.embedding_model.embed_batch(texts)
-        return result
-    
+        return self.embedding_model.embed_batch(texts)
+
     def chunk(
         self,
         table_name: str,
         data_id: int,
     ) -> Chunk:
-        ck = self.sqlite_processor.process_data(table_name=table_name, data_id=data_id)
-        if ck is None:
-            self.logger.error(f'failed chunk {table_name}-{data_id}.')
-            raise ValueError(f'failed chunk {table_name}-{data_id}.')
-        return ck
-    
+        result = self.sqlite_processor.process_data(table_name=table_name, data_id=data_id)
+        if result is None:
+            self.logger.error(f'Failed to chunk {table_name}-{data_id}.')
+            raise ValueError(f'Failed to chunk {table_name}-{data_id}.')
+        return result
+
     def _get_all_chunks_table_id(self) -> list[dict]:
-        aps = self.vector_store.get_all_points()
-        cti = []
-        for ap in aps:
-            vtn = ap['vectored_table_name']
-            rid = ap['record_id']
-            dt = ap['datetime']
-            cti.append({'table_name':vtn, 'record_id':rid, 'data_datetime':dt})
-        return cti
+        all_points = self.vector_store.get_all_points()
+        chunk_table_ids = []
+        for point in all_points:
+            chunk_table_ids.append({
+                'table_name': point['vectored_table_name'],
+                'record_id': point['record_id'],
+                'data_datetime': point['datetime'],
+            })
+        return chunk_table_ids
 
     def _get_all_sql(self) -> list[dict]:
         with sqlite3.connect(self.sqlite_processor.db_path) as conn:
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
-            all_sql = []
+            all_sql_records = []
             cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';")
             tables = [row[0] for row in cursor.fetchall()]
             for table in tables:
                 cursor.execute(f"SELECT id, datetime FROM [{table}]")
                 for row in cursor.fetchall():
-                    all_sql.append({
+                    all_sql_records.append({
                         'table_name': table,
                         'record_id': row['id'],
                         'data_datetime': row['datetime'],
                     })
-        return all_sql
+        return all_sql_records
 
     def check_rag_sync(self) -> list[dict]:
-        vp = self._get_all_chunks_table_id()
-        asq = self._get_all_sql()
+        vector_points = self._get_all_chunks_table_id()
+        all_sql_records = self._get_all_sql()
 
-        vp_set = { (d['table_name'], d['record_id'], d['data_datetime']) for d in vp }
+        synced_set = {(d['table_name'], d['record_id'], d['data_datetime']) for d in vector_points}
 
         unsync_data = []
-        for sq in asq:
-            sq_tuple = (sq['table_name'], sq['record_id'], sq['data_datetime'])
-            if sq_tuple not in vp_set:
-                unsync_data.append(sq)
+        for record in all_sql_records:
+            key = (record['table_name'], record['record_id'], record['data_datetime'])
+            if key not in synced_set:
+                unsync_data.append(record)
 
         return unsync_data
-        
-    def _embed_and_upsert(self, cks: list[Chunk], batch_count: int = 100):
+
+    def _embed_and_upsert(self, chunks: list[Chunk], batch_count: int = 100):
         if batch_count <= 0:
             raise ValueError("batch_count must be greater than 0")
         self.logger.info("--------Begin embedding-------")
         failed_batches = 0
-        for i in range(0, len(cks), batch_count):
-            time.sleep(1)
-            batch = cks[i:i + batch_count]
+        for i in range(0, len(chunks), batch_count):
+            batch = chunks[i:i + batch_count]
             try:
                 descriptions = [chunk.data_description for chunk in batch]
                 now_str = datetime.now().strftime("%Y-%m-%d %H:%M")
-                self.logger.info(f"Embedding: {min(i + batch_count, len(cks))}/{len(cks)} [{now_str}]")
+                self.logger.info(f"Embedding: {min(i + batch_count, len(chunks))}/{len(chunks)} [{now_str}]")
                 embeddings = self.embed(descriptions)
-                self.vector_store.add(batch, embeddings) # type: ignore
+                self.vector_store.add(batch, embeddings)  # type: ignore
                 failed_batches = 0
                 now_str = datetime.now().strftime("%Y-%m-%d %H:%M")
-                self.logger.info(f"Finish: {min(i + batch_count, len(cks))}/{len(cks)} [{now_str}]")
+                self.logger.info(f"Finish: {min(i + batch_count, len(chunks))}/{len(chunks)} [{now_str}]")
             except Exception:
                 failed_batches += 1
                 self.logger.exception(f"Failed to process batch {i // batch_count}")
                 if failed_batches >= 10:
                     self.logger.error("Too many consecutive failures, aborting.")
                     break
+                time.sleep(1)
                 continue
         if failed_batches:
             self.logger.warning(f"Embedding completed with {failed_batches} failed batch(es).")
@@ -153,35 +155,35 @@ class RAGSystem:
             batch_count: int = 100,
     ):
         unsync_data = self.check_rag_sync()
-        self.logger.info(f"Find {len(unsync_data)} data needs vectorized.")
-        cks = []
-        for ud in unsync_data:
-            table = ud['table_name']
-            rid = ud['record_id']
-            self.logger.info(f'chunking {table}-{rid}')
+        self.logger.info(f"Found {len(unsync_data)} records to vectorize.")
+        chunks = []
+        for record in unsync_data:
+            table = record['table_name']
+            record_id = record['record_id']
+            self.logger.info(f'Chunking {table}-{record_id}')
             try:
-                ck = self.chunk(table, rid)
+                chunk = self.chunk(table, record_id)
             except ValueError:
-                self.logger.error(f'skipping {table}-{rid}: chunk not found')
+                self.logger.error(f'Skipping {table}-{record_id}: chunk not found')
                 continue
-            cks.append(ck)
-        self._embed_and_upsert(cks, batch_count)
+            chunks.append(chunk)
+        self._embed_and_upsert(chunks, batch_count)
 
     def clean_zero_rag(
             self,
             batch_count: int = 100,
     ):
         zero_points = self.vector_store.get_zero_vector_points()
-        self.logger.info(f"Find {len(zero_points)} data needs re_vectorized.")
-        cks = []
-        for ud in zero_points:
-            table = ud['table_name']
-            rid = ud['record_id']
-            self.logger.info(f'chunking {table} - {rid}')
+        self.logger.info(f"Found {len(zero_points)} records to re-vectorize.")
+        chunks = []
+        for record in zero_points:
+            table = record['table_name']
+            record_id = record['record_id']
+            self.logger.info(f'Chunking {table}-{record_id}')
             try:
-                ck = self.chunk(table, rid)
+                chunk = self.chunk(table, record_id)
             except ValueError:
-                self.logger.error(f'skipping {table}-{rid}: chunk not found')
+                self.logger.error(f'Skipping {table}-{record_id}: chunk not found')
                 continue
-            cks.append(ck)
-        self._embed_and_upsert(cks, batch_count)
+            chunks.append(chunk)
+        self._embed_and_upsert(chunks, batch_count)

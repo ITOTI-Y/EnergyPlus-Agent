@@ -166,6 +166,84 @@ class ZoneUpdateInput(ToolInput):
     )
 
 
+def _create_zone_surfaces(
+    surface_tool: SurfaceTool,
+    zone_name: str,
+    vertices: list[dict],
+    height: float,
+) -> tuple[list[str], list[dict]]:
+    """Create wall, floor and ceiling surfaces for a zone.
+
+    Returns:
+        (created_surface_names, failed_surface_info)
+    """
+    created: list[str] = []
+    failed: list[dict] = []
+    n = len(vertices)
+    z_floor = vertices[0]["Z"]
+    z_ceiling = z_floor + height
+
+    for i in range(n):
+        v1 = vertices[i]
+        v2 = vertices[(i + 1) % n]
+        wall_verts = [
+            {"X": v1["X"], "Y": v1["Y"], "Z": z_floor},
+            {"X": v2["X"], "Y": v2["Y"], "Z": z_floor},
+            {"X": v2["X"], "Y": v2["Y"], "Z": z_ceiling},
+            {"X": v1["X"], "Y": v1["Y"], "Z": z_ceiling},
+        ]
+        surface_name = f"{zone_name}_Wall_{i+1}"
+        resp = surface_tool.create({
+            "Name": surface_name,
+            "Surface Type": "Wall",
+            "Construction Name": "Default_Construction",
+            "Zone Name": zone_name,
+            "Outside Boundary Condition": "Outdoors",
+            "Sun Exposure": "SunExposed",
+            "Wind Exposure": "WindExposed",
+            "Vertices": wall_verts,
+        })
+        if resp.success:
+            created.append(surface_name)
+        else:
+            failed.append({"name": surface_name, "error": resp.message})
+
+    floor_name = f"{zone_name}_Floor"
+    floor_resp = surface_tool.create({
+        "Name": floor_name,
+        "Surface Type": "Floor",
+        "Construction Name": "Default_Construction",
+        "Zone Name": zone_name,
+        "Outside Boundary Condition": "Ground",
+        "Sun Exposure": "NoSun",
+        "Wind Exposure": "NoWind",
+        "Vertices": vertices[::-1],
+    })
+    if floor_resp.success:
+        created.append(floor_name)
+    else:
+        failed.append({"name": floor_name, "error": floor_resp.message})
+
+    ceiling_name = f"{zone_name}_Ceiling"
+    ceiling_verts = [{"X": v["X"], "Y": v["Y"], "Z": z_ceiling} for v in vertices]
+    ceiling_resp = surface_tool.create({
+        "Name": ceiling_name,
+        "Surface Type": "Ceiling",
+        "Construction Name": "Default_Construction",
+        "Zone Name": zone_name,
+        "Outside Boundary Condition": "Adiabatic",
+        "Sun Exposure": "NoSun",
+        "Wind Exposure": "NoWind",
+        "Vertices": ceiling_verts,
+    })
+    if ceiling_resp.success:
+        created.append(ceiling_name)
+    else:
+        failed.append({"name": ceiling_name, "error": ceiling_resp.message})
+
+    return created, failed
+
+
 def register_core_tools(
     mcp: FastMCP,
     building_tool: BuildingTool,
@@ -449,74 +527,10 @@ def register_core_tools(
 
         if not zone_response.success:
             return zone_response.to_mcp_response()
-        created_surfaces = []
-        failed_surfaces = []
-        n = len(vertices)
-        z_floor = vertices[0]["Z"]
-        z_ceiling = z_floor + height
-        for i in range(n):
-            v1 = vertices[i]
-            v2 = vertices[(i + 1) % n]
-            wall_vertices = [
-                {"X": v1["X"], "Y": v1["Y"], "Z": z_floor},
-                {"X": v2["X"], "Y": v2["Y"], "Z": z_floor},
-                {"X": v2["X"], "Y": v2["Y"], "Z": z_ceiling},
-                {"X": v1["X"], "Y": v1["Y"], "Z": z_ceiling},
-            ]
-            surface_name = f"{name}_Wall_{i+1}"
-            surface_data = {
-                "Name": surface_name,
-                "Surface Type": "Wall",
-                "Construction Name": "Default_Construction",
-                "Zone Name": name,
-                "Outside Boundary Condition": "Outdoors",
-                "Sun Exposure": "SunExposed",
-                "Wind Exposure": "WindExposed",
-                "Vertices": wall_vertices,
-            }
-            surface_response = surface_tool.create(surface_data)
 
-            if surface_response.success:
-                created_surfaces.append(surface_name)
-            else:
-                failed_surfaces.append({"name": surface_name, "error": surface_response.message})
-
-        floor_vertices_reversed = vertices[::-1]
-        floor_surface_data = {
-            "Name": f"{name}_Floor",
-            "Surface Type": "Floor",
-            "Construction Name": "Default_Construction",
-            "Zone Name": name,
-            "Outside Boundary Condition": "Ground",
-            "Sun Exposure": "NoSun",
-            "Wind Exposure": "NoWind",
-            "Vertices": floor_vertices_reversed,
-        }
-        floor_response = surface_tool.create(floor_surface_data)
-        if floor_response.success:
-            created_surfaces.append(f"{name}_Floor")
-        else:
-            failed_surfaces.append({"name": f"{name}_Floor", "error": floor_response.message})
-
-        ceiling_vertices = [
-            {"X": v["X"], "Y": v["Y"], "Z": z_ceiling}
-            for v in vertices
-        ]
-        ceiling_surface_data = {
-            "Name": f"{name}_Ceiling",
-            "Surface Type": "Ceiling",
-            "Construction Name": "Default_Construction",
-            "Zone Name": name,
-            "Outside Boundary Condition": "Adiabatic",
-            "Sun Exposure": "NoSun",
-            "Wind Exposure": "NoWind",
-            "Vertices": ceiling_vertices,
-        }
-        ceiling_response = surface_tool.create(ceiling_surface_data)
-        if ceiling_response.success:
-            created_surfaces.append(f"{name}_Ceiling")
-        else:
-            failed_surfaces.append({"name": f"{name}_Ceiling", "error": ceiling_response.message})
+        created_surfaces, failed_surfaces = _create_zone_surfaces(
+            surface_tool, name, vertices, height,
+        )
 
         return ToolResponse(
             success=len(failed_surfaces) == 0,

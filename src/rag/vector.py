@@ -164,7 +164,7 @@ class QdrantVectorStore(IVectorStore):
         zero_points = []
         offset = None
 
-        self.logger.info(f"开始扫描 {self.collection_name} 中的全零向量...")
+        self.logger.info(f"Scanning for zero vectors in {self.collection_name}...")
 
         while True:
             scroll_result, next_offset = self.client.scroll(
@@ -192,5 +192,5 @@ class QdrantVectorStore(IVectorStore):
             if offset is None:
                 break
 
-        self.logger.info(f"扫描完成。共发现 {len(zero_points)} 个全零向量。")
+        self.logger.info(f"Scan complete. Found {len(zero_points)} zero vector(s).")
         return zero_points
