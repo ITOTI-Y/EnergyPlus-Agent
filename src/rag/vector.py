@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
-from src.rag.chunk import Chunk
 
+from src.rag.chunk import Chunk
 from src.utils.logging import get_logger
 
 
@@ -10,7 +10,13 @@ class IVectorStore(ABC):
         pass
 
     @abstractmethod
-    def search(self, query: list[float], top_k: int, table_name: str | None = None, score_threshold: float | None = None) -> list[dict]:
+    def search(
+        self,
+        query: list[float],
+        top_k: int,
+        table_name: str | None = None,
+        score_threshold: float | None = None,
+    ) -> list[dict]:
         pass
 
     @abstractmethod
@@ -64,14 +70,16 @@ class QdrantVectorStore(IVectorStore):
 
         points = []
         for chunk, embedding in zip(chunks, embeddings, strict=True):
-            points.append(PointStruct(
-                id=chunk.chunk_id, # type: ignore
-                vector=embedding,
-                payload=chunk.to_qdrant_payload(), # type: ignore
-            ))
+            points.append(
+                PointStruct(
+                    id=chunk.chunk_id,
+                    vector=embedding,
+                    payload=chunk.to_qdrant_payload(),
+                )
+            )
 
         for i in range(0, len(points), batch_size):
-            batch_points = points[i:i+batch_size]
+            batch_points = points[i : i + batch_size]
             self.client.upsert(
                 collection_name=self.collection_name,
                 points=batch_points,
@@ -91,10 +99,12 @@ class QdrantVectorStore(IVectorStore):
         search_filter = None
         if table_name:
             search_filter = Filter(
-                must=[FieldCondition(
-                    key="vectored_table_name",
-                    match=MatchValue(value=table_name),
-                )]
+                must=[
+                    FieldCondition(
+                        key="vectored_table_name",
+                        match=MatchValue(value=table_name),
+                    )
+                ]
             )
 
         query_results = self.client.query_points(
@@ -106,61 +116,82 @@ class QdrantVectorStore(IVectorStore):
             with_payload=True,
         ).points
 
-        results = []  
-        for result in query_results:  
-            payload = result.payload or {}  
-            results.append({  
-                "data_description": payload.get("data_description", ""),  
-                "vectored_table_name": payload.get("vectored_table_name", ""),  
-                "record_id": payload.get("record_id", ""),  
-                "full_data": payload.get("data_dict", ""),  
-                "score": result.score,  
-                "metadata": {  
-                    k: v for k, v in payload.items()  
-                    if k not in {"data_description", "vectored_table_name", "record_id", "data_dict", "datetime"}  
-                },  
-            }) 
+        results = []
+        for result in query_results:
+            payload = result.payload or {}
+            results.append(
+                {
+                    "data_description": payload.get("data_description", ""),
+                    "vectored_table_name": payload.get("vectored_table_name", ""),
+                    "record_id": payload.get("record_id", ""),
+                    "full_data": payload.get("data_dict", ""),
+                    "score": result.score,
+                    "metadata": {
+                        k: v
+                        for k, v in payload.items()
+                        if k
+                        not in {
+                            "data_description",
+                            "vectored_table_name",
+                            "record_id",
+                            "data_dict",
+                            "datetime",
+                        }
+                    },
+                }
+            )
 
         return results
-    
+
     def get_all_points(self) -> list[dict]:
         all_results = []
         offset = None
 
         while True:
-            
             scroll_result, next_offset = self.client.scroll(
                 collection_name=self.collection_name,
                 with_payload=True,
-                with_vectors=False, 
+                with_vectors=False,
                 offset=offset,
             )
 
             for record in scroll_result:
                 payload = record.payload or {}
-                all_results.append({
-                    "id": record.id,
-                    "data_description": payload.get("data_description", ""),
-                    "vectored_table_name": payload.get("vectored_table_name", ""),
-                    "record_id": payload.get("record_id", ""),
-                    "datetime": payload.get("datetime", 0),
-                    "full_data": payload.get("data_dict", {}),
-                    "metadata": {
-                        k: v for k, v in payload.items() 
-                        if k not in ["data_description", "vectored_table_name", "record_id", "data_dict"]
+                all_results.append(
+                    {
+                        "id": record.id,
+                        "data_description": payload.get("data_description", ""),
+                        "vectored_table_name": payload.get("vectored_table_name", ""),
+                        "record_id": payload.get("record_id", ""),
+                        "datetime": payload.get("datetime", 0),
+                        "full_data": payload.get("data_dict", {}),
+                        "metadata": {
+                            k: v
+                            for k, v in payload.items()
+                            if k
+                            not in [
+                                "data_description",
+                                "vectored_table_name",
+                                "record_id",
+                                "data_dict",
+                            ]
+                        },
                     }
-                })
+                )
 
             offset = next_offset
-            
+
             if offset is None:
                 break
 
-        self.logger.info(f"Retrieved total {len(all_results)} points from {self.collection_name}")
+        self.logger.info(
+            f"Retrieved total {len(all_results)} points from {self.collection_name}"
+        )
         return all_results
-    
+
     def get_zero_vector_points(self) -> list[dict]:
         import numpy as np
+
         zero_points = []
         offset = None
 
@@ -170,23 +201,25 @@ class QdrantVectorStore(IVectorStore):
             scroll_result, next_offset = self.client.scroll(
                 collection_name=self.collection_name,
                 with_payload=True,
-                with_vectors=True, 
+                with_vectors=True,
                 offset=offset,
-                limit=100, 
+                limit=100,
             )
 
             for record in scroll_result:
                 if record.vector is not None:
                     vec = np.array(record.vector)
-   
+
                     if np.allclose(vec, 0):
                         payload = record.payload or {}
-                        zero_points.append({
-                            "id": record.id,
-                            "table_name": payload.get("vectored_table_name", ""),
-                            "record_id": payload.get("record_id", ""),
-                            "datetime": payload.get("datetime", "")
-                        })
+                        zero_points.append(
+                            {
+                                "id": record.id,
+                                "table_name": payload.get("vectored_table_name", ""),
+                                "record_id": payload.get("record_id", ""),
+                                "datetime": payload.get("datetime", ""),
+                            }
+                        )
 
             offset = next_offset
             if offset is None:

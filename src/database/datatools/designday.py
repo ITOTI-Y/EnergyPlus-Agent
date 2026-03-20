@@ -1,7 +1,9 @@
 import sqlite3
 from datetime import datetime
 
-from src.database.datatools.datadescription import update_description_sizingperiod_designday
+from src.database.datatools.datadescription import (
+    update_description_sizingperiod_designday,
+)
 
 
 def create_sizingperiod_designday(
@@ -43,9 +45,15 @@ def create_sizingperiod_designday(
 
         sql = "INSERT INTO sizingperiod_designday (name, latitude, longitude, architecture_type, month, day_of_month, day_type, max_drybulb_temperature, daily_drybulb_temperature_range, drybulb_temperature_range_modifier_type, drybulb_temperature_range_modifier_day_schedule_name, humidity_condition_type, wetbulb_or_dewpoint_at_maximum_drybulb, humidity_condition_day_schedule_name, humidity_ratio_at_maximum_drybulb, enthalpy_at_maximum_drybulb, daily_wetbulb_temperature_range, barometric_pressure, wind_speed, wind_direction, rain_indicator, snow_indicator, daylight_saving_time_indicator, solar_model_indicator, beam_solar_day_schedule_name, diffuse_solar_day_schedule_name, ashrae_clear_sky_optical_depth_for_beam_irradiance_taub, ashrae_clear_sky_optical_depth_for_diffuse_irradiance_taud, sky_clearness, maximum_number_warmup_days, begin_environment_reset_mode, datetime) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
         des_data = [
-            name, latitude, longitude, architecture_type,
-            month, day_of_month, day_type,
-            max_dry_bulb_temp, daily_dry_bulb_range,
+            name,
+            latitude,
+            longitude,
+            architecture_type,
+            month,
+            day_of_month,
+            day_type,
+            max_dry_bulb_temp,
+            daily_dry_bulb_range,
             dry_bulb_temp_range_modifier_type,
             dry_bulb_temp_range_modifier_day_schedule_name,
             humidity_condition_type,
@@ -54,14 +62,19 @@ def create_sizingperiod_designday(
             humidity_ratio_at_maximum_drybulb,
             enthalpy_at_maximum_drybulb,
             daily_wetbulb_temperature_range,
-            barometric_pressure, wind_speed, wind_direction,
-            rain_indicator, snow_indicator,
-            daylight_saving_time_indicator, solar_model_indicator,
+            barometric_pressure,
+            wind_speed,
+            wind_direction,
+            rain_indicator,
+            snow_indicator,
+            daylight_saving_time_indicator,
+            solar_model_indicator,
             beam_solar_day_schedule_name,
             diffuse_solar_day_schedule_name,
             ashrae_clear_sky_optical_depth_for_beam_irradiance_taub,
             ashrae_clear_sky_optical_depth_for_diffuse_irradiance_taud,
-            sky_clearness, maximum_number_warmup_days,
+            sky_clearness,
+            maximum_number_warmup_days,
             begin_environment_reset_mode,
         ]
 
@@ -77,9 +90,15 @@ def create_sizingperiod_designday(
 
 # Column names in DB order (for update merge logic)
 _DB_COLUMNS = [
-    "name", "latitude", "longitude", "architecture_type",
-    "month", "day_of_month", "day_type",
-    "max_drybulb_temperature", "daily_drybulb_temperature_range",
+    "name",
+    "latitude",
+    "longitude",
+    "architecture_type",
+    "month",
+    "day_of_month",
+    "day_type",
+    "max_drybulb_temperature",
+    "daily_drybulb_temperature_range",
     "drybulb_temperature_range_modifier_type",
     "drybulb_temperature_range_modifier_day_schedule_name",
     "humidity_condition_type",
@@ -88,14 +107,19 @@ _DB_COLUMNS = [
     "humidity_ratio_at_maximum_drybulb",
     "enthalpy_at_maximum_drybulb",
     "daily_wetbulb_temperature_range",
-    "barometric_pressure", "wind_speed", "wind_direction",
-    "rain_indicator", "snow_indicator",
-    "daylight_saving_time_indicator", "solar_model_indicator",
+    "barometric_pressure",
+    "wind_speed",
+    "wind_direction",
+    "rain_indicator",
+    "snow_indicator",
+    "daylight_saving_time_indicator",
+    "solar_model_indicator",
     "beam_solar_day_schedule_name",
     "diffuse_solar_day_schedule_name",
     "ashrae_clear_sky_optical_depth_for_beam_irradiance_taub",
     "ashrae_clear_sky_optical_depth_for_diffuse_irradiance_taud",
-    "sky_clearness", "maximum_number_warmup_days",
+    "sky_clearness",
+    "maximum_number_warmup_days",
     "begin_environment_reset_mode",
 ]
 
@@ -146,10 +170,14 @@ def update_sizingperiod_designday(
     with sqlite3.connect(db_path) as conn:
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM sizingperiod_designday WHERE id = ?", (designday_id,))
+        cursor.execute(
+            "SELECT * FROM sizingperiod_designday WHERE id = ?", (designday_id,)
+        )
         row = cursor.fetchone()
         if row is None:
-            raise ValueError(f"SizingPeriod:DesignDay with id {designday_id} does not exist.")
+            raise ValueError(
+                f"SizingPeriod:DesignDay with id {designday_id} does not exist."
+            )
 
         provided = locals()
         updated_values = []
@@ -160,7 +188,9 @@ def update_sizingperiod_designday(
 
         timestamp_int = int(datetime.now().strftime("%Y%m%d%H%M"))
         set_clause = ", ".join(f"{col} = ?" for col in _DB_COLUMNS)
-        sql = f"UPDATE sizingperiod_designday SET {set_clause}, datetime = ? WHERE id = ?"
+        sql = (
+            f"UPDATE sizingperiod_designday SET {set_clause}, datetime = ? WHERE id = ?"
+        )
         cursor.execute(sql, [*updated_values, timestamp_int, designday_id])
 
         des_data = [designday_id, *updated_values]
@@ -171,7 +201,9 @@ def update_sizingperiod_designday(
 def delete_sizingperiod_designday(db_path: str, designday_id: int) -> None:
     with sqlite3.connect(db_path) as conn:
         cursor = conn.cursor()
-        cursor.execute("DELETE FROM sizingperiod_designday WHERE id = ?", (designday_id,))
+        cursor.execute(
+            "DELETE FROM sizingperiod_designday WHERE id = ?", (designday_id,)
+        )
         conn.commit()
 
 

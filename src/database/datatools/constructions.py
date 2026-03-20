@@ -41,23 +41,41 @@ def create_construction(
     layers: list[str],
 ) -> None:
     if not layers or len(layers) > MAX_LAYERS:
-        raise ValueError(f"layers must contain 1-{MAX_LAYERS} items, got {len(layers) if layers else 0}")
+        raise ValueError(
+            f"layers must contain 1-{MAX_LAYERS} items, got {len(layers) if layers else 0}"
+        )
 
     with sqlite3.connect(db_path) as conn:
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
 
-        layer_ids = _fetch_ids_batch(cursor, layers + [None] * (MAX_LAYERS - len(layers)))
+        layer_ids = _fetch_ids_batch(
+            cursor, layers + [None] * (MAX_LAYERS - len(layers))
+        )
         timestamp_int = int(datetime.now().strftime("%Y%m%d%H%M"))
 
         layer_cols = ", ".join(f"layer_{i}" for i in range(1, MAX_LAYERS + 1))
         placeholders = ", ".join(["?"] * (5 + MAX_LAYERS))
         sql = f"INSERT INTO constructions (name, latitude, longitude, architecture_type, {layer_cols}, datetime) VALUES ({placeholders}, ?)"
 
-        des_data = [name, latitude, longitude, architecture_type, *layer_ids, timestamp_int]
+        des_data = [
+            name,
+            latitude,
+            longitude,
+            architecture_type,
+            *layer_ids,
+            timestamp_int,
+        ]
         cursor.execute(sql, des_data)
         new_id = cursor.lastrowid
-        des_data_for_desc = [new_id, name, latitude, longitude, architecture_type, *layer_ids]
+        des_data_for_desc = [
+            new_id,
+            name,
+            latitude,
+            longitude,
+            architecture_type,
+            *layer_ids,
+        ]
         update_description_construction(des_data_for_desc, cur=cursor)
         conn.commit()
 
@@ -83,11 +101,17 @@ def update_construction(
         updated_name = name if name is not None else row["name"]
         updated_lat = latitude if latitude is not None else row["latitude"]
         updated_lon = longitude if longitude is not None else row["longitude"]
-        updated_arch = architecture_type if architecture_type is not None else row["architecture_type"]
+        updated_arch = (
+            architecture_type
+            if architecture_type is not None
+            else row["architecture_type"]
+        )
 
         if layers is not None:
             if not layers or len(layers) > MAX_LAYERS:
-                raise ValueError(f"layers must contain 1-{MAX_LAYERS} items, got {len(layers)}")
+                raise ValueError(
+                    f"layers must contain 1-{MAX_LAYERS} items, got {len(layers)}"
+                )
             padded = layers + [None] * (MAX_LAYERS - len(layers))
             updated_layer_ids = _fetch_ids_batch(cursor, padded)
         else:
@@ -102,12 +126,24 @@ def update_construction(
             WHERE id = ?
         """
         values = [
-            updated_name, updated_lat, updated_lon, updated_arch,
-            *updated_layer_ids, timestamp_int, construction_id,
+            updated_name,
+            updated_lat,
+            updated_lon,
+            updated_arch,
+            *updated_layer_ids,
+            timestamp_int,
+            construction_id,
         ]
         cursor.execute(sql, values)
 
-        des_data = [construction_id, updated_name, updated_lat, updated_lon, updated_arch, *updated_layer_ids]
+        des_data = [
+            construction_id,
+            updated_name,
+            updated_lat,
+            updated_lon,
+            updated_arch,
+            *updated_layer_ids,
+        ]
         update_description_construction(des_data, cur=cursor)
         conn.commit()
 

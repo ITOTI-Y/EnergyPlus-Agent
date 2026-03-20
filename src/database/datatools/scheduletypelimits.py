@@ -1,7 +1,9 @@
 import sqlite3
 from datetime import datetime
 
-from src.database.datatools.datadescription import update_description_schedule_type_limits
+from src.database.datatools.datadescription import (
+    update_description_schedule_type_limits,
+)
 
 
 def create_schedule_type_limits(
@@ -18,7 +20,16 @@ def create_schedule_type_limits(
     with sqlite3.connect(db_path) as conn:
         cursor = conn.cursor()
         sql = "INSERT INTO schedule_type_limits (name, latitude, longitude, architecture_type, lower_limit_value, upper_limit_value, numeric_type, unit_type, datetime) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
-        des_data = [name, latitude, longitude, architecture_type, lower_limit_value, upper_limit_value, numeric_type, unit_type]
+        des_data = [
+            name,
+            latitude,
+            longitude,
+            architecture_type,
+            lower_limit_value,
+            upper_limit_value,
+            numeric_type,
+            unit_type,
+        ]
         timestamp_int = int(datetime.now().strftime("%Y%m%d%H%M"))
 
         cursor.execute(sql, [*des_data, timestamp_int])
@@ -43,19 +54,38 @@ def update_schedule_type_limits(
     with sqlite3.connect(db_path) as conn:
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM schedule_type_limits WHERE id = ?", (schedule_type_limits_id,))
+        cursor.execute(
+            "SELECT * FROM schedule_type_limits WHERE id = ?",
+            (schedule_type_limits_id,),
+        )
         row = cursor.fetchone()
         if row is None:
-            raise ValueError(f"Schedule Type Limits with id {schedule_type_limits_id} does not exist.")
+            raise ValueError(
+                f"Schedule Type Limits with id {schedule_type_limits_id} does not exist."
+            )
 
-        updated_name = name if name is not None else row['name']
-        updated_latitude = latitude if latitude is not None else row['latitude']
-        updated_longitude = longitude if longitude is not None else row['longitude']
-        updated_architecture_type = architecture_type if architecture_type is not None else row['architecture_type']
-        updated_lower_limit_value = lower_limit_value if lower_limit_value is not None else row['lower_limit_value']
-        updated_upper_limit_value = upper_limit_value if upper_limit_value is not None else row['upper_limit_value']
-        updated_numeric_type = numeric_type if numeric_type is not None else row['numeric_type']
-        updated_unit_type = unit_type if unit_type is not None else row['unit_type']
+        updated_name = name if name is not None else row["name"]
+        updated_latitude = latitude if latitude is not None else row["latitude"]
+        updated_longitude = longitude if longitude is not None else row["longitude"]
+        updated_architecture_type = (
+            architecture_type
+            if architecture_type is not None
+            else row["architecture_type"]
+        )
+        updated_lower_limit_value = (
+            lower_limit_value
+            if lower_limit_value is not None
+            else row["lower_limit_value"]
+        )
+        updated_upper_limit_value = (
+            upper_limit_value
+            if upper_limit_value is not None
+            else row["upper_limit_value"]
+        )
+        updated_numeric_type = (
+            numeric_type if numeric_type is not None else row["numeric_type"]
+        )
+        updated_unit_type = unit_type if unit_type is not None else row["unit_type"]
 
         sql = """
             UPDATE schedule_type_limits
@@ -65,16 +95,29 @@ def update_schedule_type_limits(
         """
         timestamp_int = int(datetime.now().strftime("%Y%m%d%H%M"))
         values = [
-            updated_name, updated_latitude, updated_longitude, updated_architecture_type,
-            updated_lower_limit_value, updated_upper_limit_value, updated_numeric_type, updated_unit_type,
-            timestamp_int, schedule_type_limits_id,
+            updated_name,
+            updated_latitude,
+            updated_longitude,
+            updated_architecture_type,
+            updated_lower_limit_value,
+            updated_upper_limit_value,
+            updated_numeric_type,
+            updated_unit_type,
+            timestamp_int,
+            schedule_type_limits_id,
         ]
         cursor.execute(sql, values)
 
         des_data = [
             schedule_type_limits_id,
-            updated_name, updated_latitude, updated_longitude, updated_architecture_type,
-            updated_lower_limit_value, updated_upper_limit_value, updated_numeric_type, updated_unit_type,
+            updated_name,
+            updated_latitude,
+            updated_longitude,
+            updated_architecture_type,
+            updated_lower_limit_value,
+            updated_upper_limit_value,
+            updated_numeric_type,
+            updated_unit_type,
         ]
         update_description_schedule_type_limits(des_data, cur=cursor)
         conn.commit()
@@ -83,7 +126,9 @@ def update_schedule_type_limits(
 def delete_scheduletypelimits(db_path: str, scheduletypelimits_id: int) -> None:
     with sqlite3.connect(db_path) as conn:
         cursor = conn.cursor()
-        cursor.execute("DELETE FROM schedule_type_limits WHERE id = ?", (scheduletypelimits_id,))
+        cursor.execute(
+            "DELETE FROM schedule_type_limits WHERE id = ?", (scheduletypelimits_id,)
+        )
         conn.commit()
 
 

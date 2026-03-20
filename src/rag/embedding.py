@@ -1,8 +1,10 @@
 from abc import ABC, abstractmethod
 from enum import Enum
-import numpy as np
+
 from dotenv import load_dotenv
+
 from src.utils.logging import get_logger
+
 load_dotenv()
 
 
@@ -57,8 +59,8 @@ class GeminiEmbeddingModel(IEmbeddingModel):
         except Exception as e:
             self.logger.exception(f"Embedding API error: {e}")
             raise ValueError(f"Embedding API call failed: {e}") from e
-        
+
         if not result.embeddings:
             raise ValueError("Embedding API returned no embeddings")
 
-        return [emb.values for emb in result.embeddings]
+        return [emb.values for emb in result.embeddings if emb.values is not None]

@@ -38,7 +38,14 @@ def create_schedule_compact(
                 schedule_type_limit_name, {field_cols}, datetime
             ) VALUES (?, ?, ?, ?, ?, {placeholders}, ?)
         """
-        des_data = [name, latitude, longitude, architecture_type, schedule_type_limit_name] + full_compact_values
+        des_data = [
+            name,
+            latitude,
+            longitude,
+            architecture_type,
+            schedule_type_limit_name,
+            *full_compact_values,
+        ]
         timestamp_int = int(datetime.now().strftime("%Y%m%d%H%M"))
 
         cursor.execute(sql, [*des_data, timestamp_int])
@@ -61,44 +68,60 @@ def update_schedule_compact(
     with sqlite3.connect(db_path) as conn:
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM schedule_compact WHERE id = ?", (schedule_compact_id,))
+        cursor.execute(
+            "SELECT * FROM schedule_compact WHERE id = ?", (schedule_compact_id,)
+        )
         row = cursor.fetchone()
         if row is None:
-            raise ValueError(f"Schedule Compact with ID {schedule_compact_id} not found.")
+            raise ValueError(
+                f"Schedule Compact with ID {schedule_compact_id} not found."
+            )
 
-        sql = """
+        sql = (
+            """
             UPDATE schedule_compact
             SET name = ?, latitude = ?, longitude = ?, architecture_type = ?,
                 schedule_type_limit_name = ?,
-                """ + ", ".join([f"field_{i} = ?" for i in range(1, MAX_FIELDS + 1)]) + """,
+                """
+            + ", ".join([f"field_{i} = ?" for i in range(1, MAX_FIELDS + 1)])
+            + """,
                 datetime = ?
             WHERE id = ?
         """
+        )
         values = [
-            name if name is not None else row['name'],
-            latitude if latitude is not None else row['latitude'],
-            longitude if longitude is not None else row['longitude'],
-            architecture_type if architecture_type is not None else row['architecture_type'],
-            schedule_type_limit_name if schedule_type_limit_name is not None else row['schedule_type_limit_name'],
+            name if name is not None else row["name"],
+            latitude if latitude is not None else row["latitude"],
+            longitude if longitude is not None else row["longitude"],
+            architecture_type
+            if architecture_type is not None
+            else row["architecture_type"],
+            schedule_type_limit_name
+            if schedule_type_limit_name is not None
+            else row["schedule_type_limit_name"],
         ]
         if compact_values is not None:
             values.extend(_validate_compact_values(compact_values))
         else:
-            values.extend([row[f'field_{i}'] for i in range(1, MAX_FIELDS + 1)])
+            values.extend([row[f"field_{i}"] for i in range(1, MAX_FIELDS + 1)])
 
         timestamp_int = int(datetime.now().strftime("%Y%m%d%H%M"))
         values.append(timestamp_int)
         values.append(schedule_compact_id)
 
         cursor.execute(sql, values)
-        update_description_schedule_compact([schedule_compact_id] + values[:-2], cur=cursor)
+        update_description_schedule_compact(
+            [schedule_compact_id, *values[:-2]], cur=cursor
+        )
         conn.commit()
 
 
 def delete_schedulecompact(db_path: str, schedule_compact_id: int) -> None:
     with sqlite3.connect(db_path) as conn:
         cursor = conn.cursor()
-        cursor.execute("DELETE FROM schedule_compact WHERE id = ?", (schedule_compact_id,))
+        cursor.execute(
+            "DELETE FROM schedule_compact WHERE id = ?", (schedule_compact_id,)
+        )
         conn.commit()
 
 
