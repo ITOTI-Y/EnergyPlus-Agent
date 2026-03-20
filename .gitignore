@@ -224,3 +224,5 @@ qdrant_storage/
 data/database/
 
 test/
+
+_dev/
