@@ -1,11 +1,11 @@
+import sqlite3
+import time
+from datetime import datetime
+
 from src.rag.chunk import Chunk, SQLiteProcessor
 from src.rag.embedding import GeminiEmbeddingModel, GeminiTaskType
 from src.rag.vector import QdrantVectorStore
 from src.utils.logging import get_logger
-from datetime import datetime
-from pathlib import Path
-import sqlite3
-import time
 class RAGSystem:
     def __init__(
         self,

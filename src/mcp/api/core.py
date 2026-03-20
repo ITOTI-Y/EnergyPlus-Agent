@@ -394,6 +394,42 @@ def register_core_tools(
         Returns:
             MCP response with the created zone data.
         """
+        # Validate inputs before creating zone
+        try:
+            vertices = convert_vertices_to_mcp_format(floor_vertices)
+            is_valid, error = validate_floor_vertices(vertices)
+        except (TypeError, ValueError) as e:
+            return ToolResponse(
+                success=False,
+                message=f"Invalid floor_vertices: {e}",
+            ).to_mcp_response()
+
+        if not is_valid:
+            return ToolResponse(
+                success=False,
+                message=f"Vertex validation failed: {error.message}",
+                data={"validation_error": error.model_dump()}
+            ).to_mcp_response()
+
+        if ceiling_height == "autocalculate":
+            return ToolResponse(
+                success=False,
+                message="When using the floor_vertices parameter, a specific ceiling_height value must be specified",
+            ).to_mcp_response()
+        try:
+            height = float(ceiling_height)
+        except (TypeError, ValueError):
+            return ToolResponse(
+                success=False,
+                message="ceiling_height must be a numeric value when floor_vertices is provided",
+            ).to_mcp_response()
+        if height <= 0:
+            return ToolResponse(
+                success=False,
+                message="ceiling_height must be greater than 0 when floor_vertices is provided",
+            ).to_mcp_response()
+
+        # All validations passed, now create zone
         payload = to_payload(
             ZoneCreateInput.model_validate(
                 {
@@ -413,44 +449,6 @@ def register_core_tools(
 
         if not zone_response.success:
             return zone_response.to_mcp_response()
-        
-        try:
-            vertices = convert_vertices_to_mcp_format(floor_vertices)
-            is_valid, error = validate_floor_vertices(vertices)
-        except (TypeError, ValueError) as e:
-            zone_tool.delete(name)
-            return ToolResponse(
-                success=False,
-                message=f"Invalid floor_vertices: {e}",
-            ).to_mcp_response()
-
-        if not is_valid:
-            zone_tool.delete(name)
-            return ToolResponse(
-                success=False,
-                message=f"Vertex validation failed: {error.message}",
-                data={"validation_error": error.model_dump()}
-            ).to_mcp_response()
-        if ceiling_height == "autocalculate":
-            zone_tool.delete(name)
-            return ToolResponse(
-                success=False,
-                message="When using the floor_vertices parameter, a specific ceiling_height value must be specified",
-            ).to_mcp_response()
-        try:
-            height = float(ceiling_height)
-        except (TypeError, ValueError):
-            zone_tool.delete(name)
-            return ToolResponse(
-                success=False,
-                message="ceiling_height must be a numeric value when floor_vertices is provided",
-            ).to_mcp_response()
-        if height <= 0:
-            zone_tool.delete(name)
-            return ToolResponse(
-                success=False,
-                message="ceiling_height must be greater than 0 when floor_vertices is provided",
-            ).to_mcp_response()
         created_surfaces = []
         failed_surfaces = []
         n = len(vertices)
