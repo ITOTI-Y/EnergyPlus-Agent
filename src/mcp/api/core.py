@@ -559,11 +559,13 @@ def register_core_tools(
         )
 
         if failed_surfaces:
-            # Surfaces already rolled back by _create_zone_surfaces; now delete zone
-            zone_tool.delete(name)
+            zone_del_resp = zone_tool.delete(name)
+            rollback_msg = f"Zone '{name}' creation rolled back due to surface failures."
+            if not zone_del_resp.success:
+                rollback_msg += f" Warning: Zone deletion failed: {zone_del_resp.message}"
             return ToolResponse(
                 success=False,
-                message=f"Zone '{name}' creation rolled back due to surface failures.",
+                message=rollback_msg,
                 data={"surfaces_failed": failed_surfaces},
             ).to_mcp_response()
 

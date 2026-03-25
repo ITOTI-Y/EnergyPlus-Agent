@@ -63,4 +63,16 @@ class GeminiEmbeddingModel(IEmbeddingModel):
         if not result.embeddings:
             raise ValueError("Embedding API returned no embeddings")
 
-        return [emb.values for emb in result.embeddings if emb.values is not None]
+        if len(result.embeddings) != len(texts):
+            raise ValueError(
+                f"Embedding API returned {len(result.embeddings)} embeddings for {len(texts)} texts"
+            )
+
+        vectors: list[list[float]] = []
+        for idx, emb in enumerate(result.embeddings):
+            if emb.values is None:
+                raise ValueError(
+                    f"Embedding API returned an empty embedding at index {idx}"
+                )
+            vectors.append(emb.values)
+        return vectors
