@@ -1,6 +1,7 @@
 import sqlite3
 from datetime import datetime
 
+from src.database.datatools._share import TIMESTAMP
 from src.database.datatools.datadescription import update_description_construction
 
 MAX_LAYERS = 20
@@ -63,7 +64,7 @@ def create_construction(
         layer_ids = _fetch_ids_batch(
             cursor, layers + [None] * (MAX_LAYERS - len(layers))
         )
-        timestamp_int = int(datetime.now().strftime("%Y%m%d%H%M"))
+        timestamp_int = int(datetime.now().strftime(TIMESTAMP))
 
         layer_cols = ", ".join(f"layer_{i}" for i in range(1, MAX_LAYERS + 1))
         placeholders = ", ".join(["?"] * (5 + MAX_LAYERS))
@@ -128,7 +129,7 @@ def update_construction(
         else:
             updated_layer_ids = [row[f"layer_{i}"] for i in range(1, MAX_LAYERS + 1)]
 
-        timestamp_int = int(datetime.now().strftime("%Y%m%d%H%M"))
+        timestamp_int = int(datetime.now().strftime(TIMESTAMP))
         layer_set = ", ".join(f"layer_{i} = ?" for i in range(1, MAX_LAYERS + 1))
         sql = f"""
             UPDATE constructions

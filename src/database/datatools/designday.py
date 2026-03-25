@@ -1,6 +1,7 @@
 import sqlite3
 from datetime import datetime
 
+from src.database.datatools._share import TIMESTAMP
 from src.database.datatools.datadescription import (
     update_description_sizingperiod_designday,
 )
@@ -78,7 +79,7 @@ def create_sizingperiod_designday(
             begin_environment_reset_mode,
         ]
 
-        timestamp_int = int(datetime.now().strftime("%Y%m%d%H%M"))
+        timestamp_int = int(datetime.now().strftime(TIMESTAMP))
         des_data.append(timestamp_int)
         cursor.execute(sql, des_data)
         new_id = cursor.lastrowid
@@ -186,7 +187,7 @@ def update_sizingperiod_designday(
             val = provided.get(param)
             updated_values.append(val if val is not None else row[col])
 
-        timestamp_int = int(datetime.now().strftime("%Y%m%d%H%M"))
+        timestamp_int = int(datetime.now().strftime(TIMESTAMP))
         set_clause = ", ".join(f"{col} = ?" for col in _DB_COLUMNS)
         sql = (
             f"UPDATE sizingperiod_designday SET {set_clause}, datetime = ? WHERE id = ?"

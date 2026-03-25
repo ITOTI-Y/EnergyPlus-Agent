@@ -1,6 +1,7 @@
 import sqlite3
 from datetime import datetime
 
+from src.database.datatools._share import TIMESTAMP
 from src.database.datatools.datadescription import (
     update_description_all_materials,
     update_description_material,
@@ -39,7 +40,7 @@ def create_standard_materials(
             solar_absorptance,
             visible_absorptance,
         ]
-        timestamp_int = int(datetime.now().strftime("%Y%m%d%H%M"))
+        timestamp_int = int(datetime.now().strftime(TIMESTAMP))
 
         cursor.execute(sql, [*des_data, timestamp_int])
         new_id = cursor.lastrowid
@@ -125,7 +126,7 @@ def update_standard_material(
                 visible_absorptance = ?, datetime = ?
             WHERE id = ?
         """
-        timestamp_int = int(datetime.now().strftime("%Y%m%d%H%M"))
+        timestamp_int = int(datetime.now().strftime(TIMESTAMP))
         values = [
             updated_name,
             updated_lat,

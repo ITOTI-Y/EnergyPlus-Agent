@@ -1,6 +1,7 @@
 import sqlite3
 from datetime import datetime
 
+from src.database.datatools._share import TIMESTAMP
 from src.database.datatools.datadescription import (
     update_description_schedule_type_limits,
 )
@@ -30,7 +31,7 @@ def create_schedule_type_limits(
             numeric_type,
             unit_type,
         ]
-        timestamp_int = int(datetime.now().strftime("%Y%m%d%H%M"))
+        timestamp_int = int(datetime.now().strftime(TIMESTAMP))
 
         cursor.execute(sql, [*des_data, timestamp_int])
         new_id = cursor.lastrowid
@@ -95,7 +96,7 @@ def update_schedule_type_limits(
                 lower_limit_value = ?, upper_limit_value = ?, numeric_type = ?, unit_type = ?, datetime = ?
             WHERE id = ?
         """
-        timestamp_int = int(datetime.now().strftime("%Y%m%d%H%M"))
+        timestamp_int = int(datetime.now().strftime(TIMESTAMP))
         values = [
             updated_name,
             updated_latitude,

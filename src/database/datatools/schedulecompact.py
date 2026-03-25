@@ -1,6 +1,7 @@
 import sqlite3
 from datetime import datetime
 
+from src.database.datatools._share import TIMESTAMP
 from src.database.datatools.datadescription import update_description_schedule_compact
 
 MAX_FIELDS = 200
@@ -46,7 +47,7 @@ def create_schedule_compact(
             schedule_type_limit_name,
             *full_compact_values,
         ]
-        timestamp_int = int(datetime.now().strftime("%Y%m%d%H%M"))
+        timestamp_int = int(datetime.now().strftime(TIMESTAMP))
 
         cursor.execute(sql, [*des_data, timestamp_int])
         new_id = cursor.lastrowid
@@ -105,7 +106,7 @@ def update_schedule_compact(
         else:
             values.extend([row[f"field_{i}"] for i in range(1, MAX_FIELDS + 1)])
 
-        timestamp_int = int(datetime.now().strftime("%Y%m%d%H%M"))
+        timestamp_int = int(datetime.now().strftime(TIMESTAMP))
         values.append(timestamp_int)
         values.append(schedule_compact_id)
 

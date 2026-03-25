@@ -213,8 +213,14 @@ class RAGSystem:
 
         if stale_data:
             stale_ids = [record["id"] for record in stale_data]
-            self.vector_store.delete(stale_ids)
-            self.logger.info(f"Removed {len(stale_ids)} stale vectors.")
+            try:
+                self.vector_store.delete(stale_ids)
+                self.logger.info(f"Removed {len(stale_ids)} stale vectors.")
+            except Exception:
+                self.logger.exception(
+                    f"Failed to delete {len(stale_ids)} stale vectors (ids={stale_ids}), "
+                    "continuing with upsert"
+                )
 
         chunks = self._collect_chunks(unsync_data)
         return self._embed_and_upsert(chunks, batch_count)
