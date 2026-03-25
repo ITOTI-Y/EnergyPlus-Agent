@@ -34,6 +34,8 @@ def create_schedule_type_limits(
 
         cursor.execute(sql, [*des_data, timestamp_int])
         new_id = cursor.lastrowid
+        if new_id is None:
+            raise RuntimeError("Failed to insert schedule type limits record")
         des_data.insert(0, new_id)
         update_description_schedule_type_limits(des_data, cur=cursor)
         conn.commit()

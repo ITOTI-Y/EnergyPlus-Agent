@@ -1,7 +1,7 @@
 import sqlite3
 import time
-import uuid
-from datetime import datetime
+
+from tqdm import tqdm
 
 from src.rag.chunk import Chunk, SQLiteProcessor
 from src.rag.embedding import GeminiEmbeddingModel, GeminiTaskType
@@ -87,17 +87,15 @@ class RAGSystem:
         return result
 
     def _get_all_chunks_table_id(self) -> list[dict]:
-        all_points = self.vector_store.get_all_points()
-        chunk_table_ids = []
-        for point in all_points:
-            chunk_table_ids.append(
-                {
-                    "table_name": point["vectored_table_name"],
-                    "record_id": point["record_id"],
-                    "data_datetime": point["datetime"],
-                }
-            )
-        return chunk_table_ids
+        return [
+            {
+                "id": point["id"],
+                "table_name": point["vectored_table_name"],
+                "record_id": point["record_id"],
+                "data_datetime": point["datetime"],
+            }
+            for point in self.vector_store.get_all_points()
+        ]
 
     def _get_chunkable_tables(self, cursor: sqlite3.Cursor) -> list[str]:
         """Return table names that have id, datetime, and description columns."""
@@ -162,39 +160,45 @@ class RAGSystem:
 
         return unsync_data, stale_data
 
-    def _embed_and_upsert(self, chunks: list[Chunk], batch_count: int = 100):
+    def _collect_chunks(self, records: list[dict]) -> list[Chunk]:
+        chunks: list[Chunk] = []
+        for record in records:
+            table = record["table_name"]
+            record_id = record["record_id"]
+            self.logger.debug(f"Chunking {table}-{record_id}")
+            try:
+                chunks.append(self.chunk(table, record_id))
+            except ValueError:
+                self.logger.error(f"Skipping {table}-{record_id}: chunk not found")
+        return chunks
+
+    def _embed_and_upsert(self, chunks: list[Chunk], batch_count: int = 100) -> int:
         if batch_count <= 0:
             raise ValueError("batch_count must be greater than 0")
-        self.logger.info("--------Begin embedding-------")
-        failed_batches = 0
-        for i in range(0, len(chunks), batch_count):
+        total_failed = 0
+        consecutive_failures = 0
+        batch_iter = range(0, len(chunks), batch_count)
+        for i in tqdm(batch_iter, desc="Embedding", unit="batch"):
             batch = chunks[i : i + batch_count]
             try:
                 descriptions = [chunk.data_description for chunk in batch]
-                now_str = datetime.now().strftime("%Y-%m-%d %H:%M")
-                self.logger.info(
-                    f"Embedding: {min(i + batch_count, len(chunks))}/{len(chunks)} [{now_str}]"
-                )
                 embeddings = self.embed(descriptions)
                 self.vector_store.add(batch, embeddings)
-                failed_batches = 0
-                now_str = datetime.now().strftime("%Y-%m-%d %H:%M")
-                self.logger.info(
-                    f"Finish: {min(i + batch_count, len(chunks))}/{len(chunks)} [{now_str}]"
-                )
+                consecutive_failures = 0
             except Exception:
-                failed_batches += 1
+                total_failed += 1
+                consecutive_failures += 1
                 self.logger.exception(f"Failed to process batch {i // batch_count}")
-                if failed_batches >= 10:
+                if consecutive_failures >= 10:
                     self.logger.error("Too many consecutive failures, aborting.")
                     break
                 time.sleep(1)
                 continue
-        if failed_batches:
+        if total_failed:
             self.logger.warning(
-                f"Embedding completed with {failed_batches} failed batch(es)."
+                f"Embedding completed with {total_failed} failed batch(es)."
             )
-        return failed_batches
+        return total_failed
 
     def sync_rag(
         self,
@@ -207,29 +211,12 @@ class RAGSystem:
             f"{len(stale_data)} stale records to remove."
         )
 
-        # Remove stale vectors (exist in Qdrant but deleted from SQL)
         if stale_data:
-            stale_ids = []
-            for record in stale_data:
-                content_str = (
-                    f"energyplus_database_{record['table_name']}_{record['record_id']}"
-                )
-                stale_ids.append(str(uuid.uuid5(uuid.NAMESPACE_DNS, content_str)))
+            stale_ids = [record["id"] for record in stale_data]
             self.vector_store.delete(stale_ids)
             self.logger.info(f"Removed {len(stale_ids)} stale vectors.")
 
-        # Embed and upsert new/updated records
-        chunks = []
-        for record in unsync_data:
-            table = record["table_name"]
-            record_id = record["record_id"]
-            self.logger.info(f"Chunking {table}-{record_id}")
-            try:
-                chunk = self.chunk(table, record_id)
-            except ValueError:
-                self.logger.error(f"Skipping {table}-{record_id}: chunk not found")
-                continue
-            chunks.append(chunk)
+        chunks = self._collect_chunks(unsync_data)
         return self._embed_and_upsert(chunks, batch_count)
 
     def clean_zero_rag(
@@ -239,15 +226,5 @@ class RAGSystem:
         """Re-embed zero-vector points. Returns number of failed batches."""
         zero_points = self.vector_store.get_zero_vector_points()
         self.logger.info(f"Found {len(zero_points)} records to re-vectorize.")
-        chunks = []
-        for record in zero_points:
-            table = record["table_name"]
-            record_id = record["record_id"]
-            self.logger.info(f"Chunking {table}-{record_id}")
-            try:
-                chunk = self.chunk(table, record_id)
-            except ValueError:
-                self.logger.error(f"Skipping {table}-{record_id}: chunk not found")
-                continue
-            chunks.append(chunk)
+        chunks = self._collect_chunks(zero_points)
         return self._embed_and_upsert(chunks, batch_count)

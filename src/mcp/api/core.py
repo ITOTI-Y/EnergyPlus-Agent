@@ -560,9 +560,13 @@ def register_core_tools(
 
         if failed_surfaces:
             zone_del_resp = zone_tool.delete(name)
-            rollback_msg = f"Zone '{name}' creation rolled back due to surface failures."
+            rollback_msg = (
+                f"Zone '{name}' creation rolled back due to surface failures."
+            )
             if not zone_del_resp.success:
-                rollback_msg += f" Warning: Zone deletion failed: {zone_del_resp.message}"
+                rollback_msg += (
+                    f" Warning: Zone deletion failed: {zone_del_resp.message}"
+                )
             return ToolResponse(
                 success=False,
                 message=rollback_msg,

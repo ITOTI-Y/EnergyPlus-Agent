@@ -182,7 +182,7 @@ class BuildingSchema(BaseSchema):
     @field_validator("terrain")
     def validate_terrain(cls, v):
         valid_terrains = cls._idf_field.Building.Terrain.key
-        if v not in valid_terrains:  # type: ignore[operator]
+        if v not in valid_terrains:  # type: ignore
             raise ValueError(f"Terrain must be one of {valid_terrains}.")
         return v
 
@@ -413,7 +413,7 @@ class SurfaceSchema(BaseSchema):
     @field_validator("surface_type")
     def validate_surface_type(cls, v):
         valid_types = cls._idf_field.BuildingSurface_Detailed.Surface_Type.key
-        if v not in valid_types:  # type: ignore[operator]
+        if v not in valid_types:  # type: ignore
             raise ValueError(f"Surface Type must be one of {valid_types}.")
         return v
 
@@ -422,7 +422,7 @@ class SurfaceSchema(BaseSchema):
         valid_conditions = (
             cls._idf_field.BuildingSurface_Detailed.Outside_Boundary_Condition.key
         )
-        if v not in valid_conditions:  # type: ignore[operator]
+        if v not in valid_conditions:  # type: ignore
             raise ValueError(
                 f"Outside Boundary Condition must be one of {valid_conditions}."
             )
@@ -431,14 +431,14 @@ class SurfaceSchema(BaseSchema):
     @field_validator("sun_exposure")
     def validate_sun_exposure(cls, v):
         valid_exposures = cls._idf_field.BuildingSurface_Detailed.Sun_Exposure.key
-        if v not in valid_exposures:  # type: ignore[operator]
+        if v not in valid_exposures:  # type: ignore
             raise ValueError(f"Sun Exposure must be one of {valid_exposures}.")
         return v
 
     @field_validator("wind_exposure")
     def validate_wind_exposure(cls, v):
         valid_exposures = cls._idf_field.BuildingSurface_Detailed.Wind_Exposure.key
-        if v not in valid_exposures:  # type: ignore[operator]
+        if v not in valid_exposures:  # type: ignore
             raise ValueError(f"Wind Exposure must be one of {valid_exposures}.")
         return v
 
@@ -661,7 +661,7 @@ class RunPeriodSchema(BaseSchema):
     @field_validator("day_of_week_for_start_day")
     def validate_day_of_week(cls, v):
         valid_days = cls._idf_field.RunPeriod.Day_of_Week_for_Start_Day.key
-        if v is not None and v not in valid_days:  # type: ignore[operator]
+        if v is not None and v not in valid_days:  # type: ignore
             raise ValueError(f"Day of Week for Start Day must be one of {valid_days}.")
         return v
 
@@ -683,7 +683,7 @@ class GlobalGeometryRulesSchema(BaseSchema):
         valid_positions = (
             cls._idf_field.GlobalGeometryRules.Starting_Vertex_Position.key
         )
-        if v not in valid_positions:  # type: ignore[operator]
+        if v not in valid_positions:  # type: ignore
             raise ValueError(
                 f"Starting Vertex Position must be one of {valid_positions}."
             )
@@ -946,7 +946,7 @@ class FenestrationSurfaceSchema(BaseSchema):
     @field_validator("surface_type")
     def validate_surface_type(cls, v):
         valid_types = cls._idf_field.FenestrationSurface_Detailed.Surface_Type.key
-        if v not in valid_types:  # type: ignore[operator]
+        if v not in valid_types:  # type: ignore
             raise ValueError(f"Surface Type must be one of {valid_types}.")
         return v
 

@@ -51,7 +51,7 @@ class SettingsConverter(BaseConverter):
     def convert(self, data: dict[str, Any]) -> None:
         self.logger.info("Settings Converter Starting...")
 
-        version_tuple: tuple[int, ...] = self.idf.idd_version
+        version_tuple: tuple[int, ...] = self.idf.idd_version  # ty: ignore[invalid-assignment]
         global_settings_data = {
             key: data.get(key) for key in self.setting_map if key in data
         }

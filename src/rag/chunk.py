@@ -10,7 +10,7 @@ class Chunk(BaseModel):
     model_config = ConfigDict(
         arbitrary_types_allowed=True,
         validate_assignment=True,
-        extra="allow",
+        extra="forbid",
     )
     vectored_table_name: str = Field(
         description="The name of the table the chunk is vectored from"

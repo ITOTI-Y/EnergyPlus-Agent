@@ -1,7 +1,37 @@
 from abc import ABC, abstractmethod
+from typing import Any
 
 from src.rag.chunk import Chunk
 from src.utils.logging import get_logger
+
+_PAYLOAD_CORE_KEYS = {
+    "data_description",
+    "vectored_table_name",
+    "record_id",
+    "data_dict",
+    "datetime",
+}
+
+
+def _extract_payload(
+    payload: dict[str, Any],
+    *,
+    point_id: Any = None,
+    score: float | None = None,
+) -> dict[str, Any]:
+    result: dict[str, Any] = {
+        "data_description": payload.get("data_description", ""),
+        "vectored_table_name": payload.get("vectored_table_name", ""),
+        "record_id": payload.get("record_id", ""),
+        "datetime": payload.get("datetime", 0),
+        "full_data": payload.get("data_dict", {}),
+        "metadata": {k: v for k, v in payload.items() if k not in _PAYLOAD_CORE_KEYS},
+    }
+    if point_id is not None:
+        result["id"] = point_id
+    if score is not None:
+        result["score"] = score
+    return result
 
 
 class IVectorStore(ABC):
@@ -38,7 +68,6 @@ class QdrantVectorStore(IVectorStore):
         dimension: int = 3072,
     ):
         from qdrant_client import QdrantClient
-        from qdrant_client.models import Distance, VectorParams
 
         self.client = QdrantClient(
             url=url,
@@ -46,24 +75,24 @@ class QdrantVectorStore(IVectorStore):
             prefer_grpc=prefer_grpc,
         )
         self.collection_name = collection_name
-        self.distance = Distance
-        self.vector_params = VectorParams
         self.dimension = dimension
         self.logger = get_logger(__name__)
         self._create_collection()
 
     def _create_collection(self) -> None:
+        from qdrant_client.models import Distance, VectorParams
+
         if not self.client.collection_exists(self.collection_name):
             self.client.create_collection(
                 collection_name=self.collection_name,
-                vectors_config=self.vector_params(
+                vectors_config=VectorParams(
                     size=self.dimension,
-                    distance=self.distance.COSINE,
+                    distance=Distance.COSINE,
                 ),
             )
         else:
             info = self.client.get_collection(self.collection_name)
-            existing_size = info.config.params.vectors.size  # type: ignore[union-attr]
+            existing_size = info.config.params.vectors.size  # type: ignore
             if existing_size != self.dimension:
                 raise ValueError(
                     f"Collection '{self.collection_name}' exists with dimension {existing_size}, "
@@ -81,21 +110,19 @@ class QdrantVectorStore(IVectorStore):
     ) -> None:
         from qdrant_client.models import PointStruct
 
-        points = []
-        for chunk, embedding in zip(chunks, embeddings, strict=True):
-            points.append(
-                PointStruct(
-                    id=chunk.chunk_id,
-                    vector=embedding,
-                    payload=chunk.to_qdrant_payload(),
-                )
+        points = [
+            PointStruct(
+                id=chunk.chunk_id,
+                vector=embedding,
+                payload=chunk.to_qdrant_payload(),
             )
+            for chunk, embedding in zip(chunks, embeddings, strict=True)
+        ]
 
         for i in range(0, len(points), batch_size):
-            batch_points = points[i : i + batch_size]
             self.client.upsert(
                 collection_name=self.collection_name,
-                points=batch_points,
+                points=points[i : i + batch_size],
             )
 
         self.logger.info(f"Added {len(chunks)} chunks to {self.collection_name}")
@@ -115,7 +142,7 @@ class QdrantVectorStore(IVectorStore):
         top_k: int = 10,
         table_name: str | None = None,
         score_threshold: float | None = None,
-    ):
+    ) -> list[dict]:
         from qdrant_client.models import FieldCondition, Filter, MatchValue
 
         search_filter = None
@@ -138,35 +165,13 @@ class QdrantVectorStore(IVectorStore):
             with_payload=True,
         ).points
 
-        results = []
-        for result in query_results:
-            payload = result.payload or {}
-            results.append(
-                {
-                    "data_description": payload.get("data_description", ""),
-                    "vectored_table_name": payload.get("vectored_table_name", ""),
-                    "record_id": payload.get("record_id", ""),
-                    "full_data": payload.get("data_dict", ""),
-                    "score": result.score,
-                    "metadata": {
-                        k: v
-                        for k, v in payload.items()
-                        if k
-                        not in {
-                            "data_description",
-                            "vectored_table_name",
-                            "record_id",
-                            "data_dict",
-                            "datetime",
-                        }
-                    },
-                }
-            )
-
-        return results
+        return [
+            _extract_payload(point.payload or {}, score=point.score)
+            for point in query_results
+        ]
 
     def get_all_points(self) -> list[dict]:
-        all_results = []
+        all_results: list[dict] = []
         offset = None
 
         while True:
@@ -178,32 +183,11 @@ class QdrantVectorStore(IVectorStore):
             )
 
             for record in scroll_result:
-                payload = record.payload or {}
                 all_results.append(
-                    {
-                        "id": record.id,
-                        "data_description": payload.get("data_description", ""),
-                        "vectored_table_name": payload.get("vectored_table_name", ""),
-                        "record_id": payload.get("record_id", ""),
-                        "datetime": payload.get("datetime", 0),
-                        "full_data": payload.get("data_dict", {}),
-                        "metadata": {
-                            k: v
-                            for k, v in payload.items()
-                            if k
-                            not in {
-                                "data_description",
-                                "vectored_table_name",
-                                "record_id",
-                                "data_dict",
-                                "datetime",
-                            }
-                        },
-                    }
+                    _extract_payload(record.payload or {}, point_id=record.id)
                 )
 
             offset = next_offset
-
             if offset is None:
                 break
 
@@ -213,9 +197,7 @@ class QdrantVectorStore(IVectorStore):
         return all_results
 
     def get_zero_vector_points(self) -> list[dict]:
-        import numpy as np
-
-        zero_points = []
+        zero_points: list[dict] = []
         offset = None
 
         self.logger.info(f"Scanning for zero vectors in {self.collection_name}...")
@@ -230,19 +212,16 @@ class QdrantVectorStore(IVectorStore):
             )
 
             for record in scroll_result:
-                if record.vector is not None:
-                    vec = np.array(record.vector)
-
-                    if np.allclose(vec, 0):
-                        payload = record.payload or {}
-                        zero_points.append(
-                            {
-                                "id": record.id,
-                                "table_name": payload.get("vectored_table_name", ""),
-                                "record_id": payload.get("record_id", ""),
-                                "datetime": payload.get("datetime", ""),
-                            }
-                        )
+                if record.vector is not None and all(v == 0.0 for v in record.vector):
+                    payload = record.payload or {}
+                    zero_points.append(
+                        {
+                            "id": record.id,
+                            "table_name": payload.get("vectored_table_name", ""),
+                            "record_id": payload.get("record_id", ""),
+                            "datetime": payload.get("datetime", ""),
+                        }
+                    )
 
             offset = next_offset
             if offset is None:

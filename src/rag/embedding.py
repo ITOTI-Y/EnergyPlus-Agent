@@ -1,11 +1,7 @@
 from abc import ABC, abstractmethod
 from enum import Enum
 
-from dotenv import load_dotenv
-
 from src.utils.logging import get_logger
-
-load_dotenv()
 
 
 class IEmbeddingModel(ABC):
