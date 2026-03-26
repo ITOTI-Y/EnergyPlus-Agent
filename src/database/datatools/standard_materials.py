@@ -1,7 +1,7 @@
 import sqlite3
 from datetime import datetime
 
-from src.database.datatools._share import TIMESTAMP
+from src.database.datatools._share import TIMESTAMP, UNSET, _UnsetType
 from src.database.datatools.datadescription import (
     update_description_all_materials,
     update_description_material,
@@ -66,18 +66,18 @@ def create_standard_materials(
 def update_standard_material(
     db_path: str,
     material_id: int,
-    name: str | None = None,
-    latitude: float | None = None,
-    longitude: float | None = None,
-    architecture_type: str | None = None,
-    roughness: str | None = None,
-    thickness: float | None = None,
-    conductivity: float | None = None,
-    density: float | None = None,
-    specific_heat: float | None = None,
-    thermal_absorptance: float | None = None,
-    solar_absorptance: float | None = None,
-    visible_absorptance: float | None = None,
+    name: str | _UnsetType = UNSET,
+    latitude: float | _UnsetType = UNSET,
+    longitude: float | _UnsetType = UNSET,
+    architecture_type: str | _UnsetType = UNSET,
+    roughness: str | _UnsetType = UNSET,
+    thickness: float | _UnsetType = UNSET,
+    conductivity: float | _UnsetType = UNSET,
+    density: float | _UnsetType = UNSET,
+    specific_heat: float | _UnsetType = UNSET,
+    thermal_absorptance: float | _UnsetType = UNSET,
+    solar_absorptance: float | _UnsetType = UNSET,
+    visible_absorptance: float | _UnsetType = UNSET,
 ) -> None:
     with sqlite3.connect(db_path) as conn:
         conn.row_factory = sqlite3.Row
@@ -87,34 +87,36 @@ def update_standard_material(
         if row is None:
             raise ValueError(f"Material with id {material_id} does not exist.")
 
-        updated_name = name if name is not None else row["name"]
-        updated_lat = latitude if latitude is not None else row["latitude"]
-        updated_lon = longitude if longitude is not None else row["longitude"]
+        updated_name = name if name is not UNSET else row["name"]
+        updated_lat = latitude if latitude is not UNSET else row["latitude"]
+        updated_lon = longitude if longitude is not UNSET else row["longitude"]
         updated_arch = (
             architecture_type
-            if architecture_type is not None
+            if architecture_type is not UNSET
             else row["architecture_type"]
         )
-        updated_rough = roughness if roughness is not None else row["roughness"]
-        updated_thick = thickness if thickness is not None else row["thickness"]
-        updated_cond = conductivity if conductivity is not None else row["conductivity"]
-        updated_dens = density if density is not None else row["density"]
+        updated_rough = roughness if roughness is not UNSET else row["roughness"]
+        updated_thick = thickness if thickness is not UNSET else row["thickness"]
+        updated_cond = (
+            conductivity if conductivity is not UNSET else row["conductivity"]
+        )
+        updated_dens = density if density is not UNSET else row["density"]
         updated_spec = (
-            specific_heat if specific_heat is not None else row["specific_heat"]
+            specific_heat if specific_heat is not UNSET else row["specific_heat"]
         )
         updated_ther = (
             thermal_absorptance
-            if thermal_absorptance is not None
+            if thermal_absorptance is not UNSET
             else row["thermal_absorptance"]
         )
         updated_solr = (
             solar_absorptance
-            if solar_absorptance is not None
+            if solar_absorptance is not UNSET
             else row["solar_absorptance"]
         )
         updated_visb = (
             visible_absorptance
-            if visible_absorptance is not None
+            if visible_absorptance is not UNSET
             else row["visible_absorptance"]
         )
 
@@ -145,7 +147,7 @@ def update_standard_material(
         ]
         cursor.execute(sql, values)
 
-        if name is not None:
+        if name is not UNSET:
             cursor.execute(
                 "SELECT id FROM all_materials WHERE standard_material_id = ?",
                 (material_id,),
@@ -177,7 +179,7 @@ def update_standard_material(
             updated_visb,
         ]
         update_description_material(des_data, cur=cursor)
-        if name is not None:
+        if name is not UNSET:
             update_description_all_materials(
                 [am_id, name, "Mass", material_id, None], cur=cursor
             )

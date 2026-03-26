@@ -1,7 +1,7 @@
 import sqlite3
 from datetime import datetime
 
-from src.database.datatools._share import TIMESTAMP
+from src.database.datatools._share import TIMESTAMP, UNSET, _UnsetType
 from src.database.datatools.datadescription import update_description_construction
 
 MAX_LAYERS = 20
@@ -68,7 +68,7 @@ def create_construction(
 
         layer_cols = ", ".join(f"layer_{i}" for i in range(1, MAX_LAYERS + 1))
         placeholders = ", ".join(["?"] * (5 + MAX_LAYERS))
-        sql = f"INSERT INTO constructions (name, latitude, longitude, architecture_type, {layer_cols}, datetime) VALUES ({placeholders}, ?)"
+        sql = f"INSERT INTO constructions (name, latitude, longitude, architecture_type, {layer_cols}, datetime) VALUES ({placeholders})"
 
         des_data = [
             name,
@@ -95,11 +95,11 @@ def create_construction(
 def update_construction(
     db_path: str,
     construction_id: int,
-    name: str | None = None,
-    latitude: float | None = None,
-    longitude: float | None = None,
-    architecture_type: str | None = None,
-    layers: list[str] | None = None,
+    name: str | _UnsetType = UNSET,
+    latitude: float | _UnsetType = UNSET,
+    longitude: float | _UnsetType = UNSET,
+    architecture_type: str | _UnsetType = UNSET,
+    layers: list[str] | _UnsetType = UNSET,
 ) -> None:
     with sqlite3.connect(db_path) as conn:
         conn.row_factory = sqlite3.Row
@@ -110,16 +110,16 @@ def update_construction(
         if not row:
             raise ValueError(f"No construction found with id {construction_id}")
 
-        updated_name = name if name is not None else row["name"]
-        updated_lat = latitude if latitude is not None else row["latitude"]
-        updated_lon = longitude if longitude is not None else row["longitude"]
+        updated_name = name if name is not UNSET else row["name"]
+        updated_lat = latitude if latitude is not UNSET else row["latitude"]
+        updated_lon = longitude if longitude is not UNSET else row["longitude"]
         updated_arch = (
             architecture_type
-            if architecture_type is not None
+            if architecture_type is not UNSET
             else row["architecture_type"]
         )
 
-        if layers is not None:
+        if not isinstance(layers, _UnsetType):
             if not layers or len(layers) > MAX_LAYERS:
                 raise ValueError(
                     f"layers must contain 1-{MAX_LAYERS} items, got {len(layers)}"

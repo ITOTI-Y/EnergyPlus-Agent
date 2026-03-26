@@ -1,5 +1,6 @@
 import sqlite3
 import time
+from dataclasses import dataclass
 
 from tqdm import tqdm
 
@@ -7,6 +8,13 @@ from src.rag.chunk import Chunk, SQLiteProcessor
 from src.rag.embedding import GeminiEmbeddingModel, GeminiTaskType
 from src.rag.vector import QdrantVectorStore
 from src.utils.logging import get_logger
+
+
+@dataclass
+class SyncResult:
+    failed_batches: int
+    deleted_failed: bool
+    delete_error: Exception | None = None
 
 
 class RAGSystem:
@@ -203,7 +211,7 @@ class RAGSystem:
     def sync_rag(
         self,
         batch_count: int = 100,
-    ) -> int:
+    ) -> SyncResult:
         """Sync SQL records to Qdrant. Returns number of failed batches."""
         unsync_data, stale_data = self.check_rag_sync()
         self.logger.info(
@@ -211,19 +219,29 @@ class RAGSystem:
             f"{len(stale_data)} stale records to remove."
         )
 
+        deleted_failed = False
+        delete_error = None
+
         if stale_data:
             stale_ids = [record["id"] for record in stale_data]
             try:
                 self.vector_store.delete(stale_ids)
                 self.logger.info(f"Removed {len(stale_ids)} stale vectors.")
-            except Exception:
+            except Exception as e:
+                deleted_failed = True
+                delete_error = e
                 self.logger.exception(
                     f"Failed to delete {len(stale_ids)} stale vectors (ids={stale_ids}), "
                     "continuing with upsert"
                 )
 
         chunks = self._collect_chunks(unsync_data)
-        return self._embed_and_upsert(chunks, batch_count)
+        failed_batches = self._embed_and_upsert(chunks, batch_count)
+        return SyncResult(
+            failed_batches=failed_batches,
+            deleted_failed=deleted_failed,
+            delete_error=delete_error,
+        )
 
     def clean_zero_rag(
         self,

@@ -79,7 +79,13 @@ def embedding(
         gemini_api_key=gemini_api_key,
         index_db_path=index_db_path,
     )
-    rag_system.sync_rag()
+    result = rag_system.sync_rag()
+    if result.deleted_failed:
+        logger.error(f"Failed to delete stale vectors: {result.delete_error}")
+    if result.failed_batches:
+        logger.error(f"Failed to embed {result.failed_batches} batches")
+    if result.deleted_failed or result.failed_batches:
+        raise typer.Exit(1)
 
 
 if __name__ == "__main__":

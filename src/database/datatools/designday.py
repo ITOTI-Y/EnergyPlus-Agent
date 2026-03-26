@@ -1,7 +1,7 @@
 import sqlite3
 from datetime import datetime
 
-from src.database.datatools._share import TIMESTAMP
+from src.database.datatools._share import TIMESTAMP, UNSET, _UnsetType
 from src.database.datatools.datadescription import (
     update_description_sizingperiod_designday,
 )
@@ -136,37 +136,38 @@ _PARAM_TO_COL = {
 def update_sizingperiod_designday(
     db_path: str,
     designday_id: int,
-    name: str | None = None,
-    latitude: float | None = None,
-    longitude: float | None = None,
-    architecture_type: str | None = None,
-    month: int | None = None,
-    day_of_month: int | None = None,
-    day_type: str | None = None,
-    wind_speed: float | None = None,
-    wind_direction: float | None = None,
-    max_dry_bulb_temp: float | None = None,
-    daily_dry_bulb_range: float | None = None,
-    dry_bulb_temp_range_modifier_type: str | None = None,
-    dry_bulb_temp_range_modifier_day_schedule_name: str | None = None,
-    humidity_condition_type: str | None = None,
-    wetbulb_or_dewpoint_at_maximum_drybulb: float | None = None,
-    humidity_condition_day_schedule_name: str | None = None,
-    humidity_ratio_at_maximum_drybulb: float | None = None,
-    enthalpy_at_maximum_drybulb: float | None = None,
-    daily_wetbulb_temperature_range: float | None = None,
-    barometric_pressure: float | None = None,
-    rain_indicator: str | None = None,
-    snow_indicator: str | None = None,
-    daylight_saving_time_indicator: str | None = None,
-    solar_model_indicator: str | None = None,
-    beam_solar_day_schedule_name: str | None = None,
-    diffuse_solar_day_schedule_name: str | None = None,
-    ashrae_clear_sky_optical_depth_for_beam_irradiance_taub: float | None = None,
-    ashrae_clear_sky_optical_depth_for_diffuse_irradiance_taud: float | None = None,
-    sky_clearness: float | None = None,
-    maximum_number_warmup_days: int | None = None,
-    begin_environment_reset_mode: str | None = None,
+    name: str | _UnsetType = UNSET,
+    latitude: float | _UnsetType = UNSET,
+    longitude: float | _UnsetType = UNSET,
+    architecture_type: str | _UnsetType = UNSET,
+    month: int | _UnsetType = UNSET,
+    day_of_month: int | _UnsetType = UNSET,
+    day_type: str | _UnsetType = UNSET,
+    wind_speed: float | _UnsetType = UNSET,
+    wind_direction: float | _UnsetType = UNSET,
+    max_dry_bulb_temp: float | _UnsetType = UNSET,
+    daily_dry_bulb_range: float | _UnsetType = UNSET,
+    dry_bulb_temp_range_modifier_type: str | _UnsetType = UNSET,
+    dry_bulb_temp_range_modifier_day_schedule_name: str | _UnsetType = UNSET,
+    humidity_condition_type: str | _UnsetType = UNSET,
+    wetbulb_or_dewpoint_at_maximum_drybulb: float | _UnsetType = UNSET,
+    humidity_condition_day_schedule_name: str | _UnsetType = UNSET,
+    humidity_ratio_at_maximum_drybulb: float | _UnsetType = UNSET,
+    enthalpy_at_maximum_drybulb: float | _UnsetType = UNSET,
+    daily_wetbulb_temperature_range: float | _UnsetType = UNSET,
+    barometric_pressure: float | _UnsetType = UNSET,
+    rain_indicator: str | _UnsetType = UNSET,
+    snow_indicator: str | _UnsetType = UNSET,
+    daylight_saving_time_indicator: str | _UnsetType = UNSET,
+    solar_model_indicator: str | _UnsetType = UNSET,
+    beam_solar_day_schedule_name: str | _UnsetType = UNSET,
+    diffuse_solar_day_schedule_name: str | _UnsetType = UNSET,
+    ashrae_clear_sky_optical_depth_for_beam_irradiance_taub: float | _UnsetType = UNSET,
+    ashrae_clear_sky_optical_depth_for_diffuse_irradiance_taud: float
+    | _UnsetType = UNSET,
+    sky_clearness: float | _UnsetType = UNSET,
+    maximum_number_warmup_days: int | _UnsetType = UNSET,
+    begin_environment_reset_mode: str | _UnsetType = UNSET,
 ) -> None:
     with sqlite3.connect(db_path) as conn:
         conn.row_factory = sqlite3.Row
@@ -185,7 +186,7 @@ def update_sizingperiod_designday(
         for col in _DB_COLUMNS:
             param = next((p for p, c in _PARAM_TO_COL.items() if c == col), col)
             val = provided.get(param)
-            updated_values.append(val if val is not None else row[col])
+            updated_values.append(row[col] if val is UNSET else val)
 
         timestamp_int = int(datetime.now().strftime(TIMESTAMP))
         set_clause = ", ".join(f"{col} = ?" for col in _DB_COLUMNS)

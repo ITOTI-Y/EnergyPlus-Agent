@@ -1,7 +1,7 @@
 import sqlite3
 from datetime import datetime
 
-from src.database.datatools._share import TIMESTAMP
+from src.database.datatools._share import TIMESTAMP, UNSET, _UnsetType
 from src.database.datatools.datadescription import update_description_schedule_compact
 
 MAX_FIELDS = 200
@@ -59,12 +59,12 @@ def create_schedule_compact(
 def update_schedule_compact(
     db_path: str,
     schedule_compact_id: int,
-    name: str | None = None,
-    latitude: float | None = None,
-    longitude: float | None = None,
-    architecture_type: str | None = None,
-    schedule_type_limit_name: str | None = None,
-    compact_values: list[str] | None = None,
+    name: str | _UnsetType = UNSET,
+    latitude: float | _UnsetType = UNSET,
+    longitude: float | _UnsetType = UNSET,
+    architecture_type: str | _UnsetType = UNSET,
+    schedule_type_limit_name: str | _UnsetType = UNSET,
+    compact_values: list[str] | _UnsetType = UNSET,
 ) -> None:
     with sqlite3.connect(db_path) as conn:
         conn.row_factory = sqlite3.Row
@@ -91,17 +91,17 @@ def update_schedule_compact(
         """
         )
         values = [
-            name if name is not None else row["name"],
-            latitude if latitude is not None else row["latitude"],
-            longitude if longitude is not None else row["longitude"],
+            name if name is not UNSET else row["name"],
+            latitude if latitude is not UNSET else row["latitude"],
+            longitude if longitude is not UNSET else row["longitude"],
             architecture_type
-            if architecture_type is not None
+            if architecture_type is not UNSET
             else row["architecture_type"],
             schedule_type_limit_name
-            if schedule_type_limit_name is not None
+            if schedule_type_limit_name is not UNSET
             else row["schedule_type_limit_name"],
         ]
-        if compact_values is not None:
+        if not isinstance(compact_values, _UnsetType):
             values.extend(_validate_compact_values(compact_values))
         else:
             values.extend([row[f"field_{i}"] for i in range(1, MAX_FIELDS + 1)])

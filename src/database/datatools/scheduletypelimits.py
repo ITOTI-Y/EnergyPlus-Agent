@@ -1,7 +1,7 @@
 import sqlite3
 from datetime import datetime
 
-from src.database.datatools._share import TIMESTAMP
+from src.database.datatools._share import TIMESTAMP, UNSET, _UnsetType
 from src.database.datatools.datadescription import (
     update_description_schedule_type_limits,
 )
@@ -45,14 +45,14 @@ def create_schedule_type_limits(
 def update_schedule_type_limits(
     db_path: str,
     schedule_type_limits_id: int,
-    name: str | None = None,
-    latitude: float | None = None,
-    longitude: float | None = None,
-    architecture_type: str | None = None,
-    lower_limit_value: float | None = None,
-    upper_limit_value: float | None = None,
-    numeric_type: str | None = None,
-    unit_type: str | None = None,
+    name: str | _UnsetType = UNSET,
+    latitude: float | _UnsetType = UNSET,
+    longitude: float | _UnsetType = UNSET,
+    architecture_type: str | _UnsetType = UNSET,
+    lower_limit_value: float | _UnsetType = UNSET,
+    upper_limit_value: float | _UnsetType = UNSET,
+    numeric_type: str | _UnsetType = UNSET,
+    unit_type: str | _UnsetType = UNSET,
 ) -> None:
     with sqlite3.connect(db_path) as conn:
         conn.row_factory = sqlite3.Row
@@ -67,28 +67,28 @@ def update_schedule_type_limits(
                 f"Schedule Type Limits with id {schedule_type_limits_id} does not exist."
             )
 
-        updated_name = name if name is not None else row["name"]
-        updated_latitude = latitude if latitude is not None else row["latitude"]
-        updated_longitude = longitude if longitude is not None else row["longitude"]
+        updated_name = name if name is not UNSET else row["name"]
+        updated_latitude = latitude if latitude is not UNSET else row["latitude"]
+        updated_longitude = longitude if longitude is not UNSET else row["longitude"]
         updated_architecture_type = (
             architecture_type
-            if architecture_type is not None
+            if architecture_type is not UNSET
             else row["architecture_type"]
         )
         updated_lower_limit_value = (
             lower_limit_value
-            if lower_limit_value is not None
+            if lower_limit_value is not UNSET
             else row["lower_limit_value"]
         )
         updated_upper_limit_value = (
             upper_limit_value
-            if upper_limit_value is not None
+            if upper_limit_value is not UNSET
             else row["upper_limit_value"]
         )
         updated_numeric_type = (
-            numeric_type if numeric_type is not None else row["numeric_type"]
+            numeric_type if numeric_type is not UNSET else row["numeric_type"]
         )
-        updated_unit_type = unit_type if unit_type is not None else row["unit_type"]
+        updated_unit_type = unit_type if unit_type is not UNSET else row["unit_type"]
 
         sql = """
             UPDATE schedule_type_limits

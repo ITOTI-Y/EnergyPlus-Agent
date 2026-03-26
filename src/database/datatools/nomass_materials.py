@@ -1,7 +1,7 @@
 import sqlite3
 from datetime import datetime
 
-from src.database.datatools._share import TIMESTAMP
+from src.database.datatools._share import TIMESTAMP, UNSET, _UnsetType
 from src.database.datatools.datadescription import (
     update_description_all_materials,
     update_description_nomass_material,
@@ -61,15 +61,15 @@ def create_nomass_materials(
 def update_nomass_material(
     db_path: str,
     material_id: int,
-    name: str | None = None,
-    latitude: float | None = None,
-    longitude: float | None = None,
-    architecture_type: str | None = None,
-    roughness: str | None = None,
-    thermal_resistance: float | None = None,
-    thermal_absorptance: float | None = None,
-    solar_absorptance: float | None = None,
-    visible_absorptance: float | None = None,
+    name: str | _UnsetType = UNSET,
+    latitude: float | _UnsetType = UNSET,
+    longitude: float | _UnsetType = UNSET,
+    architecture_type: str | _UnsetType = UNSET,
+    roughness: str | _UnsetType = UNSET,
+    thermal_resistance: float | _UnsetType = UNSET,
+    thermal_absorptance: float | _UnsetType = UNSET,
+    solar_absorptance: float | _UnsetType = UNSET,
+    visible_absorptance: float | _UnsetType = UNSET,
 ) -> None:
     with sqlite3.connect(db_path) as conn:
         conn.row_factory = sqlite3.Row
@@ -79,33 +79,33 @@ def update_nomass_material(
         if row is None:
             raise ValueError(f"No_mass material with id {material_id} does not exist.")
 
-        updated_name = name if name is not None else row["name"]
-        updated_lat = latitude if latitude is not None else row["latitude"]
-        updated_lon = longitude if longitude is not None else row["longitude"]
+        updated_name = name if name is not UNSET else row["name"]
+        updated_lat = latitude if latitude is not UNSET else row["latitude"]
+        updated_lon = longitude if longitude is not UNSET else row["longitude"]
         updated_arch = (
             architecture_type
-            if architecture_type is not None
+            if architecture_type is not UNSET
             else row["architecture_type"]
         )
-        updated_rough = roughness if roughness is not None else row["roughness"]
+        updated_rough = roughness if roughness is not UNSET else row["roughness"]
         updated_ther = (
             thermal_resistance
-            if thermal_resistance is not None
+            if thermal_resistance is not UNSET
             else row["thermal_resistance"]
         )
         updated_absorpt = (
             thermal_absorptance
-            if thermal_absorptance is not None
+            if thermal_absorptance is not UNSET
             else row["thermal_absorptance"]
         )
         updated_solr = (
             solar_absorptance
-            if solar_absorptance is not None
+            if solar_absorptance is not UNSET
             else row["solar_absorptance"]
         )
         updated_visb = (
             visible_absorptance
-            if visible_absorptance is not None
+            if visible_absorptance is not UNSET
             else row["visible_absorptance"]
         )
 
@@ -131,7 +131,7 @@ def update_nomass_material(
         ]
         cursor.execute(sql, values)
 
-        if name is not None:
+        if name is not UNSET:
             cursor.execute(
                 "SELECT id FROM all_materials WHERE no_mass_material_id = ?",
                 (material_id,),
@@ -160,7 +160,7 @@ def update_nomass_material(
             updated_visb,
         ]
         update_description_nomass_material(des_data, cur=cursor)
-        if name is not None:
+        if name is not UNSET:
             update_description_all_materials(
                 [am_id, name, "NoMass", None, material_id], cur=cursor
             )
