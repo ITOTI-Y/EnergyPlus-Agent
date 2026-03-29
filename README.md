@@ -308,7 +308,7 @@ INDEX_DB_PATH=data/database/EP_Agent_data.db
 
 #### 7. Rhino代码转换模块
 - [ ] Setting、Building、Surface、Zone、Material、Construction配置转换
-- [ ] 构建MCP服务用于LLM调用去实际code->idf
+- [ ] 构建MCP服务用于LLM调用去实际code → idf
 - [ ] 完成转换测试
 
 ### 待开发

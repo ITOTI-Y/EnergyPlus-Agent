@@ -1,13 +1,34 @@
+import asyncio
 import sqlite3
 import time
-from dataclasses import dataclass
+from collections.abc import Generator
+from dataclasses import dataclass, field
+from itertools import batched
 
 from tqdm import tqdm
+from tqdm.asyncio import tqdm_asyncio
 
 from src.rag.chunk import Chunk, SQLiteProcessor
 from src.rag.embedding import GeminiEmbeddingModel, GeminiTaskType
-from src.rag.vector import QdrantVectorStore
+from src.rag.vector import AsyncQdrantVectorStore, QdrantData, QdrantVectorStore
 from src.utils.logging import get_logger
+
+
+class AsyncRateLimiter:
+    """Token-bucket style rate limiter for async contexts."""
+
+    def __init__(self, max_per_second: float):
+        self._interval = 1.0 / max_per_second
+        self._lock = asyncio.Lock()
+        self._last = 0.0
+
+    async def acquire(self) -> None:
+        async with self._lock:
+            now = asyncio.get_event_loop().time()
+            wait = self._last + self._interval - now
+            if wait > 0:
+                await asyncio.sleep(wait)
+            self._last = asyncio.get_event_loop().time()
 
 
 @dataclass
@@ -15,6 +36,32 @@ class SyncResult:
     failed_batches: int
     deleted_failed: bool
     delete_error: Exception | None = None
+
+
+@dataclass
+class RowRecord:
+    table_name: str
+    record_id: int
+    data_datetime: int
+
+    def __hash__(self) -> int:
+        return hash((self.table_name, self.record_id, self.data_datetime))
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, RowRecord):
+            return False
+        return (self.table_name, self.record_id, self.data_datetime) == (
+            other.table_name,
+            other.record_id,
+            other.data_datetime,
+        )
+
+
+@dataclass
+class VectorizedResult:
+    success_count: int = 0
+    failed_count: int = 0
+    errors: list[Exception] = field(default_factory=list)
 
 
 class RAGSystem:
@@ -32,6 +79,12 @@ class RAGSystem:
             api_key=qdrant_api_key,
             collection_name=qdrant_collection_name,
         )
+        self.async_vector_store = AsyncQdrantVectorStore(
+            url=qdrant_url,
+            api_key=qdrant_api_key,
+            collection_name=qdrant_collection_name,
+            dimension=3072,
+        )
         self.embedding_model = GeminiEmbeddingModel(api_key=gemini_api_key)
         self.logger = get_logger(__name__)
 
@@ -41,7 +94,7 @@ class RAGSystem:
         top_k: int = 5,
         chunk_type: str | None = None,
         score_threshold: float | None = 0.5,
-    ) -> list[dict]:
+    ) -> list[QdrantData]:
         embeddings = self.embedding_model.embed_batch(
             [query], task_type=GeminiTaskType.RETRIEVAL_QUERY
         )[0]
@@ -64,8 +117,8 @@ class RAGSystem:
 
         context_parts = []
         for i, result in enumerate(results):
-            content = result.get("data_description", "")
-            table = result.get("vectored_table_name", "")
+            content = result.get("description", "")
+            table = result.get("table_name", "")
             record_id = result.get("record_id", "")
             score = result.get("score", 0.0)
 
@@ -84,59 +137,49 @@ class RAGSystem:
     def chunk(
         self,
         table_name: str,
-        data_id: int,
+        record_id: int,
     ) -> Chunk:
         result = self.sqlite_processor.process_data(
-            table_name=table_name, data_id=data_id
+            table_name=table_name, record_id=record_id
         )
         if result is None:
-            self.logger.error(f"Failed to chunk {table_name}-{data_id}.")
-            raise ValueError(f"Failed to chunk {table_name}-{data_id}.")
+            self.logger.error(f"Failed to chunk {table_name}-{record_id}.")
+            raise ValueError(f"Failed to chunk {table_name}-{record_id}.")
         return result
 
-    def _get_all_chunks_table_id(self) -> list[dict]:
-        return [
-            {
-                "id": point["id"],
-                "table_name": point["vectored_table_name"],
-                "record_id": point["record_id"],
-                "data_datetime": point["datetime"],
-            }
-            for point in self.vector_store.get_all_points()
-        ]
+    def _get_all_chunks_table_id(self) -> Generator[RowRecord, None, None]:
+        for point in self.vector_store.get_all_points():
+            yield RowRecord(
+                table_name=point.table_name,
+                record_id=int(point.record_id),
+                data_datetime=int(point.datetime),
+            )
 
-    def _get_chunkable_tables(self, cursor: sqlite3.Cursor) -> list[str]:
+    def _get_chunkable_tables(
+        self, cursor: sqlite3.Cursor
+    ) -> Generator[sqlite3.Row, None, None]:
         """Return table names that have id, datetime, and description columns."""
         cursor.execute(
             "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';"
         )
-        tables = [row[0] for row in cursor.fetchall()]
-        chunkable = []
-        for table in tables:
-            cursor.execute(f"PRAGMA table_info([{table}])")
+        for table in tqdm(cursor.fetchall(), desc="Getting chunkable tables"):
+            cursor.execute(f"PRAGMA table_info([{table['name']}])")
             columns = {row["name"] for row in cursor.fetchall()}
             if {"id", "datetime", "description"}.issubset(columns):
-                chunkable.append(table)
-        return chunkable
+                yield table
 
-    def _get_all_sql(self) -> list[dict]:
+    def _get_all_sql(self) -> Generator[RowRecord, None, None]:
         with sqlite3.connect(self.sqlite_processor.db_path) as conn:
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
-            all_sql_records = []
             for table in self._get_chunkable_tables(cursor):
-                cursor.execute(f"SELECT id, datetime FROM [{table}]")
-                for row in cursor.fetchall():
-                    all_sql_records.append(
-                        {
-                            "table_name": table,
-                            "record_id": row["id"],
-                            "data_datetime": row["datetime"],
-                        }
-                    )
-        return all_sql_records
+                cursor.execute(f"SELECT id, datetime FROM [{table['name']}]")
+                for row in tqdm(
+                    cursor.fetchall(), desc=f"Getting SQL records from {table['name']}"
+                ):
+                    yield RowRecord(table["name"], int(row["id"]), int(row["datetime"]))
 
-    def check_rag_sync(self) -> tuple[list[dict], list[dict]]:
+    def check_rag_sync(self) -> tuple[set[RowRecord], set[RowRecord]]:
         """Compare SQL and Qdrant to find out-of-sync records.
 
         Returns:
@@ -147,108 +190,139 @@ class RAGSystem:
         vector_points = self._get_all_chunks_table_id()
         all_sql_records = self._get_all_sql()
 
-        vector_set = {
-            (d["table_name"], d["record_id"], d["data_datetime"]) for d in vector_points
-        }
-        sql_set = {
-            (d["table_name"], d["record_id"], d["data_datetime"])
-            for d in all_sql_records
-        }
+        vector_set = set(vector_points)
+        sql_set = set(all_sql_records)
 
-        unsync_data = [
-            r
-            for r in all_sql_records
-            if (r["table_name"], r["record_id"], r["data_datetime"]) not in vector_set
-        ]
-        stale_data = [
-            r
-            for r in vector_points
-            if (r["table_name"], r["record_id"], r["data_datetime"]) not in sql_set
-        ]
+        local_data = sql_set - vector_set
+        cloud_data = vector_set - sql_set
 
-        return unsync_data, stale_data
+        return local_data, cloud_data
 
-    def _collect_chunks(self, records: list[dict]) -> list[Chunk]:
-        chunks: list[Chunk] = []
-        for record in records:
-            table = record["table_name"]
-            record_id = record["record_id"]
-            self.logger.debug(f"Chunking {table}-{record_id}")
+    def _collect_chunks(self, records: set[RowRecord]) -> Generator[Chunk, None, None]:
+        for record in tqdm(records, desc="Collecting chunks"):
+            table = record.table_name
+            record_id = record.record_id
             try:
-                chunks.append(self.chunk(table, record_id))
+                yield self.chunk(table, record_id)
             except ValueError:
                 self.logger.error(f"Skipping {table}-{record_id}: chunk not found")
-        return chunks
+                continue
 
-    def _embed_and_upsert(self, chunks: list[Chunk], batch_count: int = 100) -> int:
+    def _embed_and_upsert(
+        self, chunks: Generator[Chunk, None, None], batch_count: int
+    ) -> VectorizedResult:
         if batch_count <= 0:
             raise ValueError("batch_count must be greater than 0")
-        total_failed = 0
-        consecutive_failures = 0
-        batch_iter = range(0, len(chunks), batch_count)
-        for i in tqdm(batch_iter, desc="Embedding", unit="batch"):
-            batch = chunks[i : i + batch_count]
+        result = VectorizedResult()
+        for i, batch in tqdm(
+            enumerate(batched(chunks, batch_count)), desc="Embedding", unit="batch"
+        ):
             try:
-                descriptions = [chunk.data_description for chunk in batch]
+                descriptions = [chunk.description for chunk in batch]
                 embeddings = self.embed(descriptions)
-                self.vector_store.add(batch, embeddings)
-                consecutive_failures = 0
-            except Exception:
-                total_failed += 1
-                consecutive_failures += 1
-                self.logger.exception(f"Failed to process batch {i // batch_count}")
-                if consecutive_failures >= 10:
-                    self.logger.error("Too many consecutive failures, aborting.")
-                    break
+                self.vector_store.add(batch, embeddings, batch_count)
+                result.success_count += 1
+            except Exception as e:
+                result.failed_count += 1
+                result.errors.append(e)
+                self.logger.warning(f"Failed to process batch {i // batch_count}")
                 time.sleep(1)
                 continue
-        if total_failed:
-            self.logger.warning(
-                f"Embedding completed with {total_failed} failed batch(es)."
-            )
-        return total_failed
+        return result
+
+    async def _embed_and_upsert_async(
+        self,
+        chunks: Generator[Chunk, None, None],
+        batch_count: int,
+        max_concurrency: int = 5,
+        max_requests_per_minute: int = 2700,
+        max_retries: int = 3,
+    ) -> VectorizedResult:
+        if batch_count <= 0:
+            raise ValueError("batch_count must be greater than 0")
+
+        result = VectorizedResult()
+        semaphore = asyncio.Semaphore(max_concurrency)
+        limiter = AsyncRateLimiter(max_per_second=max_requests_per_minute / 60.0)
+
+        async def process_batch(batch: tuple[Chunk, ...], i: int) -> None:
+            async with semaphore:
+                for attempt in range(max_retries):
+                    await limiter.acquire()
+                    try:
+                        descriptions = [chunk.description for chunk in batch]
+                        embeddings = await self.embedding_model.embed_batch_async(
+                            descriptions
+                        )
+                        await self.async_vector_store.add(
+                            batch, embeddings, batch_count
+                        )
+                        result.success_count += 1
+                        return
+                    except Exception as e:
+                        is_rate_limited = "429" in str(
+                            e
+                        ) or "RESOURCE_EXHAUSTED" in str(e)
+                        if is_rate_limited and attempt < max_retries - 1:
+                            wait = 60 * (attempt + 1)
+                            self.logger.warning(
+                                f"Rate limited on batch {i}, "
+                                f"retry {attempt + 1}/{max_retries} in {wait}s"
+                            )
+                            await asyncio.sleep(wait)
+                        else:
+                            result.failed_count += 1
+                            result.errors.append(e)
+                            self.logger.warning(f"Failed to process batch {i}: {e}")
+                            return
+
+        tasks = [
+            asyncio.create_task(process_batch(batch, i))
+            for i, batch in enumerate(batched(chunks, batch_count))
+        ]
+
+        await tqdm_asyncio.gather(*tasks, desc="Embedding", unit="batch")
+
+        return result
 
     def sync_rag(
         self,
         batch_count: int = 100,
-    ) -> SyncResult:
+    ) -> VectorizedResult:
         """Sync SQL records to Qdrant. Returns number of failed batches."""
-        unsync_data, stale_data = self.check_rag_sync()
+        local_data, cloud_data = self.check_rag_sync()
         self.logger.info(
-            f"Found {len(unsync_data)} records to vectorize, "
-            f"{len(stale_data)} stale records to remove."
+            f"Found {len(local_data)} local records to vectorize, "
+            f"{len(cloud_data)} cloud records not in local database."
         )
 
-        deleted_failed = False
-        delete_error = None
+        if cloud_data:
+            self.logger.info(
+                f"Have {len(cloud_data)} cloud records not in local database."
+            )
 
-        if stale_data:
-            stale_ids = [record["id"] for record in stale_data]
-            try:
-                self.vector_store.delete(stale_ids)
-                self.logger.info(f"Removed {len(stale_ids)} stale vectors.")
-            except Exception as e:
-                deleted_failed = True
-                delete_error = e
-                self.logger.exception(
-                    f"Failed to delete {len(stale_ids)} stale vectors (ids={stale_ids}), "
-                    "continuing with upsert"
-                )
+        chunks = self._collect_chunks(local_data)
+        result = self._embed_and_upsert(chunks, batch_count)
+        return result
 
-        chunks = self._collect_chunks(unsync_data)
-        failed_batches = self._embed_and_upsert(chunks, batch_count)
-        return SyncResult(
-            failed_batches=failed_batches,
-            deleted_failed=deleted_failed,
-            delete_error=delete_error,
-        )
-
-    def clean_zero_rag(
+    async def sync_rag_async(
         self,
         batch_count: int = 100,
-    ) -> int:
-        """Re-embed zero-vector points. Returns number of failed batches."""
-        zero_points = self.vector_store.get_zero_vector_points()
-        self.logger.info(f"Found {len(zero_points)} records to re-vectorize.")
-        chunks = self._collect_chunks(zero_points)
-        return self._embed_and_upsert(chunks, batch_count)
+        max_concurrency: int = 5,
+    ) -> VectorizedResult:
+        local_data, cloud_data = self.check_rag_sync()
+        self.logger.info(
+            f"Found {len(local_data)} local records to vectorize, "
+            f"{len(cloud_data)} cloud records not in local database."
+        )
+
+        if cloud_data:
+            self.logger.info(
+                f"Have {len(cloud_data)} cloud records not in local database."
+            )
+
+        chunks = self._collect_chunks(local_data)
+        result = await self._embed_and_upsert_async(
+            chunks, batch_count, max_concurrency
+        )
+        return result

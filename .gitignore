@@ -226,3 +226,5 @@ data/database/
 test/
 
 _dev/
+
+data/examples/

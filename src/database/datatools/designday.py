@@ -182,20 +182,28 @@ def update_sizingperiod_designday(
             )
 
         provided = locals()
-        updated_values = []
+        set_parts: list[str] = []
+        params: list = []
         for col in _DB_COLUMNS:
             param = next((p for p, c in _PARAM_TO_COL.items() if c == col), col)
             val = provided.get(param)
-            updated_values.append(row[col] if val is UNSET else val)
+            if val is not UNSET:
+                set_parts.append(f"{col} = ?")
+                params.append(val)
 
         timestamp_int = int(datetime.now().strftime(TIMESTAMP))
-        set_clause = ", ".join(f"{col} = ?" for col in _DB_COLUMNS)
-        sql = (
-            f"UPDATE sizingperiod_designday SET {set_clause}, datetime = ? WHERE id = ?"
-        )
-        cursor.execute(sql, [*updated_values, timestamp_int, designday_id])
+        set_parts.append("datetime = ?")
+        params.append(timestamp_int)
+        params.append(designday_id)
 
-        des_data = [designday_id, *updated_values]
+        sql = f"UPDATE sizingperiod_designday SET {', '.join(set_parts)} WHERE id = ?"
+        cursor.execute(sql, params)
+
+        cursor.execute(
+            "SELECT * FROM sizingperiod_designday WHERE id = ?", (designday_id,)
+        )
+        fresh_row = cursor.fetchone()
+        des_data = [fresh_row["id"]] + [fresh_row[col] for col in _DB_COLUMNS]
         update_description_sizingperiod_designday(des_data, cur=cursor)
         conn.commit()
 

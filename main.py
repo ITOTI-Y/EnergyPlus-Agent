@@ -63,6 +63,8 @@ def embedding(
         str, typer.Option("--db-path", "-d", help="The path to the index database")
     ],
 ):
+    import asyncio
+
     from src.rag.rag import RAGSystem
 
     qdrant_url = os.getenv("QDRANT_ENDPOINT")
@@ -79,13 +81,11 @@ def embedding(
         gemini_api_key=gemini_api_key,
         index_db_path=index_db_path,
     )
-    result = rag_system.sync_rag()
-    if result.deleted_failed:
-        logger.error(f"Failed to delete stale vectors: {result.delete_error}")
-    if result.failed_batches:
-        logger.error(f"Failed to embed {result.failed_batches} batches")
-    if result.deleted_failed or result.failed_batches:
+    result = asyncio.run(rag_system.sync_rag_async())
+    if result.failed_count > 0:
+        logger.error(f"Failed to embed {result.failed_count} batches")
         raise typer.Exit(1)
+    logger.info(f"Successfully embedded {result.success_count} batches")
 
 
 if __name__ == "__main__":

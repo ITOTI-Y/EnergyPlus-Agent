@@ -7,6 +7,23 @@ from src.database.datatools.datadescription import (
 )
 
 
+def _validate_limits_and_coords(
+    latitude: float,
+    longitude: float,
+    lower_limit_value: float,
+    upper_limit_value: float,
+) -> None:
+    if not -90 <= latitude <= 90:
+        raise ValueError(f"latitude must be between -90 and 90, got {latitude}")
+    if not -180 <= longitude <= 180:
+        raise ValueError(f"longitude must be between -180 and 180, got {longitude}")
+    if lower_limit_value > upper_limit_value:
+        raise ValueError(
+            f"lower_limit_value ({lower_limit_value}) must be "
+            f"<= upper_limit_value ({upper_limit_value})"
+        )
+
+
 def create_schedule_type_limits(
     db_path: str,
     name: str,
@@ -18,6 +35,9 @@ def create_schedule_type_limits(
     numeric_type: str,
     unit_type: str,
 ) -> None:
+    _validate_limits_and_coords(
+        latitude, longitude, lower_limit_value, upper_limit_value
+    )
     with sqlite3.connect(db_path) as conn:
         cursor = conn.cursor()
         sql = "INSERT INTO schedule_type_limits (name, latitude, longitude, architecture_type, lower_limit_value, upper_limit_value, numeric_type, unit_type, datetime) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
@@ -68,27 +88,38 @@ def update_schedule_type_limits(
             )
 
         updated_name = name if name is not UNSET else row["name"]
-        updated_latitude = latitude if latitude is not UNSET else row["latitude"]
-        updated_longitude = longitude if longitude is not UNSET else row["longitude"]
+        if isinstance(latitude, _UnsetType):
+            updated_latitude = float(row["latitude"])
+        else:
+            updated_latitude = float(latitude)
+        if isinstance(longitude, _UnsetType):
+            updated_longitude = float(row["longitude"])
+        else:
+            updated_longitude = float(longitude)
         updated_architecture_type = (
             architecture_type
             if architecture_type is not UNSET
             else row["architecture_type"]
         )
-        updated_lower_limit_value = (
-            lower_limit_value
-            if lower_limit_value is not UNSET
-            else row["lower_limit_value"]
-        )
-        updated_upper_limit_value = (
-            upper_limit_value
-            if upper_limit_value is not UNSET
-            else row["upper_limit_value"]
-        )
+        if isinstance(lower_limit_value, _UnsetType):
+            updated_lower_limit_value = float(row["lower_limit_value"])
+        else:
+            updated_lower_limit_value = float(lower_limit_value)
+        if isinstance(upper_limit_value, _UnsetType):
+            updated_upper_limit_value = float(row["upper_limit_value"])
+        else:
+            updated_upper_limit_value = float(upper_limit_value)
         updated_numeric_type = (
             numeric_type if numeric_type is not UNSET else row["numeric_type"]
         )
         updated_unit_type = unit_type if unit_type is not UNSET else row["unit_type"]
+
+        _validate_limits_and_coords(
+            updated_latitude,
+            updated_longitude,
+            updated_lower_limit_value,
+            updated_upper_limit_value,
+        )
 
         sql = """
             UPDATE schedule_type_limits
@@ -138,5 +169,5 @@ def delete_scheduletypelimits(db_path: str, scheduletypelimits_id: int) -> None:
 def list_schedule_type_limits(db_path: str) -> list[tuple]:
     with sqlite3.connect(db_path) as conn:
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM schedule_type_limits")
+        cursor.execute("SELECT * FROM schedule_type_limits ORDER BY id")
         return cursor.fetchall()

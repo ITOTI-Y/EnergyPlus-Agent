@@ -12,11 +12,11 @@ class Chunk(BaseModel):
         validate_assignment=True,
         extra="forbid",
     )
-    vectored_table_name: str = Field(
+    table_name: str = Field(
         description="The name of the table the chunk is vectored from"
     )
     record_id: int = Field(description="The ID of the record in the table")
-    data_description: str = Field(description="The description content of the chunk")
+    description: str = Field(description="The description content of the chunk")
     data_dict: dict = Field(description="The full data record as a dictionary")
     datetime: int = Field(description="The datetime when the chunk was created")
     metadata: dict = Field(
@@ -26,13 +26,13 @@ class Chunk(BaseModel):
 
     @property
     def chunk_id(self) -> str:
-        content_str = f"energyplus_database_{self.vectored_table_name}_{self.record_id}"
+        content_str = f"energyplus_database_{self.table_name}_{self.record_id}"
         return str(uuid.uuid5(uuid.NAMESPACE_DNS, content_str))
 
     def to_qdrant_payload(self) -> dict:
         return {
-            "data_description": self.data_description,
-            "vectored_table_name": self.vectored_table_name,
+            "description": self.description,
+            "table_name": self.table_name,
             "record_id": self.record_id,
             "data_dict": self.data_dict,
             "datetime": self.datetime,
@@ -41,26 +41,20 @@ class Chunk(BaseModel):
 
 
 class SQLiteProcessor:
-    def __init__(self, db_path: str = "data/database/EP_Agent_data.db"):
+    def __init__(self, db_path: str):
         self.db_path = db_path
         self.logger = get_logger(__name__)
 
     def process_data(
-        self, table_name: str, data_id: int, content_column: str = "description"
+        self, table_name: str, record_id: int, content_column: str = "description"
     ) -> Chunk | None:
         try:
             with sqlite3.connect(self.db_path) as conn:
                 conn.row_factory = sqlite3.Row
                 cursor = conn.cursor()
-                # Validate table_name to prevent SQL injection
                 cursor.execute(
-                    "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
-                    (table_name,),
+                    f"SELECT * FROM [{table_name}] WHERE id = ?", (record_id,)
                 )
-                if not cursor.fetchone():
-                    self.logger.error(f"Table {table_name} does not exist")
-                    return None
-                cursor.execute(f"SELECT * FROM [{table_name}] WHERE id = ?", (data_id,))
                 result = cursor.fetchone()
 
                 if result is None:
@@ -84,12 +78,12 @@ class SQLiteProcessor:
                 }
 
                 return Chunk(
-                    vectored_table_name=table_name,
-                    record_id=data_id,
-                    data_description=full_dict[content_column],
+                    table_name=table_name,
+                    record_id=record_id,
+                    description=full_dict[content_column],
                     data_dict=clean_data,
                     datetime=full_dict["datetime"],
                 )
         except Exception as e:
-            self.logger.error(f"Error processing {table_name} ID {data_id}: {e}")
+            self.logger.error(f"Error processing {table_name} ID {record_id}: {e}")
             raise
