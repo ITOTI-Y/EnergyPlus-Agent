@@ -6,6 +6,12 @@ from pydantic import BaseModel, ConfigDict, Field
 from src.utils.logging import get_logger
 
 
+def compute_chunk_id(table_name: str, record_id: int) -> str:
+    """Deterministic point ID for a given table + record pair."""
+    content_str = f"energyplus_database_{table_name}_{record_id}"
+    return str(uuid.uuid5(uuid.NAMESPACE_DNS, content_str))
+
+
 class Chunk(BaseModel):
     model_config = ConfigDict(
         arbitrary_types_allowed=True,
@@ -26,18 +32,28 @@ class Chunk(BaseModel):
 
     @property
     def chunk_id(self) -> str:
-        content_str = f"energyplus_database_{self.table_name}_{self.record_id}"
-        return str(uuid.uuid5(uuid.NAMESPACE_DNS, content_str))
+        return compute_chunk_id(self.table_name, self.record_id)
+
+    _RESERVED_PAYLOAD_KEYS = frozenset({
+        "description",
+        "table_name",
+        "record_id",
+        "data_dict",
+        "datetime",
+    })
 
     def to_qdrant_payload(self) -> dict:
-        return {
+        payload = {
             "description": self.description,
             "table_name": self.table_name,
             "record_id": self.record_id,
             "data_dict": self.data_dict,
             "datetime": self.datetime,
-            **self.metadata,
         }
+        for k, v in self.metadata.items():
+            if k not in self._RESERVED_PAYLOAD_KEYS:
+                payload[k] = v
+        return payload
 
 
 class SQLiteProcessor:

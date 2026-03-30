@@ -8,7 +8,7 @@ from itertools import batched
 from tqdm import tqdm
 from tqdm.asyncio import tqdm_asyncio
 
-from src.rag.chunk import Chunk, SQLiteProcessor
+from src.rag.chunk import Chunk, SQLiteProcessor, compute_chunk_id
 from src.rag.embedding import GeminiEmbeddingModel, GeminiTaskType
 from src.rag.vector import AsyncQdrantVectorStore, QdrantData, QdrantVectorStore
 from src.utils.logging import get_logger
@@ -29,13 +29,6 @@ class AsyncRateLimiter:
             if wait > 0:
                 await asyncio.sleep(wait)
             self._last = asyncio.get_event_loop().time()
-
-
-@dataclass
-class SyncResult:
-    failed_batches: int
-    deleted_failed: bool
-    delete_error: Exception | None = None
 
 
 @dataclass
@@ -62,6 +55,9 @@ class VectorizedResult:
     success_count: int = 0
     failed_count: int = 0
     errors: list[Exception] = field(default_factory=list)
+    deleted_ids: int = 0
+    deleted_failed: bool = False
+    delete_error: Exception | None = None
 
 
 class RAGSystem:
@@ -285,6 +281,42 @@ class RAGSystem:
 
         return result
 
+    def _delete_stale_points(
+        self, cloud_data: set[RowRecord]
+    ) -> tuple[int, bool, Exception | None]:
+        """Delete Qdrant points whose records no longer exist in SQLite.
+
+        Returns (deleted_count, failed, error).
+        """
+        if not cloud_data:
+            return 0, False, None
+        stale_ids = [
+            compute_chunk_id(r.table_name, r.record_id) for r in cloud_data
+        ]
+        try:
+            self.vector_store.delete(stale_ids)
+            self.logger.info(f"Deleted {len(stale_ids)} stale vectors from Qdrant.")
+            return len(stale_ids), False, None
+        except Exception as e:
+            self.logger.error(f"Failed to delete stale vectors: {e}")
+            return 0, True, e
+
+    async def _delete_stale_points_async(
+        self, cloud_data: set[RowRecord]
+    ) -> tuple[int, bool, Exception | None]:
+        if not cloud_data:
+            return 0, False, None
+        stale_ids = [
+            compute_chunk_id(r.table_name, r.record_id) for r in cloud_data
+        ]
+        try:
+            await self.async_vector_store.delete(stale_ids)
+            self.logger.info(f"Deleted {len(stale_ids)} stale vectors from Qdrant.")
+            return len(stale_ids), False, None
+        except Exception as e:
+            self.logger.error(f"Failed to delete stale vectors: {e}")
+            return 0, True, e
+
     def sync_rag(
         self,
         batch_count: int = 100,
@@ -296,13 +328,13 @@ class RAGSystem:
             f"{len(cloud_data)} cloud records not in local database."
         )
 
-        if cloud_data:
-            self.logger.info(
-                f"Have {len(cloud_data)} cloud records not in local database."
-            )
+        deleted_ids, del_failed, del_error = self._delete_stale_points(cloud_data)
 
         chunks = self._collect_chunks(local_data)
         result = self._embed_and_upsert(chunks, batch_count)
+        result.deleted_ids = deleted_ids
+        result.deleted_failed = del_failed
+        result.delete_error = del_error
         return result
 
     async def sync_rag_async(
@@ -316,13 +348,15 @@ class RAGSystem:
             f"{len(cloud_data)} cloud records not in local database."
         )
 
-        if cloud_data:
-            self.logger.info(
-                f"Have {len(cloud_data)} cloud records not in local database."
-            )
+        deleted_ids, del_failed, del_error = await self._delete_stale_points_async(
+            cloud_data
+        )
 
         chunks = self._collect_chunks(local_data)
         result = await self._embed_and_upsert_async(
             chunks, batch_count, max_concurrency
         )
+        result.deleted_ids = deleted_ids
+        result.deleted_failed = del_failed
+        result.delete_error = del_error
         return result
