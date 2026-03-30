@@ -19,9 +19,8 @@ class EmbeddingConfig(BaseModel):
         extra="forbid",
     )
 
-    def __post_init__(self):
-        with open(Path("configs/embedding.yaml")) as f:
-            config = OmegaConf.load(f)
+    def model_post_init(self, __context):
+        config = OmegaConf.load(Path(__file__).parent / "embedding.yaml")
         self.model_name = config.model_name
         self.dimension = config.dimension
         self.task_type = config.task_type

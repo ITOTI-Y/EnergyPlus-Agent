@@ -110,6 +110,8 @@ class AsyncQdrantVectorStore(IAsyncVectorStore):
         dimension: int,
         prefer_grpc: bool = True,
     ):
+        import asyncio
+
         from qdrant_client import AsyncQdrantClient
 
         self.client = AsyncQdrantClient(
@@ -119,8 +121,18 @@ class AsyncQdrantVectorStore(IAsyncVectorStore):
         )
         self.collection_name = collection_name
         self.dimension = dimension
-        self.COLLECTION_CREATED = False
+        self._collection_ready = False
+        self._init_lock = asyncio.Lock()
         self.logger = get_logger(__name__)
+
+    async def _ensure_collection(self) -> None:
+        if self._collection_ready:
+            return
+        async with self._init_lock:
+            if self._collection_ready:
+                return
+            await self._create_collection()
+            self._collection_ready = True
 
     async def _create_collection(self) -> None:
         from qdrant_client.models import Distance, VectorParams
@@ -153,9 +165,7 @@ class AsyncQdrantVectorStore(IAsyncVectorStore):
     ) -> None:
         from qdrant_client.models import PointStruct
 
-        if not self.COLLECTION_CREATED:
-            await self._create_collection()
-            self.COLLECTION_CREATED = True
+        await self._ensure_collection()
 
         points = [
             PointStruct(
@@ -177,9 +187,7 @@ class AsyncQdrantVectorStore(IAsyncVectorStore):
     async def delete(self, ids: list[str]) -> None:
         from qdrant_client.models import PointIdsList
 
-        if not self.COLLECTION_CREATED:
-            await self._create_collection()
-            self.COLLECTION_CREATED = True
+        await self._ensure_collection()
 
         await self.client.delete(
             collection_name=self.collection_name,
@@ -196,9 +204,7 @@ class AsyncQdrantVectorStore(IAsyncVectorStore):
     ) -> list[QdrantData]:
         from qdrant_client.models import FieldCondition, Filter, MatchValue
 
-        if not self.COLLECTION_CREATED:
-            await self._create_collection()
-            self.COLLECTION_CREATED = True
+        await self._ensure_collection()
 
         search_filter = None
         if table_name:
@@ -228,9 +234,7 @@ class AsyncQdrantVectorStore(IAsyncVectorStore):
         ]
 
     async def get_all_points(self) -> list[QdrantData]:
-        if not self.COLLECTION_CREATED:
-            await self._create_collection()
-            self.COLLECTION_CREATED = True
+        await self._ensure_collection()
 
         all_results: list[QdrantData] = []
         offset = None
@@ -258,9 +262,7 @@ class AsyncQdrantVectorStore(IAsyncVectorStore):
         return all_results
 
     async def get_zero_vector_points(self) -> list[dict]:
-        if not self.COLLECTION_CREATED:
-            await self._create_collection()
-            self.COLLECTION_CREATED = True
+        await self._ensure_collection()
 
         zero_points: list[dict] = []
         offset = None
@@ -456,7 +458,7 @@ class QdrantVectorStore(IVectorStore):
                     zero_points.append(
                         {
                             "id": record.id,
-                            "table_name": payload.get("vectored_table_name", ""),
+                            "table_name": payload.get("table_name", ""),
                             "record_id": payload.get("record_id", ""),
                             "datetime": payload.get("datetime", ""),
                         }

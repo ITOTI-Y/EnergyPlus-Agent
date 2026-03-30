@@ -117,10 +117,10 @@ class RAGSystem:
 
         context_parts = []
         for i, result in enumerate(results):
-            content = result.get("description", "")
-            table = result.get("table_name", "")
-            record_id = result.get("record_id", "")
-            score = result.get("score", 0.0)
+            content = result.description
+            table = result.table_name
+            record_id = result.record_id
+            score = result.score if result.score is not None else 0.0
 
             context_parts.append(
                 f"[Document {i + 1}] (Table: {table}, RecordID: {record_id}, Score: {score:.2f})\nDescription: {content}\n---\n"
