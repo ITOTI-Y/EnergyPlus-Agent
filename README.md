@@ -153,7 +153,30 @@ uv run main.py mcp-server --transport http --host 0.0.0.0 --port 8000
 cd docker
 
 # 构建并启动服务
+# 方式 A：使用 docker-compose 启动
 docker-compose up -d
+
+# 方式 B：仅使用 docker run （不要与方式 A 同时运行）
+docker run -p 6333:6333 -p 6334:6334 \
+  -v $(pwd)/qdrant_storage:/qdrant/storage:z \
+  qdrant/qdrant
+```
+
+#### 4. .env 环境配置
+
+```.env
+# RAG data configuration
+# Gemini API Configuration
+GEMINI_API_KEY=Your Gemini api key
+
+# Qdrant Configuration
+QDRANT_API_KEY=  # 本地 Docker 部署可留空；云端部署需配置
+QDRANT_ENDPOINT=http://localhost:6333
+QDRANT_COLLECTION_NAME=energyplus_database
+
+# Database Index Building Configuration
+
+INDEX_DB_PATH=data/database/EP_Agent_data.db
 ```
 
 ### 配置 Claude Desktop
@@ -285,7 +308,7 @@ docker-compose up -d
 
 #### 7. Rhino代码转换模块
 - [ ] Setting、Building、Surface、Zone、Material、Construction配置转换
-- [ ] 构建MCP服务用于LLM调用去实际code->idf
+- [ ] 构建MCP服务用于LLM调用去实际code → idf
 - [ ] 完成转换测试
 
 ### 待开发

@@ -1,8 +1,14 @@
 from fastmcp import FastMCP
 from pydantic import Field
 
-from src.mcp.api.common import ToolInput, to_payload
-from src.mcp.tools import BuildingTool, LocationTool, ZoneTool
+from src.mcp.api.common import (
+    ToolInput,
+    convert_vertices_to_mcp_format,
+    to_payload,
+    validate_floor_vertices,
+)
+from src.mcp.interface import ToolResponse
+from src.mcp.tools import BuildingTool, LocationTool, SurfaceTool, ZoneTool
 
 
 class BuildingCreateInput(ToolInput):
@@ -69,6 +75,18 @@ class LocationUpdateInput(ToolInput):
     )
 
 
+class FloorVertexInput(ToolInput):
+    """Bottom-face vertex input model"""
+
+    x: float = Field(..., alias="X", description="X coordinates")
+    y: float = Field(..., alias="Y", description="Y coordinates")
+    z: float = Field(
+        ...,
+        alias="Z",
+        description="Z coordinates(All points on the same base should be identical)",
+    )
+
+
 class ZoneCreateInput(ToolInput):
     """Input schema for creating a new Zone object."""
 
@@ -106,6 +124,11 @@ class ZoneCreateInput(ToolInput):
         default="autocalculate",
         alias="Floor Area",
         description="Zone floor area in square meters, or 'autocalculate'.",
+    )
+    floor_vertices: list[FloorVertexInput] | None = Field(
+        default=None,
+        alias="Floor Vertices",
+        description="List of bottom vertices, arranged in counterclockwise order",
     )
 
 
@@ -155,11 +178,102 @@ class ZoneUpdateInput(ToolInput):
     )
 
 
+def _create_zone_surfaces(
+    surface_tool: SurfaceTool,
+    zone_name: str,
+    vertices: list[dict],
+    height: float,
+) -> tuple[list[str], list[dict]]:
+    """Create wall, floor and ceiling surfaces for a zone.
+
+    Returns:
+        (created_surface_names, failed_surface_info)
+    """
+    created: list[str] = []
+    failed: list[dict] = []
+    n = len(vertices)
+    z_floor = vertices[0]["Z"]
+    z_ceiling = z_floor + height
+
+    for i in range(n):
+        v1 = vertices[i]
+        v2 = vertices[(i + 1) % n]
+        wall_verts = [
+            {"X": v1["X"], "Y": v1["Y"], "Z": z_floor},
+            {"X": v2["X"], "Y": v2["Y"], "Z": z_floor},
+            {"X": v2["X"], "Y": v2["Y"], "Z": z_ceiling},
+            {"X": v1["X"], "Y": v1["Y"], "Z": z_ceiling},
+        ]
+        surface_name = f"{zone_name}_Wall_{i + 1}"
+        resp = surface_tool.create(
+            {
+                "Name": surface_name,
+                "Surface Type": "Wall",
+                "Construction Name": "Default_Construction",
+                "Zone Name": zone_name,
+                "Outside Boundary Condition": "Outdoors",
+                "Sun Exposure": "SunExposed",
+                "Wind Exposure": "WindExposed",
+                "Vertices": wall_verts,
+            }
+        )
+        if resp.success:
+            created.append(surface_name)
+        else:
+            failed.append({"name": surface_name, "error": resp.message})
+
+    floor_name = f"{zone_name}_Floor"
+    floor_resp = surface_tool.create(
+        {
+            "Name": floor_name,
+            "Surface Type": "Floor",
+            "Construction Name": "Default_Construction",
+            "Zone Name": zone_name,
+            "Outside Boundary Condition": "Ground",
+            "Sun Exposure": "NoSun",
+            "Wind Exposure": "NoWind",
+            "Vertices": vertices[::-1],
+        }
+    )
+    if floor_resp.success:
+        created.append(floor_name)
+    else:
+        failed.append({"name": floor_name, "error": floor_resp.message})
+
+    ceiling_name = f"{zone_name}_Ceiling"
+    ceiling_verts = [{"X": v["X"], "Y": v["Y"], "Z": z_ceiling} for v in vertices]
+    ceiling_resp = surface_tool.create(
+        {
+            "Name": ceiling_name,
+            "Surface Type": "Ceiling",
+            "Construction Name": "Default_Construction",
+            "Zone Name": zone_name,
+            "Outside Boundary Condition": "Adiabatic",
+            "Sun Exposure": "NoSun",
+            "Wind Exposure": "NoWind",
+            "Vertices": ceiling_verts,
+        }
+    )
+    if ceiling_resp.success:
+        created.append(ceiling_name)
+    else:
+        failed.append({"name": ceiling_name, "error": ceiling_resp.message})
+
+    # Rollback all created surfaces if any failed
+    if failed:
+        for surface_name in created:
+            surface_tool.delete(surface_name)
+        created.clear()
+
+    return created, failed
+
+
 def register_core_tools(
     mcp: FastMCP,
     building_tool: BuildingTool,
     location_tool: LocationTool,
     zone_tool: ZoneTool,
+    surface_tool: SurfaceTool,
 ) -> None:
     """Register core EnergyPlus tools (Building, Location, Zone) with the MCP server.
 
@@ -355,6 +469,7 @@ def register_core_tools(
     @mcp.tool
     def create_zone(
         name: str,
+        floor_vertices: list[dict],  # [{"X": 0, "Y": 0, "Z": 0}, ...]
         x_origin: float = 0.0,
         y_origin: float = 0.0,
         z_origin: float = 0.0,
@@ -380,6 +495,42 @@ def register_core_tools(
         Returns:
             MCP response with the created zone data.
         """
+        # Validate inputs before creating zone
+        try:
+            vertices = convert_vertices_to_mcp_format(floor_vertices)
+            is_valid, error = validate_floor_vertices(vertices)
+        except (TypeError, ValueError) as e:
+            return ToolResponse(
+                success=False,
+                message=f"Invalid floor_vertices: {e}",
+            ).to_mcp_response()
+
+        if not is_valid and error is not None:
+            return ToolResponse(
+                success=False,
+                message=f"Vertex validation failed: {error.message}",
+                data={"validation_error": error.model_dump()},
+            ).to_mcp_response()
+
+        if ceiling_height == "autocalculate":
+            return ToolResponse(
+                success=False,
+                message="When using the floor_vertices parameter, a specific ceiling_height value must be specified",
+            ).to_mcp_response()
+        try:
+            height = float(ceiling_height)
+        except (TypeError, ValueError):
+            return ToolResponse(
+                success=False,
+                message="ceiling_height must be a numeric value when floor_vertices is provided",
+            ).to_mcp_response()
+        if height <= 0:
+            return ToolResponse(
+                success=False,
+                message="ceiling_height must be greater than 0 when floor_vertices is provided",
+            ).to_mcp_response()
+
+        # All validations passed, now create zone
         payload = to_payload(
             ZoneCreateInput.model_validate(
                 {
@@ -395,7 +546,41 @@ def register_core_tools(
                 }
             )
         )
-        return zone_tool.create(payload).to_mcp_response()
+        zone_response = zone_tool.create(payload)
+
+        if not zone_response.success:
+            return zone_response.to_mcp_response()
+
+        created_surfaces, failed_surfaces = _create_zone_surfaces(
+            surface_tool,
+            name,
+            vertices,
+            height,
+        )
+
+        if failed_surfaces:
+            zone_del_resp = zone_tool.delete(name)
+            rollback_msg = (
+                f"Zone '{name}' creation rolled back due to surface failures."
+            )
+            if not zone_del_resp.success:
+                rollback_msg += (
+                    f" Warning: Zone deletion failed: {zone_del_resp.message}"
+                )
+            return ToolResponse(
+                success=False,
+                message=rollback_msg,
+                data={"surfaces_failed": failed_surfaces},
+            ).to_mcp_response()
+
+        return ToolResponse(
+            success=True,
+            message=f"Zone '{name}' created successfully with {len(created_surfaces)} surfaces.",
+            data={
+                "zone": zone_response.data,
+                "surfaces_created": created_surfaces,
+            },
+        ).to_mcp_response()
 
     @mcp.tool
     def get_zone(name: str) -> dict:

@@ -4,7 +4,6 @@
     // 欲了解更多信息，请访问: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
-
         {
             "name": "Convert-IDF",
             "type": "debugpy",
@@ -20,16 +19,43 @@
             "request": "launch",
             "program": "${workspaceFolder}/main.py",
             "args": [
-                "mcp-server", "--transport", "streamable-http", "--host", "0.0.0.0", "--port", "8600"
+                "mcp-server",
+                "--transport",
+                "streamable-http",
+                "--host",
+                "0.0.0.0",
+                "--port",
+                "8600"
             ]
-        }
-    ],
-    "compounds": [
+        },
         {
             "name": "MCP + Inspector",
-            "configurations": ["MCP Server"],
-            "preLaunchTask": "Start MCP Inspector",
-            "stopAll": true
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/main.py",
+            "args": [
+                "mcp-server",
+                "--transport",
+                "streamable-http",
+                "--host",
+                "0.0.0.0",
+                "--port",
+                "8600"
+            ],
+            "preLaunchTask": "Start MCP Inspector"
+        },
+        {
+            "name": "Embedding",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/main.py",
+            "args": [
+                "embedding",
+                "--collection",
+                "energyplus_database",
+                "--db-path",
+                "${workspaceFolder}/data/examples/EP_Agent_data.db"
+            ]
         }
     ]
 }
