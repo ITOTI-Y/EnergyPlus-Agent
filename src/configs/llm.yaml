@@ -1,0 +1,6 @@
+provider: "anthropic"
+base_url: ${oc.env:LLM_BASE_URL,null}
+api_key: ${oc.env:LLM_API_KEY,null}
+model_name: "claude-sonnet-4-6-thinking"
+temperature: 0.7
+max_tokens: 64000

@@ -56,6 +56,13 @@
                 "--db-path",
                 "${workspaceFolder}/data/examples/EP_Agent_data.db"
             ]
+        },
+        {
+            "name": "LLM",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "src.agent.llm",
+            "cwd": "${workspaceFolder}",
         }
     ]
 }

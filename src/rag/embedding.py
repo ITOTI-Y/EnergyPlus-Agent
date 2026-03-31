@@ -46,7 +46,9 @@ class GeminiEmbeddingModel(IEmbeddingModel):
         model_name = model_name or self.config.model_name
         dimension = dimension or self.config.dimension
         task_type = task_type or self.config.task_type
-        task_type_str: str = task_type.value if isinstance(task_type, Enum) else str(task_type)
+        task_type_str: str = (
+            task_type.value if isinstance(task_type, Enum) else str(task_type)
+        )
 
         try:
             result = self.client.models.embed_content(
@@ -91,7 +93,9 @@ class GeminiEmbeddingModel(IEmbeddingModel):
         model_name = model_name or self.config.model_name
         dimension = dimension or self.config.dimension
         task_type = task_type or self.config.task_type
-        task_type_str: str = task_type.value if isinstance(task_type, Enum) else str(task_type)
+        task_type_str: str = (
+            task_type.value if isinstance(task_type, Enum) else str(task_type)
+        )
 
         try:
             result = await self.client.aio.models.embed_content(

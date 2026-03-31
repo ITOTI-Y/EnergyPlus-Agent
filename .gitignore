@@ -228,3 +228,4 @@ test/
 _dev/
 
 data/examples/
+*.txt

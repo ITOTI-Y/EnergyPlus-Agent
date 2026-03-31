@@ -290,9 +290,7 @@ class RAGSystem:
         """
         if not cloud_data:
             return 0, False, None
-        stale_ids = [
-            compute_chunk_id(r.table_name, r.record_id) for r in cloud_data
-        ]
+        stale_ids = [compute_chunk_id(r.table_name, r.record_id) for r in cloud_data]
         try:
             self.vector_store.delete(stale_ids)
             self.logger.info(f"Deleted {len(stale_ids)} stale vectors from Qdrant.")
@@ -306,9 +304,7 @@ class RAGSystem:
     ) -> tuple[int, bool, Exception | None]:
         if not cloud_data:
             return 0, False, None
-        stale_ids = [
-            compute_chunk_id(r.table_name, r.record_id) for r in cloud_data
-        ]
+        stale_ids = [compute_chunk_id(r.table_name, r.record_id) for r in cloud_data]
         try:
             await self.async_vector_store.delete(stale_ids)
             self.logger.info(f"Deleted {len(stale_ids)} stale vectors from Qdrant.")

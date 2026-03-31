@@ -34,13 +34,15 @@ class Chunk(BaseModel):
     def chunk_id(self) -> str:
         return compute_chunk_id(self.table_name, self.record_id)
 
-    _RESERVED_PAYLOAD_KEYS = frozenset({
-        "description",
-        "table_name",
-        "record_id",
-        "data_dict",
-        "datetime",
-    })
+    _RESERVED_PAYLOAD_KEYS = frozenset(
+        {
+            "description",
+            "table_name",
+            "record_id",
+            "data_dict",
+            "datetime",
+        }
+    )
 
     def to_qdrant_payload(self) -> dict:
         payload = {
