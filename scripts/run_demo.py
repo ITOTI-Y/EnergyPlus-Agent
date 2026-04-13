@@ -8,7 +8,7 @@ from src.agent.runner import auto_approval, print_final_messages, run_session
 
 
 def main() -> None:
-    epw = Path("data/weather/shenzhen/CHN_Guangdong.Shenzhen.594930_SWERA.epw")
+    epw = Path("data/weather/Shenzhen.epw")
     output_dir = Path("output/demo")
     output_dir.mkdir(parents=True, exist_ok=True)
 

@@ -1,7 +1,8 @@
-from langchain_core.messages import AIMessage, HumanMessage
+from langchain_core.messages import AIMessage
 
 from src.agent.llm import create_llm
-from src.agent.react import ReactState, build_react_agent
+from src.agent.nodes._share import invoke_with_self_repair
+from src.agent.react import build_react_agent
 from src.agent.state import AgentState, AgentStateUpdate
 from src.agent.tools import make_construction_tools
 from src.agent.trace import TRACE_STORE, TraceCollector
@@ -9,17 +10,26 @@ from src.agent.trace import TRACE_STORE, TraceCollector
 CONSTRUCTION_SYSTEM_PROMPT = """You are a construction-assembly expert for EnergyPlus.
 Given construction specifications, create all required Construction objects.
 
+Workflow:
+1. FIRST call `list_materials` to discover which materials are already
+   defined and their full properties (thickness, conductivity, U-Factor
+   for glazing, etc.). DO NOT skip this step — the materials phase uses
+   names that may differ from what the intake spec suggested.
+2. Pick the correct layer composition for each construction using the
+   material names returned by list_materials, verbatim.
+3. Call `create_construction` for each construction in the spec.
+4. Call `list_constructions` once at the end to confirm.
+
 Rules:
-- Each Construction is a named ordered list of material names (>= 1 layer),
-  from OUTSIDE to INSIDE.
-- All layer names must already exist in the materials list. If the spec
-  mentions a material not yet created, halt and report the missing material
-  rather than creating a construction with a broken reference.
+- Layer names passed to `create_construction` MUST appear verbatim in
+  the list_materials result (exact case, underscores, dashes, numbers).
+- If a needed material is missing from list_materials, STOP and report
+  the gap; do NOT invent names or call create with a broken reference.
+- Each Construction is an ordered list of layers from OUTSIDE to INSIDE.
 - Use separate constructions per surface type when thermal properties differ
   (e.g., 'ExtWall_Office', 'IntWall_Office', 'Roof_Office', 'Floor_Office',
   'Window_Office').
 - For fenestration, the construction's only layer is the glazing material.
-- Call list_constructions once at the end.
 """
 
 
@@ -40,7 +50,7 @@ def construction_agent(state: AgentState) -> AgentStateUpdate:
         if state.intake_output
         else state.user_input
     )
-    result = agent.invoke(ReactState(messages=[HumanMessage(content=specs)]))
+    result = invoke_with_self_repair(agent, local, specs, phase="construction")
 
     final = [
         m for m in result["messages"] if isinstance(m, AIMessage) and not m.tool_calls

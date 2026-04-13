@@ -1,7 +1,9 @@
 from langchain_core.tools import BaseTool, tool
 
 from src.mcp.state import ConfigState
+from src.mcp.tools.construction import ConstructionTool
 from src.mcp.tools.fenestration import FenestrationTool
+from src.mcp.tools.surface import SurfaceTool
 
 
 def make_fenestration_tools(config: ConfigState) -> list[BaseTool]:
@@ -62,9 +64,21 @@ def make_fenestration_tools(config: ConfigState) -> list[BaseTool]:
         """Delete a fenestration."""
         return ft.delete(name).model_dump_json()
 
+    @tool
+    def list_surfaces() -> str:
+        """Read-only: list parent surfaces a fenestration can attach to."""
+        return SurfaceTool(config).list_all().model_dump_json()
+
+    @tool
+    def list_constructions() -> str:
+        """Read-only: list constructions a fenestration can reference."""
+        return ConstructionTool(config).list_all().model_dump_json()
+
     return [
         create_fenestration,
         list_fenestrations,
         get_fenestration,
         delete_fenestration,
+        list_surfaces,
+        list_constructions,
     ]

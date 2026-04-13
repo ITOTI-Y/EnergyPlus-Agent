@@ -2,6 +2,8 @@ from langchain_core.tools import BaseTool, tool
 
 from src.mcp.state import ConfigState
 from src.mcp.tools.hvac import IdealLoadsSystemTool, ThermostatTool
+from src.mcp.tools.schedule import ScheduleCompactTool
+from src.mcp.tools.zone import ZoneTool
 
 
 def make_hvac_tools(config: ConfigState) -> list[BaseTool]:
@@ -70,6 +72,16 @@ def make_hvac_tools(config: ConfigState) -> list[BaseTool]:
         """Delete an IdealLoadsSystem by its zone_name."""
         return ilst.delete(zone_name).model_dump_json()
 
+    @tool
+    def list_zones() -> str:
+        """Read-only: list zones an IdealLoadsAirSystem can be attached to."""
+        return ZoneTool(config).list_all().model_dump_json()
+
+    @tool
+    def list_schedules() -> str:
+        """Read-only: list Schedule:Compact objects (setpoint / availability references)."""
+        return ScheduleCompactTool(config).list_all().model_dump_json()
+
     return [
         create_thermostat,
         create_ideal_loads_system,
@@ -77,4 +89,6 @@ def make_hvac_tools(config: ConfigState) -> list[BaseTool]:
         list_ideal_loads_systems,
         delete_thermostat,
         delete_ideal_loads_system,
+        list_zones,
+        list_schedules,
     ]

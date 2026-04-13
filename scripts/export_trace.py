@@ -17,6 +17,7 @@ Requirements:
 from __future__ import annotations
 
 import json
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -27,18 +28,20 @@ from langchain_core.tracers.langchain import wait_for_all_tracers
 from scripts._share import USER_INPUT
 from src.agent import AgentState, SimContext, build_graph
 from src.agent.runner import auto_approval, print_final_messages, run_session
+from src.utils.logging import get_logger
 
 
 def _dump_traces(traced_runs: list[Any]) -> None:
     """Serialize every collected root run to output/traces/ as JSON."""
-    traces_dir = Path("output/traces")
+    logger = get_logger(__name__)
+    traces_dir = Path(f"output/traces/{datetime.now().strftime('%Y%m%d_%H%M%S')}")
     traces_dir.mkdir(parents=True, exist_ok=True)
     for i, run in enumerate(traced_runs):
         path = traces_dir / f"run_{i:02d}_{run.id}.json"
         path.write_text(
             json.dumps(_run_to_dict(run), default=str, indent=2, ensure_ascii=False)
         )
-        print(f"wrote {path}")
+    logger.info(f"Traces exported to {traces_dir}")
 
 
 def _run_to_dict(run: Any) -> dict[str, Any]:
@@ -59,8 +62,10 @@ def _run_to_dict(run: Any) -> dict[str, Any]:
 
 
 def main() -> None:
-    epw = Path("data/weather/shenzhen/CHN_Guangdong.Shenzhen.594930_SWERA.epw")
-    output_dir = Path("output/demo")
+    epw = Path("data/weather/Shenzhen.epw")
+    if not epw.exists():
+        raise FileNotFoundError(f"EPW file not found: {epw}")
+    output_dir = Path("output/demo/")
     output_dir.mkdir(parents=True, exist_ok=True)
 
     graph = build_graph()

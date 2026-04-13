@@ -2,6 +2,7 @@ from langchain_core.tools import BaseTool, tool
 
 from src.mcp.state import ConfigState
 from src.mcp.tools.construction import ConstructionTool
+from src.mcp.tools.material import MaterialTool
 
 
 def make_construction_tools(config: ConfigState) -> list[BaseTool]:
@@ -33,9 +34,15 @@ def make_construction_tools(config: ConfigState) -> list[BaseTool]:
         """Delete a construction. Fails if referenced by surfaces/fenestration."""
         return ct.delete(name).model_dump_json()
 
+    @tool
+    def list_materials() -> str:
+        """Read-only: list all materials available for use as construction layers."""
+        return MaterialTool(config).list_all().model_dump_json()
+
     return [
         create_construction,
         list_constructions,
         get_construction,
         delete_construction,
+        list_materials,
     ]

@@ -1,7 +1,8 @@
-from langchain_core.messages import AIMessage, HumanMessage
+from langchain_core.messages import AIMessage
 
 from src.agent.llm import create_llm
-from src.agent.react import ReactState, build_react_agent
+from src.agent.nodes._share import invoke_with_self_repair
+from src.agent.react import build_react_agent
 from src.agent.state import AgentState, AgentStateUpdate
 from src.agent.tools import make_surface_tools
 from src.agent.trace import TRACE_STORE, TraceCollector
@@ -21,11 +22,23 @@ shape for a 5m x 2m south wall at y=0 (ground to 2m tall):
       {"X": 0.0, "Y": 0.0, "Z": 2.0}
     ]
 
+Workflow:
+1. FIRST call `list_zones` to discover the exact zone names created by
+   the zone phase.
+2. THEN call `list_constructions` to discover the exact construction
+   names and their layer composition (helps you match the right
+   construction to each surface type — wall / floor / roof / window).
+3. Create each surface via `create_surface`, reusing those names verbatim.
+4. Call `list_surfaces` once at the end to confirm.
+
 Rules:
+- `zone_name` and `construction_name` MUST appear verbatim in the
+  list_zones / list_constructions results (exact case, underscores).
+- If a needed zone or construction is missing after list, STOP and
+  report; do NOT invent names or create a surface with a broken reference.
 - >= 3 vertices per surface; four-vertex rectangles are most common.
 - Order counter-clockwise when viewed from OUTSIDE the zone.
 - No two vertices may coincide (tolerance 1e-10 m).
-- Assign each surface to an existing zone (zone_name) and construction.
 - outside_boundary_condition:
     * Walls/roofs facing outdoors: 'Outdoors',
       sun_exposure='SunExposed', wind_exposure='WindExposed'
@@ -39,7 +52,6 @@ Rules:
 - surface_type is one of Wall, Floor, Roof, Ceiling (case-insensitive).
 - Name convention: '{zone}_{direction}_{type}', e.g.,
   'F1_Office_North_Wall', 'F1_Office_Floor', 'F1_Office_Roof'.
-- Call list_surfaces once at the end.
 """
 
 
@@ -58,7 +70,7 @@ def surface_agent(state: AgentState) -> AgentStateUpdate:
     specs = (
         state.intake_output.surface_specs if state.intake_output else state.user_input
     )
-    result = agent.invoke(ReactState(messages=[HumanMessage(content=specs)]))
+    result = invoke_with_self_repair(agent, local, specs, phase="surface")
 
     final = [
         m for m in result["messages"] if isinstance(m, AIMessage) and not m.tool_calls

@@ -1,3 +1,4 @@
+import re
 from abc import abstractmethod
 from collections import defaultdict
 from io import StringIO
@@ -162,9 +163,9 @@ class BuildingSchema(BaseSchema):
         description="Maximum number of warmup days",
     )
     minimum_number_of_warmup_days: int = Field(
-        0,
+        1,
         alias="Minimum Number of Warmup Days",
-        description="Minimum number of warmup days",
+        description="Minimum number of warmup days (E+ 25.1 requires > 0)",
     )
 
     @field_validator("name")
@@ -209,8 +210,8 @@ class BuildingSchema(BaseSchema):
 
     @field_validator("maximum_number_of_warmup_days", "minimum_number_of_warmup_days")
     def validate_warmup_days(cls, v):
-        if v < 0:
-            raise ValueError("Warmup days must be non-negative.")
+        if v < 1:
+            raise ValueError("Warmup days must be >= 1 (E+ 25.1 requirement).")
         return v
 
     def to_yaml_dict(self) -> dict[str, Any]:
@@ -560,10 +561,16 @@ class SiteLocationSchema(BaseSchema):
     elevation: float = Field(..., alias="Elevation")
 
     @field_validator("name")
-    def validate_name(cls, v):
+    def validate_name(cls, v: str) -> str:
         if not v:
             raise ValueError("Name must not be empty.")
-        return v
+        # IDF uses `,` and `;` as field / object delimiters; other
+        # punctuation and whitespace can cause silent field shifts. Force
+        # a single legal word-separator: `_`. Runs of non-word chars
+        # collapse to one underscore. Example:
+        #   "Shenzhen, China" -> "Shenzhen_China"
+        sanitized = re.sub(r"[^\w]+", "_", v, flags=re.UNICODE).strip("_")
+        return sanitized or "Unnamed"
 
     @field_validator("latitude")
     def validate_latitude(cls, v):

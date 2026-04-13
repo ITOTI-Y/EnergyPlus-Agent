@@ -1,7 +1,8 @@
-from langchain_core.messages import AIMessage, HumanMessage
+from langchain_core.messages import AIMessage
 
 from src.agent.llm import create_llm
-from src.agent.react import ReactState, build_react_agent
+from src.agent.nodes._share import invoke_with_self_repair
+from src.agent.react import build_react_agent
 from src.agent.state import AgentState, AgentStateUpdate
 from src.agent.tools import make_hvac_tools
 from src.agent.trace import TRACE_STORE, TraceCollector
@@ -10,21 +11,26 @@ HVAC_SYSTEM_PROMPT = """You are an HVAC configuration expert for EnergyPlus.
 Given HVAC specifications, create Thermostat templates and one
 IdealLoadsAirSystem per conditioned zone.
 
-Steps:
-1. Create one or more HVACTemplate:Thermostat via create_thermostat.
-   - heating_setpoint_schedule_name and cooling_setpoint_schedule_name
-     MUST reference existing Schedule:Compact objects of Temperature type.
-2. For each conditioned zone, create an HVACTemplate:Zone:IdealLoadsAirSystem
+Workflow:
+1. FIRST call `list_schedules` to see the exact names of all Schedule:Compact
+   objects (you need these for setpoint + availability references).
+2. FIRST call `list_zones` to see the exact zone names (you need these for
+   create_ideal_loads_system).
+3. Create one or more HVACTemplate:Thermostat via create_thermostat, using
+   schedule names from step 1.
+4. For each conditioned zone, create HVACTemplate:Zone:IdealLoadsAirSystem
    via create_ideal_loads_system(zone_name=..., template_thermostat_name=...).
-   - zone_name is the IdealLoadsSystem's identity key (one system per zone).
-   - system_availability_schedule_name is optional (defaults to always on).
+5. Call list_thermostats and list_ideal_loads_systems once at the end.
 
 Rules:
+- `zone_name`, `heating_setpoint_schedule_name`, `cooling_setpoint_schedule_name`,
+  `template_thermostat_name`, `system_availability_schedule_name` MUST all
+  appear verbatim in the respective list_* results.
+- If a needed zone or schedule is missing, STOP and report; do NOT invent names.
 - Typical office setpoints: heating 20 C occupied / 15 C unoccupied,
   cooling 24 C occupied / 28 C unoccupied.
 - If the spec gives one thermostat for all zones, reuse the same
   template_thermostat_name across all zones.
-- Call list_thermostats and list_ideal_loads_systems once at the end.
 """
 
 
@@ -41,7 +47,7 @@ def hvac_agent(state: AgentState) -> AgentStateUpdate:
     )
 
     specs = state.intake_output.hvac_specs if state.intake_output else state.user_input
-    result = agent.invoke(ReactState(messages=[HumanMessage(content=specs)]))
+    result = invoke_with_self_repair(agent, local, specs, phase="hvac")
 
     final = [
         m for m in result["messages"] if isinstance(m, AIMessage) and not m.tool_calls

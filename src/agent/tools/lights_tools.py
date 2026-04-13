@@ -2,6 +2,8 @@ from langchain_core.tools import BaseTool, tool
 
 from src.mcp.state import ConfigState
 from src.mcp.tools.light import LightTool
+from src.mcp.tools.schedule import ScheduleCompactTool
+from src.mcp.tools.zone import ZoneTool
 
 
 def make_lights_tools(config: ConfigState) -> list[BaseTool]:
@@ -56,4 +58,14 @@ def make_lights_tools(config: ConfigState) -> list[BaseTool]:
         """Delete a Lights object."""
         return lt.delete(name).model_dump_json()
 
-    return [create_light, list_lights, delete_light]
+    @tool
+    def list_zones() -> str:
+        """Read-only: list zones a Lights load can be assigned to."""
+        return ZoneTool(config).list_all().model_dump_json()
+
+    @tool
+    def list_schedules() -> str:
+        """Read-only: list Schedule:Compact (for schedule_name reference)."""
+        return ScheduleCompactTool(config).list_all().model_dump_json()
+
+    return [create_light, list_lights, delete_light, list_zones, list_schedules]

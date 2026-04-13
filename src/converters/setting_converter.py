@@ -51,7 +51,7 @@ class SettingsConverter(BaseConverter):
     def convert(self, data: dict[str, Any]) -> None:
         self.logger.info("Settings Converter Starting...")
 
-        version_tuple: tuple[int, ...] = self.idf.idd_version  # ty: ignore[invalid-assignment]
+        version_tuple: tuple[int, ...] = self.idf.idd_version  # type: ignore
         global_settings_data = {
             key: data.get(key) for key in self.setting_map if key in data
         }
@@ -161,22 +161,25 @@ class SettingsConverter(BaseConverter):
         self.logger.success("Added setting 'Timestep' to IDF.")
 
     def _run_period_apply(self, model: RunPeriodSchema) -> None:
-        self.idf.newidfobject(
-            "RunPeriod",
-            Name=model.name,
-            Begin_Month=model.begin_month,
-            Begin_Day_of_Month=model.begin_day_of_month,
-            Begin_Year=model.begin_year,
-            End_Month=model.end_month,
-            End_Day_of_Month=model.end_day_of_month,
-            End_Year=model.end_year,
-            Day_of_Week_for_Start_Day=model.day_of_week_for_start_day,
-            Use_Weather_File_Holidays_and_Special_Days=model.use_weather_file_holidays_and_special_days,
-            Use_Weather_File_Daylight_Saving_Period=model.use_weather_file_daylight_saving_period,
-            Apply_Weekend_Holiday_Rule=model.apply_weekend_holiday_rule,
-            Use_Weather_File_Rain_Indicators=model.use_weather_file_rain_indicators,
-            Use_Weather_File_Snow_Indicators=model.use_weather_file_snow_indicators,
-        )
+        kwargs = {
+            "Name": model.name,
+            "Begin_Month": model.begin_month,
+            "Begin_Day_of_Month": model.begin_day_of_month,
+            "End_Month": model.end_month,
+            "End_Day_of_Month": model.end_day_of_month,
+        }
+        optional = {
+            "Begin_Year": model.begin_year,
+            "End_Year": model.end_year,
+            "Day_of_Week_for_Start_Day": model.day_of_week_for_start_day,
+            "Use_Weather_File_Holidays_and_Special_Days": model.use_weather_file_holidays_and_special_days,
+            "Use_Weather_File_Daylight_Saving_Period": model.use_weather_file_daylight_saving_period,
+            "Apply_Weekend_Holiday_Rule": model.apply_weekend_holiday_rule,
+            "Use_Weather_File_Rain_Indicators": model.use_weather_file_rain_indicators,
+            "Use_Weather_File_Snow_Indicators": model.use_weather_file_snow_indicators,
+        }
+        kwargs.update({k: v for k, v in optional.items() if v is not None})
+        self.idf.newidfobject("RunPeriod", **kwargs)
         self.logger.success("Added setting 'RunPeriod' to IDF.")
 
     def _global_geometry_rules_apply(self, model: GlobalGeometryRulesSchema) -> None:
@@ -189,7 +192,7 @@ class SettingsConverter(BaseConverter):
         self.logger.success("Added setting 'GlobalGeometryRules' to IDF.")
 
     def _site_location_apply(self, model: SiteLocationSchema) -> None:
-        self.idf.newidfobject(
+        obj = self.idf.newidfobject(
             "Site:Location",
             Name=model.name,
             Latitude=model.latitude,
@@ -197,6 +200,12 @@ class SettingsConverter(BaseConverter):
             Time_Zone=model.time_zone,
             Elevation=model.elevation,
         )
+        # E+ 25.1 IDD vs internal JSON schema mismatch: the IDD defines an
+        # optional "Keep Site Location Information" field (populated by eppy
+        # to "No" via its IDD default) but the 25.1 validator rejects any
+        # Site:Location with more than 5 fields. Truncate the raw field list
+        # so eppy omits the trailing field when it writes the IDF.
+        obj.obj = obj.obj[:6]
         self.logger.success("Added setting 'Site:Location' to IDF.")
 
     def _output_variable_dictionary_apply(
@@ -218,7 +227,6 @@ class SettingsConverter(BaseConverter):
     def _output_table_summary_reports_apply(
         self, model: OutputTableSummaryReportsSchema
     ) -> None:
-        """应用 Output:Table:SummaryReports 对象到 IDF"""
         self.idf.newidfobject(
             "Output:Table:SummaryReports",
             Report_1_Name=model.report_1_name,
@@ -228,7 +236,6 @@ class SettingsConverter(BaseConverter):
     def _output_control_table_style_apply(
         self, model: OutputControlTableStyleSchema
     ) -> None:
-        """应用 OutputControl:Table:Style 对象到 IDF"""
         self.idf.newidfobject(
             "OutputControl:Table:Style",
             Column_Separator=model.column_separator,
@@ -237,7 +244,6 @@ class SettingsConverter(BaseConverter):
         self.logger.success("Added setting 'OutputControl:Table:Style' to IDF.")
 
     def _output_variable_apply(self, model: OutputVariableSchema) -> None:
-        """应用 Output:Variable 对象到 IDF"""
         self.idf.newidfobject(
             "Output:Variable",
             Key_Value=model.key_value,

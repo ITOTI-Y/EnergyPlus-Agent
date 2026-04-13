@@ -1,7 +1,8 @@
-from langchain_core.messages import AIMessage, HumanMessage
+from langchain_core.messages import AIMessage
 
 from src.agent.llm import create_llm
-from src.agent.react import ReactState, build_react_agent
+from src.agent.nodes._share import invoke_with_self_repair
+from src.agent.react import build_react_agent
 from src.agent.state import AgentState, AgentStateUpdate
 from src.agent.tools import make_people_tools
 from src.agent.trace import TRACE_STORE, TraceCollector
@@ -9,18 +10,24 @@ from src.agent.trace import TRACE_STORE, TraceCollector
 PEOPLE_SYSTEM_PROMPT = """You are an occupancy-load expert for EnergyPlus.
 For each specified zone, create a People object via create_people.
 
+Workflow:
+1. FIRST call `list_zones` to see the exact zone names.
+2. FIRST call `list_schedules` to see the exact Schedule:Compact names
+   (you need occupancy fraction + activity level schedules).
+3. Create a People object per zone via `create_people`.
+4. Call `list_people` once at the end to confirm.
+
 Rules:
+- `zone_name`, `number_of_people_schedule_name`, `activity_level_schedule_name`
+  MUST all appear verbatim in the list_zones / list_schedules results.
+- If a needed zone or schedule is missing, STOP and report; do NOT invent names.
 - name convention: '{zone}_People'.
-- zone_name must reference an existing Zone.
-- number_of_people_schedule_name and activity_level_schedule_name must
-  reference existing Schedule:Compact objects (Fraction and Activity Level).
 - Choose number_of_people_calculation_method based on input:
     * 'People' -> supply number_of_people (absolute count)
     * 'People/Area' -> supply people_per_floor_area (people/m^2)
     * 'Area/Person' -> supply floor_area_per_person (m^2/person)
 - Typical office density: 10 m^2/person (People/Area ~ 0.1).
 - fraction_radiant defaults to 0.3 for seated activity.
-- Call list_people once at the end.
 """
 
 
@@ -39,7 +46,7 @@ def people_agent(state: AgentState) -> AgentStateUpdate:
     specs = (
         state.intake_output.people_specs if state.intake_output else state.user_input
     )
-    result = agent.invoke(ReactState(messages=[HumanMessage(content=specs)]))
+    result = invoke_with_self_repair(agent, local, specs, phase="people")
 
     final = [
         m for m in result["messages"] if isinstance(m, AIMessage) and not m.tool_calls

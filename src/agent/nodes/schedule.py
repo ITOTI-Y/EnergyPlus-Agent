@@ -71,11 +71,27 @@ Example (medium-office lighting fraction schedule):
       }
     ]
 
+Downstream completeness checklist — BEFORE finishing, re-read the spec
+and ensure every schedule the downstream phases will reference exists.
+Typical required schedules for a conditioned occupied zone:
+
+  Downstream field                              | Type           | Typical values
+  ----------------------------------------------|----------------|----------------
+  thermostat.heating_setpoint_schedule_name     | Temperature    | 20 occupied / 15 setback
+  thermostat.cooling_setpoint_schedule_name     | Temperature    | 24 occupied / 28 setback
+  ideal_loads.system_availability_schedule_name | Fraction/OnOff | 1 during hours, else 0
+  people.number_of_people_schedule_name         | Fraction       | occupancy pattern
+  people.activity_level_schedule_name           | Activity Level | ~120 W/person seated
+  lights.schedule_name                          | Fraction       | lighting pattern
+
+If the spec implies occupancy but does not explicitly name an activity-
+level schedule, CREATE ONE anyway (e.g. "Office_Activity_Level" at
+120 W/person constant). People objects cannot be built without it.
+
 Rules:
 - Create type limits BEFORE the schedules that reference them.
-- Schedule names are referenced elsewhere (thermostat setpoints, people, lights);
-  use predictable names like 'OfficeOccupancy', 'OfficeLighting',
-  'HeatingSetpoint', 'CoolingSetpoint'.
+- Use the EXACT schedule names the spec states; otherwise downstream
+  phases will reference non-existent schedules.
 - The LAST "Through" block must be "12/31" (full-year coverage).
 - Within each "For" block, the LAST "Until.Time" must be "24:00".
 - Cover every day type: either use "AllDays", or use specific day types
@@ -96,9 +112,19 @@ def schedule_agent(state: AgentState) -> AgentStateUpdate:
         trace_collector=collector,
     )
 
-    specs = (
-        state.intake_output.schedule_specs if state.intake_output else state.user_input
-    )
+    if state.intake_output:
+        io = state.intake_output
+        specs = (
+            f"--- Schedule specifications (primary task) ---\n{io.schedule_specs}\n\n"
+            "--- Downstream specs (reference only; do NOT create non-schedule "
+            "objects here, but USE these to infer which schedules the later "
+            "phases will reference) ---\n"
+            f"[hvac_specs]\n{io.hvac_specs}\n\n"
+            f"[people_specs]\n{io.people_specs}\n\n"
+            f"[lights_specs]\n{io.lights_specs}\n"
+        )
+    else:
+        specs = state.user_input
     result = agent.invoke(ReactState(messages=[HumanMessage(content=specs)]))
 
     final = [

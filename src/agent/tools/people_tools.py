@@ -2,6 +2,8 @@ from langchain_core.tools import BaseTool, tool
 
 from src.mcp.state import ConfigState
 from src.mcp.tools.people import PeopleTool
+from src.mcp.tools.schedule import ScheduleCompactTool
+from src.mcp.tools.zone import ZoneTool
 
 
 def make_people_tools(config: ConfigState) -> list[BaseTool]:
@@ -56,4 +58,14 @@ def make_people_tools(config: ConfigState) -> list[BaseTool]:
         """Delete a People object."""
         return pt.delete(name).model_dump_json()
 
-    return [create_people, list_people, delete_people]
+    @tool
+    def list_zones() -> str:
+        """Read-only: list zones an occupancy load can be assigned to."""
+        return ZoneTool(config).list_all().model_dump_json()
+
+    @tool
+    def list_schedules() -> str:
+        """Read-only: list Schedule:Compact (for number_of_people and activity_level refs)."""
+        return ScheduleCompactTool(config).list_all().model_dump_json()
+
+    return [create_people, list_people, delete_people, list_zones, list_schedules]

@@ -57,6 +57,39 @@ Rules:
    - Zones named in `surface_specs` / `people_specs` / `lights_specs` /
      `hvac_specs` must be defined in `zone_specs` with the IDENTICAL name.
    Pick names once, reuse them verbatim. No synonyms, no pluralization.
+5. Name format — EVERY Name field (building.name, site_location.name,
+   zone / material / construction / surface / fenestration / schedule /
+   thermostat / people / lights names) MUST use ONLY word characters
+   (letters, digits) with `_` as the ONLY word separator. NO spaces,
+   NO commas, NO semicolons, NO hyphens, NO slashes, NO parentheses.
+   IDF uses `,` and `;` as field delimiters; other punctuation causes
+   silent field shifts that crash EnergyPlus.
+   Examples:
+     ✓ "Shenzhen_CN", "Office_Zone", "ExtWall_Brick_EPS_Gypsum",
+       "Schedule_Office_Occupancy_Weekday"
+     ✗ "Shenzhen, China"     (comma)
+     ✗ "Office Zone 1"       (space)
+     ✗ "Wall-Assembly-A"     (hyphen)
+     ✗ "Schedule (Weekday)"  (parentheses)
+6. `schedule_specs` MUST be complete — every schedule referenced by a
+   downstream phase has to be described here, because the schedule
+   agent runs FIRST and will not be re-invoked. Checklist of schedule
+   types the downstream phases will request:
+
+     Downstream field                              | Schedule type   | Unit
+     ----------------------------------------------|-----------------|------
+     thermostat.heating_setpoint_schedule_name     | Temperature     | degC
+     thermostat.cooling_setpoint_schedule_name     | Temperature     | degC
+     ideal_loads.system_availability_schedule_name | Fraction / OnOff| -
+     people.number_of_people_schedule_name         | Fraction        | -
+     people.activity_level_schedule_name           | Activity Level  | W/person
+     lights.schedule_name                          | Fraction        | -
+
+   For every row where the downstream phase is non-empty, `schedule_specs`
+   must (a) name the schedule, (b) state the schedule type limits it
+   uses, and (c) give the value profile (e.g. "weekdays 8-18 at 1.0,
+   else 0.0"). The activity_level schedule is commonly forgotten —
+   default ~120 W/person for seated office work.
 """
 
 _IMAGE_SUFFIX_TO_MIME = {

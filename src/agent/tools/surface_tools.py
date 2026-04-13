@@ -1,7 +1,9 @@
 from langchain_core.tools import BaseTool, tool
 
 from src.mcp.state import ConfigState
+from src.mcp.tools.construction import ConstructionTool
 from src.mcp.tools.surface import SurfaceTool
+from src.mcp.tools.zone import ZoneTool
 
 
 def make_surface_tools(config: ConfigState) -> list[BaseTool]:
@@ -69,4 +71,21 @@ def make_surface_tools(config: ConfigState) -> list[BaseTool]:
         """Delete a surface. Fails if fenestration references it."""
         return st.delete(name).model_dump_json()
 
-    return [create_surface, list_surfaces, get_surface, delete_surface]
+    @tool
+    def list_zones() -> str:
+        """Read-only: list zones a surface can be assigned to."""
+        return ZoneTool(config).list_all().model_dump_json()
+
+    @tool
+    def list_constructions() -> str:
+        """Read-only: list constructions a surface can reference."""
+        return ConstructionTool(config).list_all().model_dump_json()
+
+    return [
+        create_surface,
+        list_surfaces,
+        get_surface,
+        delete_surface,
+        list_zones,
+        list_constructions,
+    ]
