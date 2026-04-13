@@ -5,7 +5,11 @@ from typing import Annotated, Literal
 
 import typer
 from dotenv import load_dotenv
+from langchain_core.runnables import RunnableConfig
+from typer import Argument, Option
 
+from src.agent import AgentState, SimContext, build_graph
+from src.agent.runner import interactive_approval, print_final_messages, run_session
 from src.converter_manager import ConverterManager
 from src.runner.runner import EnergyPlusRunner
 from src.utils.logging import get_logger, setup_logger
@@ -86,6 +90,61 @@ def embedding(
         logger.error(f"Failed to embed {result.failed_count} batches")
         raise typer.Exit(1)
     logger.info(f"Successfully embedded {result.success_count} batches")
+
+
+@app.command()
+def run_agent(
+    user_input: Annotated[
+        str, Argument(..., help="Natural language building description")
+    ],
+    epw: Annotated[
+        Path, Option(..., "--epw", "-w", help="Path to the EPW weather file")
+    ],
+    images: Annotated[
+        list[Path],
+        Option(
+            [],
+            "--image",
+            "-i",
+            help="Architectural drawing(s); repeat flag for multiple (floorplan + elevation + perspective...)",
+        ),
+    ],
+    output_dir: Annotated[
+        Path,
+        Option(
+            Path("output"),
+            "--output-dir",
+            "-o",
+            help="Output directory for EnergyPlus simulation results",
+        ),
+    ],
+    thread_id: Annotated[
+        str,
+        Option(
+            "demo",
+            "--thread-id",
+            "-t",
+            help="Unique identifier for this conversation thread",
+        ),
+    ],
+) -> None:
+    """Run the multi-phase agent end-to-end.
+
+    Stops at the validate interrupt; print the pending summary and loop
+    until the user types 'approve' or feedback text.
+    """
+    graph = build_graph()
+    initial = AgentState(
+        user_input=user_input,
+        image_paths=[str(p) for p in images],
+    )
+    context = SimContext(epw_path=epw, output_dir=output_dir)
+    config: RunnableConfig = {"configurable": {"thread_id": thread_id}}
+
+    state = run_session(
+        graph, initial, context, config, on_interrupt=interactive_approval
+    )
+    print_final_messages(state)
 
 
 if __name__ == "__main__":
