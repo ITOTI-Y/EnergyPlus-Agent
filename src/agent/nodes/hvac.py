@@ -5,7 +5,7 @@ from src.agent.nodes._share import invoke_with_self_repair
 from src.agent.react import build_react_agent
 from src.agent.state import AgentState, AgentStateUpdate
 from src.agent.tools import make_hvac_tools
-from src.agent.trace import TRACE_STORE, TraceCollector
+from src.agent.trace import TraceCollector, record_phase_trace
 
 HVAC_SYSTEM_PROMPT = """You are an HVAC configuration expert for EnergyPlus.
 Given HVAC specifications, create Thermostat templates and one
@@ -54,7 +54,7 @@ def hvac_agent(state: AgentState) -> AgentStateUpdate:
     ]
     summary = final[-1].content if final else "hvac done"
 
-    TRACE_STORE.setdefault("hvac", []).extend(collector.export())
+    record_phase_trace("hvac", collector.export())
     return AgentStateUpdate(
         config_state=local,
         messages=[AIMessage(content=f"[hvac] {summary}")],

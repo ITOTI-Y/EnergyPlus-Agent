@@ -61,7 +61,7 @@ class GeminiEmbeddingModel(IEmbeddingModel):
             )
 
         except Exception as e:
-            self.logger.exception(f"Embedding API error: {e}")
+            self.logger.exception("Embedding API error: {}", e)
             raise ValueError(f"Embedding API call failed: {e}") from e
 
         if not result.embeddings:

@@ -116,13 +116,19 @@ class BaseSchema(BaseModel):
 
         if value_lower not in choice_mapping:
             logger.error(
-                f"{field_name} '{value}' is not a valid choice. Valid choices are: {valid_choices}."
+                "{} '{}' is not a valid choice. Valid choices are: {}.",
+                field_name,
+                value,
+                valid_choices,
             )
             raise ValueError(f"{field_name} must be one of {valid_choices}.")
 
         if value not in valid_choices:  # type: ignore
             logger.warning(
-                f"{field_name} '{value}' is not in the standard casing. Using '{choice_mapping[value_lower]}' instead."
+                "{} '{}' is not in the standard casing. Using '{}' instead.",
+                field_name,
+                value,
+                choice_mapping[value_lower],
             )
         return choice_mapping[value_lower]
 
@@ -474,7 +480,7 @@ class SurfaceSchema(BaseSchema):
         mask = distances < tolerance
         if np.any(mask):
             for pt1, pt2 in np.argwhere(mask):
-                logger.error(f"Vertices {v[pt1]} and {v[pt2]} are too close.")
+                logger.error("Vertices {} and {} are too close.", v[pt1], v[pt2])
             raise ValueError("Some vertices are too close to each other.")
         return pts
 
@@ -1037,7 +1043,7 @@ class GeometrySchema(BaseSchema):
         if len(unclosure_indices) > 0:
             for idx in unclosure_indices:
                 point = unique_points[idx]
-                logger.error(f"Point {point} is not properly closed in the geometry.")
+                logger.error("Point {} is not properly closed in the geometry.", point)
             raise ValueError(
                 "Geometry closure validation failed. Some points are not properly closed."
             )
@@ -1067,7 +1073,9 @@ class GeometrySchema(BaseSchema):
             if surface.surface_type not in {"Floor", "Roof", "Ceiling"}:
                 if len(interior_points) == 0:
                     logger.error(
-                        f"Cannot compute normal vector for surface {surface.name} without floor surfaces for reference."
+                        "Cannot compute normal vector for surface {} without "
+                        "floor surfaces for reference.",
+                        surface.name,
                     )
                     raise ValueError(
                         "At least one Floor surface is required to validate other surface types."
@@ -1124,7 +1132,8 @@ class GeometrySchema(BaseSchema):
                 tri = Delaunay(surface.vertices[:, :-1])
             except Exception as e:
                 logger.exception(
-                    f"Failed to perform Delaunay triangulation on surface {surface.name}: {e}"
+                    "Failed to perform Delaunay triangulation on surface {}",
+                    surface.name,
                 )
                 raise ValueError(
                     f"Delaunay triangulation failed for surface {surface.name}."

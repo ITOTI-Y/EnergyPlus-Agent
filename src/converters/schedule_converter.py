@@ -32,7 +32,7 @@ class ScheduleConverter(BaseConverter):
             validated_data = self.validate(schedule_data)
         except Exception as e:
             self.state["failed"] += 1
-            self.logger.error(f"Failed to validate Schedule data: {e}")
+            self.logger.error("Failed to validate Schedule data: {}", e)
             return
 
         for schedule_type_limits in validated_data.schedule_type_limits:
@@ -55,11 +55,14 @@ class ScheduleConverter(BaseConverter):
                     )
                     self.state["success"] += 1
                     self.logger.success(
-                        f"ScheduleTypeLimits with name {val_data.name} added to IDF."
+                        "ScheduleTypeLimits with name {} added to IDF.",
+                        val_data.name,
                     )
                 else:
                     self.logger.warning(
-                        f"ScheduleTypeLimits with name {val_data.name} already exists in IDF. Skipping addition."
+                        "ScheduleTypeLimits with name {} already exists in IDF. "
+                        "Skipping addition.",
+                        val_data.name,
                     )
                     self.state["skipped"] += 1
             elif isinstance(val_data, ScheduleCompactSchema):
@@ -73,11 +76,13 @@ class ScheduleConverter(BaseConverter):
                         setattr(schdule, f"Field_{i + 1}", value)
                     self.state["success"] += 1
                     self.logger.success(
-                        f"Schedule:Compact with name {val_data.name} added to IDF."
+                        "Schedule:Compact with name {} added to IDF.", val_data.name
                     )
                 else:
                     self.logger.warning(
-                        f"Schedule:Compact with name {val_data.name} already exists in IDF. Skipping addition."
+                        "Schedule:Compact with name {} already exists in IDF. "
+                        "Skipping addition.",
+                        val_data.name,
                     )
                     self.state["skipped"] += 1
             else:
@@ -85,7 +90,7 @@ class ScheduleConverter(BaseConverter):
                 raise ValueError(f"Unknown Schedule object type: {type(val_data)}")
         except Exception as e:
             self.state["failed"] += 1
-            self.logger.error(f"Failed to add Schedule object: {e}")
+            self.logger.error("Failed to add Schedule object: {}", e)
 
     def validate(self, data: dict[str, Any]) -> Any:
         return ScheduleCollectionSchema.model_validate(data)

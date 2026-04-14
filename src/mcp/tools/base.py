@@ -119,7 +119,9 @@ class BaseTool(ABC):
 
             self._add_to_storage(instance)
             logger.info(
-                f"Component '{self.component_name}':'{name}' created successfully."
+                "Component '{}':'{}' created successfully.",
+                self.component_name,
+                name,
             )
 
             return ToolResponse(
@@ -144,7 +146,7 @@ class BaseTool(ABC):
 
         except Exception as e:
             logger.exception(
-                f"Error creating component '{self.component_name}':'{name}'."
+                "Error creating component '{}':'{}'.", self.component_name, name
             )
             return ToolResponse(
                 success=False,
@@ -204,10 +206,10 @@ class BaseTool(ABC):
             if new_name != name:
                 self._remove_from_storage(name)
                 self._add_to_storage(updated)
-                logger.info(f"Updated {self.component_name}: {name} -> {new_name}")
+                logger.info("Updated {}: {} -> {}", self.component_name, name, new_name)
             else:
                 self._update_storage(name, updated)
-                logger.info(f"Updated {self.component_name}: {name}")
+                logger.info("Updated {}: {}", self.component_name, name)
 
             return ToolResponse(
                 success=True,
@@ -231,7 +233,7 @@ class BaseTool(ABC):
 
         except Exception as e:
             logger.exception(
-                f"Error updating component '{self.component_name}':'{name}'."
+                "Error updating component '{}':'{}'.", self.component_name, name
             )
             return ToolResponse(
                 success=False,
@@ -265,7 +267,7 @@ class BaseTool(ABC):
             )
 
         self._remove_from_storage(name)
-        logger.info(f"Deleted {self.component_name}':'{name}'")
+        logger.info("Deleted {}':'{}'", self.component_name, name)
         return ToolResponse(
             success=True,
             message=f"Component '{self.component_name}':'{name}' deleted successfully.",

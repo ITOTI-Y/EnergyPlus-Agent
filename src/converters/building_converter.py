@@ -21,7 +21,7 @@ class BuildingConverter(BaseConverter):
             self._add_to_idf(validated_data)
         except Exception as e:
             self.state["failed"] += 1
-            self.logger.error(f"Error Convert Building Data: {e}")
+            self.logger.error("Error Convert Building Data: {}", e)
 
     def _add_to_idf(self, val_data: dict) -> None:
         building_data: BuildingSchema = val_data["building_data"]
@@ -41,16 +41,18 @@ class BuildingConverter(BaseConverter):
                 )
                 self.state["success"] += 1
                 self.logger.success(
-                    f"Building object with name {building_data.name} added to IDF."
+                    "Building object with name {} added to IDF.", building_data.name
                 )
             else:
                 self.logger.warning(
-                    f"Building object with name {building_data.name} already exists in IDF. Skipping addition."
+                    "Building object with name {} already exists in IDF. "
+                    "Skipping addition.",
+                    building_data.name,
                 )
                 self.state["skipped"] += 1
         except Exception as e:
             self.state["failed"] += 1
-            self.logger.error(f"Error Adding Building to IDF: {e}")
+            self.logger.error("Error Adding Building to IDF: {}", e)
 
     def validate(self, data: dict) -> dict:
         val_building_data = BuildingSchema.model_validate(data)

@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Annotated, Any, Final
 
 from langchain_core.messages import AnyMessage
 from langgraph.graph.message import add_messages
@@ -84,6 +84,8 @@ def _get_identity(item: Any) -> str:
         return item.name
     if hasattr(item, "zone_name"):
         return item.zone_name
+    if hasattr(item, "variable_name") and hasattr(item, "key_value"):
+        return f"{item.key_value}_{item.variable_name}_{item.reporting_frequency}"
     raise ValueError(f"Cannot determine identity for {type(item).__name__}")
 
 
@@ -127,7 +129,7 @@ def _merge_hvac(old: HVACSchema, new: HVACSchema) -> HVACSchema:
     )
 
 
-_NAMED_LIST_FIELDS = (
+_NAMED_LIST_FIELDS: Final = (
     "zones",
     "materials",
     "constructions",
@@ -138,7 +140,7 @@ _NAMED_LIST_FIELDS = (
     "output_variable",
 )
 
-_SINGLETON_FIELDS = (
+_SINGLETON_FIELDS: Final = (
     "building",
     "site_location",
     "simulation_control",

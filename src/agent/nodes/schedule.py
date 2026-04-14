@@ -4,7 +4,7 @@ from src.agent.llm import create_llm
 from src.agent.react import ReactState, build_react_agent
 from src.agent.state import AgentState, AgentStateUpdate
 from src.agent.tools import make_schedule_tools
-from src.agent.trace import TRACE_STORE, TraceCollector
+from src.agent.trace import TraceCollector, record_phase_trace
 
 SCHEDULE_SYSTEM_PROMPT = """You are a scheduling expert for EnergyPlus.
 Given schedule specifications, create all ScheduleTypeLimits and
@@ -132,7 +132,7 @@ def schedule_agent(state: AgentState) -> AgentStateUpdate:
     ]
     summary = final[-1].content if final else "schedule done"
 
-    TRACE_STORE.setdefault("schedule", []).extend(collector.export())
+    record_phase_trace("schedule", collector.export())
     return AgentStateUpdate(
         config_state=local,
         messages=[AIMessage(content=f"[schedule] {summary}")],

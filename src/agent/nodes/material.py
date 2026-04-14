@@ -4,7 +4,7 @@ from src.agent.llm import create_llm
 from src.agent.react import ReactState, build_react_agent
 from src.agent.state import AgentState, AgentStateUpdate
 from src.agent.tools import make_material_tools
-from src.agent.trace import TRACE_STORE, TraceCollector
+from src.agent.trace import TraceCollector, record_phase_trace
 
 MATERIAL_SYSTEM_PROMPT = """You are a building material expert for EnergyPlus.
 Given material specifications, create all required materials.
@@ -49,7 +49,7 @@ def material_agent(state: AgentState) -> AgentStateUpdate:
     ]
     summary = final[-1].content if final else "material done"
 
-    TRACE_STORE.setdefault("material", []).extend(collector.export())
+    record_phase_trace("material", collector.export())
     return AgentStateUpdate(
         config_state=local,
         messages=[AIMessage(content=f"[material] {summary}")],

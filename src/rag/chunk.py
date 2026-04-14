@@ -81,13 +81,17 @@ class SQLiteProcessor:
                 full_dict = dict(result)
                 if content_column not in full_dict:
                     self.logger.error(
-                        f"Column '{content_column}' not found in table {table_name}"
+                        "Column '{}' not found in table {}",
+                        content_column,
+                        table_name,
                     )
                     return None
                 for required_col in ("id", "datetime"):
                     if required_col not in full_dict:
                         self.logger.error(
-                            f"Required column '{required_col}' not found in table {table_name}"
+                            "Required column '{}' not found in table {}",
+                            required_col,
+                            table_name,
                         )
                         return None
                 exclude_keys = {content_column, "id", "datetime"}
@@ -103,5 +107,5 @@ class SQLiteProcessor:
                     datetime=full_dict["datetime"],
                 )
         except Exception as e:
-            self.logger.error(f"Error processing {table_name} ID {record_id}: {e}")
+            self.logger.error("Error processing {} ID {}: {}", table_name, record_id, e)
             raise

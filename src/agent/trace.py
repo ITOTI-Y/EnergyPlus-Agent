@@ -61,4 +61,19 @@ class TraceCollector:
         self.traces.clear()
 
 
-TRACE_STORE: dict[str, list[dict[str, Any]]] = {}
+_trace_store: dict[str, list[dict[str, Any]]] = {}
+
+
+def record_phase_trace(phase: str, entries: list[dict[str, Any]]) -> None:
+    """Append one phase's trace entries to the session-scoped store."""
+    _trace_store.setdefault(phase, []).extend(entries)
+
+
+def export_traces() -> dict[str, list[dict[str, Any]]]:
+    """Snapshot the current session's traces, phase -> entries."""
+    return {phase: list(entries) for phase, entries in _trace_store.items()}
+
+
+def reset_traces() -> None:
+    """Clear the trace store. Called at the start of every `run_session`."""
+    _trace_store.clear()

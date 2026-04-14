@@ -20,24 +20,25 @@ class ConstructionConverter(BaseConverter):
             try:
                 validated_construction = self.validate(construction_data)
                 self._add_to_idf(validated_construction)
-            except Exception as e:
+            except Exception:
                 self.state["failed"] += 1
-                self.logger.error(
-                    f"Failed to convert Construction '{construction_data.get('Name', 'N/A')}': {e}",
-                    exc_info=True,
+                self.logger.exception(
+                    "Failed to convert Construction '{}'",
+                    construction_data.get("Name", "N/A"),
                 )
                 continue
 
     def _add_to_idf(self, val_data: ConstructionSchema) -> None:
         if self.idf.getobject("CONSTRUCTION", val_data.name):
             self.logger.warning(
-                f"Construction with name '{val_data.name}' already exists. Skipping addition."
+                "Construction with name '{}' already exists. Skipping addition.",
+                val_data.name,
             )
             self.state["skipped"] += 1
             return
 
         try:
-            self.logger.debug(f"Adding Construction '{val_data.name}' to IDF.")
+            self.logger.debug("Adding Construction '{}' to IDF.", val_data.name)
 
             for layer_name in val_data.layers:
                 if not (
@@ -60,26 +61,33 @@ class ConstructionConverter(BaseConverter):
 
                 setattr(construction_obj, field_name, layer_name)
                 self.logger.debug(
-                    f"  - Set {field_name} to '{layer_name}' for '{val_data.name}'."
+                    "  - Set {} to '{}' for '{}'.",
+                    field_name,
+                    layer_name,
+                    val_data.name,
                 )
             self.state["success"] += 1
             self.logger.success(
-                f"Construction '{val_data.name}' with {len(val_data.layers)} layers added successfully."
+                "Construction '{}' with {} layers added successfully.",
+                val_data.name,
+                len(val_data.layers),
             )
 
         except ValueError:
             self.state["failed"] += 1
-            self.logger.exception(f"Failed to add Construction '{val_data.name}'")
+            self.logger.exception("Failed to add Construction '{}'", val_data.name)
 
         except AttributeError:
             self.state["failed"] += 1
             self.logger.exception(
-                f"Error adding Construction '{val_data.name}'. A specified field name was not found.",
+                "Error adding Construction '{}'. A specified field name was not found.",
+                val_data.name,
             )
         except Exception:
             self.state["failed"] += 1
             self.logger.exception(
-                f"An unexpected error occurred while adding Construction '{val_data.name}'"
+                "An unexpected error occurred while adding Construction '{}'",
+                val_data.name,
             )
 
     def validate(self, data: dict) -> ConstructionSchema:

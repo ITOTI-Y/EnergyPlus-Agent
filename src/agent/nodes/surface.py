@@ -5,7 +5,7 @@ from src.agent.nodes._share import invoke_with_self_repair
 from src.agent.react import build_react_agent
 from src.agent.state import AgentState, AgentStateUpdate
 from src.agent.tools import make_surface_tools
-from src.agent.trace import TRACE_STORE, TraceCollector
+from src.agent.trace import TraceCollector, record_phase_trace
 
 SURFACE_SYSTEM_PROMPT = """You are a building geometry expert for EnergyPlus.
 Given surface specifications, create all BuildingSurface:Detailed objects
@@ -77,7 +77,7 @@ def surface_agent(state: AgentState) -> AgentStateUpdate:
     ]
     summary = final[-1].content if final else "surface done"
 
-    TRACE_STORE.setdefault("surface", []).extend(collector.export())
+    record_phase_trace("surface", collector.export())
     return AgentStateUpdate(
         config_state=local,
         messages=[AIMessage(content=f"[surface] {summary}")],

@@ -35,7 +35,7 @@ class HVACConverter(BaseConverter):
             validated_hvac_schema = self.validate(hvac_data)
         except Exception as e:
             self.state["failed"] += 1
-            self.logger.error(f"Failed to process the entire HVAC block: {e}")
+            self.logger.error("Failed to process the entire HVAC block: {}", e)
             return
 
         for thermostat in validated_hvac_schema.thermostats:
@@ -64,11 +64,13 @@ class HVACConverter(BaseConverter):
                     )
                     self.state["success"] += 1
                     self.logger.success(
-                        f"Successfully added HVACTemplate:Thermostat '{val_data.name}'."
+                        "Successfully added HVACTemplate:Thermostat '{}'.",
+                        val_data.name,
                     )
                 else:
                     self.logger.warning(
-                        f"HVACTemplate:Thermostat '{val_data.name}' already exists. Skipping."
+                        "HVACTemplate:Thermostat '{}' already exists. Skipping.",
+                        val_data.name,
                     )
                     self.state["skipped"] += 1
             elif isinstance(val_data, HVACTemplateZoneIdealLoadsAirSystemSchema):
@@ -84,13 +86,17 @@ class HVACConverter(BaseConverter):
                     )
                     self.state["success"] += 1
                     self.logger.success(
-                        f"Successfully added HVACTemplate:Zone:IdealLoadsAirSystem for zone '{val_data.zone_name}'."
+                        "Successfully added HVACTemplate:Zone:IdealLoadsAirSystem "
+                        "for zone '{}'.",
+                        val_data.zone_name,
                     )
                 else:
                     self.logger.warning(
-                        f"HVACTemplate:Zone:IdealLoadsAirSystem for zone '{val_data.zone_name}' already exists. Skipping."
+                        "HVACTemplate:Zone:IdealLoadsAirSystem for zone '{}' "
+                        "already exists. Skipping.",
+                        val_data.zone_name,
                     )
                     self.state["skipped"] += 1
         except Exception as e:
             self.state["failed"] += 1
-            self.logger.error(f"Failed to add HVAC object: {e}")
+            self.logger.error("Failed to add HVAC object: {}", e)

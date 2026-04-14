@@ -6,8 +6,10 @@ from typing import Any
 from langchain_core.runnables import RunnableConfig
 from langgraph.graph.state import CompiledStateGraph
 from langgraph.types import Command
+from loguru import logger
 
 from src.agent.state import AgentState, SimContext
+from src.agent.trace import reset_traces
 
 type InterruptDecision = dict[str, Any]
 type InterruptHandler = Callable[[dict[str, Any]], InterruptDecision]
@@ -40,6 +42,7 @@ def run_session(
     Returns:
         Final state dict after END (pulled from the checkpointer).
     """
+    reset_traces()
     payload: Any = initial
     while True:
         for event in graph.stream(
@@ -71,18 +74,18 @@ def interactive_approval(payload: dict[str, Any]) -> InterruptDecision:
     summary = payload["summary"]
     errors = payload["errors"]
 
-    print("\n===== VALIDATE INTERRUPT =====")
-    print(
-        f"  zones={summary['zones_count']} materials={summary['materials_count']} "
-        f"surfaces={summary['surfaces_count']} "
-        f"fenestrations={summary['fenestrations_count']}"
+    logger.info(
+        "validate interrupt: zones={} materials={} surfaces={} fenestrations={}",
+        summary["zones_count"],
+        summary["materials_count"],
+        summary["surfaces_count"],
+        summary["fenestrations_count"],
     )
     if errors:
-        print("  errors:")
         for e in errors:
-            print(f"    - {e}")
+            logger.warning("cross-ref error: {}", e)
     else:
-        print("  no cross-reference errors")
+        logger.info("no cross-reference errors")
 
     answer = input("Approve? [y/N or feedback text] > ").strip()
     if answer.lower() in ["y", "yes"]:
@@ -110,7 +113,6 @@ def auto_approval(payload: dict[str, Any]) -> InterruptDecision:
 
 
 def print_final_messages(state: dict[str, Any], n: int = 5) -> None:
-    print("\n===== FINAL =====")
     for m in state.get("messages", [])[-n:]:
         content = m.content if hasattr(m, "content") else str(m)
-        print(f"  {getattr(m, 'type', 'msg')}: {str(content)[:200]}")
+        logger.info("final {}: {}", getattr(m, "type", "msg"), str(content)[:200])

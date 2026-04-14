@@ -158,7 +158,7 @@ class ConfigState(BaseSchema):
         output_path.parent.mkdir(parents=True, exist_ok=True)
         with open(output_path, "w") as f:
             OmegaConf.save(config=self.to_yaml_dict(), f=f)
-        logger.info(f"Exported YAML to {output_path}")
+        logger.info("Exported YAML to {}", output_path)
 
     @classmethod
     def load_yaml(cls, input_path: str | Path) -> "ConfigState":
@@ -179,7 +179,7 @@ class ConfigState(BaseSchema):
             raise FileNotFoundError(f"YAML file not found: {input_path}")
         with open(input_path) as f:
             config = OmegaConf.load(f)
-            logger.info(f"Loaded YAML from {input_path}")
+            logger.info("Loaded YAML from {}", input_path)
             return cls.model_validate(config)
 
     def clear(self) -> None:

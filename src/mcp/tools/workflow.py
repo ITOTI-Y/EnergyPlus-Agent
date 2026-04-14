@@ -133,7 +133,7 @@ class WorkflowTool:
             runner = EnergyPlusRunner(idf=manager.idf)
             runner.run_idf(epw_path)
 
-            logger.info(f"Simulation run successfully. Output directory: {output_dir}")
+            logger.info("Simulation run successfully. Output directory: {}", output_dir)
 
             return ToolResponse(
                 success=True,

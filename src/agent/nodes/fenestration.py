@@ -5,7 +5,7 @@ from src.agent.nodes._share import invoke_with_self_repair
 from src.agent.react import build_react_agent
 from src.agent.state import AgentState, AgentStateUpdate
 from src.agent.tools import make_fenestration_tools
-from src.agent.trace import TRACE_STORE, TraceCollector
+from src.agent.trace import TraceCollector, record_phase_trace
 
 FENESTRATION_SYSTEM_PROMPT = """You are a window/door geometry expert for EnergyPlus.
 Given fenestration specifications, create FenestrationSurface:Detailed
@@ -69,7 +69,7 @@ def fenestration_agent(state: AgentState) -> AgentStateUpdate:
     ]
     summary = final[-1].content if final else "fenestration done"
 
-    TRACE_STORE.setdefault("fenestration", []).extend(collector.export())
+    record_phase_trace("fenestration", collector.export())
     return AgentStateUpdate(
         config_state=local,
         messages=[AIMessage(content=f"[fenestration] {summary}")],

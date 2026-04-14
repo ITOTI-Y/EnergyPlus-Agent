@@ -16,13 +16,14 @@ class PeopleConverter(BaseConverter):
                 self._add_to_idf(validated_people)
             except Exception as e:
                 self.state["failed"] += 1
-                self.logger.error(f"Error converting people data: {e}")
+                self.logger.error("Error converting people data: {}", e)
                 continue
 
     def _add_to_idf(self, val_data: PeopleSchema):
         if self.idf.getobject("People", name=val_data.name):
             self.logger.warning(
-                f"People with name {val_data.name} already exists in IDF. Skipping addition."
+                "People with name {} already exists in IDF. Skipping addition.",
+                val_data.name,
             )
             self.state["skipped"] += 1
             return
@@ -59,7 +60,7 @@ class PeopleConverter(BaseConverter):
             Heat_Stress_Temperature_Threshold=val_data.heat_stress_temperature_threshold,
         )
         self.state["success"] += 1
-        self.logger.success(f"People with name {val_data.name} added to IDF.")
+        self.logger.success("People with name {} added to IDF.", val_data.name)
 
     def validate(self, data: dict) -> PeopleSchema:
         return PeopleSchema.model_validate(data)

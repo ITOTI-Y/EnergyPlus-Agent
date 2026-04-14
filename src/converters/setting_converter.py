@@ -64,11 +64,9 @@ class SettingsConverter(BaseConverter):
             validated_data = self.validate(data_to_validate)
             self._add_to_idf(validated_data)
             self.state["success"] += 1
-        except Exception as e:
+        except Exception:
             self.state["failed"] += 1
-            self.logger.error(
-                f"Error during settings conversion process: {e}", exc_info=True
-            )
+            self.logger.exception("Error during settings conversion process")
 
     def validate(self, data: dict) -> dict:
         self.logger.info("Validating global settings...")
@@ -85,7 +83,8 @@ class SettingsConverter(BaseConverter):
             schema = self.setting_map.get(idf_key)
             if not schema:
                 self.logger.warning(
-                    f"No schema found for '{idf_key}', skipping validation for this item."
+                    "No schema found for '{}', skipping validation for this item.",
+                    idf_key,
                 )
                 continue
 
@@ -96,10 +95,8 @@ class SettingsConverter(BaseConverter):
                     ]
                 else:
                     validated_settings[idf_key] = schema.model_validate(setting_data)
-            except Exception as e:
-                self.logger.error(
-                    f"Validation failed for '{idf_key}': {e}", exc_info=True
-                )
+            except Exception:
+                self.logger.exception("Validation failed for '{}'", idf_key)
                 raise
 
         return {
@@ -112,7 +109,7 @@ class SettingsConverter(BaseConverter):
         settings_to_add = val_data.get("validated_settings", {})
 
         if version_info and not self.idf.idfobjects.get("Version"):
-            self.logger.info(f"Adding Version object '{version_info.version}' to IDF.")
+            self.logger.info("Adding Version object '{}' to IDF.", version_info.version)
             self.idf.newidfobject("Version", Version_Identifier=version_info.version)
 
         for idf_key, validated_model_or_list in settings_to_add.items():
@@ -130,7 +127,7 @@ class SettingsConverter(BaseConverter):
             and len(self.idf.idfobjects.get(idf_key, [])) > 0
         ):
             self.logger.warning(
-                f"Object of type '{idf_key}' already exists. Skipping addition."
+                "Object of type '{}' already exists. Skipping addition.", idf_key
             )
             return
 
@@ -138,7 +135,7 @@ class SettingsConverter(BaseConverter):
         if apply_function:
             apply_function(validated_model)
         else:
-            self.logger.error(f"No apply function found for '{idf_key}'")
+            self.logger.error("No apply function found for '{}'", idf_key)
 
     def _simulation_control_apply(self, model: SimulationControlSchema) -> None:
         self.idf.newidfobject(

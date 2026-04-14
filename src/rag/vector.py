@@ -154,7 +154,9 @@ class AsyncQdrantVectorStore(IAsyncVectorStore):
                     f"but expected {self.dimension}."
                 )
             self.logger.info(
-                f"Collection {self.collection_name} already exists (dimension={existing_size})"
+                "Collection {} already exists (dimension={})",
+                self.collection_name,
+                existing_size,
             )
 
     async def add(
@@ -182,7 +184,7 @@ class AsyncQdrantVectorStore(IAsyncVectorStore):
                 points=points[i : i + batch_size],
             )
 
-        self.logger.info(f"Added {len(chunks)} chunks to {self.collection_name}")
+        self.logger.info("Added {} chunks to {}", len(chunks), self.collection_name)
 
     async def delete(self, ids: list[str]) -> None:
         from qdrant_client.models import PointIdsList
@@ -193,7 +195,7 @@ class AsyncQdrantVectorStore(IAsyncVectorStore):
             collection_name=self.collection_name,
             points_selector=PointIdsList(points=ids),  # type: ignore
         )
-        self.logger.info(f"Deleted {len(ids)} points from {self.collection_name}")
+        self.logger.info("Deleted {} points from {}", len(ids), self.collection_name)
 
     async def search(
         self,
@@ -257,7 +259,9 @@ class AsyncQdrantVectorStore(IAsyncVectorStore):
                 break
 
         self.logger.info(
-            f"Retrieved total {len(all_results)} points from {self.collection_name}"
+            "Retrieved total {} points from {}",
+            len(all_results),
+            self.collection_name,
         )
         return all_results
 
@@ -267,7 +271,7 @@ class AsyncQdrantVectorStore(IAsyncVectorStore):
         zero_points: list[dict] = []
         offset = None
 
-        self.logger.info(f"Scanning for zero vectors in {self.collection_name}...")
+        self.logger.info("Scanning for zero vectors in {}...", self.collection_name)
 
         while True:
             scroll_result, next_offset = await self.client.scroll(
@@ -294,7 +298,7 @@ class AsyncQdrantVectorStore(IAsyncVectorStore):
             if offset is None:
                 break
 
-        self.logger.info(f"Scan complete. Found {len(zero_points)} zero vector(s).")
+        self.logger.info("Scan complete. Found {} zero vector(s).", len(zero_points))
         return zero_points
 
 
@@ -339,7 +343,9 @@ class QdrantVectorStore(IVectorStore):
                     f"but expected {self.dimension}."
                 )
             self.logger.info(
-                f"Collection {self.collection_name} already exists (dimension={existing_size})"
+                "Collection {} already exists (dimension={})",
+                self.collection_name,
+                existing_size,
             )
 
     def add(
@@ -365,7 +371,7 @@ class QdrantVectorStore(IVectorStore):
                 points=points[i : i + batch_size],
             )
 
-        self.logger.info(f"Added {len(chunks)} chunks to {self.collection_name}")
+        self.logger.info("Added {} chunks to {}", len(chunks), self.collection_name)
 
     def delete(self, ids: list[str]) -> None:
         from qdrant_client.models import PointIdsList
@@ -374,7 +380,7 @@ class QdrantVectorStore(IVectorStore):
             collection_name=self.collection_name,
             points_selector=PointIdsList(points=ids),  # type: ignore
         )
-        self.logger.info(f"Deleted {len(ids)} points from {self.collection_name}")
+        self.logger.info("Deleted {} points from {}", len(ids), self.collection_name)
 
     def search(
         self,
@@ -433,7 +439,9 @@ class QdrantVectorStore(IVectorStore):
                 break
 
         self.logger.info(
-            f"Retrieved total {len(all_results)} points from {self.collection_name}"
+            "Retrieved total {} points from {}",
+            len(all_results),
+            self.collection_name,
         )
         return all_results
 
@@ -441,7 +449,7 @@ class QdrantVectorStore(IVectorStore):
         zero_points: list[dict] = []
         offset = None
 
-        self.logger.info(f"Scanning for zero vectors in {self.collection_name}...")
+        self.logger.info("Scanning for zero vectors in {}...", self.collection_name)
 
         while True:
             scroll_result, next_offset = self.client.scroll(
@@ -468,5 +476,5 @@ class QdrantVectorStore(IVectorStore):
             if offset is None:
                 break
 
-        self.logger.info(f"Scan complete. Found {len(zero_points)} zero vector(s).")
+        self.logger.info("Scan complete. Found {} zero vector(s).", len(zero_points))
         return zero_points

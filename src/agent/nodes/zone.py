@@ -4,7 +4,7 @@ from src.agent.llm import create_llm
 from src.agent.react import ReactState, build_react_agent
 from src.agent.state import AgentState, AgentStateUpdate
 from src.agent.tools import make_zone_tools
-from src.agent.trace import TRACE_STORE, TraceCollector
+from src.agent.trace import TraceCollector, record_phase_trace
 
 ZONE_SYSTEM_PROMPT = """You are a thermal zone creation expert for EnergyPlus.
 Given zone specifications, create all required zones using create_zone tool.
@@ -24,7 +24,7 @@ Rules:
 def zone_agent(state: AgentState) -> AgentStateUpdate:
     local = state.config_state.model_copy(deep=True)
     tools = make_zone_tools(local)
-    collector = TraceCollector("zone")
+    collector = TraceCollector(phase="zone")
 
     agent = build_react_agent(
         llm=create_llm(),
@@ -41,7 +41,7 @@ def zone_agent(state: AgentState) -> AgentStateUpdate:
     ]
     summary = final[-1].content if final else "zone done"
 
-    TRACE_STORE.setdefault("zone", []).extend(collector.export())
+    record_phase_trace("zone", collector.export())
 
     return AgentStateUpdate(
         config_state=local,

@@ -5,7 +5,7 @@ from src.agent.nodes._share import invoke_with_self_repair
 from src.agent.react import build_react_agent
 from src.agent.state import AgentState, AgentStateUpdate
 from src.agent.tools import make_people_tools
-from src.agent.trace import TRACE_STORE, TraceCollector
+from src.agent.trace import TraceCollector, record_phase_trace
 
 PEOPLE_SYSTEM_PROMPT = """You are an occupancy-load expert for EnergyPlus.
 For each specified zone, create a People object via create_people.
@@ -53,7 +53,7 @@ def people_agent(state: AgentState) -> AgentStateUpdate:
     ]
     summary = final[-1].content if final else "people done"
 
-    TRACE_STORE.setdefault("people", []).extend(collector.export())
+    record_phase_trace("people", collector.export())
     return AgentStateUpdate(
         config_state=local,
         messages=[AIMessage(content=f"[people] {summary}")],

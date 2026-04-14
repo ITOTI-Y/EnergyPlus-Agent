@@ -21,19 +21,19 @@ class SurfaceConverter(BaseConverter):
             try:
                 self._add_to_idf(surface)
                 self.logger.success(
-                    f"Successfully converted BuildingSurface: {surface.name}"
+                    "Successfully converted BuildingSurface: {}", surface.name
                 )
                 self.state["success"] += 1
-            except Exception as e:
+            except Exception:
                 self.state["failed"] += 1
-                self.logger.error(
-                    f"Error Converting BuildingSurface Data: {e}", exc_info=True
-                )
+                self.logger.exception("Error Converting BuildingSurface Data")
 
     def _add_to_idf(self, val_data: SurfaceSchema) -> None:
         if self.idf.getobject("BuildingSurface:Detailed", name=val_data.name):
             self.logger.warning(
-                f"BuildingSurface with name {val_data.name} already exists in IDF. Skipping addition."
+                "BuildingSurface with name {} already exists in IDF. "
+                "Skipping addition.",
+                val_data.name,
             )
             self.state["skipped"] += 1
             return

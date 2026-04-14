@@ -1,3 +1,5 @@
+import json
+
 from langchain_core.tools import BaseTool, tool
 
 from src.mcp.state import ConfigState
@@ -27,15 +29,14 @@ def make_output_tools(config: ConfigState) -> list[BaseTool]:
                 }
             )
         except Exception as exc:
-            return f'{{"success": false, "message": "validation error: {exc}"}}'
-
+            return json.dumps({"success": False, "message": f"validation error: {exc}"})
         config.output_variable.append(ov)
-        return f'{{"success": true, "message": "added {variable_name}"}}'
+        return json.dumps({"success": True, "message": f"added {variable_name}"})
 
     @tool
     def list_output_variables() -> str:
         """List all registered Output:Variable entries."""
         items = [ov.model_dump(by_alias=True) for ov in config.output_variable]
-        return f'{{"success": true, "count": {len(items)}, "items": {items}}}'
+        return json.dumps({"success": True, "count": len(items), "items": items})
 
     return [add_output_variable, list_output_variables]

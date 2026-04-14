@@ -5,7 +5,7 @@ from src.agent.nodes._share import invoke_with_self_repair
 from src.agent.react import build_react_agent
 from src.agent.state import AgentState, AgentStateUpdate
 from src.agent.tools import make_construction_tools
-from src.agent.trace import TRACE_STORE, TraceCollector
+from src.agent.trace import TraceCollector, record_phase_trace
 
 CONSTRUCTION_SYSTEM_PROMPT = """You are a construction-assembly expert for EnergyPlus.
 Given construction specifications, create all required Construction objects.
@@ -57,7 +57,7 @@ def construction_agent(state: AgentState) -> AgentStateUpdate:
     ]
     summary = final[-1].content if final else "construction done"
 
-    TRACE_STORE.setdefault("construction", []).extend(collector.export())
+    record_phase_trace("construction", collector.export())
     return AgentStateUpdate(
         config_state=local,
         messages=[AIMessage(content=f"[construction] {summary}")],
