@@ -91,6 +91,7 @@ class EnergyPlusRunner:
 
             cmd = [
                 energyplus_exe,
+                "-x",
                 "-w",
                 str(self.epw_path),
                 "-d",

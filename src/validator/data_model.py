@@ -510,7 +510,7 @@ class SimulationControlSchema(BaseSchema):
         "No", alias="Do Plant Sizing Calculation"
     )
     run_simulation_for_sizing_periods: str | bool = Field(
-        "No", alias="Run Simulation for Sizing Periods"
+        "Yes", alias="Run Simulation for Sizing Periods"
     )
     run_simulation_for_weather_file_run_periods: str | bool = Field(
         "Yes", alias="Run Simulation for Weather File Run Periods"
@@ -1251,7 +1251,9 @@ class ScheduleCompactSchema(BaseSchema):
         return v
 
     @field_validator("data")
-    def validate_data(cls, v: list[str]) -> list[str]:
+    def validate_data(cls, v: list) -> list[str]:
+        if v and all(isinstance(x, str) for x in v):
+            return v
         return cls._validate_through(v)
 
     @classmethod
@@ -1371,10 +1373,10 @@ class HVACSchema(BaseSchema):
     now based on HVACTemplate objects.
     """
 
-    thermostats: list[HVACTemplateThermostatSchema] | list = Field(
+    thermostats: list[HVACTemplateThermostatSchema] = Field(
         default_factory=list, alias="HVACTemplate:Thermostat"
     )
-    ideal_loads_systems: list[HVACTemplateZoneIdealLoadsAirSystemSchema] | list = Field(
+    ideal_loads_systems: list[HVACTemplateZoneIdealLoadsAirSystemSchema] = Field(
         default_factory=list, alias="HVACTemplate:Zone:IdealLoadsAirSystem"
     )
 
