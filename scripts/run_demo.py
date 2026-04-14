@@ -2,9 +2,12 @@ from pathlib import Path
 
 from langchain_core.runnables import RunnableConfig
 
-from scripts._share import USER_INPUT
+from scripts._share import HARD_USER_INPUT
 from src.agent import AgentState, SimContext, build_graph
 from src.agent.runner import auto_approval, print_final_messages, run_session
+from src.utils.logging import setup_logger
+
+setup_logger(level="INFO")
 
 
 def main() -> None:
@@ -13,7 +16,7 @@ def main() -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
 
     graph = build_graph()
-    initial = AgentState(user_input=USER_INPUT)
+    initial = AgentState(user_input=HARD_USER_INPUT)
     context = SimContext(epw_path=epw, output_dir=output_dir)
     cfg: RunnableConfig = {"configurable": {"thread_id": "demo"}}
 

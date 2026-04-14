@@ -25,10 +25,12 @@ from langchain_core.runnables import RunnableConfig
 from langchain_core.tracers.context import collect_runs
 from langchain_core.tracers.langchain import wait_for_all_tracers
 
-from scripts._share import USER_INPUT
+from scripts._share import HARD_USER_INPUT
 from src.agent import AgentState, SimContext, build_graph
-from src.agent.runner import auto_approval, print_final_messages, run_session
-from src.utils.logging import get_logger
+from src.agent.runner import interactive_approval, print_final_messages, run_session
+from src.utils.logging import get_logger, setup_logger
+
+setup_logger(level="INFO")
 
 
 def _dump_traces(traced_runs: list[Any]) -> None:
@@ -69,14 +71,14 @@ def main() -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
 
     graph = build_graph()
-    initial = AgentState(user_input=USER_INPUT)
+    initial = AgentState(user_input=HARD_USER_INPUT)
     context = SimContext(epw_path=epw, output_dir=output_dir)
     cfg: RunnableConfig = {"configurable": {"thread_id": "export-demo"}}
 
     with collect_runs() as cb:
         try:
             state = run_session(
-                graph, initial, context, cfg, on_interrupt=auto_approval
+                graph, initial, context, cfg, on_interrupt=interactive_approval
             )
             print_final_messages(state, n=3)
         finally:

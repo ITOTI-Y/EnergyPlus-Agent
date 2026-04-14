@@ -9,6 +9,7 @@ from langgraph.graph.state import CompiledStateGraph
 from langgraph.prebuilt import ToolNode, tools_condition
 from pydantic import BaseModel, Field
 
+from src.agent._share import language_directive
 from src.agent.trace import TraceCollector
 
 
@@ -38,9 +39,12 @@ def build_react_agent(
     No checkpointer, no interrupts inside the subgraph.
     """
     llm_with_tools = llm.bind_tools(tools, parallel_tool_calls=False)
+    # Project-wide language directive appended once; per-phase prompts
+    # stay free of language boilerplate.
+    effective_prompt = system_prompt + language_directive()
 
     def llm_node(state: ReactState) -> dict:
-        messages = [SystemMessage(content=system_prompt), *state.messages]
+        messages = [SystemMessage(content=effective_prompt), *state.messages]
         response = llm_with_tools.invoke(messages)
         return {"messages": [response]}
 

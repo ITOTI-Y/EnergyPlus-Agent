@@ -7,6 +7,7 @@ from typing import Any, Literal, TypedDict, cast
 from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 from loguru import logger
 
+from src.agent._share import language_directive
 from src.agent.llm import create_llm
 from src.agent.state import AgentState, AgentStateUpdate, IntakeOutput
 
@@ -138,7 +139,7 @@ def intake_node(state: AgentState) -> AgentStateUpdate:
         dict[str, Any],
         llm.invoke(
             [
-                SystemMessage(content=INTAKE_SYSTEM_PROMPT),
+                SystemMessage(content=INTAKE_SYSTEM_PROMPT + language_directive()),
                 HumanMessage(content=cast("list[str | dict[str, Any]]", content_parts)),
             ]
         ),

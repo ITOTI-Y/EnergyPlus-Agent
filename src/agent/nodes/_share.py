@@ -12,6 +12,7 @@ from langchain_core.messages import AnyMessage, HumanMessage
 from langgraph.graph.state import CompiledStateGraph
 from loguru import logger
 
+from src.agent._share import language_directive
 from src.agent.react import ReactState
 from src.mcp.state import ConfigState
 
@@ -90,7 +91,7 @@ def invoke_with_self_repair(
                 "resource (zone / schedule / material / construction / "
                 "surface) that truly does not exist, report it in your "
                 "final message and do NOT fabricate a replacement — "
-                "upstream phases own those objects."
+                "upstream phases own those objects." + language_directive()
             )
         )
         messages = [*list(result["messages"]), feedback]
