@@ -1,4 +1,5 @@
-from eppy.modeleditor import IDF
+from idfpy import IDF
+from idfpy.models.simulation import Building
 
 from src.converters.base_converter import BaseConverter
 from src.utils.logging import get_logger
@@ -27,18 +28,17 @@ class BuildingConverter(BaseConverter):
         building_data: BuildingSchema = val_data["building_data"]
 
         try:
-            if not self.idf.getobject("Building", name=building_data.name):
-                self.idf.newidfobject(
-                    "Building",
-                    Name=building_data.name,
-                    North_Axis=building_data.north_axis,
-                    Terrain=building_data.terrain,
-                    Loads_Convergence_Tolerance_Value=building_data.loads_convergence_tolerance_value,
-                    Temperature_Convergence_Tolerance_Value=building_data.temperature_convergence_tolerance_value,
-                    Solar_Distribution=building_data.solar_distribution,
-                    Maximum_Number_of_Warmup_Days=building_data.maximum_number_of_warmup_days,
-                    Minimum_Number_of_Warmup_Days=building_data.minimum_number_of_warmup_days,
-                )
+            if not self.idf.has("Building", building_data.name):
+                self.idf.add(Building(
+                    name=building_data.name,
+                    north_axis=building_data.north_axis,
+                    terrain=building_data.terrain,
+                    loads_convergence_tolerance_value=building_data.loads_convergence_tolerance_value,
+                    temperature_convergence_tolerance_value=building_data.temperature_convergence_tolerance_value,
+                    solar_distribution=building_data.solar_distribution,
+                    maximum_number_of_warmup_days=building_data.maximum_number_of_warmup_days,
+                    minimum_number_of_warmup_days=building_data.minimum_number_of_warmup_days,
+                ))
                 self.state["success"] += 1
                 self.logger.success(
                     "Building object with name {} added to IDF.", building_data.name

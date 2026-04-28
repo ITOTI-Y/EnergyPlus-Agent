@@ -1,6 +1,12 @@
 from typing import Any
 
-from eppy.modeleditor import IDF
+from idfpy import IDF
+from idfpy.models.constructions import (
+    Material,
+    MaterialAirGap,
+    MaterialNoMass,
+    WindowMaterialSimpleGlazingSystem,
+)
 
 from src.converters.base_converter import BaseConverter
 from src.utils.logging import get_logger
@@ -66,7 +72,7 @@ class MaterialConverter(BaseConverter):
                 self.state["failed"] += 1
                 return
 
-            if self.idf.getobject(idf_key, val_data.name):
+            if self.idf.has(idf_key, val_data.name):
                 self.logger.warning(
                     "{} with name '{}' already exists. Skipping addition.",
                     idf_key,
@@ -95,7 +101,7 @@ class MaterialConverter(BaseConverter):
         type_to_key: dict[str, str] = {
             "Standard": "Material",
             "NoMass": "Material:NoMass",
-            "AirGap": "Material:AirGap",
+            "AirGap": "MaterialAirGap",
             "Glazing": "WindowMaterial:SimpleGlazingSystem",
         }
         return type_to_key.get(material_type) or ""
@@ -107,36 +113,32 @@ class MaterialConverter(BaseConverter):
         return MaterialSchema.model_validate(data)
 
     def _add_standard_material_to_idf(self, material: StandardMaterialSchema) -> None:
-        self.idf.newidfobject(
-            "Material",
-            Name=material.name,
-            Roughness=material.roughness,
-            Thickness=material.thickness,
-            Conductivity=material.conductivity,
-            Density=material.density,
-            Specific_Heat=material.specific_heat,
-        )
+        self.idf.add(Material(
+            name=material.name,
+            roughness=material.roughness,
+            thickness=material.thickness,
+            conductivity=material.conductivity,
+            density=material.density,
+            specific_heat=material.specific_heat,
+        ))
 
     def _add_no_mass_material_to_idf(self, material: NoMassMaterialSchema) -> None:
-        self.idf.newidfobject(
-            "Material:NoMass",
-            Name=material.name,
-            Roughness=material.roughness,
-            Thermal_Resistance=material.thermal_resistance,
-        )
+        self.idf.add(MaterialNoMass(
+            name=material.name,
+            roughness=material.roughness,
+            thermal_resistance=material.thermal_resistance,
+        ))
 
     def _add_air_gap_material_to_idf(self, material: AirGapMaterialSchema) -> None:
-        self.idf.newidfobject(
-            "Material:AirGap",
-            Name=material.name,
-            Thermal_Resistance=material.thermal_resistance,
-        )
+        self.idf.add(MaterialAirGap(
+            name=material.name,
+            thermal_resistance=material.thermal_resistance,
+        ))
 
     def _add_glazing_material_to_idf(self, material: GlazingMaterialSchema) -> None:
-        self.idf.newidfobject(
-            "WindowMaterial:SimpleGlazingSystem",
-            Name=material.name,
-            UFactor=material.u_factor,
-            Solar_Heat_Gain_Coefficient=material.solar_heat_gain_coefficient,
-            Visible_Transmittance=material.visible_transmittance or "",
-        )
+        self.idf.add(WindowMaterialSimpleGlazingSystem(
+            name=material.name,
+            u_factor=material.u_factor,
+            solar_heat_gain_coefficient=material.solar_heat_gain_coefficient,
+            visible_transmittance=material.visible_transmittance or None,
+        ))

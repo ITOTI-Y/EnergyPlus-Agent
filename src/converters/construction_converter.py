@@ -1,6 +1,7 @@
 from typing import Any
 
-from eppy.modeleditor import IDF
+from idfpy import IDF
+from idfpy.models.constructions import Construction
 
 from src.converters.base_converter import BaseConverter
 from src.utils.logging import get_logger
@@ -28,8 +29,13 @@ class ConstructionConverter(BaseConverter):
                 )
                 continue
 
+    _LAYER_FIELDS = [
+        "outside_layer", "layer_2", "layer_3", "layer_4", "layer_5",
+        "layer_6", "layer_7", "layer_8", "layer_9", "layer_10",
+    ]
+
     def _add_to_idf(self, val_data: ConstructionSchema) -> None:
-        if self.idf.getobject("CONSTRUCTION", val_data.name):
+        if self.idf.has("Construction", val_data.name):
             self.logger.warning(
                 "Construction with name '{}' already exists. Skipping addition.",
                 val_data.name,
@@ -42,30 +48,26 @@ class ConstructionConverter(BaseConverter):
 
             for layer_name in val_data.layers:
                 if not (
-                    self.idf.getobject("MATERIAL", layer_name)
-                    or self.idf.getobject("MATERIAL:NOMASS", layer_name)
-                    or self.idf.getobject("MATERIAL:AIRGAP", layer_name)
-                    or self.idf.getobject(
-                        "WINDOWMATERIAL:SIMPLEGLAZINGSYSTEM", layer_name
-                    )
+                    self.idf.has("Material", layer_name)
+                    or self.idf.has("Material:NoMass", layer_name)
+                    or self.idf.has("MaterialAirGap", layer_name)
+                    or self.idf.has("WindowMaterial:SimpleGlazingSystem", layer_name)
                 ):
                     raise ValueError(
                         f"Material '{layer_name}' referenced in Construction '{val_data.name}' "
                         f"does not exist in IDF. Please add the material first."
                     )
 
-            construction_obj = self.idf.newidfobject("CONSTRUCTION", Name=val_data.name)
-
+            kwargs: dict[str, Any] = {"name": val_data.name}
             for i, layer_name in enumerate(val_data.layers):
-                field_name = "Outside_Layer" if i == 0 else f"Layer_{i + 1}"
-
-                setattr(construction_obj, field_name, layer_name)
+                kwargs[self._LAYER_FIELDS[i]] = layer_name
                 self.logger.debug(
                     "  - Set {} to '{}' for '{}'.",
-                    field_name,
+                    self._LAYER_FIELDS[i],
                     layer_name,
                     val_data.name,
                 )
+            self.idf.add(Construction(**kwargs))
             self.state["success"] += 1
             self.logger.success(
                 "Construction '{}' with {} layers added successfully.",
