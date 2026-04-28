@@ -1,13 +1,12 @@
 import re
 from abc import abstractmethod
 from collections import defaultdict
-from io import StringIO
 from pathlib import Path
-from typing import Any, ClassVar, cast
+from typing import Any, ClassVar
 
 import numpy as np
 from dateutil.parser import parse
-from eppy.modeleditor import IDF
+from idfpy import IDF
 from pydantic import (
     BaseModel,
     ConfigDict,
@@ -25,48 +24,6 @@ from src.utils.logging import get_logger
 logger = get_logger(__name__)
 
 
-class IDDField:
-    def __init__(self, data: list[dict] | dict):
-        if isinstance(data, list):
-            for obj in data:
-                if isinstance(obj, list):
-                    if len(obj) > 0 and isinstance(obj[0], dict):
-                        obj_name = obj[0].get("idfobj", None)
-                    else:
-                        continue
-                    if obj_name:
-                        obj_name = self._clean_key(obj_name)
-                        setattr(self, obj_name, IDDField(obj[1:]))
-                elif isinstance(obj, dict):
-                    field_name = obj.get("field", None)
-                    if field_name:
-                        if (
-                            isinstance(field_name, (list, tuple))
-                            and len(field_name) > 0
-                        ):
-                            field_name = self._clean_key(field_name[0])
-                        elif isinstance(field_name, str):
-                            field_name = self._clean_key(field_name)
-                        else:
-                            continue
-                        setattr(self, field_name, IDDField(obj))
-        elif isinstance(data, dict):
-            for key, value in data.items():
-                key = self._clean_key(key)
-                if isinstance(value, list) and len(value) == 1:
-                    value = value[0]
-                setattr(self, key, value)
-
-    def _clean_key(self, key: str) -> str:
-        for i in [" ", "-", "/", ":"]:
-            key = key.replace(i, "_")
-        return key
-
-    def __getattr__(self, name: str) -> "IDDField":
-        raise AttributeError(
-            f"'{self.__class__.__name__}' object has no attribute '{name}'"
-        )
-
 
 class BaseSchema(BaseModel):
     model_config = ConfigDict(
@@ -80,36 +37,21 @@ class BaseSchema(BaseModel):
     )
 
     _idf: IDF | None = None
-    _idf_field: IDDField = IDDField({})
 
     @classmethod
-    def set_idf(cls, idd_file: Path | str, idf_path: Path | None = None) -> None:
-        IDF.setiddname(str(idd_file))
+    def set_idf(cls, idf_path: Path | None = None) -> None:
         if idf_path:
-            cls._idf = IDF(str(idf_path))
+            cls._idf = IDF.load(idf_path)
         else:
-            cls._idf = cls._create_blank_idf()
-        cls._idf_field = cls._process_idf_field()
-
-    @classmethod
-    def _process_idf_field(cls) -> IDDField:
-        if cls._idf is None:
-            raise RuntimeError(
-                "IDF has not been initialized. Call BaseSchema.set_idf(...) before using _process_idf_field."
-            )
-        _idd_info = cast(list[dict], cls._idf.idd_info)
-        idd_field = IDDField(_idd_info)
-        return idd_field
+            cls._idf = IDF()
 
     @staticmethod
     def _create_blank_idf() -> IDF:
-        idf_text = ""
-        fhandle = StringIO(idf_text)
-        return IDF(fhandle)
+        return IDF()
 
     @staticmethod
     def validate_choice_field(
-        value: str, valid_choices: list | IDDField, field_name: str
+        value: str, valid_choices: list, field_name: str
     ) -> str:
         choice_mapping = {choice.lower(): choice for choice in valid_choices}  # type: ignore
         value_lower = value.lower()
@@ -188,8 +130,8 @@ class BuildingSchema(BaseSchema):
 
     @field_validator("terrain")
     def validate_terrain(cls, v):
-        valid_terrains = cls._idf_field.Building.Terrain.key
-        if v not in valid_terrains:  # type: ignore
+        valid_terrains = ["Country", "Suburbs", "City", "Ocean", "Urban"]
+        if v not in valid_terrains:
             raise ValueError(f"Terrain must be one of {valid_terrains}.")
         return v
 
@@ -419,17 +361,25 @@ class SurfaceSchema(BaseSchema):
 
     @field_validator("surface_type")
     def validate_surface_type(cls, v):
-        valid_types = cls._idf_field.BuildingSurface_Detailed.Surface_Type.key
-        if v not in valid_types:  # type: ignore
+        valid_types = ["Ceiling", "Floor", "Roof", "Wall"]
+        if v not in valid_types:
             raise ValueError(f"Surface Type must be one of {valid_types}.")
         return v
 
     @field_validator("outside_boundary_condition")
     def validate_outside_boundary_condition(cls, v):
-        valid_conditions = (
-            cls._idf_field.BuildingSurface_Detailed.Outside_Boundary_Condition.key
-        )
-        if v not in valid_conditions:  # type: ignore
+        valid_conditions = [
+            "Adiabatic", "Foundation", "Ground",
+            "GroundBasementPreprocessorAverageFloor",
+            "GroundBasementPreprocessorAverageWall",
+            "GroundBasementPreprocessorLowerWall",
+            "GroundBasementPreprocessorUpperWall",
+            "GroundFCfactorMethod", "GroundSlabPreprocessorAverage",
+            "GroundSlabPreprocessorCore", "GroundSlabPreprocessorPerimeter",
+            "OtherSideCoefficients", "OtherSideConditionsModel",
+            "Outdoors", "Space", "Surface", "Zone",
+        ]
+        if v not in valid_conditions:
             raise ValueError(
                 f"Outside Boundary Condition must be one of {valid_conditions}."
             )
@@ -437,15 +387,15 @@ class SurfaceSchema(BaseSchema):
 
     @field_validator("sun_exposure")
     def validate_sun_exposure(cls, v):
-        valid_exposures = cls._idf_field.BuildingSurface_Detailed.Sun_Exposure.key
-        if v not in valid_exposures:  # type: ignore
+        valid_exposures = ["", "NoSun", "SunExposed"]
+        if v not in valid_exposures:
             raise ValueError(f"Sun Exposure must be one of {valid_exposures}.")
         return v
 
     @field_validator("wind_exposure")
     def validate_wind_exposure(cls, v):
-        valid_exposures = cls._idf_field.BuildingSurface_Detailed.Wind_Exposure.key
-        if v not in valid_exposures:  # type: ignore
+        valid_exposures = ["", "NoWind", "WindExposed"]
+        if v not in valid_exposures:
             raise ValueError(f"Wind Exposure must be one of {valid_exposures}.")
         return v
 
@@ -673,8 +623,8 @@ class RunPeriodSchema(BaseSchema):
 
     @field_validator("day_of_week_for_start_day")
     def validate_day_of_week(cls, v):
-        valid_days = cls._idf_field.RunPeriod.Day_of_Week_for_Start_Day.key
-        if v is not None and v not in valid_days:  # type: ignore
+        valid_days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+        if v is not None and v not in valid_days:
             raise ValueError(f"Day of Week for Start Day must be one of {valid_days}.")
         return v
 
@@ -693,10 +643,8 @@ class GlobalGeometryRulesSchema(BaseSchema):
 
     @field_validator("starting_vertex_position")
     def validate_starting_vertex_position(cls, v):
-        valid_positions = (
-            cls._idf_field.GlobalGeometryRules.Starting_Vertex_Position.key
-        )
-        if v not in valid_positions:  # type: ignore
+        valid_positions = ["LowerLeftCorner", "LowerRightCorner", "UpperLeftCorner", "UpperRightCorner"]
+        if v not in valid_positions:
             raise ValueError(
                 f"Starting Vertex Position must be one of {valid_positions}."
             )
@@ -704,12 +652,12 @@ class GlobalGeometryRulesSchema(BaseSchema):
 
     @field_validator("vertex_entry_direction")
     def validate_vertex_entry_direction(cls, v):
-        valid_directions = cls._idf_field.GlobalGeometryRules.Vertex_Entry_Direction.key
+        valid_directions = ["Clockwise", "Counterclockwise"]
         return cls.validate_choice_field(v, valid_directions, "Vertex Entry Direction")
 
     @field_validator("coordinate_system")
     def validate_coordinate_system(cls, v):
-        valid_systems = cls._idf_field.GlobalGeometryRules.Coordinate_System.key
+        valid_systems = ["Relative", "World"]
         return cls.validate_choice_field(v, valid_systems, "Coordinate System")
 
     def to_yaml_dict(self) -> dict[str, Any]:
@@ -721,7 +669,7 @@ class OutputVariableDictionarySchema(BaseSchema):
 
     @field_validator("key_field")
     def validate_key_field(cls, v):
-        valid_key_field = cls._idf_field.Output_VariableDictionary.Key_Field.key
+        valid_key_field = ["", "IDF", "regular"]
         return cls.validate_choice_field(v, valid_key_field, "Key Field")
 
     def to_yaml_dict(self) -> dict[str, Any]:
@@ -733,7 +681,10 @@ class OutputDiagnosticsSchema(BaseSchema):
 
     @field_validator("key_1")
     def validate_key_1(cls, v):
-        valid_key_1 = cls._idf_field.Output_Diagnostics.Key_1.key
+        valid_key_1 = [
+            "DisplayAdvancedReportVariables", "DisplayAllWarnings",
+            "DisplayExtraWarnings", "DisplayUnusedObjects", "DisplayUnusedSchedules",
+        ]
         return cls.validate_choice_field(v, valid_key_1, "Key 1")
 
     def to_yaml_dict(self) -> dict[str, Any]:
@@ -745,9 +696,20 @@ class OutputTableSummaryReportsSchema(BaseSchema):
 
     @field_validator("report_1_name")
     def validate_report_1_name(cls, v):
-        valid_report_names = (
-            cls._idf_field.Output_Table_SummaryReports.Report_1_Name.key
-        )
+        valid_report_names = [
+            "AdaptiveComfortSummary", "AirLoopComponentLoadSummary", "AllMonthly",
+            "AllSummary", "AllSummaryAndMonthly", "AllSummaryAndSizingPeriod",
+            "AllSummaryMonthlyAndSizingPeriod", "AnnualBuildingUtilityPerformanceSummary",
+            "ClimaticDataSummary", "ComponentCostEconomicsSummary",
+            "ComponentSizingSummary", "CoilSizingDetails", "DemandEndUseComponentsSummary",
+            "EnergyMeters", "EnvelopeSummary", "EquipmentSummary",
+            "FacilityComponentLoadSummary", "HVACSizingSummary",
+            "InitializationSummary", "InputVerificationandResultsSummary",
+            "LEEDSummary", "LifeCycleCostReport", "LightingSummary",
+            "ObjectCountSummary", "OutdoorAirSummary", "SensibleHeatGainSummary",
+            "ShadingSummary", "SourceEnergyEndUseComponentsSummary", "SystemSummary",
+            "TariffReport", "ZoneComponentLoadSummary",
+        ]
         return cls.validate_choice_field(v, valid_report_names, "Report 1 Name")
 
     def to_yaml_dict(self) -> dict[str, Any]:
@@ -760,12 +722,18 @@ class OutputControlTableStyleSchema(BaseSchema):
 
     @field_validator("column_separator")
     def validate_column_separator(cls, v):
-        valid_separators = cls._idf_field.OutputControl_Table_Style.Column_Separator.key
+        valid_separators = [
+            "", "All", "Comma", "CommaAndHTML", "CommaAndXML",
+            "Fixed", "HTML", "Tab", "TabAndHTML", "XML", "XMLandHTML",
+        ]
         return cls.validate_choice_field(v, valid_separators, "Column Separator")
 
     @field_validator("unit_conversion")
     def validate_unit_conversion(cls, v):
-        valid_conversions = cls._idf_field.OutputControl_Table_Style.Unit_Conversion.key
+        valid_conversions = [
+            "", "InchPound", "InchPoundExceptElectricity",
+            "JtoGJ", "JtoKWH", "JtoMJ", "None",
+        ]
         return cls.validate_choice_field(v, valid_conversions, "Unit Conversion")
 
     def to_yaml_dict(self) -> dict[str, Any]:
@@ -779,7 +747,10 @@ class OutputVariableSchema(BaseSchema):
 
     @field_validator("reporting_frequency")
     def validate_reporting_frequency(cls, v):
-        valid_frequencies = cls._idf_field.Output_Variable.Reporting_Frequency.key
+        valid_frequencies = [
+            "", "Annual", "Daily", "Detailed", "Environment",
+            "Hourly", "Monthly", "RunPeriod", "Timestep",
+        ]
         return cls.validate_choice_field(v, valid_frequencies, "Reporting Frequency")
 
     def to_yaml_dict(self) -> dict[str, Any]:
@@ -958,8 +929,8 @@ class FenestrationSurfaceSchema(BaseSchema):
 
     @field_validator("surface_type")
     def validate_surface_type(cls, v):
-        valid_types = cls._idf_field.FenestrationSurface_Detailed.Surface_Type.key
-        if v not in valid_types:  # type: ignore
+        valid_types = ["Door", "GlassDoor", "TubularDaylightDiffuser", "TubularDaylightDome", "Window"]
+        if v not in valid_types:
             raise ValueError(f"Surface Type must be one of {valid_types}.")
         return v
 
@@ -1453,7 +1424,7 @@ class LightSchema(BaseSchema):
 
     @field_validator("design_level_calculation_method")
     def validate_design_level_calculation_method(cls, v: str) -> str:
-        valid_choices = cls._idf_field.Lights.Design_Level_Calculation_Method.key
+        valid_choices = ["", "LightingLevel", "Watts/Area", "Watts/Person"]
         return cls.validate_choice_field(
             v,
             valid_choices,
@@ -1622,7 +1593,7 @@ class PeopleSchema(BaseSchema):
 
     @field_validator("number_of_people_calculation_method")
     def validate_number_of_people_calculation_method(cls, v):
-        valid_choices = cls._idf_field.People.Number_of_People_Calculation_Method.key
+        valid_choices = ["", "Area/Person", "People", "People/Area"]
         return cls.validate_choice_field(
             v,
             valid_choices,
@@ -1644,9 +1615,7 @@ class PeopleSchema(BaseSchema):
 
     @field_validator("mean_radiant_temperature_calculation_type")
     def validate_mean_radiant_temperature_calculation_type(cls, v):
-        valid_choices = (
-            cls._idf_field.People.Mean_Radiant_Temperature_Calculation_Type.key
-        )
+        valid_choices = ["", "AngleFactor", "EnclosureAveraged", "SurfaceWeighted"]
         return cls.validate_choice_field(
             v,
             valid_choices,
@@ -1655,7 +1624,10 @@ class PeopleSchema(BaseSchema):
 
     @field_validator("clothing_insulation_calculation_method")
     def validate_clothing_insulation_calculation_method(cls, v):
-        valid_choices = cls._idf_field.People.Clothing_Insulation_Calculation_Method.key
+        valid_choices = [
+            "", "CalculationMethodSchedule",
+            "ClothingInsulationSchedule", "DynamicClothingModelASHRAE55",
+        ]
         return cls.validate_choice_field(
             v,
             valid_choices,
@@ -1674,7 +1646,10 @@ class PeopleSchema(BaseSchema):
     def validate_thermal_comfort_model_type(cls, v):
         if v in (None, ""):
             return v
-        valid_choices = cls._idf_field.People.Thermal_Comfort_Model_1_Type.key
+        valid_choices = [
+            "AdaptiveASH55", "AdaptiveCEN15251", "AnkleDraftASH55",
+            "CoolingEffectASH55", "Fanger", "KSU", "Pierce",
+        ]
         return cls.validate_choice_field(
             v,
             valid_choices,

@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Any, TypedDict
 
-from eppy.modeleditor import IDF
+from idfpy import IDF
 
 from src.utils.logging import get_logger
 

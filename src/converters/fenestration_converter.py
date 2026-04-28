@@ -1,4 +1,5 @@
-from eppy.modeleditor import IDF
+from idfpy import IDF
+from idfpy.models.thermal_zones import FenestrationSurfaceDetailed
 
 from src.converters.base_converter import BaseConverter
 from src.validator.data_model import (
@@ -29,7 +30,7 @@ class FenestrationConverter(BaseConverter):
                 self.logger.exception("Error Converting FenestrationSurface Data")
 
     def _add_to_idf(self, val_data: FenestrationSurfaceSchema) -> None:
-        if self.idf.getobject("FenestrationSurface:Detailed", name=val_data.name):
+        if self.idf.has("FenestrationSurface:Detailed", val_data.name):
             self.logger.warning(
                 "FenestrationSurface with name {} already exists in IDF. "
                 "Skipping addition.",
@@ -38,29 +39,28 @@ class FenestrationConverter(BaseConverter):
             self.state["skipped"] += 1
             return
 
-        if self.idf.getobject("Construction", name=val_data.construction_name) is None:
+        if not self.idf.has("Construction", val_data.construction_name):
             raise ValueError(
                 f"Construction {val_data.construction_name} does not exist in IDF"
             )
 
-        fenestration_obj = self.idf.newidfobject(
-            "FenestrationSurface:Detailed",
-            Name=val_data.name,
-            Surface_Type=val_data.surface_type,
-            Construction_Name=val_data.construction_name,
-            Building_Surface_Name=val_data.building_surface_name,
-            Outside_Boundary_Condition_Object=val_data.outside_boundary_condition_object
-            or "",
-            View_Factor_to_Ground=val_data.view_factor_to_ground or "",
-            Frame_and_Divider_Name=val_data.frame_and_divider_name or "",
-            Multiplier=val_data.multiplier,
-            Number_of_Vertices=val_data.Number_of_Vertices,
+        verts = val_data.vertices
+        kwargs: dict = dict(
+            name=val_data.name,
+            surface_type=val_data.surface_type,
+            construction_name=val_data.construction_name,
+            building_surface_name=val_data.building_surface_name,
+            outside_boundary_condition_object=val_data.outside_boundary_condition_object or None,
+            view_factor_to_ground=val_data.view_factor_to_ground if val_data.view_factor_to_ground != "autocalculate" else None,
+            frame_and_divider_name=val_data.frame_and_divider_name or None,
+            multiplier=val_data.multiplier,
+            number_of_vertices=len(verts),
         )
-
-        for i, vertex in enumerate(val_data.vertices, 1):
-            setattr(fenestration_obj, f"Vertex_{i}_Xcoordinate", vertex[0])
-            setattr(fenestration_obj, f"Vertex_{i}_Ycoordinate", vertex[1])
-            setattr(fenestration_obj, f"Vertex_{i}_Zcoordinate", vertex[2])
+        for i, vertex in enumerate(verts, 1):
+            kwargs[f"vertex_{i}_x_coordinate"] = float(vertex[0])
+            kwargs[f"vertex_{i}_y_coordinate"] = float(vertex[1])
+            kwargs[f"vertex_{i}_z_coordinate"] = float(vertex[2])
+        self.idf.add(FenestrationSurfaceDetailed(**kwargs))
 
     def validate(self, data: dict) -> GeometrySchema:
         try:

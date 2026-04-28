@@ -1,12 +1,22 @@
+import json
+
 from langchain_core.tools import BaseTool, tool
 
+from idfpy.models.thermal_zones import Zone
 from src.mcp.state import ConfigState
-from src.mcp.tools.zone import ZoneTool
+
+
+def _ok(msg: str, data=None) -> str:
+    return json.dumps({"success": True, "message": msg, "data": data})
+
+
+def _err(msg: str, data=None) -> str:
+    return json.dumps({"success": False, "message": msg, "data": data})
 
 
 def make_zone_tools(config: ConfigState) -> list[BaseTool]:
     """Create Zone CRUD tools bound to `config`."""
-    zt = ZoneTool(config)
+    idf = config._idf
 
     @tool
     def create_zone(
@@ -27,26 +37,37 @@ def make_zone_tools(config: ConfigState) -> list[BaseTool]:
             direction_of_relative_north: Zone rotation (degrees, 0-360).
             multiplier: Zone multiplier (>= 1) for repeated identical zones.
         """
-        return zt.create(
-            {
-                "Name": name,
-                "X Origin": x_origin,
-                "Y Origin": y_origin,
-                "Z Origin": z_origin,
-                "Direction of Relative North": direction_of_relative_north,
-                "Multiplier": multiplier,
-            }
-        ).model_dump_json()
+        if idf.has("Zone", name):
+            return _err(f"Zone '{name}' already exists.")
+        try:
+            idf.add(Zone(
+                name=name,
+                x_origin=x_origin,
+                y_origin=y_origin,
+                z_origin=z_origin,
+                direction_of_relative_north=direction_of_relative_north,
+                multiplier=multiplier,
+            ))
+            return _ok(
+                f"Zone '{name}' created successfully.",
+                idf.get("Zone", name).model_dump(),
+            )
+        except Exception as e:
+            return _err(f"Error creating zone '{name}': {e}")
 
     @tool
     def list_zones() -> str:
         """List all existing thermal zones."""
-        return zt.list_all().model_dump_json()
+        items = [z.model_dump() for z in idf.all_of_type("Zone").values()]
+        return _ok(f"Listed {len(items)} zones.", items)
 
     @tool
     def get_zone(name: str) -> str:
         """Read a zone by name."""
-        return zt.read(name).model_dump_json()
+        obj = idf.get("Zone", name)
+        if obj is None:
+            return _err(f"Zone '{name}' not found.")
+        return _ok(f"Zone '{name}' read successfully.", obj.model_dump())
 
     @tool
     def update_zone(
@@ -58,22 +79,39 @@ def make_zone_tools(config: ConfigState) -> list[BaseTool]:
         multiplier: int | None = None,
     ) -> str:
         """Update a zone's origin coordinates."""
-        payload: dict = {}
+        obj = idf.get("Zone", name)
+        if obj is None:
+            return _err(f"Zone '{name}' not found.")
         if x_origin is not None:
-            payload["X Origin"] = x_origin
+            obj.x_origin = x_origin
         if y_origin is not None:
-            payload["Y Origin"] = y_origin
+            obj.y_origin = y_origin
         if z_origin is not None:
-            payload["Z Origin"] = z_origin
+            obj.z_origin = z_origin
         if direction_of_relative_north is not None:
-            payload["Direction of Relative North"] = direction_of_relative_north
+            obj.direction_of_relative_north = direction_of_relative_north
         if multiplier is not None:
-            payload["Multiplier"] = multiplier
-        return zt.update(name, payload).model_dump_json()
+            obj.multiplier = multiplier
+        return _ok(f"Zone '{name}' updated successfully.", obj.model_dump())
 
     @tool
     def delete_zone(name: str) -> str:
         """Delete a zone by name."""
-        return zt.delete(name).model_dump_json()
+        refs = []
+        for s in idf.all_of_type("BuildingSurface:Detailed").values():
+            if s.zone_name == name:
+                refs.append(f"Surface:{s.name}")
+        for ils in idf.all_of_type("HVACTemplate:Zone:IdealLoadsAirSystem").values():
+            if ils.zone_name == name:
+                refs.append(f"IdealLoadsSystem:{ils.zone_name}")
+        if refs:
+            return _err(
+                f"Zone '{name}' is referenced by other components.",
+                {"references": refs},
+            )
+        removed = idf.remove("Zone", name)
+        if removed is None:
+            return _err(f"Zone '{name}' not found.")
+        return _ok(f"Zone '{name}' deleted successfully.")
 
     return [create_zone, list_zones, get_zone, update_zone, delete_zone]

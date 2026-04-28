@@ -1,4 +1,5 @@
-from eppy.modeleditor import IDF
+from idfpy import IDF
+from idfpy.models.internal_gains import Lights
 
 from src.converters.base_converter import BaseConverter
 from src.validator.data_model import LightSchema
@@ -20,33 +21,32 @@ class LightConverter(BaseConverter):
                 continue
 
     def _add_to_idf(self, val_data: LightSchema):
-        if self.idf.getobject("Lights", name=val_data.name):
+        if self.idf.has("Lights", val_data.name):
             self.logger.warning(
                 "Light with name {} already exists in IDF. Skipping addition.",
                 val_data.name,
             )
             self.state["skipped"] += 1
             return
-        self.idf.newidfobject(
-            "Lights",
-            Name=val_data.name,
-            Zone_or_ZoneList_or_Space_or_SpaceList_Name=val_data.zone_or_zone_list_or_space_or_space_list_name,
-            Schedule_Name=val_data.schedule_name,
-            Design_Level_Calculation_Method=val_data.design_level_calculation_method,
-            Lighting_Level=val_data.lighting_level,
-            Watts_per_Floor_Area=val_data.watts_per_floor_area,
-            Watts_per_Person=val_data.watts_per_person,
-            Return_Air_Fraction=val_data.return_air_fraction,
-            Fraction_Radiant=val_data.fraction_radiant,
-            Fraction_Visible=val_data.fraction_visible,
-            Fraction_Replaceable=val_data.fraction_replaceable,
-            EndUse_Subcategory=val_data.end_use_subcategory,
-            Return_Air_Fraction_Calculated_from_Plenum_Temperature=val_data.return_air_fraction_calculated_from_plenum_temperature,
-            Return_Air_Fraction_Function_of_Plenum_Temperature_Coefficient_1=val_data.return_air_fraction_function_of_plenum_temperature_coefficient_1,
-            Return_Air_Fraction_Function_of_Plenum_Temperature_Coefficient_2=val_data.return_air_fraction_function_of_plenum_temperature_coefficient_2,
-            Return_Air_Heat_Gain_Node_Name=val_data.return_air_heat_gain_node_name,
-            Exhaust_Air_Heat_Gain_Node_Name=val_data.exhaust_air_heat_gain_node_name,
-        )
+        self.idf.add(Lights(
+            name=val_data.name,
+            zone_or_zonelist_or_space_or_spacelist_name=val_data.zone_or_zone_list_or_space_or_space_list_name,
+            schedule_name=val_data.schedule_name,
+            design_level_calculation_method=val_data.design_level_calculation_method,
+            lighting_level=val_data.lighting_level,
+            watts_per_floor_area=val_data.watts_per_floor_area,
+            watts_per_person=val_data.watts_per_person,
+            return_air_fraction=val_data.return_air_fraction,
+            fraction_radiant=val_data.fraction_radiant,
+            fraction_visible=val_data.fraction_visible,
+            fraction_replaceable=val_data.fraction_replaceable,
+            end_use_subcategory=val_data.end_use_subcategory,
+            return_air_fraction_calculated_from_plenum_temperature=val_data.return_air_fraction_calculated_from_plenum_temperature,
+            return_air_fraction_function_of_plenum_temperature_coefficient_1=val_data.return_air_fraction_function_of_plenum_temperature_coefficient_1,
+            return_air_fraction_function_of_plenum_temperature_coefficient_2=val_data.return_air_fraction_function_of_plenum_temperature_coefficient_2,
+            return_air_heat_gain_node_name=val_data.return_air_heat_gain_node_name or None,
+            exhaust_air_heat_gain_node_name=val_data.exhaust_air_heat_gain_node_name or None,
+        ))
         self.state["success"] += 1
         self.logger.success("Light with name {} added to IDF.", val_data.name)
 

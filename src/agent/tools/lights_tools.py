@@ -1,13 +1,21 @@
+import json
+
 from langchain_core.tools import BaseTool, tool
 
+from idfpy.models.internal_gains import Lights
 from src.mcp.state import ConfigState
-from src.mcp.tools.light import LightTool
-from src.mcp.tools.schedule import ScheduleCompactTool
-from src.mcp.tools.zone import ZoneTool
+
+
+def _ok(msg: str, data=None) -> str:
+    return json.dumps({"success": True, "message": msg, "data": data})
+
+
+def _err(msg: str, data=None) -> str:
+    return json.dumps({"success": False, "message": msg, "data": data})
 
 
 def make_lights_tools(config: ConfigState) -> list[BaseTool]:
-    lt = LightTool(config)
+    idf = config._idf
 
     @tool
     def create_light(
@@ -34,38 +42,51 @@ def make_lights_tools(config: ConfigState) -> list[BaseTool]:
             fraction_radiant: Radiant fraction (0-1).
             fraction_visible: Visible light fraction (0-1).
         """
-        return lt.create(
-            {
-                "Name": name,
-                "Zone or ZoneList or Space or SpaceList Name": zone_name,
-                "Schedule Name": schedule_name,
-                "Design Level Calculation Method": design_level_calculation_method,
-                "Lighting Level": lighting_level,
-                "Watts per Floor Area": watts_per_floor_area,
-                "Watts per Person": watts_per_person,
-                "Fraction Radiant": fraction_radiant,
-                "Fraction Visible": fraction_visible,
-            }
-        ).model_dump_json()
+        if idf.has("Lights", name):
+            return _err(f"Lights '{name}' already exists.")
+        try:
+            idf.add(Lights(
+                name=name,
+                zone_or_zonelist_or_space_or_spacelist_name=zone_name,
+                schedule_name=schedule_name,
+                design_level_calculation_method=design_level_calculation_method,
+                lighting_level=lighting_level if lighting_level != 0.0 else None,
+                watts_per_floor_area=watts_per_floor_area if watts_per_floor_area != 0.0 else None,
+                watts_per_person=watts_per_person if watts_per_person != 0.0 else None,
+                fraction_radiant=fraction_radiant,
+                fraction_visible=fraction_visible,
+            ))
+            return _ok(
+                f"Lights '{name}' created successfully.",
+                idf.get("Lights", name).model_dump(),
+            )
+        except Exception as e:
+            return _err(f"Error creating lights '{name}': {e}")
 
     @tool
     def list_lights() -> str:
         """List all Lights objects."""
-        return lt.list_all().model_dump_json()
+        items = [lt.model_dump() for lt in idf.all_of_type("Lights").values()]
+        return _ok(f"Listed {len(items)} Lights objects.", items)
 
     @tool
     def delete_light(name: str) -> str:
         """Delete a Lights object."""
-        return lt.delete(name).model_dump_json()
+        if not idf.has("Lights", name):
+            return _err(f"Lights '{name}' not found.")
+        idf.remove("Lights", name)
+        return _ok(f"Lights '{name}' deleted successfully.")
 
     @tool
     def list_zones() -> str:
         """Read-only: list zones a Lights load can be assigned to."""
-        return ZoneTool(config).list_all().model_dump_json()
+        items = [z.model_dump() for z in idf.all_of_type("Zone").values()]
+        return _ok(f"Listed {len(items)} zones.", items)
 
     @tool
     def list_schedules() -> str:
         """Read-only: list Schedule:Compact (for schedule_name reference)."""
-        return ScheduleCompactTool(config).list_all().model_dump_json()
+        items = [s.model_dump() for s in idf.all_of_type("Schedule:Compact").values()]
+        return _ok(f"Listed {len(items)} schedules.", items)
 
     return [create_light, list_lights, delete_light, list_zones, list_schedules]

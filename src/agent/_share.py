@@ -60,14 +60,9 @@ _SCHEMA_INITIALIZED = False
 
 
 def ensure_schema_initialized() -> None:
-    """Load the EnergyPlus IDD into BaseSchema once per process."""
+    """Initialize a blank idfpy IDF in BaseSchema once per process."""
     global _SCHEMA_INITIALIZED
     if _SCHEMA_INITIALIZED:
         return
-    if not IDD_PATH.exists():
-        raise FileNotFoundError(
-            f"Energy+.idd not found at {IDD_PATH}. "
-            "Ensure data/dependencies/Energy+.idd exists in the project root."
-        )
-    BaseSchema.set_idf(IDD_PATH)
+    BaseSchema.set_idf()
     _SCHEMA_INITIALIZED = True

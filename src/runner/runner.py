@@ -1,11 +1,9 @@
 import shutil
 import subprocess
 from datetime import datetime
-from io import StringIO
 from pathlib import Path
-from typing import cast
 
-from eppy.modeleditor import IDF
+from idfpy import IDF
 
 from src.utils.logging import get_logger
 
@@ -16,22 +14,12 @@ class EnergyPlusRunner:
         Initialize the EnergyPlusRunner.
 
         Args:
-            idf: An instance of eppy.modeleditor.IDF
-            idd_file_path: EnergyPlus IDD file path, required if idf is not provided
+            idf: An instance of idfpy.IDF
+            idd_file_path: Unused; kept for backwards-compatible call signatures.
         """
         self.logger = get_logger(__name__)
-        if idf:
-            self.idf = idf
-        else:
-            try:
-                IDF.setiddname(str(idd_file_path))
-                self.idf = IDF(StringIO(""))
-            except Exception:
-                self.logger.exception(
-                    "Must provide either an IDF instance or a valid IDD file path."
-                )
-                raise
-
+        self.idf_path: Path | None = None
+        self.idf = idf if idf else IDF()
         self.logger.info("EnergyPlusRunner initialized.")
 
     def run_idf(
@@ -53,10 +41,9 @@ class EnergyPlusRunner:
         """
         if idf_file_path:
             self.idf_path = Path(idf_file_path)
-            self.idf = IDF(str(self.idf_path))
-        elif self.idf.idfname:
-            idf_file_path = cast(str, self.idf.idfname)
-            self.idf_path = Path(idf_file_path)
+            self.idf = IDF.load(self.idf_path)
+        elif self.idf_path:
+            idf_file_path = self.idf_path
         else:
             raise ValueError(
                 "IDF file path must be provided either via parameter or IDF instance."

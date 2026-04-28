@@ -34,11 +34,11 @@ _SCHEMA_INITIALIZED = False
 
 
 def _ensure_schema_initialized() -> None:
-    """Ensure the EnergyPlus IDD schema is loaded for validation."""
+    """Initialize a blank idfpy IDF in BaseSchema once per process."""
     global _SCHEMA_INITIALIZED
     if _SCHEMA_INITIALIZED:
         return
-    BaseSchema.set_idf(Path("./data/dependencies/Energy+.idd"))
+    BaseSchema.set_idf()
     _SCHEMA_INITIALIZED = True
 
 
