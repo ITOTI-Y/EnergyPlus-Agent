@@ -22,10 +22,13 @@ from src.validator.data_model import BaseSchema
 
 
 class ConverterManager:
-    def __init__(self, file_to_convert: Path):
+    def __init__(self, source: Path | dict):
         self.logger = get_logger(__name__)
         self._idf = BaseSchema.get_idf()
-        self.yaml_data: dict = self._load_yaml(file_to_convert)
+        if isinstance(source, dict):
+            self.yaml_data: dict = source
+        else:
+            self.yaml_data = self._load_yaml(source)
         self.converters = {
             "settings": SettingsConverter(self._idf),
             "building": BuildingConverter(self._idf),

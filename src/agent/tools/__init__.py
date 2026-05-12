@@ -1,3 +1,4 @@
+from src.agent.tools.analysis_tools import make_analysis_tools
 from src.agent.tools.construction_tools import make_construction_tools
 from src.agent.tools.fenestration_tools import make_fenestration_tools
 from src.agent.tools.hvac_tools import make_hvac_tools
@@ -10,6 +11,7 @@ from src.agent.tools.surface_tools import make_surface_tools
 from src.agent.tools.zone_tools import make_zone_tools
 
 __all__ = [
+    "make_analysis_tools",
     "make_construction_tools",
     "make_fenestration_tools",
     "make_hvac_tools",

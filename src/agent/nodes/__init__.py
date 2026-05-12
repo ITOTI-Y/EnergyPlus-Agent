@@ -1,3 +1,4 @@
+from src.agent.nodes.analyze import analyze_node
 from src.agent.nodes.construction import construction_agent
 from src.agent.nodes.cross_ref import (
     cross_ref_complete_node,
@@ -17,6 +18,7 @@ from src.agent.nodes.validate import validate_node
 from src.agent.nodes.zone import zone_agent
 
 __all__ = [
+    "analyze_node",
     "construction_agent",
     "cross_ref_complete_node",
     "cross_ref_foundations_node",
