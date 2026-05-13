@@ -34,13 +34,15 @@ class Chunk(BaseModel):
     def chunk_id(self) -> str:
         return compute_chunk_id(self.table_name, self.record_id)
 
-    _RESERVED_PAYLOAD_KEYS = frozenset({
-        "description",
-        "table_name",
-        "record_id",
-        "data_dict",
-        "datetime",
-    })
+    _RESERVED_PAYLOAD_KEYS = frozenset(
+        {
+            "description",
+            "table_name",
+            "record_id",
+            "data_dict",
+            "datetime",
+        }
+    )
 
     def to_qdrant_payload(self) -> dict:
         payload = {
@@ -79,13 +81,17 @@ class SQLiteProcessor:
                 full_dict = dict(result)
                 if content_column not in full_dict:
                     self.logger.error(
-                        f"Column '{content_column}' not found in table {table_name}"
+                        "Column '{}' not found in table {}",
+                        content_column,
+                        table_name,
                     )
                     return None
                 for required_col in ("id", "datetime"):
                     if required_col not in full_dict:
                         self.logger.error(
-                            f"Required column '{required_col}' not found in table {table_name}"
+                            "Required column '{}' not found in table {}",
+                            required_col,
+                            table_name,
                         )
                         return None
                 exclude_keys = {content_column, "id", "datetime"}
@@ -101,5 +107,5 @@ class SQLiteProcessor:
                     datetime=full_dict["datetime"],
                 )
         except Exception as e:
-            self.logger.error(f"Error processing {table_name} ID {record_id}: {e}")
+            self.logger.error("Error processing {} ID {}: {}", table_name, record_id, e)
             raise

@@ -5,6 +5,7 @@ from typing import Any
 from loguru import logger
 
 logger.remove()
+logger.add(sys.stderr, level="WARNING")
 
 
 def setup_logger(
@@ -27,6 +28,7 @@ def setup_logger(
         serialize (bool, optional): Whether to serialize the log. Defaults to False.
         **kwargs: Additional keyword arguments to pass to the logger.
     """
+    logger.remove()
     if console_output:
         logger.add(
             sys.stderr,

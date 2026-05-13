@@ -16,13 +16,14 @@ class LightConverter(BaseConverter):
                 self._add_to_idf(validated_light)
             except Exception as e:
                 self.state["failed"] += 1
-                self.logger.error(f"Error converting light data: {e}")
+                self.logger.error("Error converting light data: {}", e)
                 continue
 
     def _add_to_idf(self, val_data: LightSchema):
         if self.idf.getobject("Lights", name=val_data.name):
             self.logger.warning(
-                f"Light with name {val_data.name} already exists in IDF. Skipping addition."
+                "Light with name {} already exists in IDF. Skipping addition.",
+                val_data.name,
             )
             self.state["skipped"] += 1
             return
@@ -47,7 +48,7 @@ class LightConverter(BaseConverter):
             Exhaust_Air_Heat_Gain_Node_Name=val_data.exhaust_air_heat_gain_node_name,
         )
         self.state["success"] += 1
-        self.logger.success(f"Light with name {val_data.name} added to IDF.")
+        self.logger.success("Light with name {} added to IDF.", val_data.name)
 
     def validate(self, data: dict) -> LightSchema:
         return LightSchema.model_validate(data)

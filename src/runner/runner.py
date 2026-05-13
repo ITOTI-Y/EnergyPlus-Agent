@@ -26,9 +26,9 @@ class EnergyPlusRunner:
             try:
                 IDF.setiddname(str(idd_file_path))
                 self.idf = IDF(StringIO(""))
-            except Exception as e:
-                self.logger.error(
-                    f"Must provide either an IDF instance or a valid IDD file path. Error: {e}"
+            except Exception:
+                self.logger.exception(
+                    "Must provide either an IDF instance or a valid IDD file path."
                 )
                 raise
 
@@ -80,9 +80,9 @@ class EnergyPlusRunner:
         output_directory.mkdir(parents=True, exist_ok=True)
 
         self.logger.info("Starting EnergyPlus simulation...")
-        self.logger.info(f"IDF file: {self.idf_path}")
-        self.logger.info(f"EPW file: {self.epw_path}")
-        self.logger.info(f"Output directory: {output_directory}")
+        self.logger.info("IDF file: {}", self.idf_path)
+        self.logger.info("EPW file: {}", self.epw_path)
+        self.logger.info("Output directory: {}", output_directory)
 
         try:
             energyplus_exe = shutil.which("energyplus")
@@ -91,6 +91,7 @@ class EnergyPlusRunner:
 
             cmd = [
                 energyplus_exe,
+                "-x",
                 "-w",
                 str(self.epw_path),
                 "-d",
@@ -99,7 +100,7 @@ class EnergyPlusRunner:
                 str(self.idf_path),
             ]
 
-            self.logger.info(f"Running command: {' '.join(cmd)}")
+            self.logger.info("Running command: {}", " ".join(cmd))
 
             process = subprocess.Popen(
                 cmd,
@@ -112,13 +113,13 @@ class EnergyPlusRunner:
             output_lines = []
             for line in process.stdout or []:
                 line = line.rstrip()
-                self.logger.info(f"[EnergyPlus] {line}")
+                self.logger.info("[EnergyPlus] {}", line)
                 output_lines.append(line)
 
             return_code = process.wait()
 
             if return_code != 0:
-                self.logger.error(f"EnergyPlus exited with code {return_code}")
+                self.logger.error("EnergyPlus exited with code {}", return_code)
                 return False
 
             self.logger.info("EnergyPlus simulation completed successfully.")
@@ -128,6 +129,6 @@ class EnergyPlusRunner:
             self.logger.error("EnergyPlus executable not found.")
             return False
 
-        except Exception as e:
-            self.logger.exception(f"Running EnergyPlus simulation failed: {e}")
+        except Exception:
+            self.logger.exception("Running EnergyPlus simulation failed")
             raise

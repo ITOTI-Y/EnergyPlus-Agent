@@ -36,16 +36,14 @@ class MaterialConverter(BaseConverter):
         for material_data in material_list:
             try:
                 material_name = material_data.get("Name", "Unknown Material")
-                self.logger.debug(f"Processing material: {material_name}")
+                self.logger.debug("Processing material: {}", material_name)
 
                 validated_material = self.validate(material_data)
                 self._add_to_idf(validated_material)
 
-            except Exception as e:
+            except Exception:
                 self.state["failed"] += 1
-                self.logger.exception(
-                    f"Failed to convert Material '{material_name}': {e!s}"
-                )
+                self.logger.exception("Failed to convert Material '{}'", material_name)
                 continue
 
     def _add_to_idf(
@@ -61,14 +59,18 @@ class MaterialConverter(BaseConverter):
 
             if not idf_key:
                 self.logger.error(
-                    f"Unknown material type '{val_data.type}' for material '{val_data.name}'"
+                    "Unknown material type '{}' for material '{}'",
+                    val_data.type,
+                    val_data.name,
                 )
                 self.state["failed"] += 1
                 return
 
             if self.idf.getobject(idf_key, val_data.name):
                 self.logger.warning(
-                    f"{idf_key} with name '{val_data.name}' already exists. Skipping addition."
+                    "{} with name '{}' already exists. Skipping addition.",
+                    idf_key,
+                    val_data.name,
                 )
                 self.state["skipped"] += 1
                 return
@@ -81,11 +83,12 @@ class MaterialConverter(BaseConverter):
             elif isinstance(val_data, GlazingMaterialSchema):
                 self._add_glazing_material_to_idf(val_data)
             self.state["success"] += 1
-            self.logger.success(f"Material '{val_data.name}' added successfully.")
+            self.logger.success("Material '{}' added successfully.", val_data.name)
         except Exception:
             self.state["failed"] += 1
             self.logger.exception(
-                f"An unexpected error occurred while adding material '{val_data.name}' to IDF"
+                "An unexpected error occurred while adding material '{}' to IDF",
+                val_data.name,
             )
 
     def _get_idf_key(self, material_type: str) -> str:

@@ -56,6 +56,24 @@
                 "--db-path",
                 "${workspaceFolder}/data/examples/EP_Agent_data.db"
             ]
+        },
+        {
+            "name": "Zone Agent",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "pytest",
+            "args": [
+                "tests/test_zone_agent.py",
+                "-v"
+            ],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "Export Demo Trace",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/scripts/export_trace.py",
+            "cwd": "${workspaceFolder}"
         }
     ]
 }

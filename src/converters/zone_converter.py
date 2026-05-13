@@ -16,15 +16,16 @@ class ZoneConverter(BaseConverter):
             try:
                 val_data = self.validate(zd)
                 self._add_to_idf(val_data)
-            except Exception as e:
+            except Exception:
                 self.state["failed"] += 1
-                self.logger.error(f"Error processing Zone: {e}", exc_info=True)
+                self.logger.exception("Error processing Zone")
                 continue
 
     def _add_to_idf(self, val_data: Any) -> None:
         if self.idf.getobject("Zone", name=val_data.name):
             self.logger.warning(
-                f"Zone with name {val_data.name} already exists in IDF. Skipping addition."
+                "Zone with name {} already exists in IDF. Skipping addition.",
+                val_data.name,
             )
             self.state["skipped"] += 1
             return
@@ -46,10 +47,10 @@ class ZoneConverter(BaseConverter):
                 Part_of_Total_Floor_Area=val_data.part_of_total_floor_area,
             )
             self.state["success"] += 1
-            self.logger.success(f"Zone with name {val_data.name} added to IDF.")
-        except Exception as e:
+            self.logger.success("Zone with name {} added to IDF.", val_data.name)
+        except Exception:
             self.state["failed"] += 1
-            self.logger.error(f"Error Adding Zone Data to IDF: {e}", exc_info=True)
+            self.logger.exception("Error Adding Zone Data to IDF")
 
     def validate(self, data: dict) -> Any:
         val_data = ZoneSchema.model_validate(data)

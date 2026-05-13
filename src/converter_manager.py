@@ -48,16 +48,16 @@ class ConverterManager:
 
     def convert_all(self) -> None:
         for name, converter in self.converters.items():
-            self.logger.info(f"Converting {name}...")
+            self.logger.info("Converting {}...", name)
             converter.convert(self.yaml_data)
 
     def save_idf(self, output_path: Path) -> None:
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        self.logger.info(f"Saving IDF to {output_path}...")
+        self.logger.info("Saving IDF to {}...", output_path)
         self._idf.saveas(str(output_path))
 
     def load_idf(self, idf_path: Path) -> None:
-        self.logger.info(f"Loading IDF from {idf_path}...")
+        self.logger.info("Loading IDF from {}...", idf_path)
         self._idf = IDF(str(idf_path))
         for converter in self.converters.values():
             converter.idf = self._idf
@@ -69,7 +69,7 @@ class ConverterManager:
         return IDF(fhandle)
 
     def _load_yaml(self, file_path: Path) -> dict:
-        self.logger.info(f"Loading YAML file from {file_path}.")
+        self.logger.info("Loading YAML file from {}.", file_path)
         with open(file_path, encoding="utf-8") as f:
             return yaml.safe_load(f)
 

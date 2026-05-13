@@ -139,7 +139,7 @@ class RAGSystem:
             table_name=table_name, record_id=record_id
         )
         if result is None:
-            self.logger.error(f"Failed to chunk {table_name}-{record_id}.")
+            self.logger.error("Failed to chunk {}-{}.", table_name, record_id)
             raise ValueError(f"Failed to chunk {table_name}-{record_id}.")
         return result
 
@@ -201,7 +201,7 @@ class RAGSystem:
             try:
                 yield self.chunk(table, record_id)
             except ValueError:
-                self.logger.error(f"Skipping {table}-{record_id}: chunk not found")
+                self.logger.error("Skipping {}-{}: chunk not found", table, record_id)
                 continue
 
     def _embed_and_upsert(
@@ -221,7 +221,7 @@ class RAGSystem:
             except Exception as e:
                 result.failed_count += 1
                 result.errors.append(e)
-                self.logger.warning(f"Failed to process batch {i // batch_count}")
+                self.logger.warning("Failed to process batch {}", i // batch_count)
                 time.sleep(1)
                 continue
         return result
@@ -262,14 +262,17 @@ class RAGSystem:
                         if is_rate_limited and attempt < max_retries - 1:
                             wait = 60 * (attempt + 1)
                             self.logger.warning(
-                                f"Rate limited on batch {i}, "
-                                f"retry {attempt + 1}/{max_retries} in {wait}s"
+                                "Rate limited on batch {}, retry {}/{} in {}s",
+                                i,
+                                attempt + 1,
+                                max_retries,
+                                wait,
                             )
                             await asyncio.sleep(wait)
                         else:
                             result.failed_count += 1
                             result.errors.append(e)
-                            self.logger.warning(f"Failed to process batch {i}: {e}")
+                            self.logger.warning("Failed to process batch {}: {}", i, e)
                             return
 
         tasks = [
@@ -290,15 +293,13 @@ class RAGSystem:
         """
         if not cloud_data:
             return 0, False, None
-        stale_ids = [
-            compute_chunk_id(r.table_name, r.record_id) for r in cloud_data
-        ]
+        stale_ids = [compute_chunk_id(r.table_name, r.record_id) for r in cloud_data]
         try:
             self.vector_store.delete(stale_ids)
-            self.logger.info(f"Deleted {len(stale_ids)} stale vectors from Qdrant.")
+            self.logger.info("Deleted {} stale vectors from Qdrant.", len(stale_ids))
             return len(stale_ids), False, None
         except Exception as e:
-            self.logger.error(f"Failed to delete stale vectors: {e}")
+            self.logger.error("Failed to delete stale vectors: {}", e)
             return 0, True, e
 
     async def _delete_stale_points_async(
@@ -306,15 +307,13 @@ class RAGSystem:
     ) -> tuple[int, bool, Exception | None]:
         if not cloud_data:
             return 0, False, None
-        stale_ids = [
-            compute_chunk_id(r.table_name, r.record_id) for r in cloud_data
-        ]
+        stale_ids = [compute_chunk_id(r.table_name, r.record_id) for r in cloud_data]
         try:
             await self.async_vector_store.delete(stale_ids)
-            self.logger.info(f"Deleted {len(stale_ids)} stale vectors from Qdrant.")
+            self.logger.info("Deleted {} stale vectors from Qdrant.", len(stale_ids))
             return len(stale_ids), False, None
         except Exception as e:
-            self.logger.error(f"Failed to delete stale vectors: {e}")
+            self.logger.error("Failed to delete stale vectors: {}", e)
             return 0, True, e
 
     def sync_rag(
@@ -324,8 +323,10 @@ class RAGSystem:
         """Sync SQL records to Qdrant. Returns number of failed batches."""
         local_data, cloud_data = self.check_rag_sync()
         self.logger.info(
-            f"Found {len(local_data)} local records to vectorize, "
-            f"{len(cloud_data)} cloud records not in local database."
+            "Found {} local records to vectorize, "
+            "{} cloud records not in local database.",
+            len(local_data),
+            len(cloud_data),
         )
 
         deleted_ids, del_failed, del_error = self._delete_stale_points(cloud_data)
@@ -344,8 +345,10 @@ class RAGSystem:
     ) -> VectorizedResult:
         local_data, cloud_data = self.check_rag_sync()
         self.logger.info(
-            f"Found {len(local_data)} local records to vectorize, "
-            f"{len(cloud_data)} cloud records not in local database."
+            "Found {} local records to vectorize, "
+            "{} cloud records not in local database.",
+            len(local_data),
+            len(cloud_data),
         )
 
         deleted_ids, del_failed, del_error = await self._delete_stale_points_async(

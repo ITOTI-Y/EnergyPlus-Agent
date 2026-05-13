@@ -1,3 +1,4 @@
+import re
 from abc import abstractmethod
 from collections import defaultdict
 from io import StringIO
@@ -115,13 +116,19 @@ class BaseSchema(BaseModel):
 
         if value_lower not in choice_mapping:
             logger.error(
-                f"{field_name} '{value}' is not a valid choice. Valid choices are: {valid_choices}."
+                "{} '{}' is not a valid choice. Valid choices are: {}.",
+                field_name,
+                value,
+                valid_choices,
             )
             raise ValueError(f"{field_name} must be one of {valid_choices}.")
 
         if value not in valid_choices:  # type: ignore
             logger.warning(
-                f"{field_name} '{value}' is not in the standard casing. Using '{choice_mapping[value_lower]}' instead."
+                "{} '{}' is not in the standard casing. Using '{}' instead.",
+                field_name,
+                value,
+                choice_mapping[value_lower],
             )
         return choice_mapping[value_lower]
 
@@ -162,9 +169,9 @@ class BuildingSchema(BaseSchema):
         description="Maximum number of warmup days",
     )
     minimum_number_of_warmup_days: int = Field(
-        0,
+        1,
         alias="Minimum Number of Warmup Days",
-        description="Minimum number of warmup days",
+        description="Minimum number of warmup days (E+ 25.1 requires > 0)",
     )
 
     @field_validator("name")
@@ -209,8 +216,8 @@ class BuildingSchema(BaseSchema):
 
     @field_validator("maximum_number_of_warmup_days", "minimum_number_of_warmup_days")
     def validate_warmup_days(cls, v):
-        if v < 0:
-            raise ValueError("Warmup days must be non-negative.")
+        if v < 1:
+            raise ValueError("Warmup days must be >= 1 (E+ 25.1 requirement).")
         return v
 
     def to_yaml_dict(self) -> dict[str, Any]:
@@ -473,7 +480,7 @@ class SurfaceSchema(BaseSchema):
         mask = distances < tolerance
         if np.any(mask):
             for pt1, pt2 in np.argwhere(mask):
-                logger.error(f"Vertices {v[pt1]} and {v[pt2]} are too close.")
+                logger.error("Vertices {} and {} are too close.", v[pt1], v[pt2])
             raise ValueError("Some vertices are too close to each other.")
         return pts
 
@@ -509,7 +516,7 @@ class SimulationControlSchema(BaseSchema):
         "No", alias="Do Plant Sizing Calculation"
     )
     run_simulation_for_sizing_periods: str | bool = Field(
-        "No", alias="Run Simulation for Sizing Periods"
+        "Yes", alias="Run Simulation for Sizing Periods"
     )
     run_simulation_for_weather_file_run_periods: str | bool = Field(
         "Yes", alias="Run Simulation for Weather File Run Periods"
@@ -560,10 +567,16 @@ class SiteLocationSchema(BaseSchema):
     elevation: float = Field(..., alias="Elevation")
 
     @field_validator("name")
-    def validate_name(cls, v):
+    def validate_name(cls, v: str) -> str:
         if not v:
             raise ValueError("Name must not be empty.")
-        return v
+        # IDF uses `,` and `;` as field / object delimiters; other
+        # punctuation and whitespace can cause silent field shifts. Force
+        # a single legal word-separator: `_`. Runs of non-word chars
+        # collapse to one underscore. Example:
+        #   "Shenzhen, China" -> "Shenzhen_China"
+        sanitized = re.sub(r"[^\w]+", "_", v, flags=re.UNICODE).strip("_")
+        return sanitized or "Unnamed"
 
     @field_validator("latitude")
     def validate_latitude(cls, v):
@@ -1030,7 +1043,7 @@ class GeometrySchema(BaseSchema):
         if len(unclosure_indices) > 0:
             for idx in unclosure_indices:
                 point = unique_points[idx]
-                logger.error(f"Point {point} is not properly closed in the geometry.")
+                logger.error("Point {} is not properly closed in the geometry.", point)
             raise ValueError(
                 "Geometry closure validation failed. Some points are not properly closed."
             )
@@ -1060,7 +1073,9 @@ class GeometrySchema(BaseSchema):
             if surface.surface_type not in {"Floor", "Roof", "Ceiling"}:
                 if len(interior_points) == 0:
                     logger.error(
-                        f"Cannot compute normal vector for surface {surface.name} without floor surfaces for reference."
+                        "Cannot compute normal vector for surface {} without "
+                        "floor surfaces for reference.",
+                        surface.name,
                     )
                     raise ValueError(
                         "At least one Floor surface is required to validate other surface types."
@@ -1117,7 +1132,8 @@ class GeometrySchema(BaseSchema):
                 tri = Delaunay(surface.vertices[:, :-1])
             except Exception as e:
                 logger.exception(
-                    f"Failed to perform Delaunay triangulation on surface {surface.name}: {e}"
+                    "Failed to perform Delaunay triangulation on surface {}",
+                    surface.name,
                 )
                 raise ValueError(
                     f"Delaunay triangulation failed for surface {surface.name}."
@@ -1244,7 +1260,9 @@ class ScheduleCompactSchema(BaseSchema):
         return v
 
     @field_validator("data")
-    def validate_data(cls, v: list[str]) -> list[str]:
+    def validate_data(cls, v: list) -> list[str]:
+        if v and all(isinstance(x, str) for x in v):
+            return v
         return cls._validate_through(v)
 
     @classmethod
@@ -1364,10 +1382,10 @@ class HVACSchema(BaseSchema):
     now based on HVACTemplate objects.
     """
 
-    thermostats: list[HVACTemplateThermostatSchema] | list = Field(
+    thermostats: list[HVACTemplateThermostatSchema] = Field(
         default_factory=list, alias="HVACTemplate:Thermostat"
     )
-    ideal_loads_systems: list[HVACTemplateZoneIdealLoadsAirSystemSchema] | list = Field(
+    ideal_loads_systems: list[HVACTemplateZoneIdealLoadsAirSystemSchema] = Field(
         default_factory=list, alias="HVACTemplate:Zone:IdealLoadsAirSystem"
     )
 

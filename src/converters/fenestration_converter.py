@@ -20,19 +20,20 @@ class FenestrationConverter(BaseConverter):
             try:
                 self._add_to_idf(fenestration)
                 self.logger.success(
-                    f"Successfully converted FenestrationSurface: {fenestration.name}"
+                    "Successfully converted FenestrationSurface: {}",
+                    fenestration.name,
                 )
                 self.state["success"] += 1
-            except Exception as e:
+            except Exception:
                 self.state["failed"] += 1
-                self.logger.error(
-                    f"Error Converting FenestrationSurface Data: {e}", exc_info=True
-                )
+                self.logger.exception("Error Converting FenestrationSurface Data")
 
     def _add_to_idf(self, val_data: FenestrationSurfaceSchema) -> None:
         if self.idf.getobject("FenestrationSurface:Detailed", name=val_data.name):
             self.logger.warning(
-                f"FenestrationSurface with name {val_data.name} already exists in IDF. Skipping addition."
+                "FenestrationSurface with name {} already exists in IDF. "
+                "Skipping addition.",
+                val_data.name,
             )
             self.state["skipped"] += 1
             return
@@ -66,7 +67,7 @@ class FenestrationConverter(BaseConverter):
             geometry = GeometrySchema.model_validate(data)
         except Exception as e:
             self.logger.error(
-                f"Geometry validation failed for fenestration surfaces: {e}"
+                "Geometry validation failed for fenestration surfaces: {}", e
             )
             self.state["failed"] += len(data)
         return geometry
