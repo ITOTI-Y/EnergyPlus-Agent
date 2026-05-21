@@ -510,106 +510,130 @@ def make_analysis_tools(output_dir: Path) -> list[BaseTool]:
 
     @tool
     def get_energy_summary() -> str:
-        """Parse the EnergyPlus HTML summary table for end-use energy breakdown.
+        """Parse the EnergyPlus tabular summary for end-use energy breakdown.
 
-        Reads ``eplustbl.htm`` and extracts the **End Uses** table, converting
-        GJ values to kWh.  Also extracts EUI (Energy Use Intensity, MJ/m²).
+        Tries ``eplustbl.htm`` first (HTML format), then falls back to
+        ``eplustbl.csv`` (comma format) which EnergyPlus 25.x produces by
+        default.  Extracts the **End Uses** table (GJ → kWh) and EUI.
 
         Returns a dict with keys:
           - end_uses: list of {use, electricity_kwh, natural_gas_kwh, ...}
           - eui_mj_per_m2 (float | null)
           - total_electricity_kwh (float)
           - total_natural_gas_kwh (float)
-
-        If ``eplustbl.htm`` is missing, returns success=false so the LLM can
-        fall back to CSV-based analysis.
+          - source (str): "htm" or "csv"
         """
         run_dir = _find_run_dir(output_dir)
         if run_dir is None:
             return _err("No simulation output found. Run the simulation first.")
 
         htm_path = run_dir / "eplustbl.htm"
-        if not htm_path.exists():
+        csv_path = run_dir / "eplustbl.csv"
+
+        # ---- Try HTML path first -------------------------------------------
+        if htm_path.exists():
+            html = htm_path.read_text(encoding="utf-8", errors="replace")
+
+            eui: float | None = None
+            eui_match = re.search(
+                r"Energy Use Intensity.*?<td[^>]*>\s*([\d.]+)\s*</td>",
+                html,
+                re.IGNORECASE | re.DOTALL,
+            )
+            if eui_match:
+                try:
+                    eui = round(float(eui_match.group(1)), 4)
+                except ValueError:
+                    pass
+
+            table_match = re.search(
+                r"End Uses.*?(<table[^>]*>.*?</table>)",
+                html,
+                re.IGNORECASE | re.DOTALL,
+            )
+
+            end_uses: list[dict] = []
+            total_elec = 0.0
+            total_gas = 0.0
+
+            if table_match:
+                table_html = table_match.group(1)
+                header_row = re.search(r"<tr[^>]*>(.*?)</tr>", table_html, re.IGNORECASE | re.DOTALL)
+                col_names: list[str] = []
+                if header_row:
+                    col_names = [
+                        re.sub(r"<[^>]+>", "", c).strip()
+                        for c in re.findall(r"<t[hd][^>]*>(.*?)</t[hd]>", header_row.group(1), re.IGNORECASE | re.DOTALL)
+                    ]
+                rows = re.findall(r"<tr[^>]*>(.*?)</tr>", table_html, re.IGNORECASE | re.DOTALL)
+                for row_html in rows[1:]:
+                    cells = [
+                        re.sub(r"<[^>]+>", "", c).strip()
+                        for c in re.findall(r"<t[hd][^>]*>(.*?)</t[hd]>", row_html, re.IGNORECASE | re.DOTALL)
+                    ]
+                    if not cells or not cells[0]:
+                        continue
+                    use_name = cells[0]
+                    is_total_row = use_name.strip().lower() == "total"
+                    row_dict: dict = {"use": use_name}
+                    for i, col in enumerate(col_names[1:], start=1):
+                        if i < len(cells):
+                            try:
+                                gj_val = float(cells[i].replace(",", ""))
+                                kwh_val = round(gj_val * 277.778, 2)
+                            except ValueError:
+                                kwh_val = None
+                            col_key = re.sub(r"\s+", "_", col.lower())
+                            row_dict[f"{col_key}_kwh"] = kwh_val
+                            if kwh_val is not None and is_total_row:
+                                if "electricity" in col.lower():
+                                    total_elec = kwh_val
+                                if "gas" in col.lower():
+                                    total_gas = kwh_val
+                    end_uses.append(row_dict)
+
+            return _ok(
+                f"Energy summary parsed from HTM. {len(end_uses)} end-use categories found.",
+                {
+                    "eui_mj_per_m2": eui,
+                    "total_electricity_kwh": round(total_elec, 2),
+                    "total_natural_gas_kwh": round(total_gas, 2),
+                    "end_uses": end_uses,
+                    "source": "htm",
+                },
+            )
+
+        # ---- Fall back to eplustbl.csv --------------------------------------
+        if not csv_path.exists():
             return _err(
-                "eplustbl.htm not found. "
-                "Energy summary is unavailable; use get_variable_statistics to analyse CSV data.",
+                "Neither eplustbl.htm nor eplustbl.csv found. "
+                "Energy summary is unavailable; use get_variable_statistics instead.",
                 {"run_dir": str(run_dir)},
             )
 
-        html = htm_path.read_text(encoding="utf-8", errors="replace")
+        try:
+            from src.results.parser import parse_tabular as _parse_tabular
+            tabular = _parse_tabular(csv_path)
+        except Exception as exc:
+            return _err(f"Failed to parse eplustbl.csv: {exc}")
 
-        # ---- EUI extraction ------------------------------------------------
-        eui: float | None = None
-        eui_match = re.search(
-            r"Energy Use Intensity.*?<td[^>]*>\s*([\d.]+)\s*</td>",
-            html,
-            re.IGNORECASE | re.DOTALL,
-        )
-        if eui_match:
-            try:
-                eui = round(float(eui_match.group(1)), 4)
-            except ValueError:
-                pass
-
-        # ---- End Uses table ------------------------------------------------
-        # Locate the End Uses table block (may appear more than once in report)
-        table_match = re.search(
-            r"End Uses.*?(<table[^>]*>.*?</table>)",
-            html,
-            re.IGNORECASE | re.DOTALL,
-        )
-
-        end_uses: list[dict] = []
+        end_uses = tabular.get("end_uses", [])
         total_elec = 0.0
         total_gas = 0.0
-
-        if table_match:
-            table_html = table_match.group(1)
-
-            # Extract header row to get fuel-type column names
-            header_row = re.search(r"<tr[^>]*>(.*?)</tr>", table_html, re.IGNORECASE | re.DOTALL)
-            col_names: list[str] = []
-            if header_row:
-                col_names = [
-                    re.sub(r"<[^>]+>", "", c).strip()
-                    for c in re.findall(r"<t[hd][^>]*>(.*?)</t[hd]>", header_row.group(1), re.IGNORECASE | re.DOTALL)
-                ]
-
-            # Extract data rows
-            rows = re.findall(r"<tr[^>]*>(.*?)</tr>", table_html, re.IGNORECASE | re.DOTALL)
-            for row_html in rows[1:]:  # skip header
-                cells = [
-                    re.sub(r"<[^>]+>", "", c).strip()
-                    for c in re.findall(r"<t[hd][^>]*>(.*?)</t[hd]>", row_html, re.IGNORECASE | re.DOTALL)
-                ]
-                if not cells or not cells[0]:
-                    continue
-                use_name = cells[0]
-                is_total_row = use_name.strip().lower() == "total"
-                row_dict: dict = {"use": use_name}
-                for i, col in enumerate(col_names[1:], start=1):
-                    if i < len(cells):
-                        try:
-                            gj_val = float(cells[i].replace(",", ""))
-                            kwh_val = round(gj_val * 277.778, 2)  # GJ → kWh
-                        except ValueError:
-                            kwh_val = None
-                        col_key = re.sub(r"\s+", "_", col.lower())
-                        row_dict[f"{col_key}_kwh"] = kwh_val
-                        if kwh_val is not None and is_total_row:
-                            if "electricity" in col.lower():
-                                total_elec = kwh_val
-                            if "gas" in col.lower():
-                                total_gas = kwh_val
-                end_uses.append(row_dict)
+        for row in end_uses:
+            if row.get("use", "").strip().lower() == "total end uses":
+                total_elec = row.get("electricity_kwh") or 0.0
+                total_gas = row.get("natural_gas_kwh") or 0.0
+                break
 
         return _ok(
-            f"Energy summary parsed. {len(end_uses)} end-use categories found.",
+            f"Energy summary parsed from CSV. {len(end_uses)} end-use categories found.",
             {
-                "eui_mj_per_m2": eui,
+                "eui_mj_per_m2": tabular.get("eui_mj_per_m2"),
                 "total_electricity_kwh": round(total_elec, 2),
                 "total_natural_gas_kwh": round(total_gas, 2),
                 "end_uses": end_uses,
+                "source": "csv",
             },
         )
 
