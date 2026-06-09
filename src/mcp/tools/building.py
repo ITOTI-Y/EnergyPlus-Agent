@@ -1,45 +1,29 @@
 from typing import Any
 
+from idfpy.models.simulation import Building
+
 from src.mcp.state import ConfigState
-from src.mcp.tools.base import BaseTool
-from src.validator.data_model import BuildingSchema
+from src.mcp.tools.base import BaseTool, normalize_payload
 
 
 class BuildingTool(BaseTool):
-    """Tool for managing EnergyPlus Building objects.
-
-    Handles CRUD operations for the building configuration, which is a
-    singleton object (only one building per configuration).
-    """
-
     def __init__(self, state: ConfigState):
         super().__init__(state, "Building")
 
     @property
-    def storage(self) -> dict[str, BuildingSchema]:
-        if self.state.building:
-            return {self.state.building.name: self.state.building}
-        return {}
+    def object_types(self) -> tuple[str, ...]:
+        return ("Building",)
 
-    def _add_to_storage(self, instance: BuildingSchema) -> None:
-        self.state.building = instance
+    def _create_model(self, data: dict[str, Any]) -> Building:
+        payload = normalize_payload(data)
+        payload.setdefault("loads_convergence_tolerance_value", 0.04)
+        payload.setdefault("temperature_convergence_tolerance_value", 0.4)
+        payload.setdefault("solar_distribution", "FullExterior")
+        payload.setdefault("maximum_number_of_warmup_days", 25)
+        payload.setdefault("minimum_number_of_warmup_days", 1)
+        return Building(**payload)
 
-    def _remove_from_storage(self, name: str) -> None:
-        if self.state.building and self.state.building.name == name:
-            self.state.building = None
-        else:
-            raise ValueError(f"Building with name {name} not found.")
-
-    def _update_storage(self, name: str, instance: BuildingSchema) -> None:
-        if self.state.building and self.state.building.name == name:
-            self.state.building = instance
-        else:
-            raise ValueError(f"Building with name {name} not found.")
-
-    def _validate_and_create(self, data: dict[str, Any]) -> BuildingSchema:
-        return BuildingSchema.model_validate(data)
-
-    def _get_name(self, instance: BuildingSchema) -> str:
+    def _get_name(self, instance: Building) -> str:
         return instance.name
 
     def _check_references(self, name: str) -> list[str]:

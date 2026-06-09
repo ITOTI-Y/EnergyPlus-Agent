@@ -1,5 +1,3 @@
-from pathlib import Path
-
 from fastmcp import FastMCP
 
 from src.mcp.api import (
@@ -28,31 +26,17 @@ from src.mcp.tools import (
     WorkflowTool,
     ZoneTool,
 )
-from src.validator.data_model import BaseSchema
-
-_SCHEMA_INITIALIZED = False
-
-
-def _ensure_schema_initialized() -> None:
-    """Initialize a blank idfpy IDF in BaseSchema once per process."""
-    global _SCHEMA_INITIALIZED
-    if _SCHEMA_INITIALIZED:
-        return
-    BaseSchema.set_idf()
-    _SCHEMA_INITIALIZED = True
 
 
 def create_mcp_server() -> FastMCP:
     """Create and configure the MCP server with all EnergyPlus tools.
 
-    Initializes the schema, creates a shared ConfigState, instantiates all
-    tool classes, and registers them with the FastMCP server.
+    Creates a shared IDF-backed ConfigState, instantiates all tool classes,
+    and registers them with the FastMCP server.
 
     Returns:
         Configured FastMCP server instance ready to run.
     """
-    _ensure_schema_initialized()
-
     mcp = FastMCP(
         name="EnergyPlus Agent",
         version="0.1.0",

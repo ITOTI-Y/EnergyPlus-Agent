@@ -1,104 +1,50 @@
 from typing import Any
 
-from src.mcp.state import ConfigState
-from src.mcp.tools.base import BaseTool
-from src.validator.data_model import (
-    HVACTemplateThermostatSchema,
-    HVACTemplateZoneIdealLoadsAirSystemSchema,
+from idfpy.models.hvac_templates import (
+    HVACTemplateThermostat,
+    HVACTemplateZoneIdealLoadsAirSystem,
 )
+
+from src.mcp.state import ConfigState
+from src.mcp.tools.base import BaseTool, normalize_payload
 
 
 class ThermostatTool(BaseTool):
-    """Tool for managing EnergyPlus HVACTemplate:Thermostat objects.
-
-    Handles CRUD operations for HVAC thermostats that define heating
-    and cooling setpoint schedules. Referenced by ideal loads systems,
-    so deletion checks for these dependencies.
-    """
-
     def __init__(self, state: ConfigState):
-        super().__init__(state, "Thermostat")
+        super().__init__(state, "HVACTemplate:Thermostat")
 
     @property
-    def storage(self) -> dict[str, HVACTemplateThermostatSchema]:
-        return {
-            thermostat.name: thermostat for thermostat in self.state.hvac.thermostats
-        }
+    def object_types(self) -> tuple[str, ...]:
+        return ("HVACTemplate:Thermostat",)
 
-    def _add_to_storage(self, instance: HVACTemplateThermostatSchema) -> None:
-        self.state.hvac.thermostats.append(instance)
+    def _create_model(self, data: dict[str, Any]) -> HVACTemplateThermostat:
+        return HVACTemplateThermostat(**normalize_payload(data))
 
-    def _remove_from_storage(self, name: str) -> None:
-        self.state.hvac.thermostats = [
-            thermostat
-            for thermostat in self.state.hvac.thermostats
-            if thermostat.name != name
-        ]
-
-    def _update_storage(
-        self, name: str, instance: HVACTemplateThermostatSchema
-    ) -> None:
-        self.state.hvac.thermostats = [
-            thermostat
-            for thermostat in self.state.hvac.thermostats
-            if thermostat.name != name
-        ]
-        self.state.hvac.thermostats.append(instance)
-
-    def _validate_and_create(
-        self, data: dict[str, Any]
-    ) -> HVACTemplateThermostatSchema:
-        return HVACTemplateThermostatSchema.model_validate(data)
-
-    def _get_name(self, instance: HVACTemplateThermostatSchema) -> str:
+    def _get_name(self, instance: HVACTemplateThermostat) -> str:
         return instance.name
 
     def _check_references(self, name: str) -> list[str]:
         refs = []
-        for ils in self.state.hvac.ideal_loads_systems:
+        for ils in self.state.idf.all_of_type(
+            "HVACTemplate:Zone:IdealLoadsAirSystem"
+        ).values():
             if ils.template_thermostat_name == name:
                 refs.append(f"IdealLoadsSystem:{ils.zone_name}")
         return refs
 
 
 class IdealLoadsSystemTool(BaseTool):
-    """Tool for managing EnergyPlus HVACTemplate:Zone:IdealLoadsAirSystem objects.
-
-    Handles CRUD operations for ideal loads air systems, keyed by zone name.
-    These are leaf HVAC components with no downstream references.
-    """
-
     def __init__(self, state: ConfigState):
-        super().__init__(state, "IdealLoadsSystem")
+        super().__init__(state, "HVACTemplate:Zone:IdealLoadsAirSystem")
 
     @property
-    def storage(self) -> dict[str, HVACTemplateZoneIdealLoadsAirSystemSchema]:
-        return {ils.zone_name: ils for ils in self.state.hvac.ideal_loads_systems}
+    def object_types(self) -> tuple[str, ...]:
+        return ("HVACTemplate:Zone:IdealLoadsAirSystem",)
 
-    def _add_to_storage(
-        self, instance: HVACTemplateZoneIdealLoadsAirSystemSchema
-    ) -> None:
-        self.state.hvac.ideal_loads_systems.append(instance)
+    def _create_model(self, data: dict[str, Any]) -> HVACTemplateZoneIdealLoadsAirSystem:
+        return HVACTemplateZoneIdealLoadsAirSystem(**normalize_payload(data))
 
-    def _remove_from_storage(self, name: str) -> None:
-        self.state.hvac.ideal_loads_systems = [
-            ils for ils in self.state.hvac.ideal_loads_systems if ils.zone_name != name
-        ]
-
-    def _update_storage(
-        self, name: str, instance: HVACTemplateZoneIdealLoadsAirSystemSchema
-    ) -> None:
-        self.state.hvac.ideal_loads_systems = [
-            ils for ils in self.state.hvac.ideal_loads_systems if ils.zone_name != name
-        ]
-        self.state.hvac.ideal_loads_systems.append(instance)
-
-    def _validate_and_create(
-        self, data: dict[str, Any]
-    ) -> HVACTemplateZoneIdealLoadsAirSystemSchema:
-        return HVACTemplateZoneIdealLoadsAirSystemSchema.model_validate(data)
-
-    def _get_name(self, instance: HVACTemplateZoneIdealLoadsAirSystemSchema) -> str:
+    def _get_name(self, instance: HVACTemplateZoneIdealLoadsAirSystem) -> str:
         return instance.zone_name
 
     def _check_references(self, name: str) -> list[str]:
