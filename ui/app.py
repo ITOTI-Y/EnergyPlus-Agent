@@ -16,6 +16,8 @@ from src.agent.runner import run_session
 from src.utils.logging import setup_logger
 from src.results import load_results, parse_idf_geometry
 from src.results import charts as result_charts
+from src.results.solar import resolve_surface_solar
+from src.results.charts import ZONE_ALL
 
 setup_logger(level="WARNING")
 
@@ -27,6 +29,7 @@ _METRIC_MAP: dict[str, str] = {
     "照明能耗 (kWh)": "lighting",
 }
 _METRIC_OPTIONS = list(_METRIC_MAP.keys())
+
 
 DEFAULT_EPW = Path("data/weather/Shenzhen.epw")
 OUTPUT_DIR = Path("output/ui")
@@ -204,15 +207,25 @@ def run_agent(
     t.join(timeout=5)
 
 
-def _load_visualizations(output_dir: Path, metric_label: str) -> tuple:
-    """Load simulation results and return all 7 Plotly figures.
+def _schedule_zone_choices(output_dir: Path) -> list[tuple[str, str]]:
+    try:
+        ts = load_results(output_dir).timeseries
+        keys = result_charts.list_schedule_zone_keys(ts)
+        return [("全部区域（取最大）", ZONE_ALL)] + [
+            (result_charts.format_zone_label(k), k) for k in keys
+        ]
+    except FileNotFoundError:
+        return [("全部区域（取最大）", ZONE_ALL)]
 
-    Returns a tuple of 7 figures in order:
-        (fig_3d, fig_enduse, fig_comfort, fig_monthly, fig_heatmap, fig_demand, fig_scatter)
-    Returns None for each figure if data is unavailable.
-    """
+
+def _load_visualizations(
+    output_dir: Path,
+    metric_label: str,
+    zone_key: str,
+) -> tuple:
+    """Load simulation results and return all Plotly figures (10 plots)."""
     metric_key = _METRIC_MAP.get(metric_label, "cooling")
-    empty = (None, None, None, None, None, None, None)
+    empty = (None,) * 10
 
     try:
         result = load_results(output_dir)
@@ -221,25 +234,40 @@ def _load_visualizations(output_dir: Path, metric_label: str) -> tuple:
 
     ts = result.timeseries
     tabular = result.tabular
+    zone_meta = tabular.get("zone_summary", {})
 
-    # 3D chart requires IDF geometry
     fig_3d = None
+    fig_solar_3d = None
     if result.idf_path and result.idf_path.exists():
         try:
             zones = parse_idf_geometry(result.idf_path)
-            fig_3d = result_charts.zone_energy_3d(zones, ts, metric=metric_key)
+            fig_3d = result_charts.zone_energy_3d(
+                zones, ts, metric=metric_key, zone_metadata=zone_meta,
+            )
+            solar_vals, unit, note = resolve_surface_solar(
+                zones, result.run_dir, result.idf_path,
+            )
+            fig_solar_3d = result_charts.exterior_solar_irradiation_3d(
+                zones, solar_vals, unit=unit, source_note=note,
+            )
         except Exception as exc:
             print(f"[viz] 3D chart error: {exc}", flush=True)
 
-    # 2-D charts
     try:
+        fig_schedule_people, fig_schedule_equipment = result_charts.operation_schedule_pair(
+            ts, zone_key=zone_key,
+        )
         figs_2d = result_charts.all_2d_charts(ts, tabular)
     except Exception as exc:
         print(f"[viz] 2D charts error: {exc}", flush=True)
+        fig_schedule_people = fig_schedule_equipment = None
         figs_2d = {}
 
     return (
         fig_3d,
+        fig_solar_3d,
+        fig_schedule_people,
+        fig_schedule_equipment,
         figs_2d.get("end_use"),
         figs_2d.get("comfort"),
         figs_2d.get("monthly_hvac"),
@@ -249,8 +277,16 @@ def _load_visualizations(output_dir: Path, metric_label: str) -> tuple:
     )
 
 
+def _update_schedules_only(output_dir: Path, zone_key: str) -> tuple:
+    try:
+        result = load_results(output_dir)
+        return result_charts.operation_schedule_pair(result.timeseries, zone_key=zone_key)
+    except FileNotFoundError:
+        return None, None
+
+
 def _update_3d_only(output_dir: Path, metric_label: str):
-    """Recompute only the 3-D chart when the metric dropdown changes."""
+    """Recompute only the zone 3-D chart when the metric dropdown changes."""
     metric_key = _METRIC_MAP.get(metric_label, "cooling")
     try:
         result = load_results(output_dir)
@@ -260,7 +296,12 @@ def _update_3d_only(output_dir: Path, metric_label: str):
     if result.idf_path and result.idf_path.exists():
         try:
             zones = parse_idf_geometry(result.idf_path)
-            return result_charts.zone_energy_3d(zones, result.timeseries, metric=metric_key)
+            return result_charts.zone_energy_3d(
+                zones,
+                result.timeseries,
+                metric=metric_key,
+                zone_metadata=result.tabular.get("zone_summary", {}),
+            )
         except Exception as exc:
             print(f"[viz] 3D chart error: {exc}", flush=True)
     return None
@@ -320,25 +361,25 @@ def build_ui() -> gr.Blocks:
                     label="3D 热区着色指标",
                     scale=1,
                 )
-                gr.Markdown(
-                    "_仿真完成后自动刷新，也可手动点击「加载」按钮。_",
-                    elem_classes=["gr-note"],
+                zone_dd = gr.Dropdown(
+                    choices=_schedule_zone_choices(OUTPUT_DIR),
+                    value=ZONE_ALL,
+                    label="运行时间表分区",
+                    scale=1,
                 )
+            plot_3d = gr.Plot(label="3D 热区能耗（悬停显示面积与层数）")
+            plot_solar_3d = gr.Plot(label="3D 外表面太阳辐照")
 
-            # 3-D zone energy map (full width)
-            plot_3d = gr.Plot(label="3D 热区能耗场景（可旋转 / 缩放）")
+            with gr.Row():
+                plot_schedule_people = gr.Plot(label="人员运行时间（日期×小时）")
+                plot_schedule_equipment = gr.Plot(label="设备运行时间（日期×小时）")
 
-            # Row: end-use bar + comfort bars
             with gr.Row():
                 plot_enduse  = gr.Plot(label="年度终端用途能耗")
                 plot_comfort = gr.Plot(label="热舒适度分析")
-
-            # Row: monthly HVAC + temperature heatmap
             with gr.Row():
                 plot_monthly = gr.Plot(label="分区月度 HVAC 能耗")
                 plot_heatmap = gr.Plot(label="区域温度热力图")
-
-            # Row: HVAC demand profile + temp-RH scatter
             with gr.Row():
                 plot_demand  = gr.Plot(label="全楼 HVAC 电需求曲线")
                 plot_scatter = gr.Plot(label="温度–湿度散点分布")
@@ -347,10 +388,13 @@ def build_ui() -> gr.Blocks:
         # Event wiring                                                         #
         # ------------------------------------------------------------------ #
 
-        _all_plots = [plot_3d, plot_enduse, plot_comfort,
-                      plot_monthly, plot_heatmap, plot_demand, plot_scatter]
+        _all_plots = [
+            plot_3d, plot_solar_3d,
+            plot_schedule_people, plot_schedule_equipment,
+            plot_enduse, plot_comfort, plot_monthly, plot_heatmap, plot_demand, plot_scatter,
+        ]
 
-        def on_run(text, epw, images, metric_label):
+        def on_run(text, epw, images, metric_label, zone_key):
             """Run simulation then auto-refresh all charts when done."""
             last_files: list[str] = []
             last_history: History = []
@@ -362,11 +406,10 @@ def build_ui() -> gr.Blocks:
                 yield (
                     last_history,
                     gr.update(value=files if files else None, visible=visible),
-                    *([None] * 7),  # don't update charts during streaming
+                    *([None] * 10),
                 )
 
-            # Simulation finished → build charts
-            figs = _load_visualizations(OUTPUT_DIR, metric_label)
+            figs = _load_visualizations(OUTPUT_DIR, metric_label, zone_key)
             yield (
                 last_history,
                 gr.update(value=last_files if last_files else None, visible=bool(last_files)),
@@ -375,27 +418,26 @@ def build_ui() -> gr.Blocks:
 
         run_btn.click(
             fn=on_run,
-            inputs=[input_text, epw_file, image_files, metric_dd],
+            inputs=[input_text, epw_file, image_files, metric_dd, zone_dd],
             outputs=[chatbot, output_files, *_all_plots],
         )
 
-        def on_load(metric_label):
-            return _load_visualizations(OUTPUT_DIR, metric_label)
-
         load_btn.click(
-            fn=on_load,
-            inputs=[metric_dd],
+            fn=lambda m, z: _load_visualizations(OUTPUT_DIR, m, z),
+            inputs=[metric_dd, zone_dd],
             outputs=_all_plots,
         )
 
-        def on_metric_change(metric_label):
-            """Update only the 3-D chart when the metric dropdown changes."""
-            return _update_3d_only(OUTPUT_DIR, metric_label)
-
         metric_dd.change(
-            fn=on_metric_change,
+            fn=lambda m: _update_3d_only(OUTPUT_DIR, m),
             inputs=[metric_dd],
             outputs=[plot_3d],
+        )
+
+        zone_dd.change(
+            fn=lambda z: _update_schedules_only(OUTPUT_DIR, z),
+            inputs=[zone_dd],
+            outputs=[plot_schedule_people, plot_schedule_equipment],
         )
 
     return demo

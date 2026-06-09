@@ -149,6 +149,7 @@ def parse_tabular(csv_path: Path) -> dict:
         "eui_mj_per_m2": None,
         "site_energy": {},
         "end_uses": [],
+        "zone_summary": {},  # ZONE_NAME -> {area_m2, multiplier, volume_m3, ...}
     }
 
     # ---- building name -------------------------------------------------------
@@ -161,6 +162,39 @@ def parse_tabular(csv_path: Path) -> dict:
     i = 0
     while i < len(lines):
         ln = lines[i]
+
+        # Zone Summary table (PERFORMANCE section)
+        if ln.strip() == "Zone Summary":
+            j = i + 1
+            while j < len(lines) and not lines[j].strip():
+                j += 1
+            header_parts: list[str] = []
+            if j < len(lines):
+                header_parts = [p.strip() for p in lines[j].split(",")]
+            j += 1
+            while j < len(lines) and lines[j].strip() and not lines[j].startswith("REPORT"):
+                parts = [p.strip() for p in lines[j].split(",")]
+                if len(parts) >= 3 and parts[1] and not parts[1].startswith("Total"):
+                    zname = parts[1].upper().replace(" ", "_")
+                    row: dict = {"name": parts[1]}
+                    # Typical columns: Area, Conditioned, PartOfTotal, Volume, Multipliers, ...
+                    if len(parts) > 2:
+                        try:
+                            row["area_m2"] = float(parts[2])
+                        except ValueError:
+                            pass
+                    if len(parts) > 6:
+                        try:
+                            row["multiplier"] = float(parts[6])
+                        except ValueError:
+                            pass
+                    if len(parts) > 5:
+                        try:
+                            row["volume_m3"] = float(parts[5])
+                        except ValueError:
+                            pass
+                    result["zone_summary"][zname] = row
+                j += 1
 
         # Building Area table
         if ln.strip() == "Building Area":
