@@ -1,43 +1,39 @@
 from typing import Any
 
+from idfpy.models.thermal_zones import FenestrationSurfaceDetailed
+
 from src.mcp.state import ConfigState
-from src.mcp.tools.base import BaseTool
-from src.validator.data_model import FenestrationSurfaceSchema
+from src.mcp.tools.base import BaseTool, normalize_payload
 
 
 class FenestrationTool(BaseTool):
-    """Tool for managing EnergyPlus FenestrationSurface:Detailed objects.
-
-    Handles CRUD operations for fenestration surfaces such as windows,
-    doors, and skylights. Fenestrations are leaf components with no
-    downstream references.
-    """
-
     def __init__(self, state: ConfigState):
         super().__init__(state, "FenestrationSurface")
 
     @property
-    def storage(self) -> dict[str, FenestrationSurfaceSchema]:
-        return {fen.name: fen for fen in self.state.fenestrations}
+    def object_types(self) -> tuple[str, ...]:
+        return ("FenestrationSurface:Detailed",)
 
-    def _add_to_storage(self, instance: FenestrationSurfaceSchema) -> None:
-        self.state.fenestrations.append(instance)
+    def _create_model(self, data: dict[str, Any]) -> FenestrationSurfaceDetailed:
+        payload = normalize_payload(data)
+        vertices = payload.pop("vertices", None)
+        if str(payload.get("view_factor_to_ground", "")).lower() == "autocalculate":
+            payload["view_factor_to_ground"] = None
+        if vertices is not None:
+            payload["number_of_vertices"] = len(vertices)
+            for idx, vertex in enumerate(vertices, start=1):
+                if isinstance(vertex, dict):
+                    x = vertex.get("X", vertex.get("x"))
+                    y = vertex.get("Y", vertex.get("y"))
+                    z = vertex.get("Z", vertex.get("z"))
+                else:
+                    x, y, z = vertex[0], vertex[1], vertex[2]
+                payload[f"vertex_{idx}_x_coordinate"] = float(x)
+                payload[f"vertex_{idx}_y_coordinate"] = float(y)
+                payload[f"vertex_{idx}_z_coordinate"] = float(z)
+        return FenestrationSurfaceDetailed(**payload)
 
-    def _remove_from_storage(self, name: str) -> None:
-        self.state.fenestrations = [
-            fen for fen in self.state.fenestrations if fen.name != name
-        ]
-
-    def _update_storage(self, name: str, instance: FenestrationSurfaceSchema) -> None:
-        self.state.fenestrations = [
-            fen for fen in self.state.fenestrations if fen.name != name
-        ]
-        self.state.fenestrations.append(instance)
-
-    def _validate_and_create(self, data: dict[str, Any]) -> FenestrationSurfaceSchema:
-        return FenestrationSurfaceSchema.model_validate(data)
-
-    def _get_name(self, instance: FenestrationSurfaceSchema) -> str:
+    def _get_name(self, instance: FenestrationSurfaceDetailed) -> str:
         return instance.name
 
     def _check_references(self, name: str) -> list[str]:

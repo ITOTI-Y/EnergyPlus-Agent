@@ -1,7 +1,10 @@
+from __future__ import annotations
+
+import re
 from abc import ABC, abstractmethod
 from typing import Any
 
-from pydantic import BaseModel, ValidationError
+from pydantic import ValidationError
 
 from src.mcp.interface import SchemaValidationError, ToolResponse
 from src.mcp.state import ConfigState
@@ -10,17 +13,23 @@ from src.utils.logging import get_logger
 logger = get_logger(__name__)
 
 
+def payload_key_to_field(key: str) -> str:
+    """Convert EnergyPlus/MCP alias keys to idfpy constructor field names."""
+    return re.sub(r"_+", "_", re.sub(r"[^0-9A-Za-z]+", "_", key)).strip("_").lower()
+
+
+def normalize_payload(data: dict[str, Any]) -> dict[str, Any]:
+    return {payload_key_to_field(k): v for k, v in data.items() if v is not None}
+
+
+def dump_obj(obj: Any) -> dict[str, Any]:
+    if hasattr(obj, "model_dump"):
+        return obj.model_dump(exclude_none=True)
+    return dict(getattr(obj, "__dict__", {}))
+
+
 class BaseTool(ABC):
-    """Abstract base class for EnergyPlus component CRUD tools.
-
-    Provides generic create, read, update, delete, and list operations
-    with validation and reference checking. Subclasses must implement
-    storage access and component-specific logic.
-
-    Args:
-        state: Shared configuration state instance.
-        component_name: Display name for the EnergyPlus component type.
-    """
+    """Base class for MCP tools backed directly by an ``idfpy.IDF`` instance."""
 
     def __init__(self, state: ConfigState, component_name: str):
         self.state = state
@@ -28,108 +37,69 @@ class BaseTool(ABC):
 
     @property
     @abstractmethod
-    def storage(self) -> dict[str, BaseModel]: ...
+    def object_types(self) -> tuple[str, ...]: ...
 
     @abstractmethod
-    def _validate_and_create(self, data: dict[str, Any]) -> BaseModel:
-        """Validate input data and create a new schema instance.
-
-        Args:
-            data: Dictionary of field values to validate.
-
-        Returns:
-            Validated Pydantic model instance.
-        """
-        ...
+    def _create_model(self, data: dict[str, Any]) -> Any: ...
 
     @abstractmethod
-    def _get_name(self, instance: Any) -> str:
-        """Extract the unique name identifier from a component instance.
-
-        Args:
-            instance: Component schema instance.
-
-        Returns:
-            Unique name string for the component.
-        """
-        ...
+    def _get_name(self, instance: Any) -> str: ...
 
     @abstractmethod
-    def _check_references(self, name: str) -> list[str]:
-        """Check if other components reference the named component.
+    def _check_references(self, name: str) -> list[str]: ...
 
-        Args:
-            name: Name of the component to check references for.
+    def _iter_entries(self):
+        for object_type in self.object_types:
+            try:
+                items = self.state.idf.all_of_type(object_type)
+            except Exception:
+                continue
+            for key, obj in items.items():
+                yield object_type, key, obj
 
-        Returns:
-            List of referencing component identifiers (e.g. 'Surface:Wall1').
-        """
-        ...
+    @property
+    def storage(self) -> dict[str, Any]:
+        return {self._get_name(obj): obj for _, _, obj in self._iter_entries()}
 
-    @abstractmethod
-    def _add_to_storage(self, instance: Any) -> None:
-        """Add a new component instance to the configuration state.
+    def _find_entry(self, name: str) -> tuple[str, Any, Any] | None:
+        for object_type, key, obj in self._iter_entries():
+            if self._get_name(obj) == name:
+                return object_type, key, obj
+        return None
 
-        Args:
-            instance: Validated component schema instance to store.
-        """
-        ...
+    def _add_to_idf(self, instance: Any) -> None:
+        self.state.idf.add(instance)
 
-    @abstractmethod
-    def _remove_from_storage(self, name: str) -> None:
-        """Remove a component from the configuration state by name.
-
-        Args:
-            name: Name of the component to remove.
-        """
-        ...
-
-    @abstractmethod
-    def _update_storage(self, name: str, instance: Any) -> None:
-        """Replace an existing component in storage with an updated instance.
-
-        Args:
-            name: Current name of the component to update.
-            instance: New validated component schema instance.
-        """
-        ...
+    def _remove_from_idf(self, name: str) -> bool:
+        entry = self._find_entry(name)
+        if entry is None:
+            return False
+        object_type, key, _obj = entry
+        self.state.idf.remove(object_type, key)
+        return True
 
     def create(self, data: dict[str, Any]) -> ToolResponse:
-        """Create a new component in the configuration.
-
-        Validates input data, checks for name conflicts, and adds the
-        component to storage.
-
-        Args:
-            data: Dictionary of field values for the new component.
-
-        Returns:
-            ToolResponse with success status and created component data.
-        """
         name = data.get("Name", data.get("name", "<unknown>"))
         try:
-            instance = self._validate_and_create(data)
+            instance = self._create_model(data)
             name = self._get_name(instance)
-
             if name in self.storage:
                 return ToolResponse(
                     success=False,
                     message=f"Component '{self.component_name}':'{name}' already exists.",
                 )
 
-            self._add_to_storage(instance)
+            self._add_to_idf(instance)
             logger.info(
-                "Component '{}':'{}' created successfully.",
+                "Component '{}':'{}' created with idfpy.",
                 self.component_name,
                 name,
             )
-
             return ToolResponse(
                 success=True,
                 message=f"Component '{self.component_name}':'{name}' created successfully.",
-                data=instance.model_dump(by_alias=True),
+                data=dump_obj(instance),
             )
-
         except ValidationError as e:
             errors = [
                 SchemaValidationError(
@@ -143,7 +113,6 @@ class BaseTool(ABC):
                 message=f"Validation error for component '{self.component_name}':'{name}'.",
                 data={"errors": [err.model_dump() for err in errors]},
             )
-
         except Exception as e:
             logger.exception(
                 "Error creating component '{}':'{}'.", self.component_name, name
@@ -154,69 +123,44 @@ class BaseTool(ABC):
             )
 
     def read(self, name: str) -> ToolResponse:
-        """Read a component from the configuration by name.
-
-        Args:
-            name: Unique name of the component to retrieve.
-
-        Returns:
-            ToolResponse with the component data if found.
-        """
-        if name not in self.storage:
+        obj = self.storage.get(name)
+        if obj is None:
             return ToolResponse(
                 success=False,
                 message=f"Component '{self.component_name}':'{name}' not found.",
             )
-
-        instance = self.storage[name]
         return ToolResponse(
             success=True,
             message=f"Component '{self.component_name}':'{name}' read successfully.",
-            data=instance.model_dump(by_alias=True),
+            data=dump_obj(obj),
         )
 
     def update(self, name: str, data: dict[str, Any]) -> ToolResponse:
-        """Update an existing component with new field values.
-
-        Merges the provided data with existing values and re-validates.
-        Handles name changes by removing the old entry and adding a new one.
-
-        Args:
-            name: Current name of the component to update.
-            data: Dictionary of field values to update (None values are skipped).
-
-        Returns:
-            ToolResponse with success status and updated component data.
-        """
-        if name not in self.storage:
+        obj = self.storage.get(name)
+        if obj is None:
             return ToolResponse(
                 success=False,
                 message=f"Component '{self.component_name}':'{name}' not found.",
             )
 
         try:
-            existing = self.storage[name]
-            existing_data = existing.model_dump(by_alias=True)
-            for k, v in data.items():
-                if v is not None:
-                    existing_data[k] = v
-            updated = existing.model_validate(existing_data)
-
+            existing_data = dump_obj(obj)
+            existing_data.update(normalize_payload(data))
+            updated = self._create_model(existing_data)
             new_name = self._get_name(updated)
-            if new_name != name:
-                self._remove_from_storage(name)
-                self._add_to_storage(updated)
-                logger.info("Updated {}: {} -> {}", self.component_name, name, new_name)
-            else:
-                self._update_storage(name, updated)
-                logger.info("Updated {}: {}", self.component_name, name)
+            if new_name != name and new_name in self.storage:
+                return ToolResponse(
+                    success=False,
+                    message=f"Component '{self.component_name}':'{new_name}' already exists.",
+                )
 
+            self._remove_from_idf(name)
+            self._add_to_idf(updated)
             return ToolResponse(
                 success=True,
                 message=f"Component '{self.component_name}':'{name}' updated successfully.",
-                data=updated.model_dump(by_alias=True),
+                data=dump_obj(updated),
             )
-
         except ValidationError as e:
             errors = [
                 SchemaValidationError(
@@ -230,7 +174,6 @@ class BaseTool(ABC):
                 message=f"Validation error for component '{self.component_name}':'{name}'.",
                 data={"errors": [err.model_dump() for err in errors]},
             )
-
         except Exception as e:
             logger.exception(
                 "Error updating component '{}':'{}'.", self.component_name, name
@@ -241,17 +184,6 @@ class BaseTool(ABC):
             )
 
     def delete(self, name: str) -> ToolResponse:
-        """Delete a component from the configuration by name.
-
-        Checks for references from other components before deletion
-        to maintain referential integrity.
-
-        Args:
-            name: Name of the component to delete.
-
-        Returns:
-            ToolResponse with success status. Fails if component is referenced.
-        """
         if name not in self.storage:
             return ToolResponse(
                 success=False,
@@ -266,21 +198,14 @@ class BaseTool(ABC):
                 data={"references": refs},
             )
 
-        self._remove_from_storage(name)
-        logger.info("Deleted {}':'{}'", self.component_name, name)
+        self._remove_from_idf(name)
         return ToolResponse(
             success=True,
             message=f"Component '{self.component_name}':'{name}' deleted successfully.",
         )
 
     def list_all(self) -> ToolResponse:
-        """List all components of this type in the configuration.
-
-        Returns:
-            ToolResponse with a list of all component data dictionaries.
-        """
-        items = [item.model_dump(by_alias=True) for item in self.storage.values()]
-
+        items = [dump_obj(item) for item in self.storage.values()]
         return ToolResponse(
             success=True,
             message=f"Listed {len(items)} {self.component_name}s.",

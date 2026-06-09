@@ -1,59 +1,49 @@
 from typing import Any
 
+from idfpy.models.constructions import Construction
+
 from src.mcp.state import ConfigState
-from src.mcp.tools.base import BaseTool
-from src.validator.data_model import ConstructionSchema
+from src.mcp.tools.base import BaseTool, normalize_payload
+
+_LAYER_FIELDS = [
+    "outside_layer",
+    "layer_2",
+    "layer_3",
+    "layer_4",
+    "layer_5",
+    "layer_6",
+    "layer_7",
+    "layer_8",
+    "layer_9",
+    "layer_10",
+]
 
 
 class ConstructionTool(BaseTool):
-    """Tool for managing EnergyPlus Construction objects.
-
-    Handles CRUD operations for construction assemblies composed of
-    material layers. Constructions are referenced by surfaces and
-    fenestrations, so deletion checks for these dependencies.
-    """
-
     def __init__(self, state: ConfigState):
         super().__init__(state, "Construction")
 
     @property
-    def storage(self) -> dict[str, ConstructionSchema]:
-        return {
-            construction.name: construction for construction in self.state.constructions
-        }
+    def object_types(self) -> tuple[str, ...]:
+        return ("Construction",)
 
-    def _add_to_storage(self, instance: ConstructionSchema) -> None:
-        self.state.constructions.append(instance)
+    def _create_model(self, data: dict[str, Any]) -> Construction:
+        payload = normalize_payload(data)
+        layers = payload.pop("layers", None)
+        if layers:
+            for idx, layer in enumerate(layers[: len(_LAYER_FIELDS)]):
+                payload[_LAYER_FIELDS[idx]] = layer
+        return Construction(**payload)
 
-    def _remove_from_storage(self, name: str) -> None:
-        self.state.constructions = [
-            construction
-            for construction in self.state.constructions
-            if construction.name != name
-        ]
-
-    def _update_storage(self, name: str, instance: ConstructionSchema) -> None:
-        self.state.constructions = [
-            construction
-            for construction in self.state.constructions
-            if construction.name != name
-        ]
-        self.state.constructions.append(instance)
-
-    def _validate_and_create(self, data: dict[str, Any]) -> ConstructionSchema:
-        return ConstructionSchema.model_validate(data)
-
-    def _get_name(self, instance: ConstructionSchema) -> str:
+    def _get_name(self, instance: Construction) -> str:
         return instance.name
 
     def _check_references(self, name: str) -> list[str]:
         refs = []
-
-        for surface in self.state.surfaces:
+        for surface in self.state.idf.all_of_type("BuildingSurface:Detailed").values():
             if surface.construction_name == name:
                 refs.append(f"Surface:{surface.name}")
-
-        for fenestration in self.state.fenestrations:
-            if fenestration.construction_name == name:
-                refs.append(f"Fenestration:{fenestration.name}")
+        for fen in self.state.idf.all_of_type("FenestrationSurface:Detailed").values():
+            if fen.construction_name == name:
+                refs.append(f"Fenestration:{fen.name}")
         return refs
