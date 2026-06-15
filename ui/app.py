@@ -21,12 +21,12 @@ from src.results.charts import ZONE_ALL
 
 setup_logger(level="WARNING")
 
-# Dropdown label → internal metric key used by charts.zone_energy_3d
+# Dropdown label -> internal metric key used by charts.zone_energy_3d
 _METRIC_MAP: dict[str, str] = {
-    "供冷负荷 (kWh)": "cooling",
-    "供热负荷 (kWh)": "heating",
-    "年均温度 (°C)": "temperature",
-    "照明能耗 (kWh)": "lighting",
+    "Cooling Load (kWh)": "cooling",
+    "Heating Load (kWh)": "heating",
+    "Annual Average Temperature (deg C)": "temperature",
+    "Lighting Energy (kWh)": "lighting",
 }
 _METRIC_OPTIONS = list(_METRIC_MAP.keys())
 
@@ -35,21 +35,21 @@ DEFAULT_EPW = Path("data/weather/Shenzhen.epw")
 OUTPUT_DIR = Path("output/ui")
 
 NODE_LABELS: dict[str, str] = {
-    "intake": "解析建筑描述",
-    "zone": "创建空间分区",
-    "material": "定义材料属性",
-    "schedule": "设置时间表",
-    "cross_ref_foundations": "基础交叉验证",
-    "construction": "构建围护结构",
-    "surface": "定义建筑表面",
-    "fenestration": "配置门窗",
-    "hvac": "设计暖通系统",
-    "people": "设置人员荷载",
-    "lights": "配置照明系统",
-    "cross_ref_complete": "完整交叉验证",
-    "validate": "验证建筑模型",
-    "simulate": "运行 EnergyPlus",
-    "analyze": "分析仿真结果",
+    "intake": "Parse Building Description",
+    "zone": "Create Thermal Zones",
+    "material": "Define Material Properties",
+    "schedule": "Configure Schedules",
+    "cross_ref_foundations": "Validate Foundation References",
+    "construction": "Build Envelope Constructions",
+    "surface": "Define Building Surfaces",
+    "fenestration": "Configure Fenestration",
+    "hvac": "Design HVAC System",
+    "people": "Configure Occupant Loads",
+    "lights": "Configure Lighting System",
+    "cross_ref_complete": "Validate All References",
+    "validate": "Validate Building Model",
+    "simulate": "Run EnergyPlus",
+    "analyze": "Analyze Simulation Results",
 }
 
 _graph = None
@@ -66,14 +66,14 @@ def _get_graph():
 
 def _fmt_summary(summary: dict[str, Any], errors: list[str]) -> str:
     lines = [
-        "模型验证摘要",
-        f"- 空间分区：{summary.get('zones_count', 0)} 个",
-        f"- 材料：{summary.get('materials_count', 0)} 种",
-        f"- 建筑表面：{summary.get('surfaces_count', 0)} 个",
-        f"- 门窗开口：{summary.get('fenestrations_count', 0)} 个",
+        "Model Validation Summary",
+        f"- Thermal zones: {summary.get('zones_count', 0)}",
+        f"- Materials: {summary.get('materials_count', 0)}",
+        f"- Building surfaces: {summary.get('surfaces_count', 0)}",
+        f"- Fenestration openings: {summary.get('fenestrations_count', 0)}",
     ]
     if errors:
-        lines.append("\n交叉引用错误：")
+        lines.append("\nCross-reference errors:")
         lines.extend(f"  * {e}" for e in errors)
     return "\n".join(lines)
 
@@ -101,7 +101,7 @@ def run_agent(
     """Streaming generator: yields (chat_history, output_files) updates."""
 
     if not user_input.strip():
-        yield [_msg("assistant", "请输入建筑描述后再运行。")], []
+        yield [_msg("assistant", "Please enter a building description before running.")], []
         return
 
     event_q: queue.Queue = queue.Queue()
@@ -116,7 +116,10 @@ def run_agent(
         event_q.put(("interrupt", payload))
         errors = payload.get("errors", [])
         if errors:
-            return {"approved": False, "feedback": "请修正以下错误：" + "; ".join(errors)}
+            return {
+                "approved": False,
+                "feedback": "Please fix the following errors: " + "; ".join(errors),
+            }
         return {"approved": True}
 
     def worker() -> None:
@@ -147,7 +150,7 @@ def run_agent(
 
     history: History = [
         _msg("user", user_input),
-        _msg("assistant", "正在启动 Agent..."),
+        _msg("assistant", "Starting Agent..."),
     ]
     yield history, []
 
@@ -155,14 +158,20 @@ def run_agent(
         try:
             event = event_q.get(timeout=180)
         except queue.Empty:
-            history.append(_msg("assistant", "等待超时（3 分钟），请检查网络或模型服务。"))
+            history.append(
+                _msg(
+                    "assistant",
+                    "Wait timed out after 3 minutes. Please check the network "
+                    "or model service.",
+                )
+            )
             yield history, []
             break
 
         kind = event[0]
 
         if kind == "node":
-            history.append(_msg("assistant", f"✓ {event[1]}"))
+            history.append(_msg("assistant", f"Completed: {event[1]}"))
             yield history, []
 
         elif kind == "interrupt":
@@ -170,7 +179,11 @@ def run_agent(
             summary = payload.get("summary", {})
             errors = payload.get("errors", [])
             msg = _fmt_summary(summary, errors)
-            status = "发现错误，正在反馈给模型重新修正..." if errors else "验证通过，正在提交仿真..."
+            status = (
+                "Errors found; sending feedback to the model for correction..."
+                if errors
+                else "Validation passed; starting simulation..."
+            )
             history.append(_msg("assistant", f"{msg}\n\n{status}"))
             yield history, []
 
@@ -192,15 +205,26 @@ def run_agent(
                 history.append(_msg("assistant", report))
             elif files:
                 file_list = "\n".join(f"  {f}" for f in files)
-                history.append(_msg("assistant", f"仿真完成！输出文件：\n{file_list}"))
+                history.append(
+                    _msg(
+                        "assistant",
+                        f"Simulation completed. Output files:\n{file_list}",
+                    )
+                )
             else:
-                history.append(_msg("assistant", "仿真完成，输出目录为空（可能仿真步骤未运行）。"))
+                history.append(
+                    _msg(
+                        "assistant",
+                        "Simulation completed, but the output directory is empty. "
+                        "The simulation step may not have run.",
+                    )
+                )
             yield history, files
             break
 
         elif kind == "error":
             err = event[1]
-            history.append(_msg("assistant", f"运行出错：\n{err}"))
+            history.append(_msg("assistant", f"Run failed:\n{err}"))
             yield history, []
             break
 
@@ -211,11 +235,11 @@ def _schedule_zone_choices(output_dir: Path) -> list[tuple[str, str]]:
     try:
         ts = load_results(output_dir).timeseries
         keys = result_charts.list_schedule_zone_keys(ts)
-        return [("全部区域（取最大）", ZONE_ALL)] + [
+        return [("All zones (max)", ZONE_ALL)] + [
             (result_charts.format_zone_label(k), k) for k in keys
         ]
     except FileNotFoundError:
-        return [("全部区域（取最大）", ZONE_ALL)]
+        return [("All zones (max)", ZONE_ALL)]
 
 
 def _load_visualizations(
@@ -309,41 +333,48 @@ def _update_3d_only(output_dir: Path, metric_label: str):
 
 def build_ui() -> gr.Blocks:
     with gr.Blocks(title="EnergyPlus Agent") as demo:
-        gr.Markdown("# EnergyPlus Agent 测试界面")
+        gr.Markdown("# EnergyPlus Agent Test Interface")
 
         # ------------------------------------------------------------------ #
         # Tab 1: simulation                                                    #
         # ------------------------------------------------------------------ #
-        with gr.Tab("仿真控制"):
-            gr.Markdown("输入建筑描述，上传天气文件（可选），点击 **开始仿真**。")
+        with gr.Tab("Simulation Control"):
+            gr.Markdown(
+                "Enter a building description, optionally upload a weather file, "
+                "then click **Start Simulation**."
+            )
 
             with gr.Row():
                 with gr.Column(scale=2):
                     input_text = gr.Textbox(
-                        label="建筑描述",
-                        placeholder="描述你的建筑（楼层数、尺寸、材料、HVAC、人员、照明等）...",
+                        label="Building Description",
+                        placeholder=(
+                            "Describe your building, including floors, dimensions, "
+                            "materials, HVAC, occupants, lighting, and other "
+                            "requirements..."
+                        ),
                         lines=12,
                         value=SIMPLE_USER_INPUT,
                     )
                     with gr.Row():
                         epw_file = gr.File(
-                            label="天气文件 (.epw)  [不上传则使用默认深圳气象]",
+                            label="Weather File (.epw) [uses default Shenzhen weather if omitted]",
                             file_types=[".epw"],
                         )
                         image_files = gr.File(
-                            label="建筑图片（可选，支持多张）",
+                            label="Building Images (optional, multiple files supported)",
                             file_types=["image"],
                             file_count="multiple",
                         )
-                    run_btn = gr.Button("开始仿真", variant="primary")
+                    run_btn = gr.Button("Start Simulation", variant="primary")
 
                 with gr.Column(scale=3):
                     chatbot = gr.Chatbot(
-                        label="Agent 运行日志",
+                        label="Agent Run Log",
                         height=500,
                     )
                     output_files = gr.File(
-                        label="输出文件（仿真完成后可下载）",
+                        label="Output Files (download after simulation completes)",
                         file_count="multiple",
                         visible=False,
                         interactive=False,
@@ -352,37 +383,37 @@ def build_ui() -> gr.Blocks:
         # ------------------------------------------------------------------ #
         # Tab 2: visualization                                                 #
         # ------------------------------------------------------------------ #
-        with gr.Tab("仿真结果可视化"):
+        with gr.Tab("Simulation Result Visualization"):
             with gr.Row():
-                load_btn = gr.Button("加载 output/ui 结果", variant="secondary", scale=1)
+                load_btn = gr.Button("Load output/ui Results", variant="secondary", scale=1)
                 metric_dd = gr.Dropdown(
                     choices=_METRIC_OPTIONS,
                     value=_METRIC_OPTIONS[0],
-                    label="3D 热区着色指标",
+                    label="3D Zone Coloring Metric",
                     scale=1,
                 )
                 zone_dd = gr.Dropdown(
                     choices=_schedule_zone_choices(OUTPUT_DIR),
                     value=ZONE_ALL,
-                    label="运行时间表分区",
+                    label="Schedule Zone",
                     scale=1,
                 )
-            plot_3d = gr.Plot(label="3D 热区能耗（悬停显示面积与层数）")
-            plot_solar_3d = gr.Plot(label="3D 外表面太阳辐照")
+            plot_3d = gr.Plot(label="3D Zone Energy Use (hover for area and floor count)")
+            plot_solar_3d = gr.Plot(label="3D Exterior Surface Solar Irradiation")
 
             with gr.Row():
-                plot_schedule_people = gr.Plot(label="人员运行时间（日期×小时）")
-                plot_schedule_equipment = gr.Plot(label="设备运行时间（日期×小时）")
+                plot_schedule_people = gr.Plot(label="Occupancy Schedule (Date x Hour)")
+                plot_schedule_equipment = gr.Plot(label="Equipment Schedule (Date x Hour)")
 
             with gr.Row():
-                plot_enduse  = gr.Plot(label="年度终端用途能耗")
-                plot_comfort = gr.Plot(label="热舒适度分析")
+                plot_enduse  = gr.Plot(label="Annual End-Use Energy")
+                plot_comfort = gr.Plot(label="Thermal Comfort Analysis")
             with gr.Row():
-                plot_monthly = gr.Plot(label="分区月度 HVAC 能耗")
-                plot_heatmap = gr.Plot(label="区域温度热力图")
+                plot_monthly = gr.Plot(label="Monthly HVAC Energy by Zone")
+                plot_heatmap = gr.Plot(label="Zone Temperature Heatmap")
             with gr.Row():
-                plot_demand  = gr.Plot(label="全楼 HVAC 电需求曲线")
-                plot_scatter = gr.Plot(label="温度–湿度散点分布")
+                plot_demand  = gr.Plot(label="Whole-Building HVAC Electric Demand")
+                plot_scatter = gr.Plot(label="Temperature-Humidity Scatter")
 
         # ------------------------------------------------------------------ #
         # Event wiring                                                         #
