@@ -46,7 +46,7 @@ Rules:
 
 
 def fenestration_agent(state: AgentState) -> AgentStateUpdate:
-    local = state.config_state.model_copy(deep=True)
+    local = state.config_state.clone()
     tools = make_fenestration_tools(local)
     collector = TraceCollector(phase="fenestration")
 

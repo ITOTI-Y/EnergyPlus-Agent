@@ -33,7 +33,7 @@ Rules:
 
 
 def lights_agent(state: AgentState) -> AgentStateUpdate:
-    local = state.config_state.model_copy(deep=True)
+    local = state.config_state.clone()
     tools = make_lights_tools(local)
     collector = TraceCollector(phase="lights")
 

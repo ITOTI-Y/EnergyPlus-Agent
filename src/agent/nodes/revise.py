@@ -162,7 +162,7 @@ def revise_node(state: AgentState) -> AgentStateUpdate:
     # Preserve building/site_location from the existing model (the LLM may
     # echo them, but we force the authoritative values to avoid drift).
     building, site_location = _echo_building_and_site(state)
-    config = state.config_state.model_copy(deep=True)
+    config = state.config_state.clone()
     config.building = building
     config.site_location = site_location
 

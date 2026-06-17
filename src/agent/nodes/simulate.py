@@ -46,7 +46,7 @@ def simulate_node(state: AgentState, runtime: Runtime[SimContext]) -> AgentState
     """
     ctx = runtime.context
 
-    config = state.config_state.model_copy(deep=True)
+    config = state.config_state.clone()
     _ensure_default_output_variables(config)
 
     workflow = WorkflowTool(config)

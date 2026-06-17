@@ -1,4 +1,6 @@
 import pickle
+import os
+from pathlib import Path
 from typing import Any
 
 from langgraph.checkpoint.memory import InMemorySaver
@@ -39,13 +41,103 @@ class _PickleSerde:
     subclass instances round-trip identically. Acceptable because
     `InMemorySaver` is in-process only (no cross-version / cross-host
     compatibility concerns).
+
+    Fallback: when a ConfigState loaded from an IDF file enters the graph,
+    its idfpy IDF object contains weakref internals that cannot be pickled.
+    On pickle failure we serialize the ConfigState to IDF text + a plain
+    dict of its Pydantic fields, then rebuild on load.
     """
 
     def dumps_typed(self, obj: Any) -> tuple[str, bytes]:
-        return ("pickle", pickle.dumps(obj))
+        try:
+            return ("pickle", pickle.dumps(obj))
+        except (TypeError, pickle.PicklingError):
+            return ("pickle", pickle.dumps(_make_picklable(obj)))
 
     def loads_typed(self, data: tuple[str, bytes]) -> Any:
-        return pickle.loads(data[1])
+        result = pickle.loads(data[1])
+        return _restore_surrogates(result)
+
+
+def _make_picklable(obj: Any) -> Any:
+    """Replace any ConfigState in *obj* with a text-based surrogate.
+
+    Recursively walks dicts/lists/tuples to find ConfigState instances
+    (they may be nested inside AgentState or graph state dicts).
+    """
+    if _is_config_state(obj):
+        return _ConfigStateSurrogate.from_instance(obj)
+    if isinstance(obj, dict):
+        return {k: _make_picklable(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        t = type(obj)
+        return t(_make_picklable(v) for v in obj)
+    return obj
+
+
+def _is_config_state(obj: Any) -> bool:
+    cls = type(obj)
+    return cls.__name__ == "ConfigState" and hasattr(obj, "_idf")
+
+
+def _restore_surrogates(obj: Any) -> Any:
+    """Walk *obj* and restore any _ConfigStateSurrogate back to ConfigState."""
+    if isinstance(obj, _ConfigStateSurrogate):
+        return obj.restore()
+    if isinstance(obj, dict):
+        return {k: _restore_surrogates(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        t = type(obj)
+        return t(_restore_surrogates(v) for v in obj)
+    return obj
+
+
+class _ConfigStateSurrogate:
+    """Picklable stand-in for ConfigState: stores IDF text + Pydantic fields."""
+
+    def __init__(self, idf_text: str, fields: dict):
+        self.idf_text = idf_text
+        self.fields = fields
+
+    @classmethod
+    def from_instance(cls, cs: Any) -> "_ConfigStateSurrogate":
+        import tempfile
+
+        idf = cs._idf
+        idf_text = ""
+        if idf is not None:
+            with tempfile.NamedTemporaryFile(suffix=".idf", delete=False) as tf:
+                idf.save(Path(tf.name))
+                idf_text = Path(tf.name).read_text(encoding="utf-8")
+                os.unlink(tf.name)
+        # Capture Pydantic fields (public ones, not PrivateAttr)
+        fields = {
+            k: v for k, v in cs.__dict__.items()
+            if not k.startswith("_") and not k.startswith("__")
+        }
+        return cls(idf_text=idf_text, fields=fields)
+
+    def restore(self) -> Any:
+        """Rebuild a ConfigState from the stored IDF text + fields."""
+        from src.mcp.state import ConfigState
+
+        cs = ConfigState()
+        if self.idf_text:
+            import tempfile
+
+            with tempfile.NamedTemporaryFile(
+                mode="w", suffix=".idf", delete=False
+            ) as tf:
+                tf.write(self.idf_text)
+                cs.load_idf(Path(tf.name))
+                os.unlink(tf.name)
+        # Restore public Pydantic fields
+        for k, v in self.fields.items():
+            try:
+                setattr(cs, k, v)
+            except Exception:
+                pass
+        return cs
 
 
 def _cross_ref_router(state: AgentState) -> str:

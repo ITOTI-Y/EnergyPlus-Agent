@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Any
 
@@ -222,6 +223,32 @@ class ConfigState(BaseSchema):
         if self._idf is None:
             self._idf = IDF()
 
+    def clone(self) -> "ConfigState":
+        """Deep copy that produces a pickle-safe ConfigState.
+
+        idfpy IDF objects loaded via ``IDF.load`` hold weakref internals that
+        break ``pickle`` / ``model_copy(deep=True)`` / ``copy.deepcopy`` —
+        which crashes LangGraph's InMemorySaver checkpointer on revision turns
+        (where config_state is rebuilt from a saved IDF).
+
+        This method copies all Pydantic fields normally (nested schemas keep
+        their types) and rebuilds the IDF via ``IDF().from_dict(...)``, which
+        produces a fresh, weakref-free IDF that pickles cleanly. Use ``clone()``
+        instead of ``model_copy(deep=True)`` wherever a ConfigState is mutated
+        in-place (phase agents, simulate, revise).
+        """
+        new = self.__class__(
+            **self.model_dump(by_alias=True, exclude_defaults=False)
+        )
+        if self._idf is not None:
+            rebuilt = IDF()
+            rebuilt.from_dict(self._idf.to_dict())
+            new._idf = rebuilt
+        else:
+            new._idf = IDF()
+        return new
+
+
     @property
     def idf(self) -> IDF:
         if self._idf is None:
@@ -325,7 +352,12 @@ class ConfigState(BaseSchema):
         return path
 
     def load_idf(self, input_path: str | Path) -> None:
-        self._idf = IDF.load(Path(input_path))
+        # Rebuild via IDF().from_dict to avoid weakref internals that
+        # IDF.load introduces — those break pickle / deepcopy and crash the
+        # LangGraph checkpointer on revision turns.
+        loaded = IDF.load(Path(input_path))
+        self._idf = IDF()
+        self._idf.from_dict(loaded.to_dict())
 
     @classmethod
     def load_yaml(cls, input_path: str | Path) -> ConfigState:

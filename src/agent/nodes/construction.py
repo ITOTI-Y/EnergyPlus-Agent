@@ -34,7 +34,7 @@ Rules:
 
 
 def construction_agent(state: AgentState) -> AgentStateUpdate:
-    local = state.config_state.model_copy(deep=True)
+    local = state.config_state.clone()
     tools = make_construction_tools(local)
     collector = TraceCollector(phase="construction")
 

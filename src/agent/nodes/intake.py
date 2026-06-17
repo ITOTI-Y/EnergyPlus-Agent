@@ -162,7 +162,7 @@ def intake_node(state: AgentState) -> AgentStateUpdate:
             f"parsing_error={parsing_error!r}; raw preview: {raw_preview}"
         )
 
-    config = state.config_state.model_copy(deep=True)
+    config = state.config_state.clone()
     config.building = parsed.building
     config.site_location = parsed.site_location
 
