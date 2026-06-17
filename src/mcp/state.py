@@ -223,6 +223,24 @@ class ConfigState(BaseSchema):
         if self._idf is None:
             self._idf = IDF()
 
+    def __reduce_ex__(self, protocol: int = 2):
+        """Pickle protocol: serialize IDF as text to avoid weakref.
+
+        idfpy's IDF holds weakref internals that break pickle. We intercept
+        pickling: capture IDF as text + model_dump, rebuild via IDF.from_dict
+        on unpickle. This makes ConfigState embeddable in AgentState/dict for
+        the LangGraph checkpointer.
+        """
+        import tempfile
+
+        idf_text = ""
+        if self._idf is not None:
+            with tempfile.NamedTemporaryFile(suffix=".idf", delete=False) as tf:
+                self._idf.save(Path(tf.name))
+                idf_text = Path(tf.name).read_text(encoding="utf-8")
+                os.unlink(tf.name)
+        return (_reconstruct_config_state, (idf_text, self.model_dump(by_alias=True)))
+
     def clone(self) -> "ConfigState":
         """Deep copy that produces a pickle-safe ConfigState.
 
@@ -241,9 +259,7 @@ class ConfigState(BaseSchema):
             **self.model_dump(by_alias=True, exclude_defaults=False)
         )
         if self._idf is not None:
-            rebuilt = IDF()
-            rebuilt.from_dict(self._idf.to_dict())
-            new._idf = rebuilt
+            new._idf = IDF.from_dict(self._idf.to_dict())
         else:
             new._idf = IDF()
         return new
@@ -356,8 +372,7 @@ class ConfigState(BaseSchema):
         # IDF.load introduces — those break pickle / deepcopy and crash the
         # LangGraph checkpointer on revision turns.
         loaded = IDF.load(Path(input_path))
-        self._idf = IDF()
-        self._idf.from_dict(loaded.to_dict())
+        self._idf = IDF.from_dict(loaded.to_dict())
 
     @classmethod
     def load_yaml(cls, input_path: str | Path) -> ConfigState:
@@ -1238,3 +1253,18 @@ def _flatten_schedule_data(data: Any) -> list[str]:
                 if time is not None and value is not None:
                     result.append(f"Until: {time}, {value}")
     return result
+
+
+def _reconstruct_config_state(idf_text: str, fields: dict) -> "ConfigState":
+    """Rebuild a ConfigState from pickled IDF text + field dict."""
+    cs = ConfigState(**fields)
+    if idf_text:
+        import tempfile
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".idf", delete=False) as tf:
+            tf.write(idf_text)
+            loaded = IDF.load(Path(tf.name))
+            cs._idf = IDF.from_dict(loaded.to_dict())
+            os.unlink(tf.name)
+    else:
+        cs._idf = IDF()
+    return cs
