@@ -15,6 +15,7 @@ import gradio as gr
 from scripts._share import SIMPLE_USER_INPUT
 from src.agent import AgentState, SimContext, build_graph
 from src.agent.runner import run_session
+from src.mcp.state import ConfigState
 from src.utils.logging import setup_logger
 from src.results import load_results, parse_idf_geometry
 from src.results import charts as result_charts
@@ -176,6 +177,41 @@ def _load_chat_history(session_id: str) -> list[dict]:
         return []
 
 
+def _format_history_for_revision(history: list[dict]) -> str:
+    """Render recent chatbot turns into a compact text block for the revise LLM.
+
+    Only user instructions and assistant summaries are kept (progress ticks
+    and tool chatter are dropped) so the revision LLM sees what the user
+    asked for in prior turns without context bloat.
+    """
+    if not history:
+        return ""
+    lines = ["## Previous conversation in this session:"]
+    for msg in history:
+        if not isinstance(msg, dict):
+            continue
+        role = msg.get("role", "")
+        content = msg.get("content", "")
+        # content may be a list of parts (gradio format) — flatten to text
+        if isinstance(content, list):
+            content = " ".join(
+                p.get("text", "") for p in content if isinstance(p, dict)
+            )
+        content = str(content).strip()
+        if not content:
+            continue
+        # Skip one-line progress ticks like "Completed: ..."
+        if content.startswith("Completed:"):
+            continue
+        if role == "user":
+            lines.append(f"User: {content}")
+        elif role == "assistant":
+            # Truncate long analysis reports
+            preview = content[:300] + ("..." if len(content) > 300 else "")
+            lines.append(f"Assistant: {preview}")
+    return "\n".join(lines) if len(lines) > 1 else ""
+
+
 NODE_LABELS: dict[str, str] = {
     "intake": "Parse Building Description",
     "zone": "Create Thermal Zones",
@@ -254,6 +290,9 @@ def run_agent(
     session_dir = _session_dir(session_id)
     session_dir.mkdir(parents=True, exist_ok=True)
 
+    # Detect revision turn: a prior IDF exists in this session
+    is_revision_turn = bool(_latest_idf(session_dir))
+
     event_q: queue.Queue = queue.Queue()
     thread_id = f"ui_{id(event_q)}_{session_id}"
 
@@ -276,7 +315,28 @@ def run_agent(
             epw_path = Path(epw_file.name) if epw_file else DEFAULT_EPW
             images: list[str] = [f.name for f in image_files] if image_files else []
 
-            initial = AgentState(user_input=user_input, image_paths=images)
+            # Multi-turn revision: if a previous IDF exists in this session,
+            # rebuild config_state from it and flag is_revision so the graph
+            # enters revise_node (incremental update) instead of intake.
+            latest_idf = _latest_idf(session_dir)
+            if latest_idf and latest_idf.exists():
+                cs = ConfigState()
+                cs.load_idf(latest_idf)
+                history = _load_chat_history(session_id)
+                history_text = _format_history_for_revision(history[-6:])
+                effective_input = (
+                    f"{history_text}\n\n## New instruction:\n{user_input}"
+                    if history_text
+                    else user_input
+                )
+                initial = AgentState(
+                    user_input=effective_input,
+                    image_paths=images,
+                    config_state=cs,
+                    is_revision=True,
+                )
+            else:
+                initial = AgentState(user_input=user_input, image_paths=images)
             context = SimContext(epw_path=epw_path, output_dir=session_dir)
             config: dict = {"configurable": {"thread_id": thread_id}}
 
@@ -297,9 +357,14 @@ def run_agent(
     t = threading.Thread(target=worker, daemon=True)
     t.start()
 
+    opening = (
+        f"Modifying the existing model in session `{session_id}`..."
+        if is_revision_turn
+        else f"Starting Agent in session `{session_id}`..."
+    )
     history: History = [
         _msg("user", user_input),
-        _msg("assistant", f"Starting Agent in session `{session_id}`..."),
+        _msg("assistant", opening),
     ]
     yield history, []
 
