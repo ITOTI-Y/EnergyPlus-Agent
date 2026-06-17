@@ -6,7 +6,7 @@ from langgraph.types import Command, interrupt
 from src.agent.state import AgentState
 
 
-def validate_node(state: AgentState) -> Command[Literal["simulate", "intake"]]:
+def validate_node(state: AgentState) -> Command[Literal["simulate", "intake", "revise"]]:
     """Validate full config; auto-retry on error up to max_retries; else HITL.
 
     Return behavior:
@@ -43,8 +43,11 @@ def validate_node(state: AgentState) -> Command[Literal["simulate", "intake"]]:
     if decision.get("approved"):
         return Command(goto="simulate")
 
+    # On rejection, route back to the entry node matching the current mode:
+    # revision turns loop back to revise, first-run turns loop back to intake.
+    entry = "revise" if state.is_revision else "intake"
     return Command(
-        goto="intake",
+        goto=entry,
         update={
             "user_input": decision.get("feedback", state.user_input),
             "validation_errors": decision.get("errors", []),

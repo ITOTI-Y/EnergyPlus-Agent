@@ -24,6 +24,28 @@ react; repeated failures beyond that point usually mean the intake
 specs are broken, which the outer validate loop handles better.
 """
 
+REVISION_PREFIX: Final[str] = (
+    "IMPORTANT — REVISION MODE. You are MODIFYING an existing model that was "
+    "built in a previous turn. The model already contains objects.\n\n"
+    "Before doing anything, call the `list_*` tool to see what already "
+    "exists (by exact name). Then:\n"
+    "- To change an existing object: use `update_*` (PREFERRED — never "
+    "delete+recreate an object that only needs a field change).\n"
+    "- To remove an object: use `delete_*`.\n"
+    "- To add a brand-new object: use `create_*`.\n"
+    "- DO NOT recreate objects that already exist and need no change.\n"
+    "- If the spec says 'no changes needed', call `list_*` once to confirm "
+    "then return immediately without creating/updating/deleting anything.\n\n"
+    "Apply only the modifications described below:\n\n"
+)
+"""Prefix prepended to phase specs when ``is_revision`` is True, steering
+phase agents toward incremental update/delete over full recreation."""
+
+
+def apply_revision_prefix(specs: str, is_revision: bool) -> str:
+    """Prepend the revision-mode instruction prefix when applicable."""
+    return REVISION_PREFIX + specs if is_revision else specs
+
 
 def invoke_with_self_repair(
     agent: CompiledStateGraph[Any, Any, Any, Any],
@@ -31,6 +53,7 @@ def invoke_with_self_repair(
     specs: str,
     *,
     phase: str,
+    is_revision: bool = False,
 ) -> dict[str, Any]:
     """Run a phase ReAct agent and force cross-reference self-repair.
 
@@ -50,11 +73,14 @@ def invoke_with_self_repair(
         local_config: The deep-copied ConfigState the phase mutates.
         specs: Natural-language task for the phase (from intake_output).
         phase: Name used in logs ("construction", "surface", ...).
+        is_revision: When True, prepend REVISION_PREFIX to steer the agent
+            toward update/delete over full recreation.
 
     Returns:
         The final ReAct result dict (shape {"messages": [...]}).
     """
-    messages: list[AnyMessage] = [HumanMessage(content=specs)]
+    full_specs = apply_revision_prefix(specs, is_revision)
+    messages: list[AnyMessage] = [HumanMessage(content=full_specs)]
 
     for attempt in range(MAX_SELF_REPAIR_ROUNDS + 1):
         result = agent.invoke(ReactState(messages=messages))

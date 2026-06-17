@@ -200,6 +200,11 @@ class AgentState(BaseModel):
     retry_count: int = 0
     max_retries: int = MAX_RETRIES
 
+    is_revision: bool = False
+    """True for multi-turn model edits: the agent should modify the existing
+    config_state (loaded from a previous IDF) rather than rebuild from
+    scratch. Drives the revise_node entry and phase-agent prompt prefixes."""
+
 
 class AgentStateUpdate(TypedDict, total=False):
     """Partial update returned by graph nodes."""
@@ -211,3 +216,4 @@ class AgentStateUpdate(TypedDict, total=False):
     intake_output: IntakeOutput | None
     validation_errors: list[str]
     retry_count: int
+    is_revision: bool
