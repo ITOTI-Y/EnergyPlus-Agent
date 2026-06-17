@@ -162,6 +162,44 @@ def make_schedule_tools(config: ConfigState) -> list[BaseTool]:
         return _ok(f"Schedule:Compact '{name}' read successfully.", obj.model_dump())
 
     @tool
+    def update_schedule_compact(
+        name: str,
+        schedule_type_limits_name: str | None = None,
+        data: list[dict[str, Any]] | None = None,
+    ) -> str:
+        """Update an existing Schedule:Compact's type-limits and/or data.
+
+        Only non-None fields are rewritten. Pass ``data`` to replace the
+        entire schedule time-value structure (same nested format as
+        create_schedule_compact).
+
+        Args:
+            name: Existing Schedule:Compact name.
+            schedule_type_limits_name: New ScheduleTypeLimits name.
+            data: New nested Through/Days/Times structure (replaces all).
+        """
+        obj = idf.get("Schedule:Compact", name)
+        if obj is None:
+            return _err(f"Schedule:Compact '{name}' not found.")
+        try:
+            if schedule_type_limits_name is not None:
+                obj.schedule_type_limits_name = schedule_type_limits_name
+            if data is not None:
+                # Validate the new data via the schema, then rebuild items
+                validated = ScheduleCompactSchema.model_validate({
+                    "Name": name,
+                    "Schedule Type Limits Name": obj.schedule_type_limits_name,
+                    "Data": data,
+                })
+                obj.data = [
+                    ScheduleCompactDataItem(field=v) for v in validated.data
+                ]
+            return _ok(f"Schedule:Compact '{name}' updated successfully.",
+                       obj.model_dump())
+        except Exception as e:
+            return _err(f"Error updating Schedule:Compact '{name}': {e}")
+
+    @tool
     def delete_schedule(name: str) -> str:
         """Delete a Schedule:Compact. Fails if referenced."""
         if not idf.has("Schedule:Compact", name):
@@ -197,5 +235,6 @@ def make_schedule_tools(config: ConfigState) -> list[BaseTool]:
         list_schedules,
         list_schedule_type_limits,
         get_schedule,
+        update_schedule_compact,
         delete_schedule,
     ]

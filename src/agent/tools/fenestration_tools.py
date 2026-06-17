@@ -91,6 +91,58 @@ def make_fenestration_tools(config: ConfigState) -> list[BaseTool]:
         return _ok(f"Fenestration '{name}' read successfully.", obj.model_dump())
 
     @tool
+    def update_fenestration(
+        name: str,
+        construction_name: str | None = None,
+        building_surface_name: str | None = None,
+        surface_type: str | None = None,
+        multiplier: int | None = None,
+        vertices: list[dict[str, float]] | None = None,
+    ) -> str:
+        """Update fields of an existing fenestration by name.
+
+        Only non-None fields are written. To change geometry, pass a full
+        new ``vertices`` list (replaces all existing vertices).
+
+        Args:
+            name: Existing fenestration name.
+            construction_name: New glazing Construction name (must exist).
+            building_surface_name: New parent Surface name (must exist).
+            surface_type: Window / Door / GlassDoor.
+            multiplier: Number of identical copies (>= 1).
+            vertices: New full vertex list ({"X","Y","Z"} dicts), >= 3 points,
+                      coplanar with the parent surface.
+        """
+        obj = idf.get("FenestrationSurface:Detailed", name)
+        if obj is None:
+            return _err(f"Fenestration '{name}' not found.")
+        try:
+            if construction_name is not None:
+                obj.construction_name = construction_name
+            if building_surface_name is not None:
+                obj.building_surface_name = building_surface_name
+            if surface_type is not None:
+                obj.surface_type = surface_type
+            if multiplier is not None:
+                obj.multiplier = float(multiplier)
+            if vertices is not None:
+                if len(vertices) < 3:
+                    return _err("Fenestration needs >= 3 vertices.")
+                # Clear any existing vertex fields (up to 4), then set new ones
+                for i in range(1, 5):
+                    for axis in ("x", "y", "z"):
+                        setattr(obj, f"vertex_{i}_{axis}_coordinate", None)
+                for i, v in enumerate(vertices, start=1):
+                    setattr(obj, f"vertex_{i}_x_coordinate", float(v["X"]))
+                    setattr(obj, f"vertex_{i}_y_coordinate", float(v["Y"]))
+                    setattr(obj, f"vertex_{i}_z_coordinate", float(v["Z"]))
+                obj.number_of_vertices = len(vertices)
+            return _ok(f"Fenestration '{name}' updated successfully.",
+                       obj.model_dump())
+        except Exception as e:
+            return _err(f"Error updating fenestration '{name}': {e}")
+
+    @tool
     def delete_fenestration(name: str) -> str:
         """Delete a fenestration."""
         if not idf.has("FenestrationSurface:Detailed", name):
@@ -116,6 +168,7 @@ def make_fenestration_tools(config: ConfigState) -> list[BaseTool]:
         create_fenestration,
         list_fenestrations,
         get_fenestration,
+        update_fenestration,
         delete_fenestration,
         list_surfaces,
         list_constructions,

@@ -81,6 +81,57 @@ def make_people_tools(config: ConfigState) -> list[BaseTool]:
         return _ok(f"Listed {len(items)} People objects.", items)
 
     @tool
+    def update_people(
+        name: str,
+        zone_name: str | None = None,
+        number_of_people_schedule_name: str | None = None,
+        activity_level_schedule_name: str | None = None,
+        number_of_people_calculation_method: str | None = None,
+        number_of_people: float | None = None,
+        people_per_floor_area: float | None = None,
+        floor_area_per_person: float | None = None,
+        fraction_radiant: float | None = None,
+    ) -> str:
+        """Update fields of an existing People object by name.
+
+        Only non-None fields are written. Pass only the fields you want to
+        change (e.g. to alter occupancy density, set number_of_people or
+        people_per_floor_area; to change the schedule, set the *_schedule_name).
+
+        Args:
+            name: Existing People object name.
+            zone_name: New Zone name.
+            number_of_people_schedule_name / activity_level_schedule_name: New schedules.
+            number_of_people_calculation_method: People / People/Area / Area/Person.
+            number_of_people / people_per_floor_area / floor_area_per_person:
+                Load values (use the one matching the calculation method).
+            fraction_radiant: Radiant fraction of sensible heat (0-1).
+        """
+        obj = idf.get("People", name)
+        if obj is None:
+            return _err(f"People '{name}' not found.")
+        try:
+            if zone_name is not None:
+                obj.zone_or_zonelist_or_space_or_spacelist_name = zone_name
+            if number_of_people_schedule_name is not None:
+                obj.number_of_people_schedule_name = number_of_people_schedule_name
+            if activity_level_schedule_name is not None:
+                obj.activity_level_schedule_name = activity_level_schedule_name
+            if number_of_people_calculation_method is not None:
+                obj.number_of_people_calculation_method = number_of_people_calculation_method
+            if number_of_people is not None:
+                obj.number_of_people = number_of_people
+            if people_per_floor_area is not None:
+                obj.people_per_floor_area = people_per_floor_area
+            if floor_area_per_person is not None:
+                obj.floor_area_per_person = floor_area_per_person
+            if fraction_radiant is not None:
+                obj.fraction_radiant = fraction_radiant
+            return _ok(f"People '{name}' updated successfully.", obj.model_dump())
+        except Exception as e:
+            return _err(f"Error updating people '{name}': {e}")
+
+    @tool
     def delete_people(name: str) -> str:
         """Delete a People object."""
         if not idf.has("People", name):
@@ -100,4 +151,4 @@ def make_people_tools(config: ConfigState) -> list[BaseTool]:
         items = [s.model_dump() for s in idf.all_of_type(ScheduleCompact).values()]
         return _ok(f"Listed {len(items)} schedules.", items)
 
-    return [create_people, list_people, delete_people, list_zones, list_schedules]
+    return [create_people, list_people, update_people, delete_people, list_zones, list_schedules]

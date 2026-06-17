@@ -179,6 +179,65 @@ def make_material_tools(config: ConfigState) -> list[BaseTool]:
         )
 
     @tool
+    def update_material(
+        name: str,
+        roughness: str | None = None,
+        thickness: float | None = None,
+        conductivity: float | None = None,
+        density: float | None = None,
+        specific_heat: float | None = None,
+        thermal_resistance: float | None = None,
+        u_factor: float | None = None,
+        solar_heat_gain_coefficient: float | None = None,
+        visible_transmittance: float | None = None,
+    ) -> str:
+        """Update fields of an existing material by name.
+
+        Only non-None fields are written; the rest stay unchanged. The
+        material variant (standard / nomass / airgap / glazing) is detected
+        automatically — pass only the fields relevant to that variant.
+
+        Args:
+            name: Existing material name.
+            roughness / thickness / conductivity / density / specific_heat:
+                Standard Material fields.
+            thermal_resistance: NoMass or AirGap R-value.
+            u_factor / solar_heat_gain_coefficient / visible_transmittance:
+                Glazing (SimpleGlazingSystem) fields.
+        """
+        mat_type, obj = _find_material(idf, name)
+        if obj is None:
+            return _err(f"Material '{name}' not found.")
+        try:
+            # Fields common to standard/nomass/airgap
+            if roughness is not None and hasattr(obj, "roughness"):
+                obj.roughness = roughness
+            if thermal_resistance is not None and hasattr(obj, "thermal_resistance"):
+                obj.thermal_resistance = thermal_resistance
+            # Standard-only fields
+            if mat_type == "Material":
+                if thickness is not None:
+                    obj.thickness = thickness
+                if conductivity is not None:
+                    obj.conductivity = conductivity
+                if density is not None:
+                    obj.density = density
+                if specific_heat is not None:
+                    obj.specific_heat = specific_heat
+            # Glazing-only fields
+            if mat_type == "WindowMaterial:SimpleGlazingSystem":
+                if u_factor is not None:
+                    obj.u_factor = u_factor
+                if solar_heat_gain_coefficient is not None:
+                    obj.solar_heat_gain_coefficient = solar_heat_gain_coefficient
+                if visible_transmittance is not None:
+                    obj.visible_transmittance = visible_transmittance
+            return _ok(f"Material '{name}' updated successfully.",
+                       {"type": mat_type, **obj.model_dump()})
+        except Exception as e:
+            return _err(f"Error updating material '{name}': {e}")
+
+    @tool
     def delete_material(name: str) -> str:
         """Delete a material. Fails if referenced by a construction."""
         mat_type, obj = _find_material(idf, name)
@@ -218,5 +277,6 @@ def make_material_tools(config: ConfigState) -> list[BaseTool]:
         create_glazing_material,
         list_materials,
         get_material,
+        update_material,
         delete_material,
     ]

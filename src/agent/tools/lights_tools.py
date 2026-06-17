@@ -79,6 +79,56 @@ def make_lights_tools(config: ConfigState) -> list[BaseTool]:
         return _ok(f"Listed {len(items)} Lights objects.", items)
 
     @tool
+    def update_light(
+        name: str,
+        zone_name: str | None = None,
+        schedule_name: str | None = None,
+        design_level_calculation_method: str | None = None,
+        lighting_level: float | None = None,
+        watts_per_floor_area: float | None = None,
+        watts_per_person: float | None = None,
+        fraction_radiant: float | None = None,
+        fraction_visible: float | None = None,
+    ) -> str:
+        """Update fields of an existing Lights object by name.
+
+        Only non-None fields are written. Pass only the fields you want to
+        change (e.g. to lower LPD, set watts_per_floor_area).
+
+        Args:
+            name: Existing Lights object name.
+            zone_name: New Zone name.
+            schedule_name: New Schedule:Compact name.
+            design_level_calculation_method: LightingLevel / Watts/Area / Watts/Person.
+            lighting_level / watts_per_floor_area / watts_per_person:
+                Load values (use the one matching the calculation method).
+            fraction_radiant / fraction_visible: Light distribution fractions (0-1).
+        """
+        obj = idf.get("Lights", name)
+        if obj is None:
+            return _err(f"Lights '{name}' not found.")
+        try:
+            if zone_name is not None:
+                obj.zone_or_zonelist_or_space_or_spacelist_name = zone_name
+            if schedule_name is not None:
+                obj.schedule_name = schedule_name
+            if design_level_calculation_method is not None:
+                obj.design_level_calculation_method = design_level_calculation_method
+            if lighting_level is not None:
+                obj.lighting_level = lighting_level
+            if watts_per_floor_area is not None:
+                obj.watts_per_floor_area = watts_per_floor_area
+            if watts_per_person is not None:
+                obj.watts_per_person = watts_per_person
+            if fraction_radiant is not None:
+                obj.fraction_radiant = fraction_radiant
+            if fraction_visible is not None:
+                obj.fraction_visible = fraction_visible
+            return _ok(f"Lights '{name}' updated successfully.", obj.model_dump())
+        except Exception as e:
+            return _err(f"Error updating lights '{name}': {e}")
+
+    @tool
     def delete_light(name: str) -> str:
         """Delete a Lights object."""
         if not idf.has("Lights", name):
@@ -98,4 +148,4 @@ def make_lights_tools(config: ConfigState) -> list[BaseTool]:
         items = [s.model_dump() for s in idf.all_of_type(ScheduleCompact).values()]
         return _ok(f"Listed {len(items)} schedules.", items)
 
-    return [create_light, list_lights, delete_light, list_zones, list_schedules]
+    return [create_light, list_lights, update_light, delete_light, list_zones, list_schedules]

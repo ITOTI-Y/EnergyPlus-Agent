@@ -94,6 +94,34 @@ def make_construction_tools(config: ConfigState) -> list[BaseTool]:
         return _ok(f"Construction '{name}' read successfully.", obj.model_dump())
 
     @tool
+    def update_construction(name: str, layers: list[str]) -> str:
+        """Replace the entire layer sequence of an existing construction.
+
+        Args:
+            name: Existing construction name.
+            layers: New ordered list of material names (outside → inside).
+                    All names must already exist. 1-10 layers.
+        """
+        obj = idf.get("Construction", name)
+        if obj is None:
+            return _err(f"Construction '{name}' not found.")
+        if not layers or len(layers) > 10:
+            return _err("Construction must have 1-10 layers.")
+        missing = [lyr for lyr in layers if not _material_exists(idf, lyr)]
+        if missing:
+            return _err(f"Materials not found: {missing}.", {"missing": missing})
+        try:
+            # Clear existing layers then set new ones
+            for lf in _LAYER_FIELDS:
+                setattr(obj, lf, None)
+            for i, layer_name in enumerate(layers):
+                setattr(obj, _LAYER_FIELDS[i], layer_name)
+            return _ok(f"Construction '{name}' updated successfully.",
+                       obj.model_dump())
+        except Exception as e:
+            return _err(f"Error updating construction '{name}': {e}")
+
+    @tool
     def delete_construction(name: str) -> str:
         """Delete a construction. Fails if referenced by surfaces/fenestration."""
         if not idf.has("Construction", name):
@@ -126,6 +154,7 @@ def make_construction_tools(config: ConfigState) -> list[BaseTool]:
         create_construction,
         list_constructions,
         get_construction,
+        update_construction,
         delete_construction,
         list_materials,
     ]

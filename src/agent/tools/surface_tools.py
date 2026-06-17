@@ -105,6 +105,62 @@ def make_surface_tools(config: ConfigState) -> list[BaseTool]:
         return _ok(f"Surface '{name}' read successfully.", obj.model_dump())
 
     @tool
+    def update_surface(
+        name: str,
+        construction_name: str | None = None,
+        zone_name: str | None = None,
+        outside_boundary_condition: str | None = None,
+        outside_boundary_condition_object: str | None = None,
+        sun_exposure: str | None = None,
+        wind_exposure: str | None = None,
+        vertices: list[dict[str, float]] | None = None,
+    ) -> str:
+        """Update fields of an existing surface by name.
+
+        Only non-None fields are written. To change geometry, pass a full
+        new ``vertices`` list (replaces all existing vertices).
+
+        Args:
+            name: Existing surface name.
+            construction_name: New Construction name (must exist).
+            zone_name: New Zone name (must exist).
+            outside_boundary_condition / outside_boundary_condition_object:
+                Boundary settings.
+            sun_exposure / wind_exposure: SunExposed / NoSun, WindExposed / NoWind.
+            vertices: New full vertex list ({"X","Y","Z"} dicts), >= 3 points.
+        """
+        obj = idf.get("BuildingSurface:Detailed", name)
+        if obj is None:
+            return _err(f"Surface '{name}' not found.")
+        try:
+            if construction_name is not None:
+                obj.construction_name = construction_name
+            if zone_name is not None:
+                obj.zone_name = zone_name
+            if outside_boundary_condition is not None:
+                obj.outside_boundary_condition = outside_boundary_condition
+            if outside_boundary_condition_object is not None:
+                obj.outside_boundary_condition_object = outside_boundary_condition_object
+            if sun_exposure is not None:
+                obj.sun_exposure = sun_exposure
+            if wind_exposure is not None:
+                obj.wind_exposure = wind_exposure
+            if vertices is not None:
+                if len(vertices) < 3:
+                    return _err("Surface needs >= 3 vertices.")
+                obj.vertices = [
+                    BuildingSurfaceDetailedVerticesItem(
+                        vertex_x_coordinate=float(v["X"]),
+                        vertex_y_coordinate=float(v["Y"]),
+                        vertex_z_coordinate=float(v["Z"]),
+                    )
+                    for v in vertices
+                ]
+            return _ok(f"Surface '{name}' updated successfully.", obj.model_dump())
+        except Exception as e:
+            return _err(f"Error updating surface '{name}': {e}")
+
+    @tool
     def delete_surface(name: str) -> str:
         """Delete a surface. Fails if fenestration references it."""
         if not idf.has("BuildingSurface:Detailed", name):
@@ -137,6 +193,7 @@ def make_surface_tools(config: ConfigState) -> list[BaseTool]:
         create_surface,
         list_surfaces,
         get_surface,
+        update_surface,
         delete_surface,
         list_zones,
         list_constructions,
