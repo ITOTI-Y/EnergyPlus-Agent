@@ -33,6 +33,24 @@ class SurfacePolygon:
 
 
 @dataclass
+class FenestrationPolygon:
+    """One planar polygon opening (window/door/glass door) from an IDF
+    FenestrationSurface:Detailed object.
+
+    Lives on the plane of its host ``building_surface_name`` (a Wall usually).
+    Vertices are already in the same world coordinate system as the host
+    BuildingSurface:Detailed, so they can be rendered directly without any
+    additional transform.
+    """
+
+    name: str
+    surface_type: str                       # "Window" | "Door" | "GlassDoor" | "TubularDaylightDome" | "TubularDaylightDiffuser"
+    construction_name: str
+    building_surface_name: str              # host wall/surface name
+    vertices: list[tuple[float, float, float]] = field(default_factory=list)
+
+
+@dataclass
 class ZoneGeometry:
     """All surfaces belonging to one thermal zone."""
 
@@ -120,6 +138,20 @@ _COMMENT_RE = re.compile(r"!-[^\n]*")
 # 11  number_of_vertices
 # 12+ x1, y1, z1, x2, y2, z2, ...
 _VERTEX_FIELD_START = 12
+
+# FenestrationSurface:Detailed fields (positional, 0-indexed including class):
+#  0  FenestrationSurface:Detailed  (class name)
+#  1  name
+#  2  surface_type
+#  3  construction_name
+#  4  building_surface_name
+#  5  outside_boundary_condition_object
+#  6  view_factor_to_ground
+#  7  frame_and_divider_name
+#  8  multiplier
+#  9  number_of_vertices
+# 10+ x1, y1, z1, x2, y2, z2, ...
+_FENESTRATION_VERTEX_FIELD_START = 10
 
 
 def _strip_comments(text: str) -> str:
@@ -225,6 +257,60 @@ def parse_idf_geometry(idf_path: Path) -> dict[str, ZoneGeometry]:
             zones[zone_name].surfaces.append(surface)
 
     return zones
+
+
+def parse_fenestrations(idf_path: Path) -> list[FenestrationPolygon]:
+    """Parse all FenestrationSurface:Detailed objects from *idf_path*.
+
+    Returns a flat list of :class:`FenestrationPolygon` (windows, doors,
+    glass doors).  Vertices are in the same world coordinate system as the
+    host BuildingSurface:Detailed, so they can be rendered directly.
+
+    Parameters
+    ----------
+    idf_path:
+        Path to an EnergyPlus ``.idf`` file.
+
+    Returns
+    -------
+    list[FenestrationPolygon]
+    """
+    text = idf_path.read_text(encoding="utf-8", errors="replace")
+    text = _strip_comments(text)
+    blocks = _split_objects(text)
+
+    fenestrations: list[FenestrationPolygon] = []
+
+    for block in blocks:
+        fields = _parse_fields(block)
+        if not fields:
+            continue
+
+        if fields[0].strip().lower() != "fenestrationsurface:detailed":
+            continue
+        if len(fields) < _FENESTRATION_VERTEX_FIELD_START + 3:
+            continue  # malformed, skip
+
+        name = fields[1]
+        surface_type = fields[2]
+        construction_name = fields[3] if len(fields) > 3 else ""
+        building_surface_name = fields[4] if len(fields) > 4 else ""
+
+        vertices = _parse_vertices(fields, _FENESTRATION_VERTEX_FIELD_START)
+        if not vertices:
+            continue
+
+        fenestrations.append(
+            FenestrationPolygon(
+                name=name,
+                surface_type=surface_type,
+                construction_name=construction_name,
+                building_surface_name=building_surface_name,
+                vertices=vertices,
+            )
+        )
+
+    return fenestrations
 
 
 # ---------------------------------------------------------------------------

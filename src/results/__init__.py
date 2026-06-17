@@ -10,7 +10,9 @@ from src.results import charts
 from src.results.idf_geometry import (
     ZoneGeometry,
     SurfacePolygon,
+    FenestrationPolygon,
     parse_idf_geometry,
+    parse_fenestrations,
     idf_zone_to_csv_key,
     csv_key_to_idf_zone,
 )
@@ -30,7 +32,9 @@ __all__ = [
     # idf geometry
     "ZoneGeometry",
     "SurfacePolygon",
+    "FenestrationPolygon",
     "parse_idf_geometry",
+    "parse_fenestrations",
     "idf_zone_to_csv_key",
     "csv_key_to_idf_zone",
 ]
