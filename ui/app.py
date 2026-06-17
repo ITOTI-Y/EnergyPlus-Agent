@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any, Generator
 
 import gradio as gr
+import plotly.graph_objects as go
 
 from scripts._share import SIMPLE_USER_INPUT
 from src.agent import AgentState, SimContext, build_graph
@@ -33,6 +34,59 @@ _METRIC_MAP: dict[str, str] = {
     "Lighting Energy (kWh)": "lighting",
 }
 _METRIC_OPTIONS = list(_METRIC_MAP.keys())
+_PREVIEW_COLORS = [
+    "#4f7cac",
+    "#f2a65a",
+    "#6f9e6e",
+    "#c97b84",
+    "#8e6bbf",
+    "#4ca6a8",
+    "#c9a227",
+    "#5f6f94",
+]
+_ENGLISH_UI_JS = r"""
+function forceEnglishUi() {
+  const replacements = [
+    ["\u5c06\u6587\u4ef6\u62d6\u653e\u5230\u6b64\u5904", "Drop files here"],
+    ["\u70b9\u51fb\u4e0a\u4f20", "Click to upload"],
+    ["- \u6216 -", "- or -"],
+    ["\u6216", "or"],
+    ["\u901a\u8fc7 API \u4f7f\u7528", "Use via API"],
+    ["\u6807\u5fd7", "badge"],
+  ];
+
+  const rewriteTextNode = (node) => {
+    let text = node.nodeValue;
+    let next = text;
+    for (const [source, replacement] of replacements) {
+      next = next.split(source).join(replacement);
+    }
+    if (next !== text) node.nodeValue = next;
+  };
+
+  const walk = (root) => {
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    const nodes = [];
+    while (walker.nextNode()) nodes.push(walker.currentNode);
+    nodes.forEach(rewriteTextNode);
+  };
+
+  walk(document.body);
+  const observer = new MutationObserver((mutations) => {
+    for (const mutation of mutations) {
+      mutation.addedNodes.forEach((node) => {
+        if (node.nodeType === Node.TEXT_NODE) {
+          rewriteTextNode(node);
+        } else if (node.nodeType === Node.ELEMENT_NODE) {
+          walk(node);
+        }
+      });
+    }
+  });
+  observer.observe(document.body, { childList: true, subtree: true });
+}
+forceEnglishUi();
+"""
 
 
 DEFAULT_EPW = Path("data/weather/Shenzhen.epw")
@@ -262,6 +316,168 @@ def _collect_output_files(output_dir: Path) -> list[str]:
     for pat in exts:
         files.extend(str(p) for p in sorted(output_dir.glob(pat)))
     return files
+
+
+def _latest_idf(output_dir: Path) -> Path | None:
+    if not output_dir.exists():
+        return None
+    candidates = sorted(
+        output_dir.glob("*.idf"),
+        key=lambda p: p.stat().st_mtime,
+        reverse=True,
+    )
+    return candidates[0] if candidates else None
+
+
+def _empty_model_preview(message: str = "No generated model yet.") -> go.Figure:
+    fig = go.Figure()
+    fig.update_layout(
+        title="3D Model Preview",
+        scene=dict(
+            xaxis_title="X (m)",
+            yaxis_title="Y (m)",
+            zaxis_title="Z (m)",
+            aspectmode="data",
+            camera=dict(eye=dict(x=1.7, y=-1.7, z=1.2)),
+        ),
+        annotations=[
+            dict(
+                text=message,
+                x=0.5,
+                y=0.5,
+                xref="paper",
+                yref="paper",
+                showarrow=False,
+                font=dict(size=14, color="#4b5563"),
+            )
+        ],
+        margin=dict(l=0, r=0, t=45, b=0),
+        height=360,
+        paper_bgcolor="white",
+        plot_bgcolor="white",
+    )
+    return fig
+
+
+def _load_model_preview(output_dir: Path) -> go.Figure:
+    idf_path = _latest_idf(output_dir)
+    if idf_path is None:
+        return _empty_model_preview()
+
+    try:
+        zones = parse_idf_geometry(idf_path)
+    except Exception as exc:
+        print(f"[viz] model preview error: {exc}", flush=True)
+        return _empty_model_preview("Could not render the generated IDF model.")
+
+    if not zones:
+        return _empty_model_preview("No BuildingSurface:Detailed geometry found.")
+
+    fig = go.Figure()
+    zone_names = sorted(zones)
+
+    for idx, zone_name in enumerate(zone_names):
+        zone_geom = zones[zone_name]
+        xs, ys, zs, ti, tj, tk = result_charts._build_zone_mesh(zone_geom)
+        if not xs:
+            continue
+
+        color = _PREVIEW_COLORS[idx % len(_PREVIEW_COLORS)]
+        hover_text = [
+            "<br>".join(
+                [
+                    f"<b>{zone_name}</b>",
+                    f"Surfaces: {len(zone_geom.surfaces)}",
+                    f"Source: {idf_path.name}",
+                ]
+            )
+        ] * len(xs)
+
+        fig.add_trace(
+            go.Mesh3d(
+                x=xs,
+                y=ys,
+                z=zs,
+                i=ti,
+                j=tj,
+                k=tk,
+                color=color,
+                opacity=0.58,
+                name=zone_name,
+                hoverinfo="text",
+                hovertext=hover_text,
+                flatshading=True,
+                lighting=dict(ambient=0.7, diffuse=0.55, specular=0.15),
+            )
+        )
+
+        edge_x: list[float | None] = []
+        edge_y: list[float | None] = []
+        edge_z: list[float | None] = []
+        for surface in zone_geom.surfaces:
+            verts = surface.vertices
+            if len(verts) < 2:
+                continue
+            for x, y, z in [*verts, verts[0]]:
+                edge_x.append(x)
+                edge_y.append(y)
+                edge_z.append(z)
+            edge_x.append(None)
+            edge_y.append(None)
+            edge_z.append(None)
+
+        if edge_x:
+            fig.add_trace(
+                go.Scatter3d(
+                    x=edge_x,
+                    y=edge_y,
+                    z=edge_z,
+                    mode="lines",
+                    line=dict(color="#111827", width=2),
+                    hoverinfo="skip",
+                    showlegend=False,
+                )
+            )
+
+        cx, cy, cz = zone_geom.centroid()
+        fig.add_trace(
+            go.Scatter3d(
+                x=[cx],
+                y=[cy],
+                z=[cz],
+                mode="text",
+                text=[zone_name.replace("Zone_", "")],
+                textfont=dict(size=10, color="#111827"),
+                hoverinfo="skip",
+                showlegend=False,
+            )
+        )
+
+    if not fig.data:
+        return _empty_model_preview("No renderable zone mesh found.")
+
+    fig.update_layout(
+        title=f"3D Model Preview - {idf_path.name}",
+        scene=dict(
+            xaxis_title="X (m)",
+            yaxis_title="Y (m)",
+            zaxis_title="Z (m)",
+            aspectmode="data",
+            camera=dict(eye=dict(x=1.7, y=-1.7, z=1.2)),
+        ),
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="right",
+            x=1,
+        ),
+        margin=dict(l=0, r=0, t=60, b=0),
+        height=360,
+        paper_bgcolor="white",
+        plot_bgcolor="white",
+    )
+    return fig
 
 
 History = list[dict]
