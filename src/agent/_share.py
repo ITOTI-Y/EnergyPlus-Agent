@@ -4,7 +4,14 @@ from typing import Final
 
 from src.validator import BaseSchema
 
-MAX_RETRIES: Final[int] = 0
+MAX_RETRIES: Final[int] = 2
+"""Max directed-rollback rounds the validate node will attempt before
+falling through to human-in-the-loop review.
+
+Two rounds gives the offending phase one shot to fix itself and one
+retry if its first attempt introduces a new cross-ref error. Beyond
+that, persistent errors usually indicate a spec-level problem better
+handled by a human (reject + revise in the validate interrupt)."""
 
 DEFAULT_OUTPUT_DIR: Final[Path] = Path("output")
 

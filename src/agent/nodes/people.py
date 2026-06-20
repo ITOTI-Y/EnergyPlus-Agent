@@ -46,7 +46,14 @@ def people_agent(state: AgentState) -> AgentStateUpdate:
     specs = (
         state.intake_output.people_specs if state.intake_output else state.user_input
     )
-    result = invoke_with_self_repair(agent, local, specs, phase="people", is_revision=state.is_revision)
+    result = invoke_with_self_repair(
+        agent,
+        local,
+        specs,
+        phase="people",
+        is_revision=state.is_revision,
+        validation_errors=state.validation_errors,
+    )
 
     final = [
         m for m in result["messages"] if isinstance(m, AIMessage) and not m.tool_calls
