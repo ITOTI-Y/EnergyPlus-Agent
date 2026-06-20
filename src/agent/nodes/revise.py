@@ -122,7 +122,15 @@ def revise_node(state: AgentState) -> AgentStateUpdate:
     The ``config_state`` is returned UNCHANGED — phase agents will operate on
     it and see existing objects. Only ``intake_output`` is refreshed with the
     new modification specs.
+
+    Note on seed-model recovery: LangGraph's input coercion at the graph
+    START strips ConfigState's PrivateAttr ``_idf`` (the loaded seed model)
+    before this node runs. The seed IDF is carried as a declared
+    ``seed_idf_text`` field on ConfigState (which survives coercion), and
+    ``recover_idf_from_seed()`` rebuilds ``_idf`` from it.
     """
+    state.config_state.recover_idf_from_seed()
+
     llm = create_llm().with_structured_output(
         IntakeOutput, method="function_calling", include_raw=True
     )

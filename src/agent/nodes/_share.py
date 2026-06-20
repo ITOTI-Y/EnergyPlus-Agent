@@ -14,7 +14,24 @@ from loguru import logger
 
 from src.agent._share import language_directive
 from src.agent.react import ReactState
+from src.agent.state import AgentState
 from src.mcp.state import ConfigState
+
+
+def clone_for_phase(state: AgentState) -> ConfigState:
+    """Clone the state's config_state for in-place phase mutation, ensuring
+    the seed model is present.
+
+    On revision turns, LangGraph's input coercion strips ConfigState's
+    PrivateAttr ``_idf`` at the graph START and at each checkpoint write.
+    The seed model survives as the declared ``seed_idf_text`` field, and
+    ``recover_idf_from_seed()`` rebuilds ``_idf`` from it. We clone AFTER
+    recovery so the clone carries the recovered IDF, and we also keep
+    seed_idf_text on the clone so subsequent recoveries work if the
+    clone's IDF is stripped again downstream.
+    """
+    state.config_state.recover_idf_from_seed()
+    return state.config_state.clone()
 
 MAX_SELF_REPAIR_ROUNDS: Final = 2
 """Max extra invokes per phase for cross-ref self-repair.

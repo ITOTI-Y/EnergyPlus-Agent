@@ -1,6 +1,7 @@
 from langchain_core.messages import AIMessage
 from langgraph.runtime import Runtime
 
+from src.agent.nodes._share import clone_for_phase
 from src.agent.state import AgentState, AgentStateUpdate, SimContext
 from src.mcp.state import ConfigState
 from src.mcp.tools.workflow import WorkflowTool
@@ -46,7 +47,7 @@ def simulate_node(state: AgentState, runtime: Runtime[SimContext]) -> AgentState
     """
     ctx = runtime.context
 
-    config = state.config_state.clone()
+    config = clone_for_phase(state)
     _ensure_default_output_variables(config)
 
     workflow = WorkflowTool(config)

@@ -35,14 +35,18 @@ class BaseSchema(BaseModel):
         extra="allow",  # 允许额外字段
     )
 
-    _idf: IDF | None = None
+    _global_idf: IDF | None = None
+    """Class-level global IDF used for IDD/schema lookups (set via
+    set_idf). Kept distinct from ConfigState's instance-level ``_idf``
+    PrivateAttr to avoid a name clash that breaks attribute resolution
+    under validate_assignment."""
 
     @classmethod
     def set_idf(cls, idf_path: Path | None = None) -> None:
         if idf_path:
-            cls._idf = IDF.load(idf_path)
+            cls._global_idf = IDF.load(idf_path)
         else:
-            cls._idf = IDF()
+            cls._global_idf = IDF()
 
     @staticmethod
     def _create_blank_idf() -> IDF:
@@ -76,11 +80,11 @@ class BaseSchema(BaseModel):
 
     @classmethod
     def get_idf(cls) -> IDF:
-        if cls._idf is None:
+        if cls._global_idf is None:
             raise ValueError(
                 "IDF is not set. Please set the IDF using BaseSchema.set_idf."
             )
-        return cls._idf
+        return cls._global_idf
 
 
 class BuildingSchema(BaseSchema):

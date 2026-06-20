@@ -1,7 +1,7 @@
 from langchain_core.messages import AIMessage, HumanMessage
 
 from src.agent.llm import create_llm
-from src.agent.nodes._share import apply_revision_prefix
+from src.agent.nodes._share import apply_revision_prefix, clone_for_phase
 from src.agent.react import ReactState, build_react_agent
 from src.agent.state import AgentState, AgentStateUpdate
 from src.agent.tools import make_zone_tools
@@ -23,7 +23,7 @@ Rules:
 
 
 def zone_agent(state: AgentState) -> AgentStateUpdate:
-    local = state.config_state.clone()
+    local = clone_for_phase(state)
     tools = make_zone_tools(local)
     collector = TraceCollector(phase="zone")
 

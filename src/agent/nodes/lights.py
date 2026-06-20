@@ -1,7 +1,7 @@
 from langchain_core.messages import AIMessage
 
 from src.agent.llm import create_llm
-from src.agent.nodes._share import invoke_with_self_repair
+from src.agent.nodes._share import clone_for_phase, invoke_with_self_repair
 from src.agent.react import build_react_agent
 from src.agent.state import AgentState, AgentStateUpdate
 from src.agent.tools import make_lights_tools
@@ -33,7 +33,7 @@ Rules:
 
 
 def lights_agent(state: AgentState) -> AgentStateUpdate:
-    local = state.config_state.clone()
+    local = clone_for_phase(state)
     tools = make_lights_tools(local)
     collector = TraceCollector(phase="lights")
 

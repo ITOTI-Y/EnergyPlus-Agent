@@ -129,6 +129,58 @@ def _merge_hvac(old: HVACSchema, new: HVACSchema) -> HVACSchema:
     )
 
 
+def _idf_has_objects(cs: ConfigState) -> bool:
+    """True if the ConfigState's backing IDF contains any typed objects.
+
+    The Pydantic legacy fields can be empty even when ``_idf`` holds the
+    real model (e.g. after ``load_idf``), so this is the reliable way to
+    tell whether *cs* actually carries a model.
+    """
+    idf = cs._idf
+    if idf is None:
+        return False
+    try:
+        return any(idf.all_of_type(t) for t in (
+            "Zone", "Material", "Material:NoMass", "Material:AirGap",
+            "WindowMaterial:SimpleGlazingSystem", "Construction",
+            "BuildingSurface:Detailed", "FenestrationSurface:Detailed",
+            "Schedule:Compact", "ScheduleTypeLimits",
+            "HVACTemplate:Thermostat", "HVACTemplate:Zone:IdealLoadsAirSystem",
+            "People", "Lights",
+        ))
+    except Exception:
+        return False
+
+
+def _merge_idf(old: ConfigState, new: ConfigState) -> Any:
+    """Merge two ConfigStates' backing IDFs by object name (new wins).
+
+    Returns a fresh idfpy IDF whose objects are the name-keyed union of
+    ``old._idf`` and ``new._idf``. Used by :func:`merge_config_state` so
+    that the IDF — the real source of truth, especially on revision
+    turns where the model was loaded from a saved file — survives the
+    parallel-node merge instead of being reset to an empty IDF by
+    ``model_post_init``.
+
+    Returns ``None`` if neither side has an IDF (falls back to the
+    default empty IDF created by ConfigState's constructor).
+    """
+    from idfpy import IDF
+
+    old_d = old._idf.to_dict() if _idf_has_objects(old) else {}
+    new_d = new._idf.to_dict() if _idf_has_objects(new) else {}
+    if not old_d and not new_d:
+        return None
+
+    merged: dict[str, dict] = {}
+    for obj_type in set(old_d) | set(new_d):
+        # Each value is {name: fields}; new wins on name conflict.
+        bucket = dict(old_d.get(obj_type, {}))
+        bucket.update(new_d.get(obj_type, {}))
+        merged[obj_type] = bucket
+    return IDF.from_dict(merged)
+
+
 _NAMED_LIST_FIELDS: Final = (
     "zones",
     "materials",
@@ -160,6 +212,14 @@ def merge_config_state(old: ConfigState, new: ConfigState) -> ConfigState:
     1. Named list fields -> union by identity key; new wins on conflict
     2. Nested containers (schedules, hvac) -> recursive merge
     3. Singleton objects -> non-default wins, new preferred
+
+    IDF merge: the backing idfpy IDF is the authoritative store,
+    especially on revision turns where the model was loaded from a
+    previously-saved IDF (the Pydantic legacy fields stay empty in that
+    case). We union the two IDFs by object name (new wins) and install
+    the result as the merged ConfigState's ``_idf`` — otherwise
+    ``model_validate`` would reset it to an empty IDF via
+    ``model_post_init``, silently dropping the entire model.
     """
     data: dict[str, Any] = {}
 
@@ -176,7 +236,46 @@ def merge_config_state(old: ConfigState, new: ConfigState) -> ConfigState:
         old_val = getattr(old, field_name)
         data[field_name] = new_val if not _is_default(new_val, field_name) else old_val
 
-    return ConfigState.model_validate(data)
+    merged = ConfigState.model_validate(data)
+
+    # Install the unioned IDF as the source of truth. This MUST happen
+    # after model_validate (which would otherwise clobber _idf with a
+    # fresh empty IDF via model_post_init).
+    merged_idf = _merge_idf(old, new)
+    if merged_idf is not None:
+        # Assign via the PrivateAttr dict: BaseSchema's validate_assignment
+        # + class-level _idf annotation silently break a plain assignment,
+        # and object.__setattr__ would break pickling.
+        merged._set_idf_private(merged_idf)
+    elif not merged._has_idf_objects():
+        # Fallback: if neither side carried IDF objects (e.g. revision
+        # turn where START-coercion stripped _idf), rebuild from the
+        # seed_idf_text that survived as a declared field. This is the
+        # authoritative recovery path for revision-turn seed models.
+        seed_text = new.seed_idf_text or old.seed_idf_text
+        if seed_text:
+            merged._set_idf_private(_idf_from_text(seed_text))
+            # Propagate so downstream merges keep recovering until a
+            # phase node populates _idf with real objects.
+            merged.seed_idf_text = seed_text
+
+    return merged
+
+
+def _idf_from_text(idf_text: str) -> Any:
+    """Rebuild an idfpy IDF from saved IDF text (used by merge_config_state
+    to recover the seed model on revision turns)."""
+    from idfpy import IDF
+
+    import tempfile
+
+    with tempfile.NamedTemporaryFile(
+        mode="w", suffix=".idf", delete=False
+    ) as tf:
+        tf.write(idf_text)
+        loaded = IDF.load(Path(tf.name))
+        Path(tf.name).unlink()
+        return IDF.from_dict(loaded.to_dict())
 
 
 class AgentState(BaseModel):
