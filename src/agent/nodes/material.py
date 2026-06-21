@@ -64,6 +64,5 @@ def material_agent(state: AgentState) -> AgentStateUpdate:
     record_phase_trace("material", collector.export())
     return AgentStateUpdate(
         config_state=local,
-        upstream_request=None,  # consume the back-hop request
         messages=[AIMessage(content=f"[material] {summary}")],
     )

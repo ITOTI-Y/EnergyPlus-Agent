@@ -57,6 +57,5 @@ def zone_agent(state: AgentState) -> AgentStateUpdate:
 
     return AgentStateUpdate(
         config_state=local,
-        upstream_request=None,  # consume the back-hop request
         messages=[AIMessage(content=f"[zone] {summary}")],
     )

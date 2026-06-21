@@ -74,6 +74,20 @@ class SimContext:
     output_dir: Path = DEFAULT_OUTPUT_DIR
 
 
+def _merge_upstream_request(old: dict | None, new: dict | None) -> dict | None:
+    """Reducer for ``upstream_request``: a non-None back-hop request wins.
+
+    Parallel branches (zone/material/schedule in phase 1, hvac/people/lights
+    in phase 3) all return state updates simultaneously, so LangGraph needs a
+    reducer to merge them. Semantics: a real back-hop request (non-None)
+    always takes precedence — only one branch ever carries one per step, the
+    others return None. If every branch returns None (no hop), the result is
+    None. This also makes the field safe to explicitly set to None by a
+    target phase to clear a consumed request.
+    """
+    return new if new is not None else old
+
+
 def _get_identity(item: Any) -> str:
     """Return the unique identity key for a schema item.
 
@@ -304,14 +318,15 @@ class AgentState(BaseModel):
     config_state (loaded from a previous IDF) rather than rebuild from
     scratch. Drives the revise_node entry and phase-agent prompt prefixes."""
 
-    upstream_request: dict | None = None
+    upstream_request: Annotated[dict | None, _merge_upstream_request] = None
     """Back-hop request set by a phase node when it detects that a needed
     upstream object does not exist (e.g. fenestration needs a window
     construction that was never created). Shape:
     ``{"target": <phase name>, "specs": <instruction string>}``. The target
-    phase reads and clears this. ``None`` = no back-hop pending."""
+    phase reads and clears this. ``None`` = no back-hop pending. Uses a
+    custom reducer so parallel branches can each return the field safely."""
 
-    hop_count: int = 0
+    hop_count: Annotated[int, lambda o, n: max(o, n)] = 0
     """Back-hop counter to prevent infinite A->B->A loops. Incremented on
     each ``Command(goto=<earlier phase>)`` back-hop; phase nodes refuse to
     hop once it reaches HOP_LIMIT."""
