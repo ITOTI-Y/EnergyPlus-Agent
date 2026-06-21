@@ -64,7 +64,7 @@ def make_construction_tools(config: ConfigState) -> list[BaseTool]:
         if missing:
             return _err(
                 f"Materials not found: {missing}. Create them first.",
-                {"missing": missing},
+                {"missing": missing, "missing_ref": "Material", "missing_name": missing[0]},
             )
         try:
             kwargs: dict = {"name": name}
@@ -109,7 +109,10 @@ def make_construction_tools(config: ConfigState) -> list[BaseTool]:
             return _err("Construction must have 1-10 layers.")
         missing = [lyr for lyr in layers if not _material_exists(idf, lyr)]
         if missing:
-            return _err(f"Materials not found: {missing}.", {"missing": missing})
+            return _err(
+                f"Materials not found: {missing}.",
+                {"missing": missing, "missing_ref": "Material", "missing_name": missing[0]},
+            )
         try:
             # Clear existing layers then set new ones
             for lf in _LAYER_FIELDS:

@@ -58,6 +58,16 @@ def make_surface_tools(config: ConfigState) -> list[BaseTool]:
         """
         if idf.has("BuildingSurface:Detailed", name):
             return _err(f"Surface '{name}' already exists.")
+        if not idf.has("Construction", construction_name):
+            return _err(
+                f"Construction '{construction_name}' not found. Create it in the construction phase first.",
+                {"missing_ref": "Construction", "missing_name": construction_name},
+            )
+        if not idf.has("Zone", zone_name):
+            return _err(
+                f"Zone '{zone_name}' not found.",
+                {"missing_ref": "Zone", "missing_name": zone_name},
+            )
         try:
             vertex_items = [
                 BuildingSurfaceDetailedVerticesItem(
@@ -132,6 +142,16 @@ def make_surface_tools(config: ConfigState) -> list[BaseTool]:
         obj = idf.get("BuildingSurface:Detailed", name)
         if obj is None:
             return _err(f"Surface '{name}' not found.")
+        if construction_name is not None and not idf.has("Construction", construction_name):
+            return _err(
+                f"Construction '{construction_name}' not found.",
+                {"missing_ref": "Construction", "missing_name": construction_name},
+            )
+        if zone_name is not None and not idf.has("Zone", zone_name):
+            return _err(
+                f"Zone '{zone_name}' not found.",
+                {"missing_ref": "Zone", "missing_name": zone_name},
+            )
         try:
             if construction_name is not None:
                 obj.construction_name = construction_name

@@ -43,6 +43,10 @@ def material_agent(state: AgentState) -> AgentStateUpdate:
     specs = (
         state.intake_output.material_specs if state.intake_output else state.user_input
     )
+    # If reached via a back-hop from construction (needed a material), append.
+    upstream = state.upstream_request
+    if upstream and upstream.get("target") == "material":
+        specs = f"{specs}\n\n{upstream['specs']}"
     result = invoke_with_self_repair(
         agent,
         local,
@@ -60,5 +64,6 @@ def material_agent(state: AgentState) -> AgentStateUpdate:
     record_phase_trace("material", collector.export())
     return AgentStateUpdate(
         config_state=local,
+        upstream_request=None,  # consume the back-hop request
         messages=[AIMessage(content=f"[material] {summary}")],
     )

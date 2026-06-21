@@ -304,6 +304,18 @@ class AgentState(BaseModel):
     config_state (loaded from a previous IDF) rather than rebuild from
     scratch. Drives the revise_node entry and phase-agent prompt prefixes."""
 
+    upstream_request: dict | None = None
+    """Back-hop request set by a phase node when it detects that a needed
+    upstream object does not exist (e.g. fenestration needs a window
+    construction that was never created). Shape:
+    ``{"target": <phase name>, "specs": <instruction string>}``. The target
+    phase reads and clears this. ``None`` = no back-hop pending."""
+
+    hop_count: int = 0
+    """Back-hop counter to prevent infinite A->B->A loops. Incremented on
+    each ``Command(goto=<earlier phase>)`` back-hop; phase nodes refuse to
+    hop once it reaches HOP_LIMIT."""
+
 
 class AgentStateUpdate(TypedDict, total=False):
     """Partial update returned by graph nodes."""
@@ -316,3 +328,5 @@ class AgentStateUpdate(TypedDict, total=False):
     validation_errors: list[str]
     retry_count: int
     is_revision: bool
+    upstream_request: dict | None
+    hop_count: int

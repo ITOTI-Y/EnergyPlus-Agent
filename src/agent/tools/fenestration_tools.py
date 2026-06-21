@@ -51,6 +51,16 @@ def make_fenestration_tools(config: ConfigState) -> list[BaseTool]:
         """
         if idf.has("FenestrationSurface:Detailed", name):
             return _err(f"Fenestration '{name}' already exists.")
+        if not idf.has("Construction", construction_name):
+            return _err(
+                f"Construction '{construction_name}' not found. Create it in the construction phase first.",
+                {"missing_ref": "Construction", "missing_name": construction_name},
+            )
+        if not idf.has("BuildingSurface:Detailed", building_surface_name):
+            return _err(
+                f"Parent surface '{building_surface_name}' not found.",
+                {"missing_ref": "BuildingSurface:Detailed", "missing_name": building_surface_name},
+            )
         try:
             kwargs: dict = {
                 "name": name,
@@ -116,6 +126,16 @@ def make_fenestration_tools(config: ConfigState) -> list[BaseTool]:
         obj = idf.get("FenestrationSurface:Detailed", name)
         if obj is None:
             return _err(f"Fenestration '{name}' not found.")
+        if construction_name is not None and not idf.has("Construction", construction_name):
+            return _err(
+                f"Construction '{construction_name}' not found.",
+                {"missing_ref": "Construction", "missing_name": construction_name},
+            )
+        if building_surface_name is not None and not idf.has("BuildingSurface:Detailed", building_surface_name):
+            return _err(
+                f"Parent surface '{building_surface_name}' not found.",
+                {"missing_ref": "BuildingSurface:Detailed", "missing_name": building_surface_name},
+            )
         try:
             if construction_name is not None:
                 obj.construction_name = construction_name

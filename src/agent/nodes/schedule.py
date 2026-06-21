@@ -126,6 +126,10 @@ def schedule_agent(state: AgentState) -> AgentStateUpdate:
         )
     else:
         specs = state.user_input
+    # If reached via a back-hop (downstream needed a schedule), append.
+    upstream = state.upstream_request
+    if upstream and upstream.get("target") == "schedule":
+        specs = f"{specs}\n\n{upstream['specs']}"
     result = invoke_with_self_repair(
         agent,
         local,
@@ -143,5 +147,6 @@ def schedule_agent(state: AgentState) -> AgentStateUpdate:
     record_phase_trace("schedule", collector.export())
     return AgentStateUpdate(
         config_state=local,
+        upstream_request=None,  # consume the back-hop request
         messages=[AIMessage(content=f"[schedule] {summary}")],
     )

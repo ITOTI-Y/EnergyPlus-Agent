@@ -35,6 +35,10 @@ def zone_agent(state: AgentState) -> AgentStateUpdate:
     )
 
     specs = state.intake_output.zone_specs if state.intake_output else state.user_input
+    # If reached via a back-hop from surface (needed a zone), append.
+    upstream = state.upstream_request
+    if upstream and upstream.get("target") == "zone":
+        specs = f"{specs}\n\n{upstream['specs']}"
     result = invoke_with_self_repair(
         agent,
         local,
@@ -53,5 +57,6 @@ def zone_agent(state: AgentState) -> AgentStateUpdate:
 
     return AgentStateUpdate(
         config_state=local,
+        upstream_request=None,  # consume the back-hop request
         messages=[AIMessage(content=f"[zone] {summary}")],
     )
