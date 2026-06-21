@@ -1,8 +1,8 @@
-from langchain_core.messages import AIMessage, HumanMessage
+from langchain_core.messages import AIMessage
 
 from src.agent.llm import create_llm
-from src.agent.nodes._share import apply_revision_prefix, clone_for_phase
-from src.agent.react import ReactState, build_react_agent
+from src.agent.nodes._share import clone_for_phase, invoke_with_self_repair
+from src.agent.react import build_react_agent
 from src.agent.state import AgentState, AgentStateUpdate
 from src.agent.tools import make_zone_tools
 from src.agent.trace import TraceCollector, record_phase_trace
@@ -35,8 +35,14 @@ def zone_agent(state: AgentState) -> AgentStateUpdate:
     )
 
     specs = state.intake_output.zone_specs if state.intake_output else state.user_input
-    specs = apply_revision_prefix(specs, state.is_revision)
-    result = agent.invoke(ReactState(messages=[HumanMessage(content=specs)]))
+    result = invoke_with_self_repair(
+        agent,
+        local,
+        specs,
+        phase="zone",
+        is_revision=state.is_revision,
+        validation_errors=state.validation_errors,
+    )
 
     final = [
         m for m in result["messages"] if isinstance(m, AIMessage) and not m.tool_calls
