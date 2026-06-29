@@ -10,7 +10,7 @@ from langgraph.graph.message import add_messages
 from pydantic import BaseModel, Field
 from typing_extensions import TypedDict
 
-from src.agent._share import DEFAULT_OUTPUT_DIR, MAX_RETRIES
+from src.agent._share import DEFAULT_OUTPUT_DIR, MAX_RETRIES, MAX_SIM_RETRIES
 from src.mcp.state import ConfigState
 from src.validator import (
     BuildingSchema,
@@ -313,6 +313,19 @@ class AgentState(BaseModel):
     retry_count: int = 0
     max_retries: int = MAX_RETRIES
 
+    # --- EnergyPlus simulation failure -> revise rollback loop ---
+    # Independent from retry_count (which gates validate's cross-ref
+    # rollback) so the two loops don't starve each other's budget.
+    simulation_errors: list[str] = Field(default_factory=list)
+    """Fatal/Severe error lines from eplusout.err of the last simulate run.
+    Populated by simulate_node on failure; consumed (and cleared) by
+    revise_node so the LLM gets concrete error text to fix."""
+    sim_retry_count: int = 0
+    """How many times simulate has rolled back to revise for a sim failure."""
+    max_sim_retries: int = MAX_SIM_RETRIES
+    """Cap on simulate->revise rollback rounds. Once exhausted, simulate
+    lets the run fall through to analyze (the test harness records failure)."""
+
     is_revision: bool = False
     """True for multi-turn model edits: the agent should modify the existing
     config_state (loaded from a previous IDF) rather than rebuild from
@@ -342,6 +355,8 @@ class AgentStateUpdate(TypedDict, total=False):
     intake_output: IntakeOutput | None
     validation_errors: list[str]
     retry_count: int
+    simulation_errors: list[str]
+    sim_retry_count: int
     is_revision: bool
     upstream_request: dict | None
     hop_count: int
