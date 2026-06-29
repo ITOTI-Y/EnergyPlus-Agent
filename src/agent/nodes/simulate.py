@@ -92,10 +92,13 @@ def simulate_node(
 
     if sim_failed and state.sim_retry_count < state.max_sim_retries:
         # Roll back to revise with the concrete error text so the LLM can
-        # fix the model. Errors are pushed into BOTH simulation_errors
-        # (read by revise_node) and validation_errors (read by downstream
-        # phase agents via invoke_with_self_repair -> inject_validation_errors,
-        # so the offending phase e.g. fenestration sees the fix instruction).
+        # fix the model. The error text goes ONLY into simulation_errors
+        # (read by revise_node, which injects it into the *_specs prompt so
+        # downstream phase agents see the fix instruction). We deliberately
+        # do NOT also write validation_errors here: validation_errors has no
+        # reducer, and the parallel phase-1 nodes (zone/material/schedule)
+        # each write it too, which triggers LangGraph's
+        # InvalidUpdateError ("Can receive only one value per step").
         error_block = format_errors_for_llm(err_info)
         if not response.success and response.message:
             error_block = (error_block + "\n" if error_block else "") + response.message
@@ -106,7 +109,6 @@ def simulate_node(
             goto="revise",
             update={
                 "simulation_errors": errors_for_phase,
-                "validation_errors": errors_for_phase,
                 "sim_retry_count": state.sim_retry_count + 1,
                 "is_revision": True,
                 "messages": clear_messages,

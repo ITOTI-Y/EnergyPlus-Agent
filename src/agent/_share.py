@@ -13,12 +13,16 @@ retry if its first attempt introduces a new cross-ref error. Beyond
 that, persistent errors usually indicate a spec-level problem better
 handled by a human (reject + revise in the validate interrupt)."""
 
-MAX_SIM_RETRIES: Final[int] = 2
+MAX_SIM_RETRIES: Final[int] = 10
 """Max simulate->revise rollback rounds when an EnergyPlus run fails with
 Fatal/Severe errors. Independent from MAX_RETRIES (which gates validate's
 cross-ref rollback) so the two loops don't starve each other's budget.
 Once exhausted, simulate lets the run fall through to analyze and the
-failure is recorded by the test harness."""
+failure is recorded by the test harness.
+
+Note: 10 rounds means up to 11 simulate runs per case in the worst case —
+on large buildings this can take a very long time (each round is a full
+rebuild + EnergyPlus run). Tune down for faster smoke tests."""
 
 DEFAULT_OUTPUT_DIR: Final[Path] = Path("output")
 
