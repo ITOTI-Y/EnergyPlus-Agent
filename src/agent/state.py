@@ -88,6 +88,21 @@ def _merge_upstream_request(old: dict | None, new: dict | None) -> dict | None:
     return new if new is not None else old
 
 
+def _overwrite_list(old: list[str] | None, new: list[str] | None) -> list[str]:
+    """Last-write-wins reducer for full-snapshot list fields.
+
+    ``validation_errors`` and ``simulation_errors`` are always written as a
+    COMPLETE freshly-recomputed snapshot (e.g. ``validate_references()`` reruns
+    the whole cross-ref check every time), never as an incremental delta. So
+    any new value — even an empty list, which legitimately means "no errors" —
+    supersedes the previous snapshot. Without this reducer, LangGraph's
+    default ``last_value`` channel raises ``InvalidUpdateError`` when parallel
+    branches (phase-3 hvac/people/lights, or simulate+revise) each return one
+    of these fields in the same superstep, crashing the graph.
+    """
+    return new if new is not None else (old or [])
+
+
 def _get_identity(item: Any) -> str:
     """Return the unique identity key for a schema item.
 
@@ -309,14 +324,18 @@ class AgentState(BaseModel):
     )
     intake_output: IntakeOutput | None = None
 
-    validation_errors: list[str] = Field(default_factory=list)
+    validation_errors: Annotated[list[str], _overwrite_list] = Field(
+        default_factory=list
+    )
     retry_count: int = 0
     max_retries: int = MAX_RETRIES
 
     # --- EnergyPlus simulation failure -> revise rollback loop ---
     # Independent from retry_count (which gates validate's cross-ref
     # rollback) so the two loops don't starve each other's budget.
-    simulation_errors: list[str] = Field(default_factory=list)
+    simulation_errors: Annotated[list[str], _overwrite_list] = Field(
+        default_factory=list
+    )
     """Fatal/Severe error lines from eplusout.err of the last simulate run.
     Populated by simulate_node on failure; consumed (and cleared) by
     revise_node so the LLM gets concrete error text to fix."""
