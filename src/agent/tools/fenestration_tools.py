@@ -73,6 +73,42 @@ def _max_distance_to_plane(
     return worst
 
 
+# Fenestration surface_types that MUST be backed by a glazing (window)
+# construction — i.e. one whose layer list contains a WindowMaterial. A
+# plain Door is the only opaque-allowed type; Window / GlassDoor /
+# TubularDaylight* all need glass. EnergyPlus aborts with a Severe error
+# ("has an opaque surface construction; it should have a window
+# construction") if this is violated, so we catch it at tool-call time
+# and back-hop to material to create the missing WindowMaterial.
+_GLAZING_SURFACE_TYPES = frozenset(
+    {"Window", "GlassDoor", "TubularDaylightDiffuser", "TubularDaylightDome"}
+)
+
+# Construction layer fields, mirroring construction_tools._LAYER_FIELDS.
+_CONSTRUCTION_LAYER_FIELDS = (
+    "outside_layer",
+    "layer_2", "layer_3", "layer_4", "layer_5",
+    "layer_6", "layer_7", "layer_8", "layer_9", "layer_10",
+)
+
+
+def _is_glazing_construction(idf, construction_name: str) -> bool:
+    """True if *construction_name* has at least one WindowMaterial layer.
+
+    EnergyPlus classifies a construction as a "window construction" when any
+    of its layers is a WindowMaterial:* object (here, the only window
+    material variant the agent creates is WindowMaterial:SimpleGlazingSystem).
+    """
+    const = idf.get("Construction", construction_name)
+    if const is None:
+        return False
+    for field in _CONSTRUCTION_LAYER_FIELDS:
+        layer = getattr(const, field, None)
+        if layer and idf.has("WindowMaterial:SimpleGlazingSystem", layer):
+            return True
+    return False
+
+
 def _wall_vertices(wall_obj) -> list[tuple[float, float, float]]:
     """Extract (x, y, z) tuples from a BuildingSurface:Detailed object.
 
@@ -218,6 +254,23 @@ def make_fenestration_tools(config: ConfigState) -> list[BaseTool]:
                 f"Construction '{construction_name}' not found. Create it in the construction phase first.",
                 {"missing_ref": "Construction", "missing_name": construction_name},
             )
+        # A window/glass-door/skylight MUST reference a glazing construction
+        # (one whose layers include a WindowMaterial). An opaque construction
+        # makes EnergyPlus abort with "has an opaque surface construction;
+        # it should have a window construction". Back-hop to material so it
+        # creates the WindowMaterial:SimpleGlazingSystem, after which
+        # construction can rebuild the window construction with it.
+        if surface_type in _GLAZING_SURFACE_TYPES and not _is_glazing_construction(idf, construction_name):
+            return _err(
+                f"Construction '{construction_name}' is opaque (no WindowMaterial "
+                f"layer) and cannot be used for {surface_type} '{name}'. "
+                f"Create a WindowMaterial:SimpleGlazingSystem glazing material "
+                f"and rebuild the construction to use it.",
+                {
+                    "missing_ref": "WindowMaterial:SimpleGlazingSystem",
+                    "missing_name": construction_name,
+                },
+            )
         if not idf.has("BuildingSurface:Detailed", building_surface_name):
             return _err(
                 f"Parent surface '{building_surface_name}' not found.",
@@ -312,6 +365,32 @@ def make_fenestration_tools(config: ConfigState) -> list[BaseTool]:
             return _err(
                 f"Construction '{construction_name}' not found.",
                 {"missing_ref": "Construction", "missing_name": construction_name},
+            )
+        # Glazing-construction check (mirrors create_fenestration). Uses the
+        # EFFECTIVE surface_type (new value if provided, else the object's
+        # existing one) and the EFFECTIVE construction (new if provided, else
+        # the object's existing one) so reparenting a window onto a new
+        # construction is validated the same way as a fresh create.
+        if construction_name is not None:
+            effective_type = surface_type or obj.surface_type
+            effective_const = construction_name
+        else:
+            effective_type = surface_type or obj.surface_type
+            effective_const = obj.construction_name
+        if (
+            effective_type in _GLAZING_SURFACE_TYPES
+            and effective_const
+            and not _is_glazing_construction(idf, effective_const)
+        ):
+            return _err(
+                f"Construction '{effective_const}' is opaque (no WindowMaterial "
+                f"layer) and cannot be used for {effective_type} '{name}'. "
+                f"Create a WindowMaterial:SimpleGlazingSystem glazing material "
+                f"and rebuild the construction to use it.",
+                {
+                    "missing_ref": "WindowMaterial:SimpleGlazingSystem",
+                    "missing_name": effective_const,
+                },
             )
         if building_surface_name is not None and not idf.has("BuildingSurface:Detailed", building_surface_name):
             return _err(

@@ -44,10 +44,17 @@ Rules:
   in the list_surfaces / list_constructions results.
 - If a needed surface or construction is missing after list, STOP and
   report; do NOT invent names.
-- construction_name should be a Glazing construction for windows/skylights.
-- >= 3 vertices, counter-clockwise from OUTSIDE, and MUST lie on the
-  parent surface's plane (coplanar — share one coordinate for walls).
+- For Window / GlassDoor / TubularDaylight* the construction MUST be a
+  glazing construction — one whose layers include a
+  WindowMaterial:SimpleGlazingSystem. An opaque construction (only
+  Material / Material:NoMass layers) is invalid for windows and will be
+  rejected. If the only window construction available is opaque, STOP and
+  report — do not create the fenestration against it; the material phase
+  must first create a WindowMaterial and construction must rebuild it.
 - surface_type is Window, Door, or GlassDoor.
+- >= 3 vertices and MUST lie on the parent surface's plane (coplanar —
+  share one coordinate for walls). Winding direction does not matter —
+  the tool auto-aligns the window's outward normal to the parent wall's.
 - Typical window-to-wall ratio: 0.3-0.4 on facade walls; derive vertex
   coordinates from the parent wall's corners and the WWR.
 - Naming: '{parent_surface}_Window' or '{zone}_{direction}_Window_{index}'.

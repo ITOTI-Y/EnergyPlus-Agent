@@ -572,9 +572,38 @@ class ConfigState(BaseSchema):
                 "WindowMaterial:SimpleGlazingSystem",
             )
         }
+        # Glazing (window) material names only. EnergyPlus treats a
+        # construction as a "window construction" iff at least one of its
+        # layers is a WindowMaterial:* object — here SimpleGlazingSystem is
+        # the only variant the agent creates. Used to flag fenestrations
+        # (Window / GlassDoor / TubularDaylight*) whose construction is
+        # opaque, which makes EnergyPlus abort with "has an opaque surface
+        # construction; it should have a window construction".
+        glazing_material_names = {
+            getattr(obj, "name", "")
+            for obj in _idf_values(self.idf, "WindowMaterial:SimpleGlazingSystem")
+        }
+        # Construction layer fields (outside_layer + layer_2..layer_10).
+        # Defined once here so both the glazing-construction computation and
+        # the dangling-material check below share it.
+        layer_fields = [
+            "outside_layer",
+            "layer_2", "layer_3", "layer_4", "layer_5",
+            "layer_6", "layer_7", "layer_8", "layer_9", "layer_10",
+        ]
         construction_names = {
             getattr(obj, "name", "") for obj in _idf_values(self.idf, "Construction")
         }
+        # Constructions that qualify as "window constructions" — at least one
+        # layer points at a WindowMaterial:SimpleGlazingSystem. Computed once
+        # here so the fenestration check below is O(1) per surface.
+        glazing_construction_names: set[str] = set()
+        for const in _idf_values(self.idf, "Construction"):
+            for lf in layer_fields:
+                layer = getattr(const, lf, None)
+                if layer and layer in glazing_material_names:
+                    glazing_construction_names.add(const.name)
+                    break
         surface_names = {
             getattr(obj, "name", "")
             for obj in _idf_values(self.idf, "BuildingSurface:Detailed")
@@ -589,18 +618,6 @@ class ConfigState(BaseSchema):
             for obj in _idf_values(self.idf, "HVACTemplate:Thermostat")
         }
 
-        layer_fields = [
-            "outside_layer",
-            "layer_2",
-            "layer_3",
-            "layer_4",
-            "layer_5",
-            "layer_6",
-            "layer_7",
-            "layer_8",
-            "layer_9",
-            "layer_10",
-        ]
         for const in _idf_values(self.idf, "Construction"):
             for field in layer_fields:
                 layer = getattr(const, field, None)
@@ -619,10 +636,31 @@ class ConfigState(BaseSchema):
                     f"Surface '{surface.name}' references zone '{surface.zone_name}' which does not exist."
                 )
 
+        # Fenestration surface_types that EnergyPlus requires to be backed by
+        # a window (glazing) construction. A plain Door is the only type that
+        # may use an opaque construction.
+        _glazing_surface_types = {
+            "Window", "GlassDoor", "TubularDaylightDiffuser", "TubularDaylightDome",
+        }
         for fen in _idf_values(self.idf, "FenestrationSurface:Detailed"):
             if fen.construction_name not in construction_names:
                 errors.append(
                     f"Fenestration '{fen.name}' references construction '{fen.construction_name}' which does not exist."
+                )
+            elif (
+                fen.surface_type in _glazing_surface_types
+                and fen.construction_name not in glazing_construction_names
+            ):
+                # EnergyPlus aborts: "FenestrationSurface:Detailed has an
+                # opaque surface construction; it should have a window
+                # construction". The construction owns the layer composition,
+                # so this is routed at construction via _ERROR_PATTERNS.
+                errors.append(
+                    f"Construction '{fen.construction_name}' is referenced by "
+                    f"fenestration '{fen.name}' ({fen.surface_type}) but has no "
+                    f"WindowMaterial layer — it is opaque. Rebuild this "
+                    f"construction to use a WindowMaterial:SimpleGlazingSystem "
+                    f"glazing layer."
                 )
             if fen.building_surface_name not in surface_names:
                 errors.append(
