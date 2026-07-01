@@ -539,7 +539,9 @@ class ConfigState(BaseSchema):
                     "WindowMaterial:SimpleGlazingSystem",
                 )
             ),
-            constructions_count=len(_idf_values(self.idf, "Construction")),
+            constructions_count=len(
+                _idf_values(self.idf, "Construction", "Construction:AirBoundary")
+            ),
             surfaces_count=len(_idf_values(self.idf, "BuildingSurface:Detailed")),
             fenestrations_count=len(
                 _idf_values(self.idf, "FenestrationSurface:Detailed")
@@ -592,7 +594,8 @@ class ConfigState(BaseSchema):
             "layer_6", "layer_7", "layer_8", "layer_9", "layer_10",
         ]
         construction_names = {
-            getattr(obj, "name", "") for obj in _idf_values(self.idf, "Construction")
+            getattr(obj, "name", "")
+            for obj in _idf_values(self.idf, "Construction", "Construction:AirBoundary")
         }
         # Constructions that qualify as "window constructions" — at least one
         # layer points at a WindowMaterial:SimpleGlazingSystem. Computed once
@@ -664,6 +667,11 @@ class ConfigState(BaseSchema):
             elif (
                 fen.surface_type in _glazing_surface_types
                 and fen.construction_name not in glazing_construction_names
+                # An AirBoundary construction is the legitimate construction
+                # for interior windows/glass-doors (open-air passage between
+                # zones); it has no WindowMaterial, so the glazing check must
+                # NOT flag it. The dedicated interzone check below governs it.
+                and fen.construction_name not in airboundary_construction_names
             ):
                 # EnergyPlus aborts: "FenestrationSurface:Detailed has an
                 # opaque surface construction; it should have a window
@@ -690,13 +698,14 @@ class ConfigState(BaseSchema):
                 # Outside Boundary Condition Object blank, which EnergyPlus
                 # rejects ("invalid blank Outside Boundary Condition Object").
                 # The fix is to model the interior door/window with a
-                # Construction:AirBoundary. Routed to fenestration (which owns
-                # the construction_name pointer); construction may need to
-                # create the AirBoundary first via a back-hop.
+                # Construction:AirBoundary. Routed to construction (which owns
+                # construction creation — only it can build the AirBoundary);
+                # the error string starts with "Construction '" so _ERROR_PATTERNS
+                # matches the ("Construction '", "construction") rule.
                 errors.append(
-                    f"Fenestration '{fen.name}' is on interior wall "
-                    f"'{fen.building_surface_name}' (Surface boundary) but uses "
-                    f"construction '{fen.construction_name}' which is not a "
+                    f"Construction '{fen.construction_name}' used by fenestration "
+                    f"'{fen.name}' on interior wall "
+                    f"'{fen.building_surface_name}' (Surface boundary) is not a "
                     f"Construction:AirBoundary. Interior subsurfaces must use "
                     f"a Construction:AirBoundary (open-air) construction."
                 )

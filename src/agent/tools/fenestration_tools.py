@@ -289,7 +289,15 @@ def make_fenestration_tools(config: ConfigState) -> list[BaseTool]:
         # it should have a window construction". Back-hop to material so it
         # creates the WindowMaterial:SimpleGlazingSystem, after which
         # construction can rebuild the window construction with it.
-        if surface_type in _GLAZING_SURFACE_TYPES and not _is_glazing_construction(idf, construction_name):
+        # EXCEPTION: an AirBoundary construction is the legitimate choice for
+        # INTERIOR windows/glass-doors (open-air passage between zones); it
+        # has no WindowMaterial and must NOT be flagged here. The dedicated
+        # interzone check below governs AirBoundary usage.
+        if (
+            surface_type in _GLAZING_SURFACE_TYPES
+            and not _is_glazing_construction(idf, construction_name)
+            and not _is_airboundary_construction(idf, construction_name)
+        ):
             return _err(
                 f"Construction '{construction_name}' is opaque (no WindowMaterial "
                 f"layer) and cannot be used for {surface_type} '{name}'. "
@@ -420,7 +428,9 @@ def make_fenestration_tools(config: ConfigState) -> list[BaseTool]:
         # EFFECTIVE surface_type (new value if provided, else the object's
         # existing one) and the EFFECTIVE construction (new if provided, else
         # the object's existing one) so reparenting a window onto a new
-        # construction is validated the same way as a fresh create.
+        # construction is validated the same way as a fresh create. An
+        # AirBoundary construction is exempt (it is the valid choice for an
+        # interior window/glass-door — see create_fenestration for rationale).
         if construction_name is not None:
             effective_type = surface_type or obj.surface_type
             effective_const = construction_name
@@ -431,6 +441,7 @@ def make_fenestration_tools(config: ConfigState) -> list[BaseTool]:
             effective_type in _GLAZING_SURFACE_TYPES
             and effective_const
             and not _is_glazing_construction(idf, effective_const)
+            and not _is_airboundary_construction(idf, effective_const)
         ):
             return _err(
                 f"Construction '{effective_const}' is opaque (no WindowMaterial "
