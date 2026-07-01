@@ -8,6 +8,15 @@ from idfpy import IDF
 
 from src.utils.logging import get_logger
 
+# Wall-clock cap on a single EnergyPlus run. EnergyPlus normally finishes a
+# year-long run in seconds-to-minutes, but a diverging/ill-conditioned IDF
+# can hang the solver indefinitely. Without a timeout the process.wait()
+# blocks forever, freezing the whole simulate->revise retry loop (up to 11
+# rounds) and leaving a zombie process. 1800s (30 min) is generous enough
+# for large buildings yet still bounds the worst-case hang. Override per
+# call via run_idf(timeout=...).
+DEFAULT_SIMULATION_TIMEOUT_S: int = 1800
+
 
 class EnergyPlusRunner:
     def __init__(self, idf: IDF | None = None, idd_file_path: Path | None = None):
@@ -28,6 +37,7 @@ class EnergyPlusRunner:
         epw_file_path: Path | str,
         idf_file_path: Path | str | None = None,
         output_directory: Path | None = None,
+        timeout: int | None = DEFAULT_SIMULATION_TIMEOUT_S,
     ) -> bool:
         """
         Run EnergyPlus IDF file
@@ -36,6 +46,10 @@ class EnergyPlusRunner:
             idf_file_path: IDF file path
             epw_file_path: EPW weather file path
             output_directory: Output directory, if None, a default directory will be created
+            timeout: Max wall-clock seconds to wait for EnergyPlus before
+                killing it. Defaults to DEFAULT_SIMULATION_TIMEOUT_S. Pass
+                None to disable (not recommended — a hung solver would
+                block forever).
 
         Returns:
             bool: True if the simulation ran successfully, False otherwise
@@ -102,20 +116,45 @@ class EnergyPlusRunner:
                 bufsize=1,
             )
 
-            output_lines = []
-            for line in process.stdout or []:
-                line = line.rstrip()
-                self.logger.info("[EnergyPlus] {}", line)
-                output_lines.append(line)
+            try:
+                output_lines = []
 
-            return_code = process.wait()
+                # Block until the process exits, bounded by `timeout` so a
+                # hung solver can't freeze the retry loop forever. Raises
+                # TimeoutExpired (caught below) if it overruns.
+                if timeout is not None:
+                    process.wait(timeout=timeout)
+                else:
+                    process.wait()
 
-            if return_code != 0:
-                self.logger.error("EnergyPlus exited with code {}", return_code)
+                # Process has exited — drain all buffered stdout (the pipe
+                # yields until EOF, reached now that the child is gone).
+                if process.stdout is not None:
+                    for line in process.stdout:
+                        line = line.rstrip()
+                        self.logger.info("[EnergyPlus] {}", line)
+                        output_lines.append(line)
+
+                return_code = process.returncode
+
+                if return_code != 0:
+                    self.logger.error("EnergyPlus exited with code {}", return_code)
+                    return False
+
+                self.logger.info("EnergyPlus simulation completed successfully.")
+                return True
+
+            except subprocess.TimeoutExpired:
+                self.logger.error(
+                    "EnergyPlus simulation timed out after {}s; terminating process.",
+                    timeout,
+                )
+                self._terminate(process)
                 return False
-
-            self.logger.info("EnergyPlus simulation completed successfully.")
-            return True
+            finally:
+                # Make sure no child is left running and pipes are closed on
+                # any exit path (success, non-zero exit, timeout, exception).
+                self._terminate(process)
 
         except FileNotFoundError:
             self.logger.error("EnergyPlus executable not found.")
@@ -128,3 +167,25 @@ class EnergyPlusRunner:
             if temporary_idf_path is not None:
                 temporary_idf_path.unlink(missing_ok=True)
                 self.idf_path = None
+
+    @staticmethod
+    def _terminate(process: subprocess.Popen) -> None:
+        """Best-effort cleanup: kill the process if still alive and close its
+        stdout pipe so it can't leak as a zombie / dangling file descriptor.
+
+        Safe to call multiple times (idempotent): once the process has exited
+        ``poll()`` returns its code and the kill/close calls are no-ops.
+        """
+        if process.poll() is None:
+            process.kill()
+            try:
+                process.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                # SIGKILL didn't reap within 10s — nothing more we can do;
+                # log and leave it to the OS reaper.
+                pass
+        if process.stdout is not None:
+            try:
+                process.stdout.close()
+            except Exception:
+                pass

@@ -16,6 +16,7 @@ Key differences from intake:
 
 from __future__ import annotations
 
+import time
 from typing import Any, cast
 
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -23,6 +24,7 @@ from loguru import logger
 
 from src.agent._share import language_directive
 from src.agent.llm import create_llm
+from src.agent.nodes.intake import INTAKE_MAX_EMPTY_RETRIES
 from src.agent.state import AgentState, AgentStateUpdate, IntakeOutput
 
 
@@ -164,31 +166,42 @@ def revise_node(state: AgentState) -> AgentStateUpdate:
     sections.append(f"## User's modification request:\n{state.user_input}")
     text = "\n\n".join(sections)
 
-    result = cast(
-        dict[str, Any],
-        llm.invoke(
-            [
-                SystemMessage(content=REVISE_SYSTEM_PROMPT + language_directive()),
-                HumanMessage(content=text),
-            ]
-        ),
-    )
+    messages = [
+        SystemMessage(content=REVISE_SYSTEM_PROMPT + language_directive()),
+        HumanMessage(content=text),
+    ]
 
-    parsed: IntakeOutput | None = result.get("parsed")
-    if parsed is None:
+    # Retry on empty LLM replies (same gateway transient as intake_node).
+    result: dict[str, Any] = {}
+    parsed: IntakeOutput | None = None
+    for attempt in range(INTAKE_MAX_EMPTY_RETRIES + 1):
+        result = cast(dict[str, Any], llm.invoke(messages))
+        parsed = result.get("parsed")
+        if parsed is not None:
+            break
         raw = result.get("raw")
         parsing_error = result.get("parsing_error")
         raw_preview = repr(raw.content if raw is not None else raw)[:500]
-        logger.error(
-            "revise_node: structured output parse failed. "
-            "parsing_error={} raw preview={}",
-            parsing_error,
-            raw_preview,
+        is_empty = parsing_error is None and raw_preview in ("''", "None")
+        if not is_empty or attempt == INTAKE_MAX_EMPTY_RETRIES:
+            logger.error(
+                "revise_node: structured output parse failed. "
+                "parsing_error={} raw preview={}",
+                parsing_error,
+                raw_preview,
+            )
+            raise RuntimeError(
+                "IntakeOutput parsing returned None in revise_node. "
+                f"parsing_error={parsing_error!r}; raw preview: {raw_preview}"
+            )
+        sleep_s = 2 ** (attempt + 1)
+        logger.warning(
+            "revise_node: empty LLM reply (attempt {}/{}), retrying in {}s",
+            attempt + 1,
+            INTAKE_MAX_EMPTY_RETRIES + 1,
+            sleep_s,
         )
-        raise RuntimeError(
-            "IntakeOutput parsing returned None in revise_node. "
-            f"parsing_error={parsing_error!r}; raw preview: {raw_preview}"
-        )
+        time.sleep(sleep_s)
 
     # Preserve building/site_location from the existing model (the LLM may
     # echo them, but we force the authoritative values to avoid drift).
