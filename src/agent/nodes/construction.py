@@ -39,6 +39,21 @@ Rules:
   (e.g., 'ExtWall_Office', 'IntWall_Office', 'Roof_Office', 'Floor_Office',
   'Window_Office').
 - For fenestration, the construction's only layer is the glazing material.
+- INTERIOR doors/windows/glass-doors between two zones (hosted on a wall that
+  separates zones, i.e. the wall's outside boundary condition is 'Surface'):
+  use create_airboundary_construction (a Construction:AirBoundary, no layers).
+  This models the door/window as an OPEN passage between zones and avoids the
+  EnergyPlus error "invalid blank Outside Boundary Condition Object" that a
+  regular layered construction would trigger there. Name it e.g.
+  'Interior_Door_Open'. EXTERIOR doors/windows still use a normal layered
+  Construction (glazing for windows, opaque for doors).
+
+Reference database:
+- Call search_energyplus_reference to look up standard layer sequences for
+  named construction types (e.g. 'ASHRAE 90.1 exterior wall office').
+  Match returned layer names to existing materials via list_materials;
+  if a reference layer has no local equivalent, use the nearest match by
+  thermal properties.
 """
 
 

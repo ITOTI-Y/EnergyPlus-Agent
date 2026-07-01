@@ -604,8 +604,22 @@ class ConfigState(BaseSchema):
                 if layer and layer in glazing_material_names:
                     glazing_construction_names.add(const.name)
                     break
+        # Layer-less open-air constructions used on interior subsurfaces
+        # (doors/windows between two zones) to avoid the "invalid blank
+        # Outside Boundary Condition Object" severe error. A subsurface on a
+        # 'Surface'-boundary parent must be one of these.
+        airboundary_construction_names = {
+            getattr(obj, "name", "")
+            for obj in _idf_values(self.idf, "Construction:AirBoundary")
+        }
         surface_names = {
             getattr(obj, "name", "")
+            for obj in _idf_values(self.idf, "BuildingSurface:Detailed")
+        }
+        # Parent surface name -> its outside boundary condition, so the
+        # fenestration check can tell interior ('Surface') parents apart.
+        surface_boundary: dict[str, str] = {
+            getattr(obj, "name", ""): getattr(obj, "outside_boundary_condition", "")
             for obj in _idf_values(self.idf, "BuildingSurface:Detailed")
         }
         zone_names = {getattr(obj, "name", "") for obj in _idf_values(self.idf, "Zone")}
@@ -665,6 +679,26 @@ class ConfigState(BaseSchema):
             if fen.building_surface_name not in surface_names:
                 errors.append(
                     f"Fenestration '{fen.name}' references building surface '{fen.building_surface_name}' which does not exist."
+                )
+            elif (
+                surface_boundary.get(fen.building_surface_name) == "Surface"
+                and fen.construction_name not in airboundary_construction_names
+                and not getattr(fen, "outside_boundary_condition_object", None)
+            ):
+                # Parent is a zone-separating wall ('Surface' boundary). A
+                # regular layered subsurface construction here leaves its own
+                # Outside Boundary Condition Object blank, which EnergyPlus
+                # rejects ("invalid blank Outside Boundary Condition Object").
+                # The fix is to model the interior door/window with a
+                # Construction:AirBoundary. Routed to fenestration (which owns
+                # the construction_name pointer); construction may need to
+                # create the AirBoundary first via a back-hop.
+                errors.append(
+                    f"Fenestration '{fen.name}' is on interior wall "
+                    f"'{fen.building_surface_name}' (Surface boundary) but uses "
+                    f"construction '{fen.construction_name}' which is not a "
+                    f"Construction:AirBoundary. Interior subsurfaces must use "
+                    f"a Construction:AirBoundary (open-air) construction."
                 )
 
         for ils in _idf_values(self.idf, "HVACTemplate:Zone:IdealLoadsAirSystem"):

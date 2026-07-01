@@ -109,6 +109,35 @@ def _is_glazing_construction(idf, construction_name: str) -> bool:
     return False
 
 
+def _is_airboundary_construction(idf, construction_name: str) -> bool:
+    """True if *construction_name* is a Construction:AirBoundary (open-air)."""
+    return idf.has("Construction:AirBoundary", construction_name)
+
+
+def _construction_exists(idf, name: str) -> bool:
+    """True if *name* is a layered Construction or a Construction:AirBoundary."""
+    return idf.has("Construction", name) or idf.has("Construction:AirBoundary", name)
+
+
+def _parent_boundary_condition(idf, building_surface_name: str) -> str | None:
+    """Outside boundary condition of a fenestration's parent base surface.
+
+    Returns None if the parent surface does not exist. When the value is
+    'Surface', the parent is a zone-separating (interzone) wall, which
+    triggers EnergyPlus' rule that subsurfaces must also name an adjacent
+    surface — the AirBoundary workaround bypasses that requirement.
+    """
+    parent = idf.get("BuildingSurface:Detailed", building_surface_name)
+    if parent is None:
+        return None
+    return getattr(parent, "outside_boundary_condition", None)
+
+
+def _parent_is_interzone(idf, building_surface_name: str) -> bool:
+    """True if the parent base surface separates two zones (Surface boundary)."""
+    return _parent_boundary_condition(idf, building_surface_name) == "Surface"
+
+
 def _wall_vertices(wall_obj) -> list[tuple[float, float, float]]:
     """Extract (x, y, z) tuples from a BuildingSurface:Detailed object.
 
@@ -249,7 +278,7 @@ def make_fenestration_tools(config: ConfigState) -> list[BaseTool]:
         """
         if idf.has("FenestrationSurface:Detailed", name):
             return _err(f"Fenestration '{name}' already exists.")
-        if not idf.has("Construction", construction_name):
+        if not _construction_exists(idf, construction_name):
             return _err(
                 f"Construction '{construction_name}' not found. Create it in the construction phase first.",
                 {"missing_ref": "Construction", "missing_name": construction_name},
@@ -275,6 +304,27 @@ def make_fenestration_tools(config: ConfigState) -> list[BaseTool]:
             return _err(
                 f"Parent surface '{building_surface_name}' not found.",
                 {"missing_ref": "BuildingSurface:Detailed", "missing_name": building_surface_name},
+            )
+        # Interior-subsurface rule: when the parent base surface separates two
+        # zones (Outside Boundary Condition = 'Surface'), a subsurface that is
+        # NOT an AirBoundary construction leaves its own Outside Boundary
+        # Condition Object blank, which EnergyPlus rejects with "invalid blank
+        # Outside Boundary Condition Object". The agent does not pair adjacent-
+        # zone subsurfaces, so interior doors/windows MUST use a
+        # Construction:AirBoundary (open-air) construction. Back-hop to
+        # construction so it creates one.
+        if (
+            _parent_is_interzone(idf, building_surface_name)
+            and not _is_airboundary_construction(idf, construction_name)
+        ):
+            return _err(
+                f"Parent surface '{building_surface_name}' is an interior "
+                f"(zone-separating) wall. {surface_type} '{name}' must use a "
+                f"Construction:AirBoundary (create via "
+                f"create_airboundary_construction) so it models an open "
+                f"passage; '{construction_name}' is a regular layered "
+                f"construction and would leave its boundary object blank.",
+                {"missing_ref": "Construction", "missing_name": "Construction:AirBoundary"},
             )
         try:
             # Auto-correct window winding to match the parent wall's outward
@@ -361,7 +411,7 @@ def make_fenestration_tools(config: ConfigState) -> list[BaseTool]:
         obj = idf.get("FenestrationSurface:Detailed", name)
         if obj is None:
             return _err(f"Fenestration '{name}' not found.")
-        if construction_name is not None and not idf.has("Construction", construction_name):
+        if construction_name is not None and not _construction_exists(idf, construction_name):
             return _err(
                 f"Construction '{construction_name}' not found.",
                 {"missing_ref": "Construction", "missing_name": construction_name},
@@ -396,6 +446,27 @@ def make_fenestration_tools(config: ConfigState) -> list[BaseTool]:
             return _err(
                 f"Parent surface '{building_surface_name}' not found.",
                 {"missing_ref": "BuildingSurface:Detailed", "missing_name": building_surface_name},
+            )
+        # Interior-subsurface rule (mirrors create_fenestration). Uses the
+        # EFFECTIVE parent (new if provided, else current) and EFFECTIVE
+        # construction so reparenting / re-assigning is validated like a fresh
+        # create. An interior (Surface-boundary) parent requires the subsurface
+        # to use a Construction:AirBoundary; a regular layered construction
+        # would leave the boundary object blank and abort EnergyPlus.
+        effective_parent = building_surface_name or obj.building_surface_name
+        effective_const_for_interzone = construction_name or obj.construction_name
+        if (
+            _parent_is_interzone(idf, effective_parent)
+            and effective_const_for_interzone
+            and not _is_airboundary_construction(idf, effective_const_for_interzone)
+        ):
+            return _err(
+                f"Parent surface '{effective_parent}' is an interior "
+                f"(zone-separating) wall. '{name}' must use a "
+                f"Construction:AirBoundary (create via "
+                f"create_airboundary_construction); '{effective_const_for_interzone}' "
+                f"is a regular layered construction.",
+                {"missing_ref": "Construction", "missing_name": "Construction:AirBoundary"},
             )
         try:
             # Resolve the effective parent (new if provided, else current) and

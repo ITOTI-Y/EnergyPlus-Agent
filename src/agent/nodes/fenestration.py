@@ -51,6 +51,13 @@ Rules:
   rejected. If the only window construction available is opaque, STOP and
   report — do not create the fenestration against it; the material phase
   must first create a WindowMaterial and construction must rebuild it.
+- INTERIOR doors/windows (parent wall's outside boundary condition is
+  'Surface' — i.e. it separates two zones) MUST use a Construction:AirBoundary
+  (created via create_airboundary_construction). A regular layered
+  construction on an interior subsurface leaves its boundary object blank
+  and aborts EnergyPlus. Before creating, check the parent surface's
+  boundary condition in list_surfaces: if it is 'Surface', request/reuse an
+  AirBoundary construction for that door/window.
 - surface_type is Window, Door, or GlassDoor.
 - >= 3 vertices and MUST lie on the parent surface's plane (coplanar —
   share one coordinate for walls). Winding direction does not matter —
