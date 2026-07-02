@@ -28,6 +28,7 @@ _ALL_MATERIAL_TYPES = [
     "Material:NoMass",
     "Material:AirGap",
     "WindowMaterial:SimpleGlazingSystem",
+    "WindowMaterial:Glazing",
 ]
 
 # idfpy object-type strings for each construction variant. The plain

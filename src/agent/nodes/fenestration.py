@@ -45,12 +45,14 @@ Rules:
 - If a needed surface or construction is missing after list, STOP and
   report; do NOT invent names.
 - For Window / GlassDoor / TubularDaylight* the construction MUST be a
-  glazing construction — one whose layers include a
-  WindowMaterial:SimpleGlazingSystem. An opaque construction (only
-  Material / Material:NoMass layers) is invalid for windows and will be
-  rejected. If the only window construction available is opaque, STOP and
-  report — do not create the fenestration against it; the material phase
-  must first create a WindowMaterial and construction must rebuild it.
+  glazing construction — one whose layers include a WindowMaterial
+  (WindowMaterial:SimpleGlazingSystem as the sole layer, OR
+  WindowMaterial:Glazing panes possibly with Material:AirGap). An opaque
+  construction (only Material / Material:NoMass layers) is invalid for
+  windows and will be rejected. If the only window construction available
+  is opaque, STOP and report — do not create the fenestration against it;
+  the material phase must first create a WindowMaterial and construction
+  must rebuild it.
 - INTERIOR doors/windows (parent wall's outside boundary condition is
   'Surface' — i.e. it separates two zones) MUST use a Construction:AirBoundary
   (created via create_airboundary_construction). A regular layered

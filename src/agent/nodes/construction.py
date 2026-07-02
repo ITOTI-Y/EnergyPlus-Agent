@@ -39,6 +39,20 @@ Rules:
   (e.g., 'ExtWall_Office', 'IntWall_Office', 'Roof_Office', 'Floor_Office',
   'Window_Office').
 - For fenestration, the construction's only layer is the glazing material.
+- FENESTRATION GLAZING RULE — two legal window construction shapes ONLY:
+  1. SINGLE-LAYER whole window: one WindowMaterial:SimpleGlazingSystem layer
+     (created via create_glazing_material). The construction has exactly ONE
+     layer. This is invalid for multi-pane windows.
+  2. MULTI-LAYER real assembly: per-pane WindowMaterial:Glazing layers
+     (created via create_glazing_layer_material) interleaved with
+     Material:AirGap, e.g. layers=['Clear_Glass_3mm','Air_Gap_13mm',
+     'Clear_Glass_3mm'] for a double-pane window.
+  NEVER mix WindowMaterial:SimpleGlazingSystem with other layers (gas gaps,
+  extra panes). SimpleGlazingSystem is a whole-window equivalent
+  (U/SHGC/VT only) — combining it with other layers gives EnergyPlus no
+  per-pane data and aborts with a Fatal convergence error. If the spec wants
+  a double/triple-pane window, the material phase MUST supply
+  WindowMaterial:Glazing panes (not SimpleGlazingSystem).
 - INTERIOR doors/windows/glass-doors between two zones (hosted on a wall that
   separates zones, i.e. the wall's outside boundary condition is 'Surface'):
   use create_airboundary_construction (a Construction:AirBoundary, no layers).

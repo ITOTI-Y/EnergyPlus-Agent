@@ -11,6 +11,7 @@ from idfpy.models.constructions import (
     Material,
     MaterialAirGap,
     MaterialNoMass,
+    WindowMaterialGlazing,
     WindowMaterialSimpleGlazingSystem,
 )
 from idfpy.models.hvac_templates import (
@@ -34,6 +35,11 @@ from idfpy.models.schedules import (
     ScheduleTypeLimits,
 )
 from idfpy.models.simulation import Building, SimulationControl, Timestep, Version
+from src.mcp.geometry import (
+    NORMAL_DOT_TOLERANCE,
+    surface_normal,
+    surface_vertices,
+)
 from idfpy.models.thermal_zones import (
     BuildingSurfaceDetailed,
     BuildingSurfaceDetailedVerticesItem,
@@ -264,7 +270,8 @@ class ConfigState(BaseSchema):
         try:
             return any(idf.all_of_type(t) for t in (
                 "Zone", "Material", "Material:NoMass", "Material:AirGap",
-                "WindowMaterial:SimpleGlazingSystem", "Construction",
+                "WindowMaterial:SimpleGlazingSystem", "WindowMaterial:Glazing",
+                "Construction",
                 "BuildingSurface:Detailed", "FenestrationSurface:Detailed",
                 "Schedule:Compact", "ScheduleTypeLimits",
                 "HVACTemplate:Thermostat", "HVACTemplate:Zone:IdealLoadsAirSystem",
@@ -395,6 +402,7 @@ class ConfigState(BaseSchema):
                 "Material:AirGap",
                 "MaterialAirGap",
                 "WindowMaterial:SimpleGlazingSystem",
+                "WindowMaterial:Glazing",
             ),
             "Construction": ("Construction",),
             "BuildingSurface:Detailed": ("BuildingSurface:Detailed",),
@@ -537,6 +545,7 @@ class ConfigState(BaseSchema):
                     "Material:AirGap",
                     "MaterialAirGap",
                     "WindowMaterial:SimpleGlazingSystem",
+                    "WindowMaterial:Glazing",
                 )
             ),
             constructions_count=len(
@@ -572,16 +581,35 @@ class ConfigState(BaseSchema):
                 "Material:AirGap",
                 "MaterialAirGap",
                 "WindowMaterial:SimpleGlazingSystem",
+                "WindowMaterial:Glazing",
             )
         }
         # Glazing (window) material names only. EnergyPlus treats a
         # construction as a "window construction" iff at least one of its
-        # layers is a WindowMaterial:* object — here SimpleGlazingSystem is
-        # the only variant the agent creates. Used to flag fenestrations
+        # layers is a WindowMaterial:* object — the agent may create either
+        # SimpleGlazingSystem (whole-window equivalent) or Glazing (a true
+        # per-pane glass layer). Used to flag fenestrations
         # (Window / GlassDoor / TubularDaylight*) whose construction is
         # opaque, which makes EnergyPlus abort with "has an opaque surface
         # construction; it should have a window construction".
         glazing_material_names = {
+            getattr(obj, "name", "")
+            for obj in _idf_values(
+                self.idf,
+                "WindowMaterial:SimpleGlazingSystem",
+                "WindowMaterial:Glazing",
+            )
+        }
+        # SimpleGlazingSystem is a WHOLE-WINDOW model: it collapses the entire
+        # fenestration into a single U-factor/SHGC/VT. It therefore must be
+        # the ONLY layer of a Construction. Combining it with other layers
+        # (e.g. Glass + AirGap + Glass) gives EnergyPlus no per-pane optical
+        # data, so SolveForWindowTemperatures diverges and the run aborts
+        # with a Fatal "Convergence error ... new temperature = NaN". Window
+        # Material:Glazing, by contrast, is a real per-pane layer and may be
+        # composed with gas gaps in multi-pane assemblies. Names only; used
+        # by the sole-layer check below.
+        simple_glazing_names = {
             getattr(obj, "name", "")
             for obj in _idf_values(self.idf, "WindowMaterial:SimpleGlazingSystem")
         }
@@ -636,12 +664,42 @@ class ConfigState(BaseSchema):
         }
 
         for const in _idf_values(self.idf, "Construction"):
-            for field in layer_fields:
-                layer = getattr(const, field, None)
+            const_layers = [
+                getattr(const, lf, None) for lf in layer_fields
+            ]
+            for layer in const_layers:
                 if layer and layer not in material_names:
                     errors.append(
                         f"Construction '{const.name}' references material '{layer}' which does not exist."
                     )
+            # SimpleGlazingSystem is a whole-window equivalent (U/SHGC/VT
+            # only). If it appears as one of several layers, EnergyPlus
+            # cannot solve per-pane glass temperatures and aborts with a
+            # Fatal convergence error. Require it to be the sole layer.
+            # The error is prefixed "Construction '" so _ERROR_PATTERNS
+            # routes it to the construction phase for self-repair. A
+            # multi-pane window should instead use WindowMaterial:Glazing
+            # layers (create_glazing_layer_material), which carry true
+            # per-pane optical/thermal data and may be composed with gas gaps.
+            simple_layers = [
+                layer for layer in const_layers
+                if layer and layer in simple_glazing_names
+            ]
+            if simple_layers and any(
+                layer for layer in const_layers if layer not in simple_glazing_names
+            ):
+                errors.append(
+                    f"Construction '{const.name}' uses WindowMaterial:"
+                    f"SimpleGlazingSystem ({', '.join(simple_layers)}) together "
+                    f"with other layers. SimpleGlazingSystem is a whole-window "
+                    f"model (U/SHGC/VT only) and must be the ONLY layer — "
+                    f"combining it with gas gaps / extra panes makes EnergyPlus "
+                    f"abort with a Fatal convergence error. Either rebuild this "
+                    f"construction as a single SimpleGlazingSystem layer, or "
+                    f"replace the per-pane glass with WindowMaterial:Glazing "
+                    f"(create_glazing_layer_material) which can be composed "
+                    f"with Material:AirGap in a multi-pane assembly."
+                )
 
         for surface in _idf_values(self.idf, "BuildingSurface:Detailed"):
             if surface.construction_name not in construction_names:
@@ -652,6 +710,30 @@ class ConfigState(BaseSchema):
                 errors.append(
                     f"Surface '{surface.name}' references zone '{surface.zone_name}' which does not exist."
                 )
+            # Auto-correct flipped Floor / Roof / Ceiling normals. EnergyPlus
+            # expects (under the Counterclockwise vertex-entry convention) a
+            # Floor's outward normal to point DOWN (tilt 180) and a
+            # Roof/Ceiling's to point UP (tilt 0). When the LLM lists floor
+            # corners in plan-view CCW order the normal ends up pointing +Z,
+            # which EnergyPlus flags as "Floor is upside down! Tilt=0.0,
+            # should be near 180". We silently reverse the vertex order to
+            # flip the normal — no error, no repair round (mirrors how window
+            # normals are auto-aligned in fenestration_tools). Tolerates near-
+            # horizontal surfaces; only clearly-wrong normals are flipped.
+            if surface.surface_type in ("Floor", "Roof", "Ceiling"):
+                verts = surface_vertices(surface)
+                if len(verts) >= 3:
+                    nx, ny, nz = surface_normal(verts)
+                    # Only flip when the normal is decisively off the expected
+                    # vertical axis (|z| well above the tolerance), so a
+                    # tilted/sloped surface is left untouched.
+                    flipped = False
+                    if surface.surface_type == "Floor" and nz > NORMAL_DOT_TOLERANCE:
+                        flipped = True
+                    elif surface.surface_type in ("Roof", "Ceiling") and nz < -NORMAL_DOT_TOLERANCE:
+                        flipped = True
+                    if flipped and getattr(surface, "vertices", None):
+                        surface.vertices.reverse()
 
         # Fenestration surface_types that EnergyPlus requires to be backed by
         # a window (glazing) construction. A plain Door is the only type that
@@ -971,6 +1053,7 @@ class ConfigState(BaseSchema):
                 "Material:AirGap",
                 "MaterialAirGap",
                 "WindowMaterial:SimpleGlazingSystem",
+                "WindowMaterial:Glazing",
             ):
                 continue
             if material_type == "Standard":
@@ -1004,20 +1087,71 @@ class ConfigState(BaseSchema):
                     )
                 )
             elif material_type == "Glazing":
-                self.idf.add(
-                    WindowMaterialSimpleGlazingSystem(
-                        name=name,
-                        u_factor=_get(raw, "U-Factor", "U Factor"),
-                        solar_heat_gain_coefficient=_get(
-                            raw,
-                            "Solar_Heat_Gain_Coefficient",
-                            "Solar Heat Gain Coefficient",
-                        ),
-                        visible_transmittance=_get(
-                            raw, "Visible_Transmittance", "Visible Transmittance"
-                        ),
-                    )
-                )
+                self.idf.add(WindowMaterialSimpleGlazingSystem(
+                    name=name,
+                    u_factor=_get(raw, "U-Factor", "U Factor"),
+                    solar_heat_gain_coefficient=_get(
+                        raw,
+                        "Solar_Heat_Gain_Coefficient",
+                        "Solar Heat Gain Coefficient",
+                    ),
+                    visible_transmittance=_get(raw, "Visible_Transmittance", "Visible Transmittance"),
+                ))
+            elif material_type == "GlazingLayer":
+                # A true per-pane glass layer (WindowMaterial:Glazing). Unlike
+                # the whole-window SimpleGlazingSystem above, this carries
+                # thickness + optical/thermal data per pane and MAY be composed
+                # with gas gaps in multi-pane assemblies. optical_data_type is
+                # fixed to SpectralAverage for the simplified YAML path.
+                self.idf.add(WindowMaterialGlazing(**_clean_kwargs({
+                    "name": name,
+                    "optical_data_type": _get(
+                        raw, "Optical_Data_Type", "Optical Data Type",
+                        default="SpectralAverage",
+                    ),
+                    "thickness": _get(raw, "Thickness"),
+                    "solar_transmittance_at_normal_incidence": _get(
+                        raw, "Solar_Transmittance_at_Normal_Incidence",
+                        "Solar Transmittance at Normal Incidence",
+                    ),
+                    "front_side_solar_reflectance_at_normal_incidence": _get(
+                        raw, "Front_Side_Solar_Reflectance_at_Normal_Incidence",
+                        "Front Side Solar Reflectance at Normal Incidence",
+                    ),
+                    "back_side_solar_reflectance_at_normal_incidence": _get(
+                        raw, "Back_Side_Solar_Reflectance_at_Normal_Incidence",
+                        "Back Side Solar Reflectance at Normal Incidence",
+                    ),
+                    "visible_transmittance_at_normal_incidence": _get(
+                        raw, "Visible_Transmittance_at_Normal_Incidence",
+                        "Visible Transmittance at Normal Incidence",
+                    ),
+                    "front_side_visible_reflectance_at_normal_incidence": _get(
+                        raw, "Front_Side_Visible_Reflectance_at_Normal_Incidence",
+                        "Front Side Visible Reflectance at Normal Incidence",
+                    ),
+                    "back_side_visible_reflectance_at_normal_incidence": _get(
+                        raw, "Back_Side_Visible_Reflectance_at_Normal_Incidence",
+                        "Back Side Visible Reflectance at Normal Incidence",
+                    ),
+                    "infrared_transmittance_at_normal_incidence": _get(
+                        raw, "Infrared_Transmittance_at_Normal_Incidence",
+                        "Infrared Transmittance at Normal Incidence",
+                    ),
+                    "front_side_infrared_hemispherical_emissivity": _get(
+                        raw, "Front_Side_Infrared_Hemispherical_Emissivity",
+                        "Front Side Infrared Hemispherical Emissivity",
+                    ),
+                    "back_side_infrared_hemispherical_emissivity": _get(
+                        raw, "Back_Side_Infrared_Hemispherical_Emissivity",
+                        "Back Side Infrared Hemispherical Emissivity",
+                    ),
+                    "conductivity": _get(raw, "Conductivity"),
+                    "dirt_correction_factor": _get(
+                        raw, "Dirt_Correction_Factor", "Dirt Correction Factor",
+                    ),
+                    "solar_diffusing": _get(raw, "Solar_Diffusing", "Solar Diffusing"),
+                })))
 
     def _add_constructions(self, data: dict[str, Any]) -> None:
         layer_fields = [

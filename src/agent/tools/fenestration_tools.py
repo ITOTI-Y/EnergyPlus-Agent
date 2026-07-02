@@ -1,5 +1,4 @@
 import json
-import math
 
 from idfpy.models.constructions import Construction
 from idfpy.models.thermal_zones import (
@@ -8,7 +7,15 @@ from idfpy.models.thermal_zones import (
 )
 from langchain_core.tools import BaseTool, tool
 
+from src.mcp.geometry import surface_normal, surface_vertices
 from src.mcp.state import ConfigState
+
+# Aliases preserve the historical private names used throughout this module
+# (call sites below unchanged). The implementations now live in the neutral
+# ``src.mcp.geometry`` module so they can be shared with ``src.mcp.state``
+# without a circular import (this module already imports ``src.mcp.state``).
+_surface_normal = surface_normal
+_wall_vertices = surface_vertices
 
 
 def _ok(msg: str, data=None) -> str:
@@ -35,26 +42,6 @@ _NORMAL_DOT_TOLERANCE = 0.01
 # still align with the wall by chance, so we additionally require every
 # vertex to lie (near) on the plane. 1 cm tolerates float rounding.
 _COPLANARITY_TOLERANCE = 0.01
-
-
-def _surface_normal(vertices: list[tuple[float, float, float]]) -> tuple[float, float, float]:
-    """Unit outward normal of a polygon via Newell's method.
-
-    Robust to non-strictly-planar quads (sums contributions per edge), so it
-    matches EnergyPlus' own surface-normal computation.
-    """
-    nx = ny = nz = 0.0
-    n = len(vertices)
-    for i in range(n):
-        ax, ay, az = vertices[i]
-        bx, by, bz = vertices[(i + 1) % n]
-        nx += (ay - by) * (az + bz)
-        ny += (az - bz) * (ax + bx)
-        nz += (ax - bx) * (ay + by)
-    length = math.sqrt(nx * nx + ny * ny + nz * nz)
-    if length == 0.0:
-        return (0.0, 0.0, 0.0)  # degenerate (collinear / duplicate) vertices
-    return (nx / length, ny / length, nz / length)
 
 
 def _max_distance_to_plane(
@@ -136,38 +123,6 @@ def _parent_boundary_condition(idf, building_surface_name: str) -> str | None:
 def _parent_is_interzone(idf, building_surface_name: str) -> bool:
     """True if the parent base surface separates two zones (Surface boundary)."""
     return _parent_boundary_condition(idf, building_surface_name) == "Surface"
-
-
-def _wall_vertices(wall_obj) -> list[tuple[float, float, float]]:
-    """Extract (x, y, z) tuples from a BuildingSurface:Detailed object.
-
-    idfpy stores wall geometry as a nested ``vertices`` list (each item has
-    ``vertex_{x,y,z}_coordinate``), which is a different shape from
-    FenestrationSurface's flat ``vertex_{i}_{x,y,z}_coordinate`` attributes.
-    Read the nested list first, fall back to the flat attributes defensively.
-    """
-    nested = getattr(wall_obj, "vertices", None)
-    if nested:
-        pts = []
-        for item in nested:
-            x = getattr(item, "vertex_x_coordinate", None)
-            y = getattr(item, "vertex_y_coordinate", None)
-            z = getattr(item, "vertex_z_coordinate", None)
-            if x is not None and y is not None and z is not None:
-                pts.append((float(x), float(y), float(z)))
-        if len(pts) >= 3:
-            return pts
-
-    # Fallback: flat vertex_{i}_{axis}_coordinate attributes.
-    pts: dict[int, dict[str, float]] = {}
-    for i in range(1, 5):
-        for axis in ("x", "y", "z"):
-            val = getattr(wall_obj, f"vertex_{i}_{axis}_coordinate", None)
-            if val is None:
-                val = getattr(wall_obj, f"vertex_{axis}_coordinate_{i}", None)
-            if val is not None:
-                pts.setdefault(i, {})[axis] = float(val)
-    return [(pts[i]["x"], pts[i]["y"], pts[i]["z"]) for i in sorted(pts)]
 
 
 def _align_window_to_wall(
