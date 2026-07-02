@@ -46,6 +46,23 @@ def make_people_tools(config: ConfigState) -> list[BaseTool]:
         """
         if idf.has("People", name):
             return _err(f"People '{name}' already exists.")
+        # Reference checks: emit missing_ref so the agent's detect_upstream_gap
+        # can back-hop to the owning phase (zone / schedule) to create it.
+        if zone_name and not idf.has("Zone", zone_name):
+            return _err(
+                f"Zone '{zone_name}' not found.",
+                {"missing_ref": "Zone", "missing_name": zone_name},
+            )
+        if number_of_people_schedule_name and not idf.has("Schedule:Compact", number_of_people_schedule_name):
+            return _err(
+                f"Schedule:Compact '{number_of_people_schedule_name}' not found.",
+                {"missing_ref": "Schedule:Compact", "missing_name": number_of_people_schedule_name},
+            )
+        if activity_level_schedule_name and not idf.has("Schedule:Compact", activity_level_schedule_name):
+            return _err(
+                f"Schedule:Compact '{activity_level_schedule_name}' not found.",
+                {"missing_ref": "Schedule:Compact", "missing_name": activity_level_schedule_name},
+            )
         try:
             people = People.model_validate(
                 {

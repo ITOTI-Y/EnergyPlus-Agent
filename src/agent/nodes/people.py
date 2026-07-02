@@ -1,7 +1,14 @@
+from typing import Literal
+
 from langchain_core.messages import AIMessage
+from langgraph.types import Command
 
 from src.agent.llm import create_llm
-from src.agent.nodes._share import clone_for_phase, invoke_with_self_repair
+from src.agent.nodes._share import (
+    clone_for_phase,
+    invoke_with_self_repair,
+    maybe_backhop,
+)
 from src.agent.react import build_react_agent
 from src.agent.state import AgentState, AgentStateUpdate
 from src.agent.tools import make_people_tools
@@ -31,7 +38,13 @@ Rules:
 """
 
 
-def people_agent(state: AgentState) -> AgentStateUpdate:
+# Legal back-hop targets for people: a missing zone hops to zone; a missing
+# schedule hops to schedule. Declared on the return type so LangGraph accepts
+# Command(goto=...). (Mirrors surface.py / construction.py.)
+_PeopleRoute = Literal["zone", "schedule"]
+
+
+def people_agent(state: AgentState) -> Command[_PeopleRoute] | AgentStateUpdate:
     local = clone_for_phase(state)
     tools = make_people_tools(local)
     collector = TraceCollector(phase="people")
@@ -55,13 +68,22 @@ def people_agent(state: AgentState) -> AgentStateUpdate:
         validation_errors=state.validation_errors,
     )
 
+    record_phase_trace("people", collector.export())
+
+    # Back-hop: a missing zone / schedule (detected by invoke_with_self_repair)
+    # routes to the owning earlier phase so it can create the object, then
+    # normal graph edges carry flow back forward to people.
+    hop = maybe_backhop(result, state, local, "people")
+    if hop is not None:
+        return hop
+
     final = [
         m for m in result["messages"] if isinstance(m, AIMessage) and not m.tool_calls
     ]
     summary = final[-1].content if final else "people done"
 
-    record_phase_trace("people", collector.export())
     return AgentStateUpdate(
         config_state=local,
+        upstream_request={},  # consume any inbound back-hop request
         messages=[AIMessage(content=f"[people] {summary}")],
     )
