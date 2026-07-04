@@ -83,15 +83,34 @@ def _is_glazing_construction(idf, construction_name: str) -> bool:
     """True if *construction_name* has at least one WindowMaterial layer.
 
     EnergyPlus classifies a construction as a "window construction" when any
-    of its layers is a WindowMaterial:* object (here, the only window
-    material variant the agent creates is WindowMaterial:SimpleGlazingSystem).
+    of its layers is a WindowMaterial:* object. The agent creates TWO
+    window-material variants, both of which legally qualify a construction
+    as glazing:
+
+    - WindowMaterial:SimpleGlazingSystem — a simplified whole-window model
+      (U/SHGC/VT only), created via create_glazing_material. Must be the
+      sole layer.
+    - WindowMaterial:Glazing — a true per-pane glass layer (thickness +
+      per-pane optical data), created via create_glazing_layer_material.
+      Composed with Material:AirGap in multi-pane assemblies.
+
+    Checking only SimpleGlazingSystem (the original implementation) wrongly
+    rejects a valid multi-pane window built from WindowMaterial:Glazing
+    layers as "opaque", which silently drops every fenestration — the
+    window is never created because create_fenestration refuses an "opaque"
+    construction.
     """
     const = idf.get("Construction", construction_name)
     if const is None:
         return False
     for field in _CONSTRUCTION_LAYER_FIELDS:
         layer = getattr(const, field, None)
-        if layer and idf.has("WindowMaterial:SimpleGlazingSystem", layer):
+        if not layer:
+            continue
+        if (
+            idf.has("WindowMaterial:SimpleGlazingSystem", layer)
+            or idf.has("WindowMaterial:Glazing", layer)
+        ):
             return True
     return False
 
