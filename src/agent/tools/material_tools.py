@@ -135,7 +135,17 @@ def make_material_tools(config: ConfigState) -> list[BaseTool]:
         solar_heat_gain_coefficient: float,
         visible_transmittance: float | None = None,
     ) -> str:
-        """Create a Glazing material (simplified window).
+        """Create a Glazing material (WindowMaterial:SimpleGlazingSystem).
+
+        THIS IS THE PREFERRED AND DEFAULT WAY TO MODEL WINDOWS. Use it for
+        all windows, including "double pane", "triple pane", "low-e", and
+        "clear glass" specs — just provide the whole-window equivalent
+        U-factor / SHGC / VT. Typical values:
+          single pane:  U~5.8  SHGC~0.78
+          double pane:  U~1.8-2.8  SHGC~0.4-0.6
+          triple pane:  U~0.8-1.4  SHGC~0.3-0.5
+        This simplified model is numerically robust and never triggers
+        EnergyPlus convergence errors.
 
         Args:
             name: Unique material name.
@@ -179,20 +189,21 @@ def make_material_tools(config: ConfigState) -> list[BaseTool]:
     ) -> str:
         """Create a TRUE per-pane glass layer (WindowMaterial:Glazing).
 
-        Unlike create_glazing_material (which collapses a whole window into a
-        U/SHGC/VT equivalent and MUST be the only layer), this defines a real
-        single glass pane with thickness and per-pane optical/thermal
-        properties. It can be composed with create_airgap_material in a
-        multi-layer Construction to model double/triple glazing legally:
+        DEPRECATED — prefer create_glazing_material instead.
 
-            create_construction(
-                name="Window_Double_Clear",
-                layers=["Clear_Glass_3mm", "Air_Gap_13mm", "Clear_Glass_3mm"],
-            )
+        This tool creates a per-pane glass layer whose 13+ optical fields
+        frequently cause EnergyPlus to crash with a Fatal "Convergence error
+        in SolveForWindowTemperatures". For virtually all window specs you
+        should use create_glazing_material (a WindowMaterial:SimpleGlazingSystem
+        that takes only U-factor / SHGC / VT and never triggers convergence
+        failures).
 
-        EnergyPlus needs this per-pane data to solve window surface
-        temperatures; SimpleGlazingSystem in a multi-layer assembly makes it
-        abort with a Fatal convergence error.
+        Use this tool ONLY when the spec explicitly provides per-pane optical
+        data (glass thickness, solar transmittance, visible transmittance,
+        reflectance, AND emissivity for each individual pane). For "double
+        pane" / "triple pane" / "low-e" / "clear glass" specs that give only a
+        whole-window U-factor or qualitative description, use
+        create_glazing_material instead.
 
         Args:
             name: Unique material name.
@@ -209,7 +220,27 @@ def make_material_tools(config: ConfigState) -> list[BaseTool]:
         """
         if idf.has("WindowMaterial:Glazing", name):
             return _err(f"WindowMaterial:Glazing '{name}' already exists.")
-        try:
+        # Hard guard: per-pane WindowMaterial:Glazing with LLM-generated
+        # optical parameters frequently makes EnergyPlus's
+        # SolveForWindowTemperatures fail to converge (Fatal abort). The
+        # simplified create_glazing_material (WindowMaterial:SimpleGlazingSystem)
+        # has the same thermal behavior at the whole-window level and never
+        # triggers this. Force the LLM onto the safe path — it must call
+        # create_glazing_material with an equivalent U-factor/SHGC instead.
+        return _err(
+            "create_glazing_layer_material is disabled to prevent EnergyPlus "
+            "convergence failures. The per-pane WindowMaterial:Glazing model "
+            "requires optical parameters that are very hard to get right and "
+            "frequently crash EnergyPlus with 'Convergence error in "
+            "SolveForWindowTemperatures'. Instead use create_glazing_material "
+            "(WindowMaterial:SimpleGlazingSystem) with an equivalent whole-"
+            "window U-factor and SHGC. Typical values: single pane U~5.8 "
+            "SHGC~0.78; double pane U~1.8-2.8 SHGC~0.4-0.6; triple pane "
+            "U~0.8-1.4 SHGC~0.3-0.5. Then make the window construction use "
+            "this SimpleGlazingSystem as its SOLE layer.",
+            data={"hint": "use create_glazing_material instead"},
+        )
+        try:  # pragma: no cover - unreachable while the guard above is active
             idf.add(WindowMaterialGlazing(
                 name=name,
                 optical_data_type="SpectralAverage",
