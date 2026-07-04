@@ -17,7 +17,7 @@ from loguru import logger
 from src.agent._share import language_directive
 from src.agent.react import ReactState
 from src.agent.state import AgentState
-from src.mcp.state import ConfigState
+from src.mcp.state import ConfigState, _idf_values
 
 
 def clone_for_phase(state: AgentState) -> ConfigState:
@@ -188,8 +188,41 @@ def _is_upstream(target: str, current: str) -> bool:
         return False
 
 
+# Maps a substring of ``validate_references()`` error text (the
+# ``references <kind> '<name>'`` part) to ``(ref_type, owning_phase)``.
+# This is the IDF-grounded counterpart of ``_MISSING_REF_TO_PHASE``: instead
+# of trusting tool-reported ``missing_ref`` payloads (which stay forever in
+# the message history and cause stale-gap false back-hops), we re-derive the
+# gap from the LIVE cross-ref check on the IDF itself. A reference described
+# as "references zone 'X'" that "does not exist" means phase 'zone' owes us
+# 'X'; "references construction 'Y'" means 'construction' owes us 'Y'; etc.
+_REF_KIND_TO_PHASE: Final[tuple[tuple[str, str, str], ...]] = (
+    # Order matters only for specificity (longer/unique needles first).
+    ("references heating setpoint schedule", "Schedule:Compact", "schedule"),
+    ("references cooling setpoint schedule", "Schedule:Compact", "schedule"),
+    ("references availability schedule", "Schedule:Compact", "schedule"),
+    ("references schedule", "Schedule:Compact", "schedule"),
+    ("references building surface", "BuildingSurface:Detailed", "surface"),
+    ("references construction", "Construction", "construction"),
+    ("references material", "Material", "material"),
+    ("references zone", "Zone", "zone"),
+    # Thermostat refs are owned by hvac itself (same phase), so they are NOT
+    # a back-hop target and intentionally omitted — they self-repair locally.
+)
+
+
 def detect_upstream_gap(result: dict[str, Any], phase: str) -> dict[str, str] | None:
     """Scan a ReAct result for a 'missing upstream object' tool error.
+
+    .. deprecated-paths::
+        This reads tool-reported ``missing_ref`` payloads from the message
+        history. Because ReAct's ``add_messages`` reducer accumulates every
+        prior round's ToolMessages, a gap reported on round 0 is STILL
+        visible on round N even after the LLM successfully self-healed —
+        producing a false back-hop. ``invoke_with_self_repair`` therefore
+        uses :func:`detect_upstream_gap_from_state` (IDF-grounded) instead.
+        This function is retained for any caller that wants the raw
+        tool-signal view.
 
     Tools report reference failures as ``{"success": false, "data":
     {"missing_ref": <object type>, "missing_name": <name>}}``. When such
@@ -232,6 +265,81 @@ def detect_upstream_gap(result: dict[str, Any], phase: str) -> dict[str, str] | 
                 "missing_name": str(data.get("missing_name", "")),
             }
     return None
+
+
+def detect_upstream_gap_from_state(
+    local_config: ConfigState,
+    phase: str,
+    errors: list[str] | None = None,
+) -> dict[str, str] | None:
+    """Detect a missing-upstream-object gap from the LIVE IDF.
+
+    Unlike :func:`detect_upstream_gap` (which scans the accumulated message
+    history and can report a stale gap that the LLM already fixed), this
+    re-runs ``validate_references()`` against the current model and asks the
+    IDF itself whether the missing object still exists. A gap is reported
+    only when:
+
+    1. an object created by THIS phase references a name that does not
+       exist, AND
+    2. the referenced name's owning phase runs strictly earlier in the
+       pipeline (so a back-hop is legal), AND
+    3. the referenced name is genuinely absent from the model right now
+       (guards against a wrong-name self-heal that picked an existing-but-
+       unrelated object — though that case is rare; the existence check is
+       the primary guarantee).
+
+    Args:
+        local_config: The phase-local ConfigState the agent is mutating.
+            Only used to recompute errors when *errors* is None.
+        phase: Name of the current phase.
+        errors: Optionally, an already-computed ``validate_references()``
+            result. Pass this when the caller has just run the same check
+            to avoid scanning the IDF twice per repair round.
+
+    Returns:
+        ``{"target", "missing_ref", "missing_name"}`` for the first live
+        upstream gap, or ``None``.
+    """
+    if errors is None:
+        errors = local_config.validate_references()
+    if not errors:
+        return None
+    # Only errors whose OWNER is this phase can represent an upstream gap
+    # for it — a dangling ref on someone else's object is their problem.
+    owned = _errors_owned_by_phase(errors, phase)
+    if not owned:
+        return None
+    for err in owned:
+        for needle, ref_type, target in _REF_KIND_TO_PHASE:
+            idx = err.find(needle)
+            if idx < 0:
+                continue
+            tail = err[idx + len(needle):]
+            # tail looks like " 'F1_Office' which does not exist." — pull the
+            # first single-quoted token, which is the missing reference name.
+            name = _first_quoted(tail)
+            if not name:
+                continue
+            if not _is_upstream(target, phase):
+                continue
+            return {
+                "target": target,
+                "missing_ref": ref_type,
+                "missing_name": name,
+            }
+    return None
+
+
+def _first_quoted(text: str) -> str | None:
+    """Return the contents of the first single-quoted span in *text*."""
+    start = text.find("'")
+    if start < 0:
+        return None
+    end = text.find("'", start + 1)
+    if end < 0:
+        return None
+    return text[start + 1:end]
 
 
 def invoke_with_self_repair(
@@ -293,12 +401,31 @@ def invoke_with_self_repair(
         # can try to self-heal by using existing names from list_* tools. Only
         # after the repair budget is exhausted do we surface hop_request to the
         # caller and let the existing maybe_backhop() mechanism route upstream.
-        gap = detect_upstream_gap(result, phase)
-
+        #
+        # NOTE: the gap is derived from the LIVE IDF (validate_references),
+        # NOT from the message history. A tool-reported missing_ref payload
+        # stays in add_messages' accumulated history forever, so scanning
+        # history would re-report a gap the LLM already fixed on an earlier
+        # round and produce a false back-hop. Asking the IDF is authoritative.
         all_errors = local_config.validate_references()
         scoped = _scoped_errors(all_errors)
+        # Reuse the already-computed errors for gap detection instead of
+        # re-running validate_references() (it scans the whole IDF).
+        gap = detect_upstream_gap_from_state(local_config, phase, all_errors)
 
-        if not scoped and not gap:
+        # P4 surface 0-output guard: if the surface phase has produced ZERO
+        # BuildingSurface:Detailed objects and still has repair budget, force
+        # another self-repair round with a pointed "you've built nothing yet"
+        # nudge. This stops surface from back-hopping on the first missing
+        # zone/construction when it could simply build every surface whose
+        # upstream already exists. Without this, a transient missing ref can
+        # leave the model with 0 surfaces entering simulation.
+        surface_empty = (
+            phase == "surface"
+            and not _idf_values(local_config.idf, "BuildingSurface:Detailed")
+        )
+
+        if not scoped and not gap and not surface_empty:
             if attempt > 0:
                 logger.info(
                     "[{}] self-repair succeeded on round {}", phase, attempt
@@ -327,48 +454,99 @@ def invoke_with_self_repair(
             )
             return result
 
-        gap_lines = ""
-        if gap:
-            gap_lines = (
-                "\n\nA tool call reported a missing upstream object:\n"
-                f"  - missing {gap['missing_ref']} '{gap['missing_name']}' "
-                f"(owned by the {gap['target']} phase)\n"
-                "Before requesting upstream repair, try to recover locally: "
-                "call the relevant list_* tools, use an existing exact name "
-                "if one satisfies the spec, or update/delete any object you "
-                "created with the bad reference. If the object truly does not "
-                "exist after checking, report that clearly."
-            )
-
         logger.info(
-            "[{}] self-repair round {}: {} in-scope cross-ref errors{}",
+            "[{}] self-repair round {}: {} in-scope cross-ref errors{}{}",
             phase,
             attempt + 1,
             len(scoped),
             " plus upstream gap" if gap else "",
+            " plus 0 surfaces built" if surface_empty else "",
         )
         feedback = HumanMessage(
-            content=(
-                "Cross-reference validation failed for objects YOU own:\n"
-                + (
-                    "\n".join(f"  - {e}" for e in scoped)
-                    if scoped
-                    else "  - No stored-object reference errors remain, but a "
-                    "tool call failed due to a missing upstream reference."
-                )
-                + gap_lines
-                + "\n\nFix them: use `update_<x>` to rename references, or "
-                "`delete_<x>` + `create_<x>` to rebuild. If the broken "
-                "reference names an upstream resource (zone / schedule / "
-                "material / construction / surface) that truly does not "
-                "exist, report it in your final message and do NOT "
-                "fabricate a replacement — upstream phases own those "
-                "objects." + language_directive()
+            content=_build_repair_feedback(
+                scoped=scoped,
+                gap=gap,
+                surface_empty=surface_empty,
             )
         )
         messages = [*list(result["messages"]), feedback]
 
     return result
+
+
+def _build_repair_feedback(
+    *,
+    scoped: list[str],
+    gap: dict[str, str] | None,
+    surface_empty: bool,
+) -> str:
+    """Compose the self-repair HumanMessage body.
+
+    Three orthogonal failure signals can drive a repair round, and the
+    preamble must describe the one(s) that actually fired so the LLM is not
+    told "cross-reference validation failed" when in fact it only produced
+    zero output (the P4 surface case). The closing instructions stay
+    generic enough to apply in all three cases.
+    """
+    parts: list[str] = []
+
+    if scoped:
+        parts.append("Cross-reference validation failed for objects YOU own:")
+        parts.extend(f"  - {e}" for e in scoped)
+    elif gap:
+        # No stored-object reference errors remain, but a tool call failed
+        # due to a missing upstream reference.
+        parts.append(
+            "No stored-object reference errors remain, but a tool call "
+            "failed due to a missing upstream reference."
+        )
+    elif surface_empty:
+        # P4 pure 0-output case: nothing is broken, the phase just hasn't
+        # produced anything yet. Do NOT claim a cross-ref or upstream
+        # failure — that would mislead the LLM into 'fixing' non-existent
+        # errors instead of building.
+        parts.append(
+            "No errors were found, but this phase has produced zero output "
+            "so far. You must create objects now."
+        )
+
+    if gap:
+        parts.append("")
+        parts.append("A reference points at a missing upstream object:")
+        parts.append(
+            f"  - missing {gap['missing_ref']} '{gap['missing_name']}' "
+            f"(owned by the {gap['target']} phase)"
+        )
+        parts.append(
+            "Before requesting upstream repair, try to recover locally: "
+            "call the relevant list_* tools, use an existing exact name if "
+            "one satisfies the spec, or update/delete any object you "
+            "created with the bad reference. If the object truly does not "
+            "exist after checking, report that clearly."
+        )
+
+    if surface_empty:
+        parts.append("")
+        parts.append(
+            "You have not created ANY BuildingSurface:Detailed objects "
+            "yet. Call list_zones and list_constructions to map the "
+            "available names, then create ALL surfaces whose zone and "
+            "construction already exist. Only request back-hop if a "
+            "required upstream object is truly absent AFTER you have "
+            "built every surface you can."
+        )
+
+    parts.append("")
+    parts.append(
+        "Fix them: use `update_<x>` to rename references, or "
+        "`delete_<x>` + `create_<x>` to rebuild. If the broken reference "
+        "names an upstream resource (zone / schedule / material / "
+        "construction / surface) that truly does not exist, report it in "
+        "your final message and do NOT fabricate a replacement — upstream "
+        "phases own those objects."
+        + language_directive()
+    )
+    return "\n".join(parts)
 
 
 def build_upstream_specs(gap: dict[str, str], state: AgentState) -> str:
