@@ -100,8 +100,23 @@ def simulate_node(
         # each write it too, which triggers LangGraph's
         # InvalidUpdateError ("Can receive only one value per step").
         error_block = format_errors_for_llm(err_info)
-        if not response.success and response.message:
-            error_block = (error_block + "\n" if error_block else "") + response.message
+        if not response.success:
+            # Surface BOTH the workflow's own message AND any structured
+            # errors it carried. The geometry preflight in particular
+            # returns a generic message + specific errors in data["errors"]
+            # (e.g. "Zone 'X' has 0 BuildingSurface:Detailed objects") —
+            # without surfacing them the LLM only sees "cannot run
+            # simulation" and has no idea what to fix.
+            if response.message:
+                error_block = (error_block + "\n" if error_block else "") + response.message
+            if isinstance(response.data, dict):
+                preflight_errors = response.data.get("errors") or []
+                if preflight_errors:
+                    bullet = "\n".join(f"  - {e}" for e in preflight_errors)
+                    error_block = (
+                        (error_block + "\n" if error_block else "")
+                        + "Geometry completeness errors:\n" + bullet
+                    )
         errors_for_phase = (
             [error_block] if error_block else ["EnergyPlus simulation failed."]
         )
