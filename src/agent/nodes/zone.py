@@ -50,8 +50,10 @@ def zone_agent(state: AgentState) -> AgentStateUpdate:
     specs = state.intake_output.zone_specs if state.intake_output else state.user_input
     # If reached via a back-hop from surface (needed a zone), append.
     upstream = state.upstream_request
-    if upstream and upstream.get("target") == "zone":
+    consumed_upstream = bool(upstream and upstream.get("target") == "zone")
+    if consumed_upstream:
         specs = f"{specs}\n\n{upstream['specs']}"
+
     result = invoke_with_self_repair(
         agent,
         local,
@@ -68,6 +70,7 @@ def zone_agent(state: AgentState) -> AgentStateUpdate:
     # MAX_ZONE_VALIDATION_ROUNDS rounds. This catches the failure mode where
     # the main agent's LLM silently produced zero tool calls (zero zones)
     # without raising any error.
+    final_validation_errors: list[str] = []
     for v_round in range(MAX_ZONE_VALIDATION_ROUNDS):
         decision, reasons = run_zone_validator(specs, local, llm)
         if decision == "approved":
@@ -82,6 +85,7 @@ def zone_agent(state: AgentState) -> AgentStateUpdate:
             "[zone] validator rejected (round {}/{}): {}",
             v_round + 1, MAX_ZONE_VALIDATION_ROUNDS, reasons,
         )
+        final_validation_errors = list(reasons or [])
         feedback = HumanMessage(
             content=(
                 "Zone completeness validation FAILED. The zones you created do "
@@ -104,6 +108,11 @@ def zone_agent(state: AgentState) -> AgentStateUpdate:
             "[zone] validation still not approved after {} rounds; proceeding "
             "with current zones", MAX_ZONE_VALIDATION_ROUNDS,
         )
+        final_validation_errors = [
+            "Zone validation failed after "
+            f"{MAX_ZONE_VALIDATION_ROUNDS} rounds: "
+            + "; ".join(final_validation_errors or ["validator did not approve"])
+        ]
 
     final = [
         m for m in result["messages"] if isinstance(m, AIMessage) and not m.tool_calls
@@ -112,7 +121,19 @@ def zone_agent(state: AgentState) -> AgentStateUpdate:
 
     record_phase_trace("zone", collector.export())
 
-    return AgentStateUpdate(
+    update = AgentStateUpdate(
         config_state=local,
         messages=[AIMessage(content=f"[zone] {summary}")],
     )
+    if final_validation_errors:
+        update["validation_errors"] = final_validation_errors
+        update["messages"] = [
+            *update["messages"],
+            AIMessage(content="[zone-validator] " + " ".join(final_validation_errors)),
+        ]
+    # Drop the consumed back-hop request so it can't be re-injected on retry.
+    # An empty dict is the reducer's explicit-clear sentinel (a bare None would
+    # be treated as "field omitted" by sibling branches and leave the value).
+    if consumed_upstream:
+        update["upstream_request"] = {}
+    return update

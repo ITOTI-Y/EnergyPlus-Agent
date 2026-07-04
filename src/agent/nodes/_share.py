@@ -289,25 +289,16 @@ def invoke_with_self_repair(
     for attempt in range(MAX_SELF_REPAIR_ROUNDS + 1):
         result = agent.invoke(ReactState(messages=messages))
 
-        # Back-hop detection: if a tool reported a missing upstream object
-        # (e.g. fenestration referenced a window construction that was never
-        # created), surface it to the caller as a hop_request so the phase
-        # node can Command(goto=<earlier phase>) to have it built. This runs
-        # BEFORE the cross-ref check because a missing upstream object is a
-        # different failure mode than a self-repairable dangling reference.
+        # A missing upstream object is first fed back to the phase LLM so it
+        # can try to self-heal by using existing names from list_* tools. Only
+        # after the repair budget is exhausted do we surface hop_request to the
+        # caller and let the existing maybe_backhop() mechanism route upstream.
         gap = detect_upstream_gap(result, phase)
-        if gap:
-            result["hop_request"] = gap
-            logger.info(
-                "[{}] upstream gap detected (missing {} '{}') -> hop to {}",
-                phase, gap["missing_ref"], gap["missing_name"], gap["target"],
-            )
-            return result
 
         all_errors = local_config.validate_references()
         scoped = _scoped_errors(all_errors)
 
-        if not scoped:
+        if not scoped and not gap:
             if attempt > 0:
                 logger.info(
                     "[{}] self-repair succeeded on round {}", phase, attempt
@@ -315,6 +306,18 @@ def invoke_with_self_repair(
             return result
 
         if attempt == MAX_SELF_REPAIR_ROUNDS:
+            if gap:
+                result["hop_request"] = gap
+                logger.info(
+                    "[{}] upstream gap persisted after {} repair rounds "
+                    "(missing {} '{}') -> hop to {}",
+                    phase,
+                    MAX_SELF_REPAIR_ROUNDS,
+                    gap["missing_ref"],
+                    gap["missing_name"],
+                    gap["target"],
+                )
+                return result
             logger.warning(
                 "[{}] self-repair exhausted after {} rounds, {} in-scope "
                 "errors remain — escalating to outer validate loop",
@@ -324,16 +327,36 @@ def invoke_with_self_repair(
             )
             return result
 
+        gap_lines = ""
+        if gap:
+            gap_lines = (
+                "\n\nA tool call reported a missing upstream object:\n"
+                f"  - missing {gap['missing_ref']} '{gap['missing_name']}' "
+                f"(owned by the {gap['target']} phase)\n"
+                "Before requesting upstream repair, try to recover locally: "
+                "call the relevant list_* tools, use an existing exact name "
+                "if one satisfies the spec, or update/delete any object you "
+                "created with the bad reference. If the object truly does not "
+                "exist after checking, report that clearly."
+            )
+
         logger.info(
-            "[{}] self-repair round {}: {} in-scope cross-ref errors",
+            "[{}] self-repair round {}: {} in-scope cross-ref errors{}",
             phase,
             attempt + 1,
             len(scoped),
+            " plus upstream gap" if gap else "",
         )
         feedback = HumanMessage(
             content=(
                 "Cross-reference validation failed for objects YOU own:\n"
-                + "\n".join(f"  - {e}" for e in scoped)
+                + (
+                    "\n".join(f"  - {e}" for e in scoped)
+                    if scoped
+                    else "  - No stored-object reference errors remain, but a "
+                    "tool call failed due to a missing upstream reference."
+                )
+                + gap_lines
                 + "\n\nFix them: use `update_<x>` to rename references, or "
                 "`delete_<x>` + `create_<x>` to rebuild. If the broken "
                 "reference names an upstream resource (zone / schedule / "
