@@ -1,13 +1,12 @@
 import re
 from abc import abstractmethod
 from collections import defaultdict
-from io import StringIO
 from pathlib import Path
-from typing import Any, ClassVar, cast
+from typing import Any, ClassVar, Literal
 
 import numpy as np
 from dateutil.parser import parse
-from eppy.modeleditor import IDF
+from idfpy import IDF
 from pydantic import (
     BaseModel,
     ConfigDict,
@@ -25,93 +24,37 @@ from src.utils.logging import get_logger
 logger = get_logger(__name__)
 
 
-class IDDField:
-    def __init__(self, data: list[dict] | dict):
-        if isinstance(data, list):
-            for obj in data:
-                if isinstance(obj, list):
-                    if len(obj) > 0 and isinstance(obj[0], dict):
-                        obj_name = obj[0].get("idfobj", None)
-                    else:
-                        continue
-                    if obj_name:
-                        obj_name = self._clean_key(obj_name)
-                        setattr(self, obj_name, IDDField(obj[1:]))
-                elif isinstance(obj, dict):
-                    field_name = obj.get("field", None)
-                    if field_name:
-                        if (
-                            isinstance(field_name, (list, tuple))
-                            and len(field_name) > 0
-                        ):
-                            field_name = self._clean_key(field_name[0])
-                        elif isinstance(field_name, str):
-                            field_name = self._clean_key(field_name)
-                        else:
-                            continue
-                        setattr(self, field_name, IDDField(obj))
-        elif isinstance(data, dict):
-            for key, value in data.items():
-                key = self._clean_key(key)
-                if isinstance(value, list) and len(value) == 1:
-                    value = value[0]
-                setattr(self, key, value)
-
-    def _clean_key(self, key: str) -> str:
-        for i in [" ", "-", "/", ":"]:
-            key = key.replace(i, "_")
-        return key
-
-    def __getattr__(self, name: str) -> "IDDField":
-        raise AttributeError(
-            f"'{self.__class__.__name__}' object has no attribute '{name}'"
-        )
-
-
 class BaseSchema(BaseModel):
     model_config = ConfigDict(
-        from_attributes=True,  # 支持从对象创建模型
-        validate_assignment=True,  # 赋值时验证
-        arbitrary_types_allowed=True,  # 允许任意类型
-        str_strip_whitespace=True,  # 自动去除字符串空格
-        use_enum_values=True,  # 使用枚举值
-        populate_by_name=True,  # 允许通过字段名填充
-        extra="allow",  # 允许额外字段
+        from_attributes=True,
+        validate_assignment=True,
+        arbitrary_types_allowed=True,
+        str_strip_whitespace=True,
+        use_enum_values=True,
+        populate_by_name=True,
+        extra="ignore",
     )
 
-    _idf: IDF | None = None
-    _idf_field: IDDField = IDDField({})
+    _global_idf: IDF | None = None
+    """Class-level global IDF used for IDD/schema lookups (set via
+    set_idf). Kept distinct from ConfigState's instance-level ``_idf``
+    PrivateAttr to avoid a name clash that breaks attribute resolution
+    under validate_assignment."""
 
     @classmethod
-    def set_idf(cls, idd_file: Path | str, idf_path: Path | None = None) -> None:
-        IDF.setiddname(str(idd_file))
+    def set_idf(cls, idf_path: Path | None = None) -> None:
         if idf_path:
-            cls._idf = IDF(str(idf_path))
+            cls._global_idf = IDF.load(idf_path)
         else:
-            cls._idf = cls._create_blank_idf()
-        cls._idf_field = cls._process_idf_field()
-
-    @classmethod
-    def _process_idf_field(cls) -> IDDField:
-        if cls._idf is None:
-            raise RuntimeError(
-                "IDF has not been initialized. Call BaseSchema.set_idf(...) before using _process_idf_field."
-            )
-        _idd_info = cast(list[dict], cls._idf.idd_info)
-        idd_field = IDDField(_idd_info)
-        return idd_field
+            cls._global_idf = IDF()
 
     @staticmethod
     def _create_blank_idf() -> IDF:
-        idf_text = ""
-        fhandle = StringIO(idf_text)
-        return IDF(fhandle)
+        return IDF()
 
     @staticmethod
-    def validate_choice_field(
-        value: str, valid_choices: list | IDDField, field_name: str
-    ) -> str:
-        choice_mapping = {choice.lower(): choice for choice in valid_choices}  # type: ignore
+    def validate_choice_field(value: str, valid_choices: list, field_name: str) -> str:
+        choice_mapping = {choice.lower(): choice for choice in valid_choices}
         value_lower = value.lower()
 
         if value_lower not in choice_mapping:
@@ -123,7 +66,7 @@ class BaseSchema(BaseModel):
             )
             raise ValueError(f"{field_name} must be one of {valid_choices}.")
 
-        if value not in valid_choices:  # type: ignore
+        if value not in valid_choices:
             logger.warning(
                 "{} '{}' is not in the standard casing. Using '{}' instead.",
                 field_name,
@@ -137,11 +80,11 @@ class BaseSchema(BaseModel):
 
     @classmethod
     def get_idf(cls) -> IDF:
-        if cls._idf is None:
+        if cls._global_idf is None:
             raise ValueError(
                 "IDF is not set. Please set the IDF using BaseSchema.set_idf."
             )
-        return cls._idf
+        return cls._global_idf
 
 
 class BuildingSchema(BaseSchema):
@@ -149,7 +92,9 @@ class BuildingSchema(BaseSchema):
     north_axis: float = Field(
         0.0, alias="North Axis", description="Building north axis in degrees"
     )
-    terrain: str = Field("Suburbs", alias="Terrain", description="Terrain type")
+    terrain: Literal["Country", "Suburbs", "City", "Ocean", "Urban"] = Field(
+        "Suburbs", alias="Terrain", description="Terrain type"
+    )
     loads_convergence_tolerance_value: float = Field(
         0.04,
         alias="Loads Convergence Tolerance Value",
@@ -160,7 +105,13 @@ class BuildingSchema(BaseSchema):
         alias="Temperature Convergence Tolerance Value",
         description="Temperature convergence tolerance value",
     )
-    solar_distribution: str = Field(
+    solar_distribution: Literal[
+        "FullExterior",
+        "MinimalShadowing",
+        "FullInteriorAndExterior",
+        "FullExteriorWithReflections",
+        "FullInteriorAndExteriorWithReflections",
+    ] = Field(
         "FullExterior", alias="Solar Distribution", description="Solar distribution"
     )
     maximum_number_of_warmup_days: int = Field(
@@ -188,8 +139,8 @@ class BuildingSchema(BaseSchema):
 
     @field_validator("terrain")
     def validate_terrain(cls, v):
-        valid_terrains = cls._idf_field.Building.Terrain.key
-        if v not in valid_terrains:  # type: ignore
+        valid_terrains = ["Country", "Suburbs", "City", "Ocean", "Urban"]
+        if v not in valid_terrains:
             raise ValueError(f"Terrain must be one of {valid_terrains}.")
         return v
 
@@ -378,7 +329,9 @@ class ZoneSchema(BaseSchema):
 
 class SurfaceSchema(BaseSchema):
     name: str = Field(..., alias="Name", description="Surface name")
-    surface_type: str = Field(..., alias="Surface Type", description="Type of surface")
+    surface_type: Literal["Ceiling", "Floor", "Roof", "Wall"] = Field(
+        ..., alias="Surface Type", description="Type of surface"
+    )
     construction_name: str = Field(
         ..., alias="Construction Name", description="Name of the construction"
     )
@@ -388,7 +341,25 @@ class SurfaceSchema(BaseSchema):
     space_name: str | None = Field(
         None, alias="Space Name", description="Name of the associated space"
     )
-    outside_boundary_condition: str = Field(
+    outside_boundary_condition: Literal[
+        "Adiabatic",
+        "Foundation",
+        "Ground",
+        "GroundBasementPreprocessorAverageFloor",
+        "GroundBasementPreprocessorAverageWall",
+        "GroundBasementPreprocessorLowerWall",
+        "GroundBasementPreprocessorUpperWall",
+        "GroundFCfactorMethod",
+        "GroundSlabPreprocessorAverage",
+        "GroundSlabPreprocessorCore",
+        "GroundSlabPreprocessorPerimeter",
+        "OtherSideCoefficients",
+        "OtherSideConditionsModel",
+        "Outdoors",
+        "Space",
+        "Surface",
+        "Zone",
+    ] = Field(
         ...,
         alias="Outside Boundary Condition",
         description="Outside boundary condition",
@@ -398,12 +369,14 @@ class SurfaceSchema(BaseSchema):
         alias="Outside Boundary Condition Object",
         description="Outside boundary condition object",
     )
-    sun_exposure: str = Field("NoSun", alias="Sun Exposure", description="Sun exposure")
-    wind_exposure: str = Field(
+    sun_exposure: Literal["NoSun", "SunExposed"] = Field(
+        "NoSun", alias="Sun Exposure", description="Sun exposure"
+    )
+    wind_exposure: Literal["NoWind", "WindExposed"] = Field(
         "NoWind", alias="Wind Exposure", description="Wind exposure"
     )
-    view_factor_to_ground: str | float = Field(
-        "autocalculate",
+    view_factor_to_ground: int | float | Literal["", "Autocalculate"] | None = Field(
+        "Autocalculate",
         alias="View Factor to Ground",
         description="View factor to ground or 'autocalculate'",
     )
@@ -419,17 +392,33 @@ class SurfaceSchema(BaseSchema):
 
     @field_validator("surface_type")
     def validate_surface_type(cls, v):
-        valid_types = cls._idf_field.BuildingSurface_Detailed.Surface_Type.key
-        if v not in valid_types:  # type: ignore
+        valid_types = ["Ceiling", "Floor", "Roof", "Wall"]
+        if v not in valid_types:
             raise ValueError(f"Surface Type must be one of {valid_types}.")
         return v
 
     @field_validator("outside_boundary_condition")
     def validate_outside_boundary_condition(cls, v):
-        valid_conditions = (
-            cls._idf_field.BuildingSurface_Detailed.Outside_Boundary_Condition.key
-        )
-        if v not in valid_conditions:  # type: ignore
+        valid_conditions = [
+            "Adiabatic",
+            "Foundation",
+            "Ground",
+            "GroundBasementPreprocessorAverageFloor",
+            "GroundBasementPreprocessorAverageWall",
+            "GroundBasementPreprocessorLowerWall",
+            "GroundBasementPreprocessorUpperWall",
+            "GroundFCfactorMethod",
+            "GroundSlabPreprocessorAverage",
+            "GroundSlabPreprocessorCore",
+            "GroundSlabPreprocessorPerimeter",
+            "OtherSideCoefficients",
+            "OtherSideConditionsModel",
+            "Outdoors",
+            "Space",
+            "Surface",
+            "Zone",
+        ]
+        if v not in valid_conditions:
             raise ValueError(
                 f"Outside Boundary Condition must be one of {valid_conditions}."
             )
@@ -437,15 +426,15 @@ class SurfaceSchema(BaseSchema):
 
     @field_validator("sun_exposure")
     def validate_sun_exposure(cls, v):
-        valid_exposures = cls._idf_field.BuildingSurface_Detailed.Sun_Exposure.key
-        if v not in valid_exposures:  # type: ignore
+        valid_exposures = ["", "NoSun", "SunExposed"]
+        if v not in valid_exposures:
             raise ValueError(f"Sun Exposure must be one of {valid_exposures}.")
         return v
 
     @field_validator("wind_exposure")
     def validate_wind_exposure(cls, v):
-        valid_exposures = cls._idf_field.BuildingSurface_Detailed.Wind_Exposure.key
-        if v not in valid_exposures:  # type: ignore
+        valid_exposures = ["", "NoWind", "WindExposed"]
+        if v not in valid_exposures:
             raise ValueError(f"Wind Exposure must be one of {valid_exposures}.")
         return v
 
@@ -506,22 +495,22 @@ class SurfaceSchema(BaseSchema):
 
 
 class SimulationControlSchema(BaseSchema):
-    do_zone_sizing_calculation: str | bool = Field(
+    do_zone_sizing_calculation: Literal["Yes", "No"] = Field(
         "No", alias="Do Zone Sizing Calculation"
     )
-    do_system_sizing_calculation: str | bool = Field(
+    do_system_sizing_calculation: Literal["Yes", "No"] = Field(
         "No", alias="Do System Sizing Calculation"
     )
-    do_plant_sizing_calculation: str | bool = Field(
+    do_plant_sizing_calculation: Literal["Yes", "No"] = Field(
         "No", alias="Do Plant Sizing Calculation"
     )
-    run_simulation_for_sizing_periods: str | bool = Field(
+    run_simulation_for_sizing_periods: Literal["Yes", "No"] = Field(
         "Yes", alias="Run Simulation for Sizing Periods"
     )
-    run_simulation_for_weather_file_run_periods: str | bool = Field(
+    run_simulation_for_weather_file_run_periods: Literal["Yes", "No"] = Field(
         "Yes", alias="Run Simulation for Weather File Run Periods"
     )
-    do_hvac_sizing_simulation_for_sizing_periods: str | bool | None = Field(
+    do_hvac_sizing_simulation_for_sizing_periods: Literal["Yes", "No"] | None = Field(
         "Yes", alias="Do HVAC Sizing Simulation for Sizing Periods"
     )
     maximum_number_of_hvac_sizing_simulation_passes: int | None = Field(
@@ -673,8 +662,16 @@ class RunPeriodSchema(BaseSchema):
 
     @field_validator("day_of_week_for_start_day")
     def validate_day_of_week(cls, v):
-        valid_days = cls._idf_field.RunPeriod.Day_of_Week_for_Start_Day.key
-        if v is not None and v not in valid_days:  # type: ignore
+        valid_days = [
+            "Sunday",
+            "Monday",
+            "Tuesday",
+            "Wednesday",
+            "Thursday",
+            "Friday",
+            "Saturday",
+        ]
+        if v is not None and v not in valid_days:
             raise ValueError(f"Day of Week for Start Day must be one of {valid_days}.")
         return v
 
@@ -683,20 +680,25 @@ class RunPeriodSchema(BaseSchema):
 
 
 class GlobalGeometryRulesSchema(BaseSchema):
-    starting_vertex_position: str = Field(
-        "UpperLeftCorner", alias="Starting Vertex Position"
-    )
-    vertex_entry_direction: str = Field(
+    starting_vertex_position: Literal[
+        "LowerLeftCorner", "LowerRightCorner", "UpperLeftCorner", "UpperRightCorner"
+    ] = Field("UpperLeftCorner", alias="Starting Vertex Position")
+    vertex_entry_direction: Literal["Clockwise", "Counterclockwise"] = Field(
         "Counterclockwise", alias="Vertex Entry Direction"
     )
-    coordinate_system: str = Field("World", alias="Coordinate System")
+    coordinate_system: Literal["Relative", "World"] = Field(
+        "World", alias="Coordinate System"
+    )
 
     @field_validator("starting_vertex_position")
     def validate_starting_vertex_position(cls, v):
-        valid_positions = (
-            cls._idf_field.GlobalGeometryRules.Starting_Vertex_Position.key
-        )
-        if v not in valid_positions:  # type: ignore
+        valid_positions = [
+            "LowerLeftCorner",
+            "LowerRightCorner",
+            "UpperLeftCorner",
+            "UpperRightCorner",
+        ]
+        if v not in valid_positions:
             raise ValueError(
                 f"Starting Vertex Position must be one of {valid_positions}."
             )
@@ -704,12 +706,12 @@ class GlobalGeometryRulesSchema(BaseSchema):
 
     @field_validator("vertex_entry_direction")
     def validate_vertex_entry_direction(cls, v):
-        valid_directions = cls._idf_field.GlobalGeometryRules.Vertex_Entry_Direction.key
+        valid_directions = ["Clockwise", "Counterclockwise"]
         return cls.validate_choice_field(v, valid_directions, "Vertex Entry Direction")
 
     @field_validator("coordinate_system")
     def validate_coordinate_system(cls, v):
-        valid_systems = cls._idf_field.GlobalGeometryRules.Coordinate_System.key
+        valid_systems = ["Relative", "World"]
         return cls.validate_choice_field(v, valid_systems, "Coordinate System")
 
     def to_yaml_dict(self) -> dict[str, Any]:
@@ -717,11 +719,11 @@ class GlobalGeometryRulesSchema(BaseSchema):
 
 
 class OutputVariableDictionarySchema(BaseSchema):
-    key_field: str = Field("Regular", alias="Key Field")
+    key_field: Literal["regular", "IDF"] | None = Field("regular", alias="Key Field")
 
     @field_validator("key_field")
     def validate_key_field(cls, v):
-        valid_key_field = cls._idf_field.Output_VariableDictionary.Key_Field.key
+        valid_key_field = ["", "IDF", "regular"]
         return cls.validate_choice_field(v, valid_key_field, "Key Field")
 
     def to_yaml_dict(self) -> dict[str, Any]:
@@ -729,11 +731,33 @@ class OutputVariableDictionarySchema(BaseSchema):
 
 
 class OutputDiagnosticsSchema(BaseSchema):
-    key_1: str = Field("DisplayExtraWarnings", alias="Key 1")
+    key_1: (
+        Literal[
+            "DisplayAdvancedReportVariables",
+            "DisplayAllWarnings",
+            "DisplayExtraWarnings",
+            "DisplayUnusedObjects",
+            "DisplayUnusedSchedules",
+            "DisplayWeatherMissingDataWarnings",
+            "DisplayZoneAirHeatBalanceOffBalance",
+            "DoNotMirrorAttachedShading",
+            "DoNotMirrorDetachedShading",
+            "ReportDetailedWarmupConvergence",
+            "ReportDuringHVACSizingSimulation",
+            "ReportDuringWarmup",
+        ]
+        | None
+    ) = Field("DisplayExtraWarnings", alias="Key 1")
 
     @field_validator("key_1")
     def validate_key_1(cls, v):
-        valid_key_1 = cls._idf_field.Output_Diagnostics.Key_1.key
+        valid_key_1 = [
+            "DisplayAdvancedReportVariables",
+            "DisplayAllWarnings",
+            "DisplayExtraWarnings",
+            "DisplayUnusedObjects",
+            "DisplayUnusedSchedules",
+        ]
         return cls.validate_choice_field(v, valid_key_1, "Key 1")
 
     def to_yaml_dict(self) -> dict[str, Any]:
@@ -741,13 +765,149 @@ class OutputDiagnosticsSchema(BaseSchema):
 
 
 class OutputTableSummaryReportsSchema(BaseSchema):
-    report_1_name: str = Field("AllSummary", alias="Report 1 Name")
+    report_1_name: (
+        Literal[
+            "AdaptiveComfortSummary",
+            "AirLoopComponentLoadSummary",
+            "AirLoopSystemComponentEnergyUseMonthly",
+            "AirLoopSystemComponentLoadsMonthly",
+            "AirLoopSystemEnergyAndWaterUseMonthly",
+            "AllMonthly",
+            "AllSummary",
+            "AllSummaryAndMonthly",
+            "AllSummaryAndSizingPeriod",
+            "AllSummaryMonthlyAndSizingPeriod",
+            "AnnualBuildingUtilityPerformanceSummary",
+            "AverageOutdoorConditionsMonthly",
+            "BoilerReportMonthly",
+            "CO2ResilienceSummary",
+            "ChillerReportMonthly",
+            "ClimaticDataSummary",
+            "CoilReportMonthly",
+            "CoilSizingDetails",
+            "ComfortReportSimple55Monthly",
+            "ComponentCostEconomicsSummary",
+            "ComponentSizingSummary",
+            "CondLoopDemandReportMonthly",
+            "DXReportMonthly",
+            "DaylightingReportMonthly",
+            "DemandEndUseComponentsSummary",
+            "EconomicResultSummary",
+            "ElectricComponentsOfPeakDemandMonthly",
+            "EndUseEnergyConsumptionCoalMonthly",
+            "EndUseEnergyConsumptionDieselMonthly",
+            "EndUseEnergyConsumptionElectricityMonthly",
+            "EndUseEnergyConsumptionFuelOilMonthly",
+            "EndUseEnergyConsumptionGasolineMonthly",
+            "EndUseEnergyConsumptionNaturalGasMonthly",
+            "EndUseEnergyConsumptionOtherFuelsMonthly",
+            "EndUseEnergyConsumptionPropaneMonthly",
+            "EnergyConsumptionCoalGasolineMonthly",
+            "EnergyConsumptionDieselFuelOilMonthly",
+            "EnergyConsumptionDistrictHeatingCoolingMonthly",
+            "EnergyConsumptionElectricityGeneratedPropaneMonthly",
+            "EnergyConsumptionElectricityNaturalGasMonthly",
+            "EnergyConsumptionOtherFuelsMonthly",
+            "EnergyMeters",
+            "EnvelopeSummary",
+            "EquipmentSummary",
+            "FacilityComponentLoadSummary",
+            "FanReportMonthly",
+            "GeneratorReportMonthly",
+            "HVACSizingSummary",
+            "HeatEmissionsReportMonthly",
+            "HeatEmissionsSummary",
+            "InitializationSummary",
+            "InputVerificationandResultsSummary",
+            "LEEDSummary",
+            "LifeCycleCostReport",
+            "LightingSummary",
+            "MechanicalVentilationLoadsMonthly",
+            "ObjectCountSummary",
+            "OccupantComfortDataSummaryMonthly",
+            "OutdoorAirDetails",
+            "OutdoorAirSummary",
+            "OutdoorConditionsMaximumDewPointMonthly",
+            "OutdoorConditionsMaximumDryBulbMonthly",
+            "OutdoorConditionsMaximumWetBulbMonthly",
+            "OutdoorConditionsMinimumDryBulbMonthly",
+            "OutdoorGroundConditionsMonthly",
+            "PeakEnergyEndUseCoalMonthly",
+            "PeakEnergyEndUseDieselMonthly",
+            "PeakEnergyEndUseElectricityPart1Monthly",
+            "PeakEnergyEndUseElectricityPart2Monthly",
+            "PeakEnergyEndUseFuelOilMonthly",
+            "PeakEnergyEndUseGasolineMonthly",
+            "PeakEnergyEndUseNaturalGasMonthly",
+            "PeakEnergyEndUseOtherFuelsMonthly",
+            "PeakEnergyEndUsePropaneMonthly",
+            "PeakSpaceGainsMonthly",
+            "PlantLoopDemandReportMonthly",
+            "PumpReportMonthly",
+            "SensibleHeatGainSummary",
+            "SetpointsNotMetWithTemperaturesMonthly",
+            "ShadingSummary",
+            "SourceEnergyEndUseComponentsSummary",
+            "SpaceGainComponentsAtCoolingPeakMonthly",
+            "SpaceGainsMonthly",
+            "Standard62.1Summary",
+            "SurfaceShadowingSummary",
+            "SystemSummary",
+            "TariffReport",
+            "ThermalResilienceSummary",
+            "TowerReportMonthly",
+            "UnglazedTranspiredSolarCollectorSummaryMonthly",
+            "VisualResilienceSummary",
+            "WaterHeaterReportMonthly",
+            "WindowACReportMonthly",
+            "WindowEnergyReportMonthly",
+            "WindowEnergyZoneSummaryMonthly",
+            "WindowReportMonthly",
+            "WindowZoneSummaryMonthly",
+            "ZoneComponentLoadSummary",
+            "ZoneCoolingSummaryMonthly",
+            "ZoneElectricSummaryMonthly",
+            "ZoneHeatingSummaryMonthly",
+            "ZoneTemperatureOscillationReportMonthly",
+        ]
+        | None
+    ) = Field("AllSummary", alias="Report 1 Name")
 
     @field_validator("report_1_name")
     def validate_report_1_name(cls, v):
-        valid_report_names = (
-            cls._idf_field.Output_Table_SummaryReports.Report_1_Name.key
-        )
+        valid_report_names = [
+            "AdaptiveComfortSummary",
+            "AirLoopComponentLoadSummary",
+            "AllMonthly",
+            "AllSummary",
+            "AllSummaryAndMonthly",
+            "AllSummaryAndSizingPeriod",
+            "AllSummaryMonthlyAndSizingPeriod",
+            "AnnualBuildingUtilityPerformanceSummary",
+            "ClimaticDataSummary",
+            "ComponentCostEconomicsSummary",
+            "ComponentSizingSummary",
+            "CoilSizingDetails",
+            "DemandEndUseComponentsSummary",
+            "EnergyMeters",
+            "EnvelopeSummary",
+            "EquipmentSummary",
+            "FacilityComponentLoadSummary",
+            "HVACSizingSummary",
+            "InitializationSummary",
+            "InputVerificationandResultsSummary",
+            "LEEDSummary",
+            "LifeCycleCostReport",
+            "LightingSummary",
+            "ObjectCountSummary",
+            "OutdoorAirSummary",
+            "SensibleHeatGainSummary",
+            "ShadingSummary",
+            "SourceEnergyEndUseComponentsSummary",
+            "SystemSummary",
+            "TariffReport",
+            "ZoneComponentLoadSummary",
+        ]
         return cls.validate_choice_field(v, valid_report_names, "Report 1 Name")
 
     def to_yaml_dict(self) -> dict[str, Any]:
@@ -755,17 +915,63 @@ class OutputTableSummaryReportsSchema(BaseSchema):
 
 
 class OutputControlTableStyleSchema(BaseSchema):
-    column_separator: str = Field("Comma", alias="Column Separator")
-    unit_conversion: str = Field("None", alias="Unit Conversion")
+    column_separator: (
+        Literal[
+            "",
+            "All",
+            "Comma",
+            "CommaAndHTML",
+            "CommaAndXML",
+            "Fixed",
+            "HTML",
+            "Tab",
+            "TabAndHTML",
+            "XML",
+            "XMLandHTML",
+        ]
+        | None
+    ) = Field("Comma", alias="Column Separator")
+    unit_conversion: (
+        Literal[
+            "",
+            "InchPound",
+            "InchPoundExceptElectricity",
+            "JtoGJ",
+            "JtoKWH",
+            "JtoMJ",
+            "None",
+        ]
+        | None
+    ) = Field("None", alias="Unit Conversion")
 
     @field_validator("column_separator")
     def validate_column_separator(cls, v):
-        valid_separators = cls._idf_field.OutputControl_Table_Style.Column_Separator.key
+        valid_separators = [
+            "",
+            "All",
+            "Comma",
+            "CommaAndHTML",
+            "CommaAndXML",
+            "Fixed",
+            "HTML",
+            "Tab",
+            "TabAndHTML",
+            "XML",
+            "XMLandHTML",
+        ]
         return cls.validate_choice_field(v, valid_separators, "Column Separator")
 
     @field_validator("unit_conversion")
     def validate_unit_conversion(cls, v):
-        valid_conversions = cls._idf_field.OutputControl_Table_Style.Unit_Conversion.key
+        valid_conversions = [
+            "",
+            "InchPound",
+            "InchPoundExceptElectricity",
+            "JtoGJ",
+            "JtoKWH",
+            "JtoMJ",
+            "None",
+        ]
         return cls.validate_choice_field(v, valid_conversions, "Unit Conversion")
 
     def to_yaml_dict(self) -> dict[str, Any]:
@@ -775,11 +981,34 @@ class OutputControlTableStyleSchema(BaseSchema):
 class OutputVariableSchema(BaseSchema):
     key_value: str = Field("*", alias="Key Value")
     variable_name: str = Field("Zone Mean Air Temperature", alias="Variable Name")
-    reporting_frequency: str = Field("Hourly", alias="Reporting Frequency")
+    reporting_frequency: (
+        Literal[
+            "",
+            "Annual",
+            "Daily",
+            "Detailed",
+            "Environment",
+            "Hourly",
+            "Monthly",
+            "RunPeriod",
+            "Timestep",
+        ]
+        | None
+    ) = Field("Hourly", alias="Reporting Frequency")
 
     @field_validator("reporting_frequency")
     def validate_reporting_frequency(cls, v):
-        valid_frequencies = cls._idf_field.Output_Variable.Reporting_Frequency.key
+        valid_frequencies = [
+            "",
+            "Annual",
+            "Daily",
+            "Detailed",
+            "Environment",
+            "Hourly",
+            "Monthly",
+            "RunPeriod",
+            "Timestep",
+        ]
         return cls.validate_choice_field(v, valid_frequencies, "Reporting Frequency")
 
     def to_yaml_dict(self) -> dict[str, Any]:
@@ -833,7 +1062,9 @@ class MaterialSchema(BaseSchema):
 
 
 class StandardMaterialSchema(MaterialSchema):
-    roughness: str = Field(..., alias="Roughness")
+    roughness: Literal[
+        "VeryRough", "Rough", "MediumRough", "MediumSmooth", "Smooth", "VerySmooth"
+    ] = Field(..., alias="Roughness")
     thickness: float = Field(..., alias="Thickness", gt=0)
     conductivity: float = Field(..., alias="Conductivity", gt=0)
     density: float = Field(..., alias="Density", gt=0)
@@ -858,7 +1089,9 @@ class StandardMaterialSchema(MaterialSchema):
 
 
 class NoMassMaterialSchema(MaterialSchema):
-    roughness: str = Field(..., alias="Roughness")
+    roughness: Literal[
+        "VeryRough", "Rough", "MediumRough", "MediumSmooth", "Smooth", "VerySmooth"
+    ] = Field(..., alias="Roughness")
     thermal_resistance: float = Field(..., alias="Thermal_Resistance", gt=0)
 
     @field_validator("roughness")
@@ -958,8 +1191,14 @@ class FenestrationSurfaceSchema(BaseSchema):
 
     @field_validator("surface_type")
     def validate_surface_type(cls, v):
-        valid_types = cls._idf_field.FenestrationSurface_Detailed.Surface_Type.key
-        if v not in valid_types:  # type: ignore
+        valid_types = [
+            "Door",
+            "GlassDoor",
+            "TubularDaylightDiffuser",
+            "TubularDaylightDome",
+            "Window",
+        ]
+        if v not in valid_types:
             raise ValueError(f"Surface Type must be one of {valid_types}.")
         return v
 
@@ -1268,13 +1507,30 @@ class ScheduleCompactSchema(BaseSchema):
     @classmethod
     def _validate_through(cls, data: list) -> list[str]:
         result = []
+        prev_doy = -1
         for i, item in enumerate(data):
             date = item["Through"]
-            date = parse(date).strftime("%m/%d")
+            try:
+                parsed_date = parse(date)
+            except Exception as e:
+                raise ValueError(f"Invalid schedule Through date '{date}': {e}") from e
+            date_str = parsed_date.strftime("%m/%d")
+            # Day-of-year for monotonicity (non-leap reference year; we only
+            # compare order, so a fixed year is fine). EnergyPlus requires
+            # Through dates to advance strictly; equal/regressing dates make
+            # the period boundaries ambiguous.
+            doy = parsed_date.timetuple().tm_yday
+            if doy <= prev_doy:
+                raise ValueError(
+                    f"Schedule Through dates must be strictly increasing, but "
+                    f"'Through: {date_str}' (block {i}) is not later than the "
+                    f"previous block ({doy} <= {prev_doy})."
+                )
+            prev_doy = doy
             day_data = cls._validate_for(item["Days"])
-            if i == len(data) - 1 and date != "12/31":
+            if i == len(data) - 1 and date_str != "12/31":
                 raise ValueError("Schedule data must end with Through: 12/31")
-            result.append(f"Through: {date}")
+            result.append(f"Through: {date_str}")
             result.extend(day_data)
         return result
 
@@ -1298,27 +1554,107 @@ class ScheduleCompactSchema(BaseSchema):
             "customday2",
             "allotherdays",
         }
+        # Group day-types that imply their members. EnergyPlus raises a
+        # Fatal "Duplicate assignment attempted in for days field" when the
+        # SAME day-type is assigned twice within one Through: block — and
+        # the group types (AllDays / Weekdays / Weekends / Holidays) each
+        # imply their members, so listing a group AND one of its members
+        # (e.g. "For: AllDays" followed by "For: SummerDesignDay") is a
+        # duplicate. Map each group to the concrete types it owns.
+        GROUP_MEMBERS = {
+            "alldays": {
+                "monday",
+                "tuesday",
+                "wednesday",
+                "thursday",
+                "friday",
+                "saturday",
+                "sunday",
+                "holidays",
+                "summerdesignday",
+                "winterdesignday",
+                "customday1",
+                "customday2",
+            },
+            "weekdays": {"monday", "tuesday", "wednesday", "thursday", "friday"},
+            "weekends": {"saturday", "sunday", "holidays"},
+        }
         result = []
+        seen: set[str] = set()  # concrete day-types already claimed
         for _, item in enumerate(data):
             day_type = item["For"]
-            if day_type.lower() not in VALID_DAY_TYPES:
+            dt = day_type.lower()
+            if dt not in VALID_DAY_TYPES:
                 raise ValueError(f"Invalid day type: {day_type}")
+            # Resolve this declaration to the concrete types it claims.
+            claimed = GROUP_MEMBERS.get(dt, {dt})
+            overlap = seen & claimed
+            if overlap:
+                overlap_str = ", ".join(sorted(overlap))
+                raise ValueError(
+                    f"Duplicate schedule day-type assignment in one "
+                    f"Through: block: 'For: {day_type}' re-assigns "
+                    f"{overlap_str}. EnergyPlus rejects this with a Fatal "
+                    f"'Duplicate assignment attempted in for days field'. "
+                    f"Use mutually-exclusive day-types (e.g. 'AllDays' alone, "
+                    f"or 'Weekdays'/'Weekends'/'AllOtherDays')."
+                )
+            seen |= claimed
             time_data = cls._validate_until(item["Times"])
             result.append(f"For: {day_type}")
             result.extend(time_data)
         return result
 
     @classmethod
+    def _time_to_minutes(cls, time: str) -> int:
+        """Convert an "HH:MM" schedule time to minutes-of-day (0..1440).
+
+        EnergyPlus allows "24:00" as the day-end marker (== 1440), which
+        dateutil's parser rejects, so we handle it explicitly. Raises
+        ValueError on anything that isn't a valid HH:MM in 00:00..24:00.
+        """
+        s = str(time).strip()
+        # Accept "24:00" (and "24:00:00") as the canonical day-end.
+        if s.startswith("24:") or s == "24":
+            return 1440
+        try:
+            dt = parse(s)
+        except Exception as e:  # dateutil raises ParserError for bad input
+            raise ValueError(f"Invalid schedule time '{time}': {e}") from e
+        minutes = dt.hour * 60 + dt.minute
+        if dt.second or dt.microsecond:
+            raise ValueError(
+                f"Schedule time '{time}' must be in whole minutes (HH:MM), "
+                f"seconds are not allowed in a Schedule:Compact."
+            )
+        return minutes
+
+    @classmethod
     def _validate_until(cls, data: list) -> list[str]:
         result = []
+        prev_minutes = -1
         for i, item in enumerate(data):
             time = item["Until"]["Time"]
             value = float(item["Until"]["Value"])
-            if i == len(data) - 1:
-                if time != "24:00":
-                    raise ValueError(f"Last time entry must be 24:00, but got {time}")
+            minutes = cls._time_to_minutes(time)
+            is_last = i == len(data) - 1
+            # Each "Until" must be strictly later than the previous one —
+            # EnergyPlus rejects non-increasing/flat time series, and a
+            # duplicate time would make the profile ambiguous.
+            if minutes <= prev_minutes:
+                raise ValueError(
+                    f"Schedule times must be strictly increasing, but "
+                    f"'Until: {time}' (at index {i}) is not later than the "
+                    f"previous entry ({minutes} <= {prev_minutes} minutes)."
+                )
+            if is_last and minutes != 1440:
+                raise ValueError(f"Last time entry must be 24:00, but got {time}")
+            prev_minutes = minutes
+            # Normalize the displayed time to HH:MM (24:00 stays 24:00).
+            if minutes == 1440:
+                time = "24:00"
             else:
-                time = parse(time).strftime("%H:%M")
+                time = f"{minutes // 60:02d}:{minutes % 60:02d}"
             result.append(f"Until: {time}, {value}")
         return result
 
@@ -1399,9 +1735,9 @@ class LightSchema(BaseSchema):
         ..., alias="Zone or ZoneList or Space or SpaceList Name"
     )
     schedule_name: str = Field(..., alias="Schedule Name")
-    design_level_calculation_method: str = Field(
-        default="LightingLevel", alias="Design Level Calculation Method"
-    )
+    design_level_calculation_method: Literal[
+        "LightingLevel", "Watts/Area", "Watts/Person"
+    ] = Field(default="LightingLevel", alias="Design Level Calculation Method")
     lighting_level: float | None = Field(default=0.0, alias="Lighting Level", ge=0.0)
     watts_per_floor_area: float | None = Field(
         default=0.0, alias="Watts per Floor Area", ge=0.0
@@ -1424,7 +1760,9 @@ class LightSchema(BaseSchema):
     end_use_subcategory: str | None = Field(
         default="General", alias="End Use Subcategory"
     )
-    return_air_fraction_calculated_from_plenum_temperature: str | None = Field(
+    return_air_fraction_calculated_from_plenum_temperature: (
+        Literal["Yes", "No"] | None
+    ) = Field(
         default="No", alias="Return Air Fraction Calculated from Plenum Temperature"
     )
     return_air_fraction_function_of_plenum_temperature_coefficient_1: float | None = (
@@ -1453,7 +1791,7 @@ class LightSchema(BaseSchema):
 
     @field_validator("design_level_calculation_method")
     def validate_design_level_calculation_method(cls, v: str) -> str:
-        valid_choices = cls._idf_field.Lights.Design_Level_Calculation_Method.key
+        valid_choices = ["", "LightingLevel", "Watts/Area", "Watts/Person"]
         return cls.validate_choice_field(
             v,
             valid_choices,
@@ -1506,9 +1844,9 @@ class PeopleSchema(BaseSchema):
     number_of_people_schedule_name: str = Field(
         ..., alias="Number of People Schedule Name"
     )
-    number_of_people_calculation_method: str = Field(
-        default="People", alias="Number of People Calculation Method"
-    )
+    number_of_people_calculation_method: Literal[
+        "People", "People/Area", "Area/Person"
+    ] = Field(default="People", alias="Number of People Calculation Method")
     number_of_people: float | None = Field(
         default=0.0, ge=0.0, alias="Number of People"
     )
@@ -1521,17 +1859,19 @@ class PeopleSchema(BaseSchema):
     fraction_radiant: float | None = Field(
         default=0.3, ge=0.0, le=1.0, alias="Fraction Radiant"
     )
-    sensible_heat_fraction: float | str | None = Field(
+    sensible_heat_fraction: float | Literal["Autocalculate"] | None = Field(
         default="Autocalculate", alias="Sensible Heat Fraction"
     )
     activity_level_schedule_name: str = Field(..., alias="Activity Level Schedule Name")
     carbon_dioxide_generation_rate: float | None = Field(
         default=3.82e-08, ge=0.0, le=3.82e-07, alias="Carbon Dioxide Generation Rate"
     )
-    enable_ashrae_55_comfort_warnings: str | None = Field(
+    enable_ashrae_55_comfort_warnings: Literal["Yes", "No"] | None = Field(
         default="No", alias="Enable ASHRAE 55 Comfort Warnings"
     )
-    mean_radiant_temperature_calculation_type: str | None = Field(
+    mean_radiant_temperature_calculation_type: (
+        Literal["", "AngleFactor", "EnclosureAveraged", "SurfaceWeighted"] | None
+    ) = Field(
         default="EnclosureAveraged", alias="Mean Radiant Temperature Calculation Type"
     )
     surface_name_angle_factor_list_name: str | None = Field(
@@ -1540,7 +1880,14 @@ class PeopleSchema(BaseSchema):
     work_efficiency_schedule_name: str | None = Field(
         default="", alias="Work Efficiency Schedule Name"
     )
-    clothing_insulation_calculation_method: str | None = Field(
+    clothing_insulation_calculation_method: (
+        Literal[
+            "CalculationMethodSchedule",
+            "ClothingInsulationSchedule",
+            "DynamicClothingModelASHRAE55",
+        ]
+        | None
+    ) = Field(
         default="ClothingInsulationSchedule",
         alias="Clothing Insulation Calculation Method",
     )
@@ -1553,27 +1900,90 @@ class PeopleSchema(BaseSchema):
     air_velocity_schedule_name: str | None = Field(
         default="", alias="Air Velocity Schedule Name"
     )
-    thermal_comfort_model_1_type: str | None = Field(
-        default="", alias="Thermal Comfort Model 1 Type"
-    )
-    thermal_comfort_model_2_type: str | None = Field(
-        default="", alias="Thermal Comfort Model 2 Type"
-    )
-    thermal_comfort_model_3_type: str | None = Field(
-        default="", alias="Thermal Comfort Model 3 Type"
-    )
-    thermal_comfort_model_4_type: str | None = Field(
-        default="", alias="Thermal Comfort Model 4 Type"
-    )
-    thermal_comfort_model_5_type: str | None = Field(
-        default="", alias="Thermal Comfort Model 5 Type"
-    )
-    thermal_comfort_model_6_type: str | None = Field(
-        default="", alias="Thermal Comfort Model 6 Type"
-    )
-    thermal_comfort_model_7_type: str | None = Field(
-        default="", alias="Thermal Comfort Model 7 Type"
-    )
+    thermal_comfort_model_1_type: (
+        Literal[
+            "AdaptiveASH55",
+            "AdaptiveCEN15251",
+            "AnkleDraftASH55",
+            "CoolingEffectASH55",
+            "Fanger",
+            "KSU",
+            "Pierce",
+        ]
+        | None
+    ) = Field(default=None, alias="Thermal Comfort Model 1 Type")
+    thermal_comfort_model_2_type: (
+        Literal[
+            "AdaptiveASH55",
+            "AdaptiveCEN15251",
+            "AnkleDraftASH55",
+            "CoolingEffectASH55",
+            "Fanger",
+            "KSU",
+            "Pierce",
+        ]
+        | None
+    ) = Field(default=None, alias="Thermal Comfort Model 2 Type")
+    thermal_comfort_model_3_type: (
+        Literal[
+            "AdaptiveASH55",
+            "AdaptiveCEN15251",
+            "AnkleDraftASH55",
+            "CoolingEffectASH55",
+            "Fanger",
+            "KSU",
+            "Pierce",
+        ]
+        | None
+    ) = Field(default=None, alias="Thermal Comfort Model 3 Type")
+    thermal_comfort_model_4_type: (
+        Literal[
+            "AdaptiveASH55",
+            "AdaptiveCEN15251",
+            "AnkleDraftASH55",
+            "CoolingEffectASH55",
+            "Fanger",
+            "KSU",
+            "Pierce",
+        ]
+        | None
+    ) = Field(default=None, alias="Thermal Comfort Model 4 Type")
+    thermal_comfort_model_5_type: (
+        Literal[
+            "AdaptiveASH55",
+            "AdaptiveCEN15251",
+            "AnkleDraftASH55",
+            "CoolingEffectASH55",
+            "Fanger",
+            "KSU",
+            "Pierce",
+        ]
+        | None
+    ) = Field(default=None, alias="Thermal Comfort Model 5 Type")
+    thermal_comfort_model_6_type: (
+        Literal[
+            "AdaptiveASH55",
+            "AdaptiveCEN15251",
+            "AnkleDraftASH55",
+            "CoolingEffectASH55",
+            "Fanger",
+            "KSU",
+            "Pierce",
+        ]
+        | None
+    ) = Field(default=None, alias="Thermal Comfort Model 6 Type")
+    thermal_comfort_model_7_type: (
+        Literal[
+            "AdaptiveASH55",
+            "AdaptiveCEN15251",
+            "AnkleDraftASH55",
+            "CoolingEffectASH55",
+            "Fanger",
+            "KSU",
+            "Pierce",
+        ]
+        | None
+    ) = Field(default=None, alias="Thermal Comfort Model 7 Type")
     ankle_level_air_velocity_schedule_name: str | None = Field(
         default="", alias="Ankle Level Air Velocity Schedule Name"
     )
@@ -1622,7 +2032,7 @@ class PeopleSchema(BaseSchema):
 
     @field_validator("number_of_people_calculation_method")
     def validate_number_of_people_calculation_method(cls, v):
-        valid_choices = cls._idf_field.People.Number_of_People_Calculation_Method.key
+        valid_choices = ["", "Area/Person", "People", "People/Area"]
         return cls.validate_choice_field(
             v,
             valid_choices,
@@ -1644,9 +2054,7 @@ class PeopleSchema(BaseSchema):
 
     @field_validator("mean_radiant_temperature_calculation_type")
     def validate_mean_radiant_temperature_calculation_type(cls, v):
-        valid_choices = (
-            cls._idf_field.People.Mean_Radiant_Temperature_Calculation_Type.key
-        )
+        valid_choices = ["", "AngleFactor", "EnclosureAveraged", "SurfaceWeighted"]
         return cls.validate_choice_field(
             v,
             valid_choices,
@@ -1655,7 +2063,12 @@ class PeopleSchema(BaseSchema):
 
     @field_validator("clothing_insulation_calculation_method")
     def validate_clothing_insulation_calculation_method(cls, v):
-        valid_choices = cls._idf_field.People.Clothing_Insulation_Calculation_Method.key
+        valid_choices = [
+            "",
+            "CalculationMethodSchedule",
+            "ClothingInsulationSchedule",
+            "DynamicClothingModelASHRAE55",
+        ]
         return cls.validate_choice_field(
             v,
             valid_choices,
@@ -1674,7 +2087,15 @@ class PeopleSchema(BaseSchema):
     def validate_thermal_comfort_model_type(cls, v):
         if v in (None, ""):
             return v
-        valid_choices = cls._idf_field.People.Thermal_Comfort_Model_1_Type.key
+        valid_choices = [
+            "AdaptiveASH55",
+            "AdaptiveCEN15251",
+            "AnkleDraftASH55",
+            "CoolingEffectASH55",
+            "Fanger",
+            "KSU",
+            "Pierce",
+        ]
         return cls.validate_choice_field(
             v,
             valid_choices,

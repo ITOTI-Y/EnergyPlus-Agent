@@ -24,6 +24,18 @@ def register_workflow_tools(mcp: FastMCP, workflow_tool: WorkflowTool) -> None:
         return workflow_tool.export_yaml(output_path).to_mcp_response()
 
     @mcp.tool
+    def export_idf(output_path: str = "./output/idf/output.idf") -> dict:
+        """Export the current in-memory IDF model to an IDF file.
+
+        Args:
+            output_path: File path for the output IDF file.
+
+        Returns:
+            MCP response with the exported IDF path.
+        """
+        return workflow_tool.export_idf(output_path).to_mcp_response()
+
+    @mcp.tool
     def load_yaml(input_path: str = "data/schemas/building_schema.yaml") -> dict:
         """Load a YAML configuration file into the current state.
 

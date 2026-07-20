@@ -1,11 +1,23 @@
+from typing import Literal
+
 from langchain_core.messages import AIMessage
+from langgraph.types import Command
 
 from src.agent.llm import create_llm
-from src.agent.nodes._share import invoke_with_self_repair
+from src.agent.nodes._share import (
+    clone_for_phase,
+    invoke_with_self_repair,
+    maybe_backhop,
+)
 from src.agent.react import build_react_agent
 from src.agent.state import AgentState, AgentStateUpdate
 from src.agent.tools import make_fenestration_tools
 from src.agent.trace import TraceCollector, record_phase_trace
+
+# Legal back-hop targets for fenestration: a missing window construction
+# hops to construction; a missing parent surface hops to surface. Declared
+# as a Literal on the return type so LangGraph accepts Command(goto=...).
+_FenestrationRoute = Literal["construction", "surface"]
 
 FENESTRATION_SYSTEM_PROMPT = """You are a window/door geometry expert for EnergyPlus.
 Given fenestration specifications, create FenestrationSurface:Detailed
@@ -35,18 +47,36 @@ Rules:
   in the list_surfaces / list_constructions results.
 - If a needed surface or construction is missing after list, STOP and
   report; do NOT invent names.
-- construction_name should be a Glazing construction for windows/skylights.
-- >= 3 vertices, counter-clockwise from OUTSIDE, and MUST lie on the
-  parent surface's plane (coplanar — share one coordinate for walls).
+- For Window / GlassDoor / TubularDaylight* the construction MUST be a
+  glazing construction — one whose layers include a WindowMaterial
+  (WindowMaterial:SimpleGlazingSystem as the sole layer, OR
+  WindowMaterial:Glazing panes possibly with Material:AirGap). An opaque
+  construction (only Material / Material:NoMass layers) is invalid for
+  windows and will be rejected. If the only window construction available
+  is opaque, STOP and report — do not create the fenestration against it;
+  the material phase must first create a WindowMaterial and construction
+  must rebuild it.
+- INTERIOR doors/windows (parent wall's outside boundary condition is
+  'Surface' — i.e. it separates two zones) MUST use a Construction:AirBoundary
+  (created via create_airboundary_construction). A regular layered
+  construction on an interior subsurface leaves its boundary object blank
+  and aborts EnergyPlus. Before creating, check the parent surface's
+  boundary condition in list_surfaces: if it is 'Surface', request/reuse an
+  AirBoundary construction for that door/window.
 - surface_type is Window, Door, or GlassDoor.
+- >= 3 vertices and MUST lie on the parent surface's plane (coplanar —
+  share one coordinate for walls). Winding direction does not matter —
+  the tool auto-aligns the window's outward normal to the parent wall's.
 - Typical window-to-wall ratio: 0.3-0.4 on facade walls; derive vertex
   coordinates from the parent wall's corners and the WWR.
 - Naming: '{parent_surface}_Window' or '{zone}_{direction}_Window_{index}'.
 """
 
 
-def fenestration_agent(state: AgentState) -> AgentStateUpdate:
-    local = state.config_state.model_copy(deep=True)
+def fenestration_agent(
+    state: AgentState,
+) -> Command[_FenestrationRoute] | AgentStateUpdate:
+    local = clone_for_phase(state)
     tools = make_fenestration_tools(local)
     collector = TraceCollector(phase="fenestration")
 
@@ -62,15 +92,30 @@ def fenestration_agent(state: AgentState) -> AgentStateUpdate:
         if state.intake_output
         else state.user_input
     )
-    result = invoke_with_self_repair(agent, local, specs, phase="fenestration")
+    result = invoke_with_self_repair(
+        agent,
+        local,
+        specs,
+        phase="fenestration",
+        is_revision=state.is_revision,
+        validation_errors=state.validation_errors,
+    )
+
+    record_phase_trace("fenestration", collector.export())
+
+    # Back-hop: a missing window construction / parent surface routes to
+    # the owning earlier phase so it can create the object, then normal
+    # graph edges carry flow back forward to fenestration.
+    hop = maybe_backhop(result, state, local, "fenestration")
+    if hop is not None:
+        return hop
 
     final = [
         m for m in result["messages"] if isinstance(m, AIMessage) and not m.tool_calls
     ]
     summary = final[-1].content if final else "fenestration done"
-
-    record_phase_trace("fenestration", collector.export())
     return AgentStateUpdate(
         config_state=local,
+        upstream_request={},
         messages=[AIMessage(content=f"[fenestration] {summary}")],
     )

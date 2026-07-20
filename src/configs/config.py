@@ -40,9 +40,19 @@ class LLMConfig(BaseModel):
 
     provider: str = Field(..., description="The provider of the LLM model")
     base_url: str | None = Field(
-        default=None, description="The base URL of the LLM model"
+        default=None,
+        description=(
+            "The base URL of the LLM model endpoint. When set (via the "
+            "LLM_BASE_URL env var), requests are routed to this endpoint, "
+            "supporting any OpenAI-compatible provider (DeepSeek, Qwen, "
+            "GLM, Kimi, local ollama/vllm, self-hosted gateways, etc.). "
+            "When unset, the provider's official endpoint is used."
+        ),
     )
-    model_name: str = Field(..., description="The name of the LLM model to use")
+    model_name: str = Field(
+        default="gpt-4o",
+        description="The name of the LLM model to use (override via LLM_MODEL_NAME)",
+    )
     temperature: float = Field(
         ..., ge=0.0, description="The temperature of the LLM model"
     )
@@ -51,4 +61,8 @@ class LLMConfig(BaseModel):
     )
     api_key: str | None = Field(
         default=None, description="The API key of the LLM model"
+    )
+    model_kwargs: dict | None = Field(
+        default=None,
+        description="Extra kwargs forwarded to the model (e.g. thinking mode)",
     )

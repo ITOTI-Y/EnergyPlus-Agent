@@ -1,10 +1,8 @@
 from copy import deepcopy
-from io import StringIO
 from pathlib import Path
-from typing import cast
 
 import yaml
-from eppy.modeleditor import IDF
+from idfpy import IDF
 
 from src.converters import (
     BuildingConverter,
@@ -20,14 +18,17 @@ from src.converters import (
     ZoneConverter,
 )
 from src.utils.logging import get_logger
-from src.validator.data_model import BaseSchema, IDDField
+from src.validator.data_model import BaseSchema
 
 
 class ConverterManager:
-    def __init__(self, file_to_convert: Path):
+    def __init__(self, source: Path | dict):
         self.logger = get_logger(__name__)
         self._idf = BaseSchema.get_idf()
-        self.yaml_data: dict = self._load_yaml(file_to_convert)
+        if isinstance(source, dict):
+            self.yaml_data: dict = source
+        else:
+            self.yaml_data = self._load_yaml(source)
         self.converters = {
             "settings": SettingsConverter(self._idf),
             "building": BuildingConverter(self._idf),
@@ -54,26 +55,20 @@ class ConverterManager:
     def save_idf(self, output_path: Path) -> None:
         output_path.parent.mkdir(parents=True, exist_ok=True)
         self.logger.info("Saving IDF to {}...", output_path)
-        self._idf.saveas(str(output_path))
+        self._idf.save(output_path)
 
     def load_idf(self, idf_path: Path) -> None:
         self.logger.info("Loading IDF from {}...", idf_path)
-        self._idf = IDF(str(idf_path))
+        loaded = IDF.load(idf_path)
+        self._idf = IDF.from_dict(loaded.to_dict())
         for converter in self.converters.values():
             converter.idf = self._idf
 
     def _create_blank_idf(self) -> IDF:
         self.logger.info("Creating a blank IDF instance.")
-        idf_text = ""
-        fhandle = StringIO(idf_text)
-        return IDF(fhandle)
+        return IDF()
 
     def _load_yaml(self, file_path: Path) -> dict:
         self.logger.info("Loading YAML file from {}.", file_path)
         with open(file_path, encoding="utf-8") as f:
             return yaml.safe_load(f)
-
-    def _process_idf_field(self) -> IDDField:
-        _idd_info = cast(list[dict], self._idf.idd_info)
-        idd_field = IDDField(_idd_info)
-        return idd_field

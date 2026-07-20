@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import base64
+import time
 from pathlib import Path
-from typing import Any, Literal, TypedDict, cast
+from typing import Any, Final, Literal, TypedDict, cast
 
 from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 from loguru import logger
@@ -10,6 +11,18 @@ from loguru import logger
 from src.agent._share import language_directive
 from src.agent.llm import create_llm
 from src.agent.state import AgentState, AgentStateUpdate, IntakeOutput
+
+INTAKE_MAX_EMPTY_RETRIES: Final[int] = 3
+"""Max retries when the LLM returns an empty reply (no content, no tool call).
+
+Some OpenAI-compatible gateways occasionally return a completely empty
+AIMessage (content='' and no tool_calls) — most often on transient
+gateway hiccups (rate-limit, timeout, upstream blip). The structured-output
+wrapper then yields ``parsed=None, parsing_error=None``. Retrying with
+backoff almost always recovers, so we don't let a single empty reply
+crash the whole case. We deliberately keep this budget small: if the
+empty reply is caused by the prompt itself, retrying won't help and the
+outer harness will record the failure."""
 
 
 class TextContentPart(TypedDict):
@@ -35,12 +48,19 @@ Given a building description (text and optional architectural drawings —
 floorplan, elevation, section, axonometric, perspective, etc.), extract
 structured specifications for every subsystem.
 
-You MUST invoke the IntakeOutput tool to return the structured JSON.
-Do NOT respond with a text/JSON message — always use the tool call.
-Fields:
-- `building`: BuildingSchema with name, terrain, convergence tolerances
-- `site_location`: SiteLocationSchema with latitude, longitude, time_zone, elevation
-- `*_specs`: one natural-language instruction string per subsystem agent
+You MUST respond with a single raw JSON object (no markdown, no code fences).
+ALL of the following fields are REQUIRED — omitting any field is an error:
+- `building`: object with name, terrain, tolerance_for_heating_sizing, tolerance_for_cooling_sizing
+- `site_location`: object with name, latitude, longitude, time_zone, elevation
+- `zone_specs`: string — zone creation instructions
+- `material_specs`: string — material definitions with thermal properties (REQUIRED, do NOT merge into construction_specs)
+- `schedule_specs`: string — schedule definitions
+- `construction_specs`: string — construction assemblies referencing materials from material_specs
+- `surface_specs`: string — surface geometry referencing zones and constructions
+- `fenestration_specs`: string — window/door instructions referencing surfaces
+- `hvac_specs`: string — HVAC system, thermostat setpoints, schedule references
+- `people_specs`: string — occupancy load per zone
+- `lights_specs`: string — lighting load per zone
 
 Rules:
 1. If latitude/longitude are not given, infer from the city/region mentioned.
@@ -122,7 +142,9 @@ def intake_node(state: AgentState) -> AgentStateUpdate:
     which intake_node writes into the shared config_state. Phase agents
     read their own `*_specs` strings from intake_output.
     """
-    llm = create_llm().with_structured_output(IntakeOutput, include_raw=True)
+    llm = create_llm().with_structured_output(
+        IntakeOutput, method="function_calling", include_raw=True
+    )
 
     text = state.user_input
     if state.validation_errors:
@@ -135,34 +157,50 @@ def intake_node(state: AgentState) -> AgentStateUpdate:
     for path in state.image_paths:
         content_parts.append(_load_image_part(path))
 
-    result = cast(
-        dict[str, Any],
-        llm.invoke(
-            [
-                SystemMessage(content=INTAKE_SYSTEM_PROMPT + language_directive()),
-                HumanMessage(content=cast("list[str | dict[str, Any]]", content_parts)),
-            ]
-        ),
-    )
+    messages = [
+        SystemMessage(content=INTAKE_SYSTEM_PROMPT + language_directive()),
+        HumanMessage(content=cast("list[str | dict[str, Any]]", content_parts)),
+    ]
 
-    parsed: IntakeOutput | None = result.get("parsed")
-    if parsed is None:
+    # Retry on empty LLM replies. Some gateways transiently return an
+    # AIMessage with no content and no tool_calls (parsed=None,
+    # parsing_error=None); a short backoff retry usually recovers.
+    parsed: IntakeOutput | None = None
+    for attempt in range(INTAKE_MAX_EMPTY_RETRIES + 1):
+        result = cast(dict[str, Any], llm.invoke(messages))
+        parsed = result.get("parsed")
+        if parsed is not None:
+            break
+        # Empty or malformed reply — inspect to decide retry vs. fail.
         raw: BaseMessage | None = result.get("raw")
         parsing_error = result.get("parsing_error")
         raw_preview = repr(raw.content if raw is not None else raw)[:500]
-        logger.error(
-            "intake_node: structured output parse failed. "
-            "parsing_error={} raw preview={}",
-            parsing_error,
-            raw_preview,
+        is_empty = parsing_error is None and raw_preview in ("''", "None")
+        if not is_empty or attempt == INTAKE_MAX_EMPTY_RETRIES:
+            logger.error(
+                "intake_node: structured output parse failed. "
+                "parsing_error={} raw preview={}",
+                parsing_error,
+                raw_preview,
+            )
+            raise RuntimeError(
+                "IntakeOutput parsing returned None. The LLM likely replied "
+                "with text instead of a tool call, or returned an empty "
+                "reply. parsing_error="
+                f"{parsing_error!r}; raw preview: {raw_preview}"
+            )
+        # Back off (2s, 4s) and retry — transient gateway empty-reply.
+        sleep_s = 2 ** (attempt + 1)
+        logger.warning(
+            "intake_node: empty LLM reply (attempt {}/{}), retrying in {}s",
+            attempt + 1,
+            INTAKE_MAX_EMPTY_RETRIES + 1,
+            sleep_s,
         )
-        raise RuntimeError(
-            "IntakeOutput parsing returned None. The LLM likely replied with "
-            "text instead of a tool call — common on retry turns. "
-            f"parsing_error={parsing_error!r}; raw preview: {raw_preview}"
-        )
+        time.sleep(sleep_s)
 
-    config = state.config_state.model_copy(deep=True)
+    assert parsed is not None
+    config = state.config_state.clone()
     config.building = parsed.building
     config.site_location = parsed.site_location
 

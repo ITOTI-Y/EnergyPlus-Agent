@@ -1,7 +1,8 @@
+import time
 from typing import Annotated
 
 from langchain_core.language_models import BaseChatModel
-from langchain_core.messages import AnyMessage, SystemMessage
+from langchain_core.messages import AnyMessage, HumanMessage, SystemMessage
 from langchain_core.tools import BaseTool
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.message import add_messages
@@ -11,6 +12,9 @@ from pydantic import BaseModel, Field
 
 from src.agent._share import language_directive
 from src.agent.trace import TraceCollector
+
+FIRST_TURN_NO_TOOL_RETRIES = 2
+LLM_EXCEPTION_RETRIES = 2
 
 
 class ReactState(BaseModel):
@@ -44,9 +48,46 @@ def build_react_agent(
     effective_prompt = system_prompt + language_directive()
 
     def llm_node(state: ReactState) -> dict:
-        messages = [SystemMessage(content=effective_prompt), *state.messages]
-        response = llm_with_tools.invoke(messages)
-        return {"messages": [response]}
+        base_messages = [SystemMessage(content=effective_prompt), *state.messages]
+        has_tool_history = any(
+            getattr(m, "type", None) == "tool" for m in state.messages
+        )
+        retry_messages: list[AnyMessage] = []
+        last_error: Exception | None = None
+
+        for attempt in range(FIRST_TURN_NO_TOOL_RETRIES + 1):
+            messages = [*base_messages, *retry_messages]
+            for exc_attempt in range(LLM_EXCEPTION_RETRIES + 1):
+                try:
+                    response = llm_with_tools.invoke(messages)
+                    break
+                except Exception as exc:
+                    last_error = exc
+                    if exc_attempt == LLM_EXCEPTION_RETRIES:
+                        raise
+                    time.sleep(2**exc_attempt)
+
+            tool_calls = getattr(response, "tool_calls", None) or []
+            if has_tool_history or tool_calls:
+                return {"messages": [*retry_messages, response]}
+
+            if attempt == FIRST_TURN_NO_TOOL_RETRIES:
+                return {"messages": [*retry_messages, response]}
+
+            retry_messages.append(
+                HumanMessage(
+                    content=(
+                        "You have not called any tools yet. This phase must "
+                        "inspect or modify the model using the available "
+                        "tools. Call the appropriate list/create/update tools "
+                        "now; do not finish with text only."
+                    )
+                )
+            )
+
+        if last_error is not None:
+            raise last_error
+        raise RuntimeError("LLM retry loop exited unexpectedly.")
 
     tool_node = ToolNode(
         tools,

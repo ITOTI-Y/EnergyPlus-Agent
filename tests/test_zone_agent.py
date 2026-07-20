@@ -1,5 +1,6 @@
 from src.agent.nodes.zone import zone_agent
 from src.agent.state import AgentState, IntakeOutput
+from src.mcp.state import _idf_values
 
 
 def test_zone_agent_creates_two_zones():
@@ -25,6 +26,9 @@ def test_zone_agent_creates_two_zones():
         }
     )
     out = zone_agent(AgentState(intake_output=intake))
-    zones = out["config_state"].zones
+    # Read zones from the IDF (the source of truth since the idfpy refactor
+    # in commit 3092c07). The legacy ConfigState.zones list is no longer
+    # synced by create_zone and would always read empty here.
+    zones = _idf_values(out["config_state"].idf, "Zone")
     assert len(zones) == 2
     assert {z.name for z in zones} == {"F1_Office", "F1_Corridor"}

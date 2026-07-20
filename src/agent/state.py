@@ -3,14 +3,14 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Annotated, Any, Final, Literal
+from typing import Annotated, Any, Final
 
 from langchain_core.messages import AnyMessage
 from langgraph.graph.message import add_messages
 from pydantic import BaseModel, Field
 from typing_extensions import TypedDict
 
-from src.agent._share import DEFAULT_OUTPUT_DIR, MAX_RETRIES
+from src.agent._share import DEFAULT_OUTPUT_DIR, MAX_RETRIES, MAX_SIM_RETRIES
 from src.mcp.state import ConfigState
 from src.validator import (
     BuildingSchema,
@@ -74,6 +74,45 @@ class SimContext:
     output_dir: Path = DEFAULT_OUTPUT_DIR
 
 
+def _merge_upstream_request(old: dict | None, new: dict | None) -> dict | None:
+    """Reducer for ``upstream_request``: a non-None back-hop request wins.
+
+    Parallel branches (zone/material/schedule in phase 1, hvac/people/lights
+    in phase 3) all return state updates simultaneously, so LangGraph needs a
+    reducer to merge them. Semantics: a real back-hop request (non-None,
+    non-empty) always takes precedence — only one branch ever carries one per
+    step, the others omit the field or pass None. If every branch returns
+    None (no hop), the previous value is kept.
+
+    To *clear* a consumed request, a target phase sets ``upstream_request``
+    to an empty dict ``{}``; this reducer maps an explicit empty dict back to
+    None so downstream branches see "no back-hop pending". A bare ``None``
+    means "field omitted by this branch" and does not clear an existing
+    request (otherwise any sibling branch returning None would wipe a
+    legitimate hop carried by another branch).
+    """
+    if new is None:
+        return old
+    if new == {}:  # explicit clear by the phase that consumed the request
+        return None
+    return new
+
+
+def _overwrite_list(old: list[str] | None, new: list[str] | None) -> list[str]:
+    """Last-write-wins reducer for full-snapshot list fields.
+
+    ``validation_errors`` and ``simulation_errors`` are always written as a
+    COMPLETE freshly-recomputed snapshot (e.g. ``validate_references()`` reruns
+    the whole cross-ref check every time), never as an incremental delta. So
+    any new value — even an empty list, which legitimately means "no errors" —
+    supersedes the previous snapshot. Without this reducer, LangGraph's
+    default ``last_value`` channel raises ``InvalidUpdateError`` when parallel
+    branches (phase-3 hvac/people/lights, or simulate+revise) each return one
+    of these fields in the same superstep, crashing the graph.
+    """
+    return new if new is not None else (old or [])
+
+
 def _get_identity(item: Any) -> str:
     """Return the unique identity key for a schema item.
 
@@ -129,6 +168,48 @@ def _merge_hvac(old: HVACSchema, new: HVACSchema) -> HVACSchema:
     )
 
 
+def _idf_has_objects(cs: ConfigState) -> bool:
+    """True if the ConfigState's backing IDF contains any typed objects.
+
+    The Pydantic legacy fields can be empty even when ``_idf`` holds the
+    real model (e.g. after ``load_idf``), so this is the reliable way to
+    tell whether *cs* actually carries a model.
+    """
+    return cs._has_idf_objects()
+
+
+def _merge_idf(old: ConfigState, new: ConfigState) -> Any:
+    """Merge two ConfigStates' backing IDFs by object name (new wins).
+
+    Returns a fresh idfpy IDF whose objects are the name-keyed union of
+    ``old._idf`` and ``new._idf``. Used by :func:`merge_config_state` so
+    that the IDF — the real source of truth, especially on revision
+    turns where the model was loaded from a saved file — survives the
+    parallel-node merge instead of being reset to an empty IDF by
+    ``model_post_init``.
+
+    Returns ``None`` if neither side has an IDF (falls back to the
+    default empty IDF created by ConfigState's constructor).
+    """
+    from idfpy import IDF
+
+    if old._idf is None or new._idf is None:
+        raise ValueError("IDF is None")
+
+    old_d = old._idf.to_dict() if _idf_has_objects(old) else {}
+    new_d = new._idf.to_dict() if _idf_has_objects(new) else {}
+    if not old_d and not new_d:
+        return None
+
+    merged: dict[str, dict] = {}
+    for obj_type in set(old_d) | set(new_d):
+        # Each value is {name: fields}; new wins on name conflict.
+        bucket = dict(old_d.get(obj_type, {}))
+        bucket.update(new_d.get(obj_type, {}))
+        merged[obj_type] = bucket
+    return IDF.from_dict(merged)
+
+
 _NAMED_LIST_FIELDS: Final = (
     "zones",
     "materials",
@@ -160,6 +241,14 @@ def merge_config_state(old: ConfigState, new: ConfigState) -> ConfigState:
     1. Named list fields -> union by identity key; new wins on conflict
     2. Nested containers (schedules, hvac) -> recursive merge
     3. Singleton objects -> non-default wins, new preferred
+
+    IDF merge: the backing idfpy IDF is the authoritative store,
+    especially on revision turns where the model was loaded from a
+    previously-saved IDF (the Pydantic legacy fields stay empty in that
+    case). We union the two IDFs by object name (new wins) and install
+    the result as the merged ConfigState's ``_idf`` — otherwise
+    ``model_validate`` would reset it to an empty IDF via
+    ``model_post_init``, silently dropping the entire model.
     """
     data: dict[str, Any] = {}
 
@@ -176,7 +265,44 @@ def merge_config_state(old: ConfigState, new: ConfigState) -> ConfigState:
         old_val = getattr(old, field_name)
         data[field_name] = new_val if not _is_default(new_val, field_name) else old_val
 
-    return ConfigState.model_validate(data)
+    merged = ConfigState.model_validate(data)
+
+    # Install the unioned IDF as the source of truth. This MUST happen
+    # after model_validate (which would otherwise clobber _idf with a
+    # fresh empty IDF via model_post_init).
+    merged_idf = _merge_idf(old, new)
+    if merged_idf is not None:
+        # Assign via the PrivateAttr dict: BaseSchema's validate_assignment
+        # + class-level _idf annotation silently break a plain assignment,
+        # and object.__setattr__ would break pickling.
+        merged._set_idf_private(merged_idf)
+    elif not merged._has_idf_objects():
+        # Fallback: if neither side carried IDF objects (e.g. revision
+        # turn where START-coercion stripped _idf), rebuild from the
+        # seed_idf_text that survived as a declared field. This is the
+        # authoritative recovery path for revision-turn seed models.
+        seed_text = new.seed_idf_text or old.seed_idf_text
+        if seed_text:
+            merged._set_idf_private(_idf_from_text(seed_text))
+            # Propagate so downstream merges keep recovering until a
+            # phase node populates _idf with real objects.
+            merged.seed_idf_text = seed_text
+
+    return merged
+
+
+def _idf_from_text(idf_text: str) -> Any:
+    """Rebuild an idfpy IDF from saved IDF text (used by merge_config_state
+    to recover the seed model on revision turns)."""
+    import tempfile
+
+    from idfpy import IDF
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".idf", delete=False) as tf:
+        tf.write(idf_text)
+        loaded = IDF.load(Path(tf.name))
+        Path(tf.name).unlink()
+        return IDF.from_dict(loaded.to_dict())
 
 
 class AgentState(BaseModel):
@@ -196,9 +322,44 @@ class AgentState(BaseModel):
     )
     intake_output: IntakeOutput | None = None
 
-    validation_errors: list[str] = Field(default_factory=list)
+    validation_errors: Annotated[list[str], _overwrite_list] = Field(
+        default_factory=list
+    )
     retry_count: int = 0
     max_retries: int = MAX_RETRIES
+
+    # --- EnergyPlus simulation failure -> revise rollback loop ---
+    # Independent from retry_count (which gates validate's cross-ref
+    # rollback) so the two loops don't starve each other's budget.
+    simulation_errors: Annotated[list[str], _overwrite_list] = Field(
+        default_factory=list
+    )
+    """Fatal/Severe error lines from eplusout.err of the last simulate run.
+    Populated by simulate_node on failure; consumed (and cleared) by
+    revise_node so the LLM gets concrete error text to fix."""
+    sim_retry_count: int = 0
+    """How many times simulate has rolled back to revise for a sim failure."""
+    max_sim_retries: int = MAX_SIM_RETRIES
+    """Cap on simulate->revise rollback rounds. Once exhausted, simulate
+    lets the run fall through to analyze (the test harness records failure)."""
+
+    is_revision: bool = False
+    """True for multi-turn model edits: the agent should modify the existing
+    config_state (loaded from a previous IDF) rather than rebuild from
+    scratch. Drives the revise_node entry and phase-agent prompt prefixes."""
+
+    upstream_request: Annotated[dict | None, _merge_upstream_request] = None
+    """Back-hop request set by a phase node when it detects that a needed
+    upstream object does not exist (e.g. fenestration needs a window
+    construction that was never created). Shape:
+    ``{"target": <phase name>, "specs": <instruction string>}``. The target
+    phase reads and clears this. ``None`` = no back-hop pending. Uses a
+    custom reducer so parallel branches can each return the field safely."""
+
+    hop_count: Annotated[int, lambda o, n: max(o, n)] = 0
+    """Back-hop counter to prevent infinite A->B->A loops. Incremented on
+    each ``Command(goto=<earlier phase>)`` back-hop; phase nodes refuse to
+    hop once it reaches HOP_LIMIT."""
 
 
 class AgentStateUpdate(TypedDict, total=False):
@@ -211,3 +372,8 @@ class AgentStateUpdate(TypedDict, total=False):
     intake_output: IntakeOutput | None
     validation_errors: list[str]
     retry_count: int
+    simulation_errors: list[str]
+    sim_retry_count: int
+    is_revision: bool
+    upstream_request: dict | None
+    hop_count: int

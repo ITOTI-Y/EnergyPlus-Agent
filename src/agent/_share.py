@@ -4,7 +4,25 @@ from typing import Final
 
 from src.validator import BaseSchema
 
-MAX_RETRIES: Final[int] = 0
+MAX_RETRIES: Final[int] = 2
+"""Max directed-rollback rounds the validate node will attempt before
+falling through to human-in-the-loop review.
+
+Two rounds gives the offending phase one shot to fix itself and one
+retry if its first attempt introduces a new cross-ref error. Beyond
+that, persistent errors usually indicate a spec-level problem better
+handled by a human (reject + revise in the validate interrupt)."""
+
+MAX_SIM_RETRIES: Final[int] = 10
+"""Max simulate->revise rollback rounds when an EnergyPlus run fails with
+Fatal/Severe errors. Independent from MAX_RETRIES (which gates validate's
+cross-ref rollback) so the two loops don't starve each other's budget.
+Once exhausted, simulate lets the run fall through to analyze and the
+failure is recorded by the test harness.
+
+Note: 10 rounds means up to 11 simulate runs per case in the worst case —
+on large buildings this can take a very long time (each round is a full
+rebuild + EnergyPlus run). Tune down for faster smoke tests."""
 
 DEFAULT_OUTPUT_DIR: Final[Path] = Path("output")
 
@@ -60,14 +78,9 @@ _SCHEMA_INITIALIZED = False
 
 
 def ensure_schema_initialized() -> None:
-    """Load the EnergyPlus IDD into BaseSchema once per process."""
+    """Initialize a blank idfpy IDF in BaseSchema once per process."""
     global _SCHEMA_INITIALIZED
     if _SCHEMA_INITIALIZED:
         return
-    if not IDD_PATH.exists():
-        raise FileNotFoundError(
-            f"Energy+.idd not found at {IDD_PATH}. "
-            "Ensure data/dependencies/Energy+.idd exists in the project root."
-        )
-    BaseSchema.set_idf(IDD_PATH)
+    BaseSchema.set_idf()
     _SCHEMA_INITIALIZED = True

@@ -5,7 +5,8 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "eppy>=0.5.63",
+    "aiohttp>=3.13.3",
+    "idfpy==26.1.*",
     "fastmcp>=2.14.1",
     "google-genai>=1.68.0",
     "langchain>=1.2.13",
@@ -13,6 +14,7 @@ dependencies = [
     "langchain-openai>=1.1.12",
     "langgraph>=1.1.3",
     "loguru>=0.7.3",
+    "matplotlib>=3.8",
     "numpy>=2.3.4",
     "omegaconf>=2.3.0",
     "pydantic>=2.11.7",
@@ -22,7 +24,13 @@ dependencies = [
     "scipy>=1.16.2",
     "tqdm>=4.67.3",
     "trimesh>=4.9.0",
+    "manifold3d>=3.5.1",
     "typer>=0.20.1",
+    "httpx[socks]>=0.28.1",
+    "gradio>=6.13.0",
+    "pandas>=2.2",
+    "plotly>=6.0",
+    "pythermalcomfort>=3.8.0",
 ]
 
 [project.scripts]
@@ -70,5 +78,11 @@ docstring-code-format = true
 dev = [
     "grandalf>=0.8",
     "langsmith>=0.7.23",
+    "pre-commit>=4.6.0",
     "pytest>=9.0.2",
+    "ruff>=0.15.20",
+    "ty>=0.0.56",
 ]
+
+[tool.ty.src]
+exclude = ["tests"]

@@ -74,6 +74,17 @@
             "request": "launch",
             "program": "${workspaceFolder}/scripts/export_trace.py",
             "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "Unit Test",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "pytest",
+            "args": [
+                "tests",
+                "-v"
+            ],
+            "cwd": "${workspaceFolder}"
         }
     ]
 }

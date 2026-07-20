@@ -1,9 +1,11 @@
-from langchain_core.messages import AIMessage, HumanMessage
+from langchain_core.messages import AIMessage
 
 from src.agent.llm import create_llm
-from src.agent.react import ReactState, build_react_agent
+from src.agent.nodes._share import clone_for_phase, invoke_with_self_repair
+from src.agent.react import build_react_agent
 from src.agent.state import AgentState, AgentStateUpdate
 from src.agent.tools import make_schedule_tools
+from src.agent.tools.rag_tools import _get_rag
 from src.agent.trace import TraceCollector, record_phase_trace
 
 SCHEDULE_SYSTEM_PROMPT = """You are a scheduling expert for EnergyPlus.
@@ -97,12 +99,19 @@ Rules:
 - Cover every day type: either use "AllDays", or use specific day types
   followed by "AllOtherDays" to catch the rest.
 - Call list_schedules once at the end.
+
+Reference database:
+- Call search_energyplus_reference to look up standard schedule type limit
+  bounds (e.g. 'temperature type limits heating cooling') or reference compact
+  schedule profiles for your building type (e.g. 'medium office occupancy
+  weekday fraction schedule'). Use the returned time-value data as a starting
+  point, then adjust to match the spec.
 """
 
 
 def schedule_agent(state: AgentState) -> AgentStateUpdate:
-    local = state.config_state.model_copy(deep=True)
-    tools = make_schedule_tools(local)
+    local = clone_for_phase(state)
+    tools = make_schedule_tools(local, rag=_get_rag())
     collector = TraceCollector(phase="schedule")
 
     agent = build_react_agent(
@@ -125,7 +134,19 @@ def schedule_agent(state: AgentState) -> AgentStateUpdate:
         )
     else:
         specs = state.user_input
-    result = agent.invoke(ReactState(messages=[HumanMessage(content=specs)]))
+    # If reached via a back-hop (downstream needed a schedule), append.
+    upstream = state.upstream_request
+    consumed_upstream = bool(upstream and upstream.get("target") == "schedule")
+    if consumed_upstream:
+        specs = f"{specs}\n\n{upstream['specs']}"
+    result = invoke_with_self_repair(
+        agent,
+        local,
+        specs,
+        phase="schedule",
+        is_revision=state.is_revision,
+        validation_errors=state.validation_errors,
+    )
 
     final = [
         m for m in result["messages"] if isinstance(m, AIMessage) and not m.tool_calls
@@ -133,7 +154,13 @@ def schedule_agent(state: AgentState) -> AgentStateUpdate:
     summary = final[-1].content if final else "schedule done"
 
     record_phase_trace("schedule", collector.export())
-    return AgentStateUpdate(
+    update = AgentStateUpdate(
         config_state=local,
         messages=[AIMessage(content=f"[schedule] {summary}")],
     )
+    # Drop the consumed back-hop request so it can't be re-injected on retry.
+    # An empty dict is the reducer's explicit-clear sentinel (a bare None would
+    # be treated as "field omitted" by sibling branches and leave the value).
+    if consumed_upstream:
+        update["upstream_request"] = {}
+    return update

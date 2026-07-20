@@ -1,7 +1,14 @@
+from typing import Literal
+
 from langchain_core.messages import AIMessage
+from langgraph.types import Command
 
 from src.agent.llm import create_llm
-from src.agent.nodes._share import invoke_with_self_repair
+from src.agent.nodes._share import (
+    clone_for_phase,
+    invoke_with_self_repair,
+    maybe_backhop,
+)
 from src.agent.react import build_react_agent
 from src.agent.state import AgentState, AgentStateUpdate
 from src.agent.tools import make_lights_tools
@@ -32,8 +39,14 @@ Rules:
 """
 
 
-def lights_agent(state: AgentState) -> AgentStateUpdate:
-    local = state.config_state.model_copy(deep=True)
+# Legal back-hop targets for lights: a missing zone hops to zone; a missing
+# schedule hops to schedule. Declared on the return type so LangGraph accepts
+# Command(goto=...). (Mirrors surface.py / construction.py.)
+_LightsRoute = Literal["zone", "schedule"]
+
+
+def lights_agent(state: AgentState) -> Command[_LightsRoute] | AgentStateUpdate:
+    local = clone_for_phase(state)
     tools = make_lights_tools(local)
     collector = TraceCollector(phase="lights")
 
@@ -47,15 +60,31 @@ def lights_agent(state: AgentState) -> AgentStateUpdate:
     specs = (
         state.intake_output.lights_specs if state.intake_output else state.user_input
     )
-    result = invoke_with_self_repair(agent, local, specs, phase="lights")
+    result = invoke_with_self_repair(
+        agent,
+        local,
+        specs,
+        phase="lights",
+        is_revision=state.is_revision,
+        validation_errors=state.validation_errors,
+    )
+
+    record_phase_trace("lights", collector.export())
+
+    # Back-hop: a missing zone / schedule (detected by invoke_with_self_repair)
+    # routes to the owning earlier phase so it can create the object, then
+    # normal graph edges carry flow back forward to lights.
+    hop = maybe_backhop(result, state, local, "lights")
+    if hop is not None:
+        return hop
 
     final = [
         m for m in result["messages"] if isinstance(m, AIMessage) and not m.tool_calls
     ]
     summary = final[-1].content if final else "lights done"
 
-    record_phase_trace("lights", collector.export())
     return AgentStateUpdate(
         config_state=local,
+        upstream_request={},  # consume any inbound back-hop request
         messages=[AIMessage(content=f"[lights] {summary}")],
     )

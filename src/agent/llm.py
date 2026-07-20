@@ -35,4 +35,6 @@ def create_llm(config: LLMConfig | None = None) -> BaseChatModel:
         kwargs["base_url"] = config.base_url
     if config.api_key:
         kwargs["api_key"] = config.api_key
+    if config.model_kwargs:
+        kwargs.update(config.model_kwargs)
     return init_chat_model(model_id, **kwargs)
