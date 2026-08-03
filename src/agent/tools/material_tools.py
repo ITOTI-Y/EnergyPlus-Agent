@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 import json
+from typing import TYPE_CHECKING
 
 from idfpy.models.constructions import (
     Construction,
@@ -10,7 +13,16 @@ from idfpy.models.constructions import (
 )
 from langchain_core.tools import BaseTool, tool
 
+from src.agent.tools.rag_tools import (
+    TABLE_ALL_MATERIALS,
+    TABLE_NO_MASS_MATERIALS,
+    TABLE_STANDARD_MATERIALS,
+    make_rag_tool,
+)
 from src.mcp.state import ConfigState
+
+if TYPE_CHECKING:
+    from src.rag.rag import RAGSystem
 
 # idfpy object-type strings for each material variant
 _ALL_MATERIAL_TYPES = [
@@ -39,7 +51,10 @@ def _find_material(idf, name: str):
     return None, None
 
 
-def make_material_tools(config: ConfigState) -> list[BaseTool]:
+def make_material_tools(
+    config: ConfigState,
+    rag: RAGSystem | None = None,
+) -> list[BaseTool]:
     idf = config.idf
 
     @tool
@@ -381,7 +396,7 @@ def make_material_tools(config: ConfigState) -> list[BaseTool]:
         idf.remove(mat_type, name)
         return _ok(f"Material '{name}' deleted successfully.")
 
-    return [
+    tools = [
         create_standard_material,
         create_nomass_material,
         create_airgap_material,
@@ -392,3 +407,15 @@ def make_material_tools(config: ConfigState) -> list[BaseTool]:
         update_material,
         delete_material,
     ]
+    if rag is not None:
+        tools.append(
+            make_rag_tool(
+                [
+                    TABLE_STANDARD_MATERIALS,
+                    TABLE_NO_MASS_MATERIALS,
+                    TABLE_ALL_MATERIALS,
+                ],
+                rag=rag,
+            )
+        )
+    return tools

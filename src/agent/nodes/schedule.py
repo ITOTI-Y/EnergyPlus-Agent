@@ -5,6 +5,7 @@ from src.agent.nodes._share import clone_for_phase, invoke_with_self_repair
 from src.agent.react import build_react_agent
 from src.agent.state import AgentState, AgentStateUpdate
 from src.agent.tools import make_schedule_tools
+from src.agent.tools.rag_tools import _get_rag
 from src.agent.trace import TraceCollector, record_phase_trace
 
 SCHEDULE_SYSTEM_PROMPT = """You are a scheduling expert for EnergyPlus.
@@ -98,12 +99,17 @@ Rules:
 - Cover every day type: either use "AllDays", or use specific day types
   followed by "AllOtherDays" to catch the rest.
 - Call list_schedules once at the end.
+
+Reference database:
+- Call search_energyplus_reference for standard schedule type limit bounds or
+  reference compact schedule profiles for the requested building type.
+- Use returned time-value data as a starting point, then adapt it to the spec.
 """
 
 
 def schedule_agent(state: AgentState) -> AgentStateUpdate:
     local = clone_for_phase(state)
-    tools = make_schedule_tools(local)
+    tools = make_schedule_tools(local, rag=_get_rag())
     collector = TraceCollector(phase="schedule")
 
     agent = build_react_agent(

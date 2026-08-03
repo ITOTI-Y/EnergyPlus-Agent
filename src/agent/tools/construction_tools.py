@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 import json
+from typing import TYPE_CHECKING
 
 from idfpy.models.constructions import Construction, ConstructionAirBoundary
 from idfpy.models.thermal_zones import (
@@ -7,7 +10,11 @@ from idfpy.models.thermal_zones import (
 )
 from langchain_core.tools import BaseTool, tool
 
+from src.agent.tools.rag_tools import TABLE_CONSTRUCTIONS, make_rag_tool
 from src.mcp.state import ConfigState
+
+if TYPE_CHECKING:
+    from src.rag.rag import RAGSystem
 
 _LAYER_FIELDS = [
     "outside_layer",
@@ -64,7 +71,10 @@ def _is_airboundary_construction(idf, name: str) -> bool:
     return idf.has("Construction:AirBoundary", name)
 
 
-def make_construction_tools(config: ConfigState) -> list[BaseTool]:
+def make_construction_tools(
+    config: ConfigState,
+    rag: RAGSystem | None = None,
+) -> list[BaseTool]:
     idf = config.idf
 
     @tool
@@ -258,7 +268,7 @@ def make_construction_tools(config: ConfigState) -> list[BaseTool]:
                 items.append({"type": t, **obj.model_dump()})
         return _ok(f"Listed {len(items)} materials.", items)
 
-    return [
+    tools = [
         create_construction,
         create_airboundary_construction,
         list_constructions,
@@ -267,3 +277,6 @@ def make_construction_tools(config: ConfigState) -> list[BaseTool]:
         delete_construction,
         list_materials,
     ]
+    if rag is not None:
+        tools.append(make_rag_tool([TABLE_CONSTRUCTIONS], rag=rag))
+    return tools

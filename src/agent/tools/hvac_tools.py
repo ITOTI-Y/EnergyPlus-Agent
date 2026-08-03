@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 import json
+from typing import TYPE_CHECKING
 
 from idfpy.models.hvac_templates import (
     HVACTemplateThermostat,
@@ -8,7 +11,11 @@ from idfpy.models.schedules import ScheduleCompact
 from idfpy.models.thermal_zones import Zone
 from langchain_core.tools import BaseTool, tool
 
+from src.agent.tools.rag_tools import TABLE_SIZING_PERIOD_DESIGN_DAY, make_rag_tool
 from src.mcp.state import ConfigState
+
+if TYPE_CHECKING:
+    from src.rag.rag import RAGSystem
 
 
 def _ok(msg: str, data=None) -> str:
@@ -19,7 +26,10 @@ def _err(msg: str, data=None) -> str:
     return json.dumps({"success": False, "message": msg, "data": data})
 
 
-def make_hvac_tools(config: ConfigState) -> list[BaseTool]:
+def make_hvac_tools(
+    config: ConfigState,
+    rag: RAGSystem | None = None,
+) -> list[BaseTool]:
     idf = config.idf
 
     @tool
@@ -200,7 +210,7 @@ def make_hvac_tools(config: ConfigState) -> list[BaseTool]:
         items = [s.model_dump() for s in idf.all_of_type(ScheduleCompact).values()]
         return _ok(f"Listed {len(items)} schedules.", items)
 
-    return [
+    tools = [
         create_thermostat,
         create_ideal_loads_system,
         list_thermostats,
@@ -212,3 +222,6 @@ def make_hvac_tools(config: ConfigState) -> list[BaseTool]:
         list_zones,
         list_schedules,
     ]
+    if rag is not None:
+        tools.append(make_rag_tool([TABLE_SIZING_PERIOD_DESIGN_DAY], rag=rag))
+    return tools
