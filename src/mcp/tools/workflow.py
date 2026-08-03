@@ -93,7 +93,6 @@ class WorkflowTool:
                 )
 
             timestamp = time.strftime("%Y%m%d_%H%M%S")
-            temp_yaml = Path(output_dir) / f"temp_{timestamp}.yaml"
             temp_idf = Path(output_dir) / f"temp_{timestamp}.idf"
             self.state.save_idf(temp_idf)
 
@@ -107,7 +106,10 @@ class WorkflowTool:
                 return ToolResponse(
                     success=False,
                     message="EnergyPlus simulation failed.",
-                    data={"idf_path": str(temp_idf.absolute()), "output_dir": output_dir},
+                    data={
+                        "idf_path": str(temp_idf.absolute()),
+                        "output_dir": output_dir,
+                    },
                 )
 
             return ToolResponse(
@@ -117,7 +119,9 @@ class WorkflowTool:
             )
         except Exception as e:
             logger.exception("Error running simulation")
-            return ToolResponse(success=False, message=f"Error running simulation: {e!s}")
+            return ToolResponse(
+                success=False, message=f"Error running simulation: {e!s}"
+            )
 
     def get_summary(self) -> ToolResponse:
         return ToolResponse(

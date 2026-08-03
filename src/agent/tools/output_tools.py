@@ -1,8 +1,8 @@
 import json
 
+from idfpy.models.outputs import OutputVariable
 from langchain_core.tools import BaseTool, tool
 
-from idfpy.models.outputs import OutputVariable
 from src.mcp.state import ConfigState
 
 
@@ -15,7 +15,7 @@ def _err(msg: str, data=None) -> str:
 
 
 def make_output_tools(config: ConfigState) -> list[BaseTool]:
-    idf = config._idf
+    idf = config.idf
 
     @tool
     def add_output_variable(
@@ -31,11 +31,14 @@ def make_output_tools(config: ConfigState) -> list[BaseTool]:
             reporting_frequency: Detailed / Timestep / Hourly / Daily / Monthly / RunPeriod.
         """
         try:
-            idf.add(OutputVariable(
-                key_value=key_value,
-                variable_name=variable_name,
-                reporting_frequency=reporting_frequency,
-            ))
+            output_variable = OutputVariable.model_validate(
+                {
+                    "key_value": key_value,
+                    "variable_name": variable_name,
+                    "reporting_frequency": reporting_frequency,
+                }
+            )
+            idf.add(output_variable)
             return _ok(f"Output:Variable '{variable_name}' added successfully.")
         except Exception as e:
             return _err(f"Error adding Output:Variable '{variable_name}': {e}")

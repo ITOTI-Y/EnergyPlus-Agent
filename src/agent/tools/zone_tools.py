@@ -1,8 +1,9 @@
 import json
 
+from idfpy.models.hvac_templates import HVACTemplateZoneIdealLoadsAirSystem
+from idfpy.models.thermal_zones import BuildingSurfaceDetailed, Zone
 from langchain_core.tools import BaseTool, tool
 
-from idfpy.models.thermal_zones import Zone
 from src.mcp.state import ConfigState
 
 
@@ -16,7 +17,7 @@ def _err(msg: str, data=None) -> str:
 
 def make_zone_tools(config: ConfigState) -> list[BaseTool]:
     """Create Zone CRUD tools bound to `config`."""
-    idf = config._idf
+    idf = config.idf
 
     @tool
     def create_zone(
@@ -40,17 +41,18 @@ def make_zone_tools(config: ConfigState) -> list[BaseTool]:
         if idf.has("Zone", name):
             return _err(f"Zone '{name}' already exists.")
         try:
-            idf.add(Zone(
+            zone = Zone(
                 name=name,
                 x_origin=x_origin,
                 y_origin=y_origin,
                 z_origin=z_origin,
                 direction_of_relative_north=direction_of_relative_north,
                 multiplier=multiplier,
-            ))
+            )
+            idf.add(zone)
             return _ok(
                 f"Zone '{name}' created successfully.",
-                idf.get("Zone", name).model_dump(),
+                zone.model_dump(),
             )
         except Exception as e:
             return _err(f"Error creating zone '{name}': {e}")
@@ -58,13 +60,13 @@ def make_zone_tools(config: ConfigState) -> list[BaseTool]:
     @tool
     def list_zones() -> str:
         """List all existing thermal zones."""
-        items = [z.model_dump() for z in idf.all_of_type("Zone").values()]
+        items = [z.model_dump() for z in idf.all_of_type(Zone).values()]
         return _ok(f"Listed {len(items)} zones.", items)
 
     @tool
     def get_zone(name: str) -> str:
         """Read a zone by name."""
-        obj = idf.get("Zone", name)
+        obj = idf.get(Zone, name)
         if obj is None:
             return _err(f"Zone '{name}' not found.")
         return _ok(f"Zone '{name}' read successfully.", obj.model_dump())
@@ -79,7 +81,7 @@ def make_zone_tools(config: ConfigState) -> list[BaseTool]:
         multiplier: int | None = None,
     ) -> str:
         """Update a zone's origin coordinates."""
-        obj = idf.get("Zone", name)
+        obj = idf.get(Zone, name)
         if obj is None:
             return _err(f"Zone '{name}' not found.")
         if x_origin is not None:
@@ -98,10 +100,10 @@ def make_zone_tools(config: ConfigState) -> list[BaseTool]:
     def delete_zone(name: str) -> str:
         """Delete a zone by name."""
         refs = []
-        for s in idf.all_of_type("BuildingSurface:Detailed").values():
+        for s in idf.all_of_type(BuildingSurfaceDetailed).values():
             if s.zone_name == name:
                 refs.append(f"Surface:{s.name}")
-        for ils in idf.all_of_type("HVACTemplate:Zone:IdealLoadsAirSystem").values():
+        for ils in idf.all_of_type(HVACTemplateZoneIdealLoadsAirSystem).values():
             if ils.zone_name == name:
                 refs.append(f"IdealLoadsSystem:{ils.zone_name}")
         if refs:

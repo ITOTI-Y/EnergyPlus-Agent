@@ -1,6 +1,7 @@
 from typing import Any
 
 from idfpy.models.constructions import (
+    Construction,
     Material,
     MaterialAirGap,
     MaterialNoMass,
@@ -68,7 +69,9 @@ class MaterialTool(BaseTool):
             "layer_9",
             "layer_10",
         ]
-        for construction in self.state.idf.all_of_type("Construction").values():
-            if any(getattr(construction, field, None) == name for field in layer_fields):
+        for construction in self.state.idf.all_of_type(Construction).values():
+            if any(
+                getattr(construction, field, None) == name for field in layer_fields
+            ):
                 refs.append(f"Construction:{construction.name}")
         return refs

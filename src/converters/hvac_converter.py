@@ -1,7 +1,10 @@
 from typing import Any
 
 from idfpy import IDF
-from idfpy.models.hvac_templates import HVACTemplateThermostat, HVACTemplateZoneIdealLoadsAirSystem
+from idfpy.models.hvac_templates import (
+    HVACTemplateThermostat,
+    HVACTemplateZoneIdealLoadsAirSystem,
+)
 
 from src.converters.base_converter import BaseConverter
 from src.utils.logging import get_logger
@@ -57,11 +60,13 @@ class HVACConverter(BaseConverter):
         try:
             if isinstance(val_data, HVACTemplateThermostatSchema):
                 if not self.idf.has("HVACTemplate:Thermostat", val_data.name):
-                    self.idf.add(HVACTemplateThermostat(
-                        name=val_data.name,
-                        heating_setpoint_schedule_name=val_data.heating_setpoint_schedule_name,
-                        cooling_setpoint_schedule_name=val_data.cooling_setpoint_schedule_name,
-                    ))
+                    self.idf.add(
+                        HVACTemplateThermostat(
+                            name=val_data.name,
+                            heating_setpoint_schedule_name=val_data.heating_setpoint_schedule_name,
+                            cooling_setpoint_schedule_name=val_data.cooling_setpoint_schedule_name,
+                        )
+                    )
                     self.state["success"] += 1
                     self.logger.success(
                         "Successfully added HVACTemplate:Thermostat '{}'.",
@@ -76,16 +81,19 @@ class HVACConverter(BaseConverter):
             elif isinstance(val_data, HVACTemplateZoneIdealLoadsAirSystemSchema):
                 # HVACTemplateZoneIdealLoadsAirSystem has no 'name' field in idfpy;
                 # objects are auto-indexed, so we check by zone_name in all_of_type.
-                existing = self.idf.all_of_type("HVACTemplate:Zone:IdealLoadsAirSystem")
+                existing = self.idf.all_of_type(HVACTemplateZoneIdealLoadsAirSystem)
                 already_exists = any(
                     obj.zone_name == val_data.zone_name for obj in existing.values()
                 )
                 if not already_exists:
-                    self.idf.add(HVACTemplateZoneIdealLoadsAirSystem(
-                        zone_name=val_data.zone_name,
-                        template_thermostat_name=val_data.template_thermostat_name,
-                        system_availability_schedule_name=val_data.system_availability_schedule_name or None,
-                    ))
+                    self.idf.add(
+                        HVACTemplateZoneIdealLoadsAirSystem(
+                            zone_name=val_data.zone_name,
+                            template_thermostat_name=val_data.template_thermostat_name,
+                            system_availability_schedule_name=val_data.system_availability_schedule_name
+                            or None,
+                        )
+                    )
                     self.state["success"] += 1
                     self.logger.success(
                         "Successfully added HVACTemplate:Zone:IdealLoadsAirSystem "

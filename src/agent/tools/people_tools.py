@@ -1,8 +1,10 @@
 import json
 
+from idfpy.models.internal_gains import People
+from idfpy.models.schedules import ScheduleCompact
+from idfpy.models.thermal_zones import Zone
 from langchain_core.tools import BaseTool, tool
 
-from idfpy.models.internal_gains import People
 from src.mcp.state import ConfigState
 
 
@@ -15,7 +17,7 @@ def _err(msg: str, data=None) -> str:
 
 
 def make_people_tools(config: ConfigState) -> list[BaseTool]:
-    idf = config._idf
+    idf = config.idf
 
     @tool
     def create_people(
@@ -45,20 +47,29 @@ def make_people_tools(config: ConfigState) -> list[BaseTool]:
         if idf.has("People", name):
             return _err(f"People '{name}' already exists.")
         try:
-            idf.add(People(
-                name=name,
-                zone_or_zonelist_or_space_or_spacelist_name=zone_name,
-                number_of_people_schedule_name=number_of_people_schedule_name,
-                activity_level_schedule_name=activity_level_schedule_name,
-                number_of_people_calculation_method=number_of_people_calculation_method,
-                number_of_people=number_of_people if number_of_people != 0.0 else None,
-                people_per_floor_area=people_per_floor_area if people_per_floor_area != 0.0 else None,
-                floor_area_per_person=floor_area_per_person if floor_area_per_person != 0.0 else None,
-                fraction_radiant=fraction_radiant,
-            ))
+            people = People.model_validate(
+                {
+                    "name": name,
+                    "zone_or_zonelist_or_space_or_spacelist_name": zone_name,
+                    "number_of_people_schedule_name": number_of_people_schedule_name,
+                    "activity_level_schedule_name": activity_level_schedule_name,
+                    "number_of_people_calculation_method": number_of_people_calculation_method,
+                    "number_of_people": number_of_people
+                    if number_of_people != 0.0
+                    else None,
+                    "people_per_floor_area": people_per_floor_area
+                    if people_per_floor_area != 0.0
+                    else None,
+                    "floor_area_per_person": floor_area_per_person
+                    if floor_area_per_person != 0.0
+                    else None,
+                    "fraction_radiant": fraction_radiant,
+                }
+            )
+            idf.add(people)
             return _ok(
                 f"People '{name}' created successfully.",
-                idf.get("People", name).model_dump(),
+                people.model_dump(),
             )
         except Exception as e:
             return _err(f"Error creating people '{name}': {e}")
@@ -66,7 +77,7 @@ def make_people_tools(config: ConfigState) -> list[BaseTool]:
     @tool
     def list_people() -> str:
         """List all People objects."""
-        items = [p.model_dump() for p in idf.all_of_type("People").values()]
+        items = [p.model_dump() for p in idf.all_of_type(People).values()]
         return _ok(f"Listed {len(items)} People objects.", items)
 
     @tool
@@ -80,13 +91,13 @@ def make_people_tools(config: ConfigState) -> list[BaseTool]:
     @tool
     def list_zones() -> str:
         """Read-only: list zones an occupancy load can be assigned to."""
-        items = [z.model_dump() for z in idf.all_of_type("Zone").values()]
+        items = [z.model_dump() for z in idf.all_of_type(Zone).values()]
         return _ok(f"Listed {len(items)} zones.", items)
 
     @tool
     def list_schedules() -> str:
         """Read-only: list Schedule:Compact (for number_of_people and activity_level refs)."""
-        items = [s.model_dump() for s in idf.all_of_type("Schedule:Compact").values()]
+        items = [s.model_dump() for s in idf.all_of_type(ScheduleCompact).values()]
         return _ok(f"Listed {len(items)} schedules.", items)
 
     return [create_people, list_people, delete_people, list_zones, list_schedules]

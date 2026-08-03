@@ -24,6 +24,8 @@ class BuildingTool(BaseTool):
         return Building(**payload)
 
     def _get_name(self, instance: Building) -> str:
+        if instance.name is None:
+            raise ValueError("Building name is required.")
         return instance.name
 
     def _check_references(self, name: str) -> list[str]:

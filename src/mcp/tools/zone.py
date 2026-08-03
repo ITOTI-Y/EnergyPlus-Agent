@@ -1,6 +1,7 @@
 from typing import Any
 
-from idfpy.models.thermal_zones import Zone
+from idfpy.models.hvac_templates import HVACTemplateZoneIdealLoadsAirSystem
+from idfpy.models.thermal_zones import BuildingSurfaceDetailed, Zone
 
 from src.mcp.state import ConfigState
 from src.mcp.tools.base import BaseTool, normalize_payload
@@ -28,11 +29,11 @@ class ZoneTool(BaseTool):
 
     def _check_references(self, name: str) -> list[str]:
         refs = []
-        for surface in self.state.idf.all_of_type("BuildingSurface:Detailed").values():
+        for surface in self.state.idf.all_of_type(BuildingSurfaceDetailed).values():
             if surface.zone_name == name:
                 refs.append(f"Surface:{surface.name}")
         for ils in self.state.idf.all_of_type(
-            "HVACTemplate:Zone:IdealLoadsAirSystem"
+            HVACTemplateZoneIdealLoadsAirSystem
         ).values():
             if ils.zone_name == name:
                 refs.append(f"IdealLoadsSystem:{ils.zone_name}")

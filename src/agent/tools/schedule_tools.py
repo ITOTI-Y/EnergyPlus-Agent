@@ -1,9 +1,18 @@
 import json
 from typing import Any
 
+from idfpy.models.hvac_templates import (
+    HVACTemplateThermostat,
+    HVACTemplateZoneIdealLoadsAirSystem,
+)
+from idfpy.models.internal_gains import Lights, People
+from idfpy.models.schedules import (
+    ScheduleCompact,
+    ScheduleCompactDataItem,
+    ScheduleTypeLimits,
+)
 from langchain_core.tools import BaseTool, tool
 
-from idfpy.models.schedules import ScheduleCompact, ScheduleCompactDataItem, ScheduleTypeLimits
 from src.mcp.state import ConfigState
 from src.validator.data_model import ScheduleCompactSchema
 
@@ -17,7 +26,7 @@ def _err(msg: str, data=None) -> str:
 
 
 def make_schedule_tools(config: ConfigState) -> list[BaseTool]:
-    idf = config._idf
+    idf = config.idf
 
     @tool
     def create_schedule_type_limits(
@@ -39,16 +48,19 @@ def make_schedule_tools(config: ConfigState) -> list[BaseTool]:
         if idf.has("ScheduleTypeLimits", name):
             return _err(f"ScheduleTypeLimits '{name}' already exists.")
         try:
-            idf.add(ScheduleTypeLimits(
-                name=name,
-                lower_limit_value=lower_limit_value,
-                upper_limit_value=upper_limit_value,
-                numeric_type=numeric_type,
-                unit_type=unit_type,
-            ))
+            schedule_type_limits = ScheduleTypeLimits.model_validate(
+                {
+                    "name": name,
+                    "lower_limit_value": lower_limit_value,
+                    "upper_limit_value": upper_limit_value,
+                    "numeric_type": numeric_type,
+                    "unit_type": unit_type,
+                }
+            )
+            idf.add(schedule_type_limits)
             return _ok(
                 f"ScheduleTypeLimits '{name}' created successfully.",
-                idf.get("ScheduleTypeLimits", name).model_dump(),
+                schedule_type_limits.model_dump(),
             )
         except Exception as e:
             return _err(f"Error creating ScheduleTypeLimits '{name}': {e}")
@@ -107,16 +119,20 @@ def make_schedule_tools(config: ConfigState) -> list[BaseTool]:
             return _err(f"Schedule:Compact '{name}' already exists.")
         try:
             # Validate and flatten the nested data structure
-            validated = ScheduleCompactSchema.model_validate({
-                "Name": name,
-                "Schedule Type Limits Name": schedule_type_limits_name,
-                "Data": data,
-            })
-            idf.add(ScheduleCompact(
-                name=validated.name,
-                schedule_type_limits_name=validated.schedule_type_limits_name,
-                data=[ScheduleCompactDataItem(field=v) for v in validated.data],
-            ))
+            validated = ScheduleCompactSchema.model_validate(
+                {
+                    "Name": name,
+                    "Schedule Type Limits Name": schedule_type_limits_name,
+                    "Data": data,
+                }
+            )
+            idf.add(
+                ScheduleCompact(
+                    name=validated.name,
+                    schedule_type_limits_name=validated.schedule_type_limits_name,
+                    data=[ScheduleCompactDataItem(field=v) for v in validated.data],
+                )
+            )
             obj = idf.get("Schedule:Compact", name)
             return _ok(
                 f"Schedule:Compact '{name}' created successfully.",
@@ -128,13 +144,13 @@ def make_schedule_tools(config: ConfigState) -> list[BaseTool]:
     @tool
     def list_schedules() -> str:
         """List all Schedule:Compact objects."""
-        items = [s.model_dump() for s in idf.all_of_type("Schedule:Compact").values()]
+        items = [s.model_dump() for s in idf.all_of_type(ScheduleCompact).values()]
         return _ok(f"Listed {len(items)} Schedule:Compact objects.", items)
 
     @tool
     def list_schedule_type_limits() -> str:
         """List all ScheduleTypeLimits objects."""
-        items = [s.model_dump() for s in idf.all_of_type("ScheduleTypeLimits").values()]
+        items = [s.model_dump() for s in idf.all_of_type(ScheduleTypeLimits).values()]
         return _ok(f"Listed {len(items)} ScheduleTypeLimits objects.", items)
 
     @tool
@@ -151,20 +167,20 @@ def make_schedule_tools(config: ConfigState) -> list[BaseTool]:
         if not idf.has("Schedule:Compact", name):
             return _err(f"Schedule:Compact '{name}' not found.")
         refs = []
-        for t in idf.all_of_type("HVACTemplate:Thermostat").values():
+        for t in idf.all_of_type(HVACTemplateThermostat).values():
             if t.heating_setpoint_schedule_name == name:
                 refs.append(f"Thermostat:{t.name}")
             if t.cooling_setpoint_schedule_name == name:
                 refs.append(f"Thermostat:{t.name}")
-        for ils in idf.all_of_type("HVACTemplate:Zone:IdealLoadsAirSystem").values():
+        for ils in idf.all_of_type(HVACTemplateZoneIdealLoadsAirSystem).values():
             if ils.system_availability_schedule_name == name:
                 refs.append(f"IdealLoadsSystem:{ils.zone_name}")
-        for p in idf.all_of_type("People").values():
+        for p in idf.all_of_type(People).values():
             if p.number_of_people_schedule_name == name:
                 refs.append(f"People:{p.name}")
             if p.activity_level_schedule_name == name:
                 refs.append(f"People:{p.name}")
-        for lt in idf.all_of_type("Lights").values():
+        for lt in idf.all_of_type(Lights).values():
             if lt.schedule_name == name:
                 refs.append(f"Lights:{lt.name}")
         if refs:

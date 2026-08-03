@@ -148,7 +148,9 @@ def _idf_values(idf: IDF, *object_types: str) -> list[Any]:
 
 
 def _idf_has(idf: IDF, name: str, *object_types: str) -> bool:
-    return any(getattr(obj, "name", None) == name for obj in _idf_values(idf, *object_types))
+    return any(
+        getattr(obj, "name", None) == name for obj in _idf_values(idf, *object_types)
+    )
 
 
 def _field_dict(obj: Any) -> dict[str, Any]:
@@ -167,24 +169,52 @@ class ConfigState(BaseSchema):
     """
 
     building: BuildingSchema | None = Field(default=None, alias="Building")
-    site_location: SiteLocationSchema | None = Field(default=None, alias="Site:Location")
+    site_location: SiteLocationSchema | None = Field(
+        default=None, alias="Site:Location"
+    )
     zones: list[ZoneSchema] = Field(default_factory=list, alias="Zone")
     materials: list[MaterialSchema] = Field(default_factory=list, alias="Material")
-    constructions: list[ConstructionSchema] = Field(default_factory=list, alias="Construction")
-    surfaces: list[SurfaceSchema] = Field(default_factory=list, alias="BuildingSurface:Detailed")
-    fenestrations: list[FenestrationSurfaceSchema] = Field(default_factory=list, alias="FenestrationSurface:Detailed")
-    schedules: ScheduleCollectionSchema = Field(default_factory=ScheduleCollectionSchema, alias="Schedule")
+    constructions: list[ConstructionSchema] = Field(
+        default_factory=list, alias="Construction"
+    )
+    surfaces: list[SurfaceSchema] = Field(
+        default_factory=list, alias="BuildingSurface:Detailed"
+    )
+    fenestrations: list[FenestrationSurfaceSchema] = Field(
+        default_factory=list, alias="FenestrationSurface:Detailed"
+    )
+    schedules: ScheduleCollectionSchema = Field(
+        default_factory=ScheduleCollectionSchema, alias="Schedule"
+    )
     people: list[PeopleSchema] = Field(default_factory=list, alias="People")
     lights: list[LightSchema] = Field(default_factory=list, alias="Light")
     hvac: HVACSchema = Field(default_factory=HVACSchema, alias="HVAC")
-    simulation_control: SimulationControlSchema = Field(default_factory=SimulationControlSchema, alias="SimulationControl")
-    global_geometry_rules: GlobalGeometryRulesSchema = Field(default_factory=GlobalGeometryRulesSchema, alias="GlobalGeometryRules")
-    run_period: RunPeriodSchema = Field(default_factory=RunPeriodSchema, alias="RunPeriod")
-    output_variable_dictionary: OutputVariableDictionarySchema = Field(default_factory=OutputVariableDictionarySchema, alias="Output:VariableDictionary")
-    output_diagnostics: OutputDiagnosticsSchema = Field(default_factory=OutputDiagnosticsSchema, alias="Output:Diagnostics")
-    output_table_summary_reports: OutputTableSummaryReportsSchema = Field(default_factory=OutputTableSummaryReportsSchema, alias="Output:Table:SummaryReports")
-    output_variable: list[OutputVariableSchema] = Field(default_factory=list, alias="Output:Variable")
-    output_control_table_style: OutputControlTableStyleSchema = Field(default_factory=OutputControlTableStyleSchema, alias="OutputControl:Table:Style")
+    simulation_control: SimulationControlSchema = Field(
+        default_factory=SimulationControlSchema, alias="SimulationControl"
+    )
+    global_geometry_rules: GlobalGeometryRulesSchema = Field(
+        default_factory=GlobalGeometryRulesSchema, alias="GlobalGeometryRules"
+    )
+    run_period: RunPeriodSchema = Field(
+        default_factory=RunPeriodSchema, alias="RunPeriod"
+    )
+    output_variable_dictionary: OutputVariableDictionarySchema = Field(
+        default_factory=OutputVariableDictionarySchema,
+        alias="Output:VariableDictionary",
+    )
+    output_diagnostics: OutputDiagnosticsSchema = Field(
+        default_factory=OutputDiagnosticsSchema, alias="Output:Diagnostics"
+    )
+    output_table_summary_reports: OutputTableSummaryReportsSchema = Field(
+        default_factory=OutputTableSummaryReportsSchema,
+        alias="Output:Table:SummaryReports",
+    )
+    output_variable: list[OutputVariableSchema] = Field(
+        default_factory=list, alias="Output:Variable"
+    )
+    output_control_table_style: OutputControlTableStyleSchema = Field(
+        default_factory=OutputControlTableStyleSchema, alias="OutputControl:Table:Style"
+    )
 
     _idf: IDF | None = PrivateAttr(default=None)
 
@@ -245,8 +275,13 @@ class ConfigState(BaseSchema):
                 data[yaml_key] = values
 
         schedule = {}
-        type_limits = [_field_dict(obj) for obj in _idf_values(self.idf, "ScheduleTypeLimits")]
-        schedules = [_field_dict(obj) for obj in _idf_values(self.idf, "Schedule:Compact", "ScheduleCompact")]
+        type_limits = [
+            _field_dict(obj) for obj in _idf_values(self.idf, "ScheduleTypeLimits")
+        ]
+        schedules = [
+            _field_dict(obj)
+            for obj in _idf_values(self.idf, "Schedule:Compact", "ScheduleCompact")
+        ]
         if type_limits:
             schedule["ScheduleTypeLimits"] = type_limits
         if schedules:
@@ -255,7 +290,9 @@ class ConfigState(BaseSchema):
             data["Schedule"] = schedule
 
         hvac = {}
-        thermostats = [_field_dict(obj) for obj in _idf_values(self.idf, "HVACTemplate:Thermostat")]
+        thermostats = [
+            _field_dict(obj) for obj in _idf_values(self.idf, "HVACTemplate:Thermostat")
+        ]
         ideal_loads = [
             _field_dict(obj)
             for obj in _idf_values(self.idf, "HVACTemplate:Zone:IdealLoadsAirSystem")
@@ -268,7 +305,9 @@ class ConfigState(BaseSchema):
             data["HVAC"] = hvac
 
         if not data:
-            return self.model_dump(by_alias=True, exclude_none=True, serialize_as_any=True)
+            return self.model_dump(
+                by_alias=True, exclude_none=True, serialize_as_any=True
+            )
         return data
 
     def export_yaml(self, output_path: str | Path) -> None:
@@ -289,7 +328,7 @@ class ConfigState(BaseSchema):
         self._idf = IDF.load(Path(input_path))
 
     @classmethod
-    def load_yaml(cls, input_path: str | Path) -> "ConfigState":
+    def load_yaml(cls, input_path: str | Path) -> ConfigState:
         state = cls()
         state.load_yaml_into_idf(input_path)
         return state
@@ -341,7 +380,7 @@ class ConfigState(BaseSchema):
         self.output_control_table_style = OutputControlTableStyleSchema()
         self.output_variable = []
 
-    def update_from(self, other: "ConfigState") -> None:
+    def update_from(self, other: ConfigState) -> None:
         self._idf = other.idf
         for field_name in self.model_fields:
             setattr(self, field_name, getattr(other, field_name))
@@ -364,9 +403,15 @@ class ConfigState(BaseSchema):
             ),
             constructions_count=len(_idf_values(self.idf, "Construction")),
             surfaces_count=len(_idf_values(self.idf, "BuildingSurface:Detailed")),
-            fenestrations_count=len(_idf_values(self.idf, "FenestrationSurface:Detailed")),
-            schedules_count=len(_idf_values(self.idf, "Schedule:Compact", "ScheduleCompact")),
-            hvac_thermostats_count=len(_idf_values(self.idf, "HVACTemplate:Thermostat")),
+            fenestrations_count=len(
+                _idf_values(self.idf, "FenestrationSurface:Detailed")
+            ),
+            schedules_count=len(
+                _idf_values(self.idf, "Schedule:Compact", "ScheduleCompact")
+            ),
+            hvac_thermostats_count=len(
+                _idf_values(self.idf, "HVACTemplate:Thermostat")
+            ),
             hvac_ideal_loads_count=len(
                 _idf_values(self.idf, "HVACTemplate:Zone:IdealLoadsAirSystem")
             ),
@@ -474,8 +519,13 @@ class ConfigState(BaseSchema):
         for people in _idf_values(self.idf, "People"):
             zone = getattr(people, "zone_or_zonelist_or_space_or_spacelist_name", "")
             if zone and zone not in zone_names:
-                errors.append(f"People '{people.name}' references zone '{zone}' which does not exist.")
-            for field in ("number_of_people_schedule_name", "activity_level_schedule_name"):
+                errors.append(
+                    f"People '{people.name}' references zone '{zone}' which does not exist."
+                )
+            for field in (
+                "number_of_people_schedule_name",
+                "activity_level_schedule_name",
+            ):
                 sched = getattr(people, field, None)
                 if sched and sched not in schedule_names:
                     errors.append(
@@ -484,9 +534,13 @@ class ConfigState(BaseSchema):
 
         for light in _idf_values(self.idf, "Lights", "Light"):
             zone = getattr(light, "zone_or_zonelist_or_space_or_spacelist_name", None)
-            zone = zone or getattr(light, "zone_or_zone_list_or_space_or_space_list_name", "")
+            zone = zone or getattr(
+                light, "zone_or_zone_list_or_space_or_space_list_name", ""
+            )
             if zone and zone not in zone_names:
-                errors.append(f"Lights '{light.name}' references zone '{zone}' which does not exist.")
+                errors.append(
+                    f"Lights '{light.name}' references zone '{zone}' which does not exist."
+                )
             sched = getattr(light, "schedule_name", None)
             if sched and sched not in schedule_names:
                 errors.append(
@@ -497,7 +551,9 @@ class ConfigState(BaseSchema):
 
     def sync_legacy_fields_to_idf(self) -> None:
         """Mirror compatibility Pydantic fields into IDF when they were used."""
-        legacy = self.model_dump(by_alias=True, exclude_none=True, serialize_as_any=True)
+        legacy = self.model_dump(
+            by_alias=True, exclude_none=True, serialize_as_any=True
+        )
         if legacy:
             self.add_yaml_data(legacy)
 
@@ -508,73 +564,151 @@ class ConfigState(BaseSchema):
     def _add_global_settings(self, data: dict[str, Any]) -> None:
         if "Version" in data and not _idf_values(self.idf, "Version"):
             raw = data["Version"]
-            version = _get(raw, "Version Identifier", "version", default=self.idf.version)
+            version = _get(
+                raw, "Version Identifier", "version", default=self.idf.version
+            )
             self.idf.add(Version(version_identifier=version))
 
         raw = data.get("SimulationControl")
         if raw and not _idf_values(self.idf, "SimulationControl"):
-            self.idf.add(SimulationControl(**_clean_kwargs({
-                "do_zone_sizing_calculation": _yes_no(_get(raw, "Do Zone Sizing Calculation")),
-                "do_system_sizing_calculation": _yes_no(_get(raw, "Do System Sizing Calculation")),
-                "do_plant_sizing_calculation": _yes_no(_get(raw, "Do Plant Sizing Calculation")),
-                "run_simulation_for_sizing_periods": _yes_no(_get(raw, "Run Simulation for Sizing Periods")),
-                "run_simulation_for_weather_file_run_periods": _yes_no(_get(raw, "Run Simulation for Weather File Run Periods")),
-                "do_hvac_sizing_simulation_for_sizing_periods": _yes_no(_get(raw, "Do HVAC Sizing Simulation for Sizing Periods")),
-                "maximum_number_of_hvac_sizing_simulation_passes": _get(raw, "Maximum Number of HVAC Sizing Simulation Passes"),
-            })))
+            self.idf.add(
+                SimulationControl(
+                    **_clean_kwargs(
+                        {
+                            "do_zone_sizing_calculation": _yes_no(
+                                _get(raw, "Do Zone Sizing Calculation")
+                            ),
+                            "do_system_sizing_calculation": _yes_no(
+                                _get(raw, "Do System Sizing Calculation")
+                            ),
+                            "do_plant_sizing_calculation": _yes_no(
+                                _get(raw, "Do Plant Sizing Calculation")
+                            ),
+                            "run_simulation_for_sizing_periods": _yes_no(
+                                _get(raw, "Run Simulation for Sizing Periods")
+                            ),
+                            "run_simulation_for_weather_file_run_periods": _yes_no(
+                                _get(raw, "Run Simulation for Weather File Run Periods")
+                            ),
+                            "do_hvac_sizing_simulation_for_sizing_periods": _yes_no(
+                                _get(
+                                    raw, "Do HVAC Sizing Simulation for Sizing Periods"
+                                )
+                            ),
+                            "maximum_number_of_hvac_sizing_simulation_passes": _get(
+                                raw, "Maximum Number of HVAC Sizing Simulation Passes"
+                            ),
+                        }
+                    )
+                )
+            )
 
         raw = data.get("Building")
         if raw and not _idf_values(self.idf, "Building"):
-            self.idf.add(Building(**_clean_kwargs({
-                "name": _get(raw, "Name", "name"),
-                "north_axis": _get(raw, "North Axis", default=0.0),
-                "terrain": _get(raw, "Terrain", default="Suburbs"),
-                "loads_convergence_tolerance_value": _get(raw, "Loads Convergence Tolerance Value"),
-                "temperature_convergence_tolerance_value": _get(raw, "Temperature Convergence Tolerance Value"),
-                "solar_distribution": _get(raw, "Solar Distribution"),
-                "maximum_number_of_warmup_days": _get(raw, "Maximum Number of Warmup Days"),
-                "minimum_number_of_warmup_days": _get(raw, "Minimum Number of Warmup Days"),
-            })))
+            self.idf.add(
+                Building(
+                    **_clean_kwargs(
+                        {
+                            "name": _get(raw, "Name", "name"),
+                            "north_axis": _get(raw, "North Axis", default=0.0),
+                            "terrain": _get(raw, "Terrain", default="Suburbs"),
+                            "loads_convergence_tolerance_value": _get(
+                                raw, "Loads Convergence Tolerance Value"
+                            ),
+                            "temperature_convergence_tolerance_value": _get(
+                                raw, "Temperature Convergence Tolerance Value"
+                            ),
+                            "solar_distribution": _get(raw, "Solar Distribution"),
+                            "maximum_number_of_warmup_days": _get(
+                                raw, "Maximum Number of Warmup Days"
+                            ),
+                            "minimum_number_of_warmup_days": _get(
+                                raw, "Minimum Number of Warmup Days"
+                            ),
+                        }
+                    )
+                )
+            )
 
         raw = data.get("Timestep")
         if raw and not _idf_values(self.idf, "Timestep"):
-            self.idf.add(Timestep(number_of_timesteps_per_hour=_get(raw, "Number of Timesteps per Hour", default=4)))
+            self.idf.add(
+                Timestep(
+                    number_of_timesteps_per_hour=_get(
+                        raw, "Number of Timesteps per Hour", default=4
+                    )
+                )
+            )
 
         raw = data.get("Site:Location")
         if raw and not _idf_values(self.idf, "Site:Location"):
-            self.idf.add(SiteLocation(**_clean_kwargs({
-                "name": _get(raw, "Name", "name"),
-                "latitude": _get(raw, "Latitude"),
-                "longitude": _get(raw, "Longitude"),
-                "time_zone": _get(raw, "Time Zone"),
-                "elevation": _get(raw, "Elevation"),
-            })))
+            self.idf.add(
+                SiteLocation(
+                    **_clean_kwargs(
+                        {
+                            "name": _get(raw, "Name", "name"),
+                            "latitude": _get(raw, "Latitude"),
+                            "longitude": _get(raw, "Longitude"),
+                            "time_zone": _get(raw, "Time Zone"),
+                            "elevation": _get(raw, "Elevation"),
+                        }
+                    )
+                )
+            )
 
         raw = data.get("RunPeriod")
         if raw and not _idf_values(self.idf, "RunPeriod"):
-            self.idf.add(RunPeriod(**_clean_kwargs({
-                "name": _get(raw, "Name", default="Run Period 1"),
-                "begin_month": _get(raw, "Begin Month"),
-                "begin_day_of_month": _get(raw, "Begin Day of Month"),
-                "begin_year": _get(raw, "Begin Year"),
-                "end_month": _get(raw, "End Month"),
-                "end_day_of_month": _get(raw, "End Day of Month"),
-                "end_year": _get(raw, "End Year"),
-                "day_of_week_for_start_day": _get(raw, "Day of Week for Start Day"),
-                "use_weather_file_holidays_and_special_days": _yes_no(_get(raw, "Use Weather File Holidays and Special Days")),
-                "use_weather_file_daylight_saving_period": _yes_no(_get(raw, "Use Weather File Daylight Saving Period")),
-                "apply_weekend_holiday_rule": _yes_no(_get(raw, "Apply Weekend Holiday Rule")),
-                "use_weather_file_rain_indicators": _yes_no(_get(raw, "Use Weather File Rain Indicators")),
-                "use_weather_file_snow_indicators": _yes_no(_get(raw, "Use Weather File Snow Indicators")),
-            })))
+            self.idf.add(
+                RunPeriod(
+                    **_clean_kwargs(
+                        {
+                            "name": _get(raw, "Name", default="Run Period 1"),
+                            "begin_month": _get(raw, "Begin Month"),
+                            "begin_day_of_month": _get(raw, "Begin Day of Month"),
+                            "begin_year": _get(raw, "Begin Year"),
+                            "end_month": _get(raw, "End Month"),
+                            "end_day_of_month": _get(raw, "End Day of Month"),
+                            "end_year": _get(raw, "End Year"),
+                            "day_of_week_for_start_day": _get(
+                                raw, "Day of Week for Start Day"
+                            ),
+                            "use_weather_file_holidays_and_special_days": _yes_no(
+                                _get(raw, "Use Weather File Holidays and Special Days")
+                            ),
+                            "use_weather_file_daylight_saving_period": _yes_no(
+                                _get(raw, "Use Weather File Daylight Saving Period")
+                            ),
+                            "apply_weekend_holiday_rule": _yes_no(
+                                _get(raw, "Apply Weekend Holiday Rule")
+                            ),
+                            "use_weather_file_rain_indicators": _yes_no(
+                                _get(raw, "Use Weather File Rain Indicators")
+                            ),
+                            "use_weather_file_snow_indicators": _yes_no(
+                                _get(raw, "Use Weather File Snow Indicators")
+                            ),
+                        }
+                    )
+                )
+            )
 
         raw = data.get("GlobalGeometryRules")
         if raw and not _idf_values(self.idf, "GlobalGeometryRules"):
-            self.idf.add(GlobalGeometryRules(**_clean_kwargs({
-                "starting_vertex_position": _get(raw, "Starting Vertex Position"),
-                "vertex_entry_direction": _get(raw, "Vertex Entry Direction"),
-                "coordinate_system": _get(raw, "Coordinate System"),
-            })))
+            self.idf.add(
+                GlobalGeometryRules(
+                    **_clean_kwargs(
+                        {
+                            "starting_vertex_position": _get(
+                                raw, "Starting Vertex Position"
+                            ),
+                            "vertex_entry_direction": _get(
+                                raw, "Vertex Entry Direction"
+                            ),
+                            "coordinate_system": _get(raw, "Coordinate System"),
+                        }
+                    )
+                )
+            )
 
     def _add_materials(self, data: dict[str, Any]) -> None:
         for raw in _as_items(data.get("Material")):
@@ -586,12 +720,25 @@ class ConfigState(BaseSchema):
                 if _get(raw, "U-Factor", "U Factor", "u_factor") is not None:
                     material_type = "Glazing"
                 elif (
-                    _get(raw, "Thermal_Resistance", "Thermal Resistance", "thermal_resistance")
+                    _get(
+                        raw,
+                        "Thermal_Resistance",
+                        "Thermal Resistance",
+                        "thermal_resistance",
+                    )
                     is not None
                     and _get(raw, "Roughness", "roughness") is not None
                 ):
                     material_type = "NoMass"
-                elif _get(raw, "Thermal_Resistance", "Thermal Resistance", "thermal_resistance") is not None:
+                elif (
+                    _get(
+                        raw,
+                        "Thermal_Resistance",
+                        "Thermal Resistance",
+                        "thermal_resistance",
+                    )
+                    is not None
+                ):
                     material_type = "AirGap"
                 else:
                     material_type = "Standard"
@@ -608,36 +755,50 @@ class ConfigState(BaseSchema):
             ):
                 continue
             if material_type == "Standard":
-                self.idf.add(Material(
-                    name=name,
-                    roughness=_get(raw, "Roughness"),
-                    thickness=_get(raw, "Thickness"),
-                    conductivity=_get(raw, "Conductivity"),
-                    density=_get(raw, "Density"),
-                    specific_heat=_get(raw, "Specific_Heat", "Specific Heat"),
-                ))
+                self.idf.add(
+                    Material(
+                        name=name,
+                        roughness=_get(raw, "Roughness"),
+                        thickness=_get(raw, "Thickness"),
+                        conductivity=_get(raw, "Conductivity"),
+                        density=_get(raw, "Density"),
+                        specific_heat=_get(raw, "Specific_Heat", "Specific Heat"),
+                    )
+                )
             elif material_type == "NoMass":
-                self.idf.add(MaterialNoMass(
-                    name=name,
-                    roughness=_get(raw, "Roughness"),
-                    thermal_resistance=_get(raw, "Thermal_Resistance", "Thermal Resistance"),
-                ))
+                self.idf.add(
+                    MaterialNoMass(
+                        name=name,
+                        roughness=_get(raw, "Roughness"),
+                        thermal_resistance=_get(
+                            raw, "Thermal_Resistance", "Thermal Resistance"
+                        ),
+                    )
+                )
             elif material_type == "AirGap":
-                self.idf.add(MaterialAirGap(
-                    name=name,
-                    thermal_resistance=_get(raw, "Thermal_Resistance", "Thermal Resistance"),
-                ))
+                self.idf.add(
+                    MaterialAirGap(
+                        name=name,
+                        thermal_resistance=_get(
+                            raw, "Thermal_Resistance", "Thermal Resistance"
+                        ),
+                    )
+                )
             elif material_type == "Glazing":
-                self.idf.add(WindowMaterialSimpleGlazingSystem(
-                    name=name,
-                    u_factor=_get(raw, "U-Factor", "U Factor"),
-                    solar_heat_gain_coefficient=_get(
-                        raw,
-                        "Solar_Heat_Gain_Coefficient",
-                        "Solar Heat Gain Coefficient",
-                    ),
-                    visible_transmittance=_get(raw, "Visible_Transmittance", "Visible Transmittance"),
-                ))
+                self.idf.add(
+                    WindowMaterialSimpleGlazingSystem(
+                        name=name,
+                        u_factor=_get(raw, "U-Factor", "U Factor"),
+                        solar_heat_gain_coefficient=_get(
+                            raw,
+                            "Solar_Heat_Gain_Coefficient",
+                            "Solar Heat Gain Coefficient",
+                        ),
+                        visible_transmittance=_get(
+                            raw, "Visible_Transmittance", "Visible Transmittance"
+                        ),
+                    )
+                )
 
     def _add_constructions(self, data: dict[str, Any]) -> None:
         layer_fields = [
@@ -673,21 +834,35 @@ class ConfigState(BaseSchema):
             name = _get(raw, "Name", "name")
             if not name or _idf_has(self.idf, name, "Zone"):
                 continue
-            self.idf.add(Zone(**_clean_kwargs({
-                "name": name,
-                "direction_of_relative_north": _get(raw, "Direction of Relative North", default=0.0),
-                "x_origin": _get(raw, "X Origin", default=0.0),
-                "y_origin": _get(raw, "Y Origin", default=0.0),
-                "z_origin": _get(raw, "Z Origin", default=0.0),
-                "type": _get(raw, "Type"),
-                "multiplier": _get(raw, "Multiplier"),
-                "ceiling_height": _get(raw, "Ceiling Height"),
-                "volume": _get(raw, "Volume"),
-                "floor_area": _get(raw, "Floor Area"),
-                "zone_inside_convection_algorithm": _get(raw, "Zone Inside Convection Algorithm"),
-                "zone_outside_convection_algorithm": _get(raw, "Zone Outside Convection Algorithm"),
-                "part_of_total_floor_area": _yes_no(_get(raw, "Part of Total Floor Area")),
-            })))
+            self.idf.add(
+                Zone(
+                    **_clean_kwargs(
+                        {
+                            "name": name,
+                            "direction_of_relative_north": _get(
+                                raw, "Direction of Relative North", default=0.0
+                            ),
+                            "x_origin": _get(raw, "X Origin", default=0.0),
+                            "y_origin": _get(raw, "Y Origin", default=0.0),
+                            "z_origin": _get(raw, "Z Origin", default=0.0),
+                            "type": _get(raw, "Type"),
+                            "multiplier": _get(raw, "Multiplier"),
+                            "ceiling_height": _get(raw, "Ceiling Height"),
+                            "volume": _get(raw, "Volume"),
+                            "floor_area": _get(raw, "Floor Area"),
+                            "zone_inside_convection_algorithm": _get(
+                                raw, "Zone Inside Convection Algorithm"
+                            ),
+                            "zone_outside_convection_algorithm": _get(
+                                raw, "Zone Outside Convection Algorithm"
+                            ),
+                            "part_of_total_floor_area": _yes_no(
+                                _get(raw, "Part of Total Floor Area")
+                            ),
+                        }
+                    )
+                )
+            )
 
     def _add_surfaces(self, data: dict[str, Any]) -> None:
         for raw in _as_items(data.get("BuildingSurface:Detailed")):
@@ -703,20 +878,32 @@ class ConfigState(BaseSchema):
                 )
                 for v in verts
             ]
-            self.idf.add(BuildingSurfaceDetailed(**_clean_kwargs({
-                "name": name,
-                "surface_type": _get(raw, "Surface Type"),
-                "construction_name": _get(raw, "Construction Name"),
-                "zone_name": _get(raw, "Zone Name"),
-                "space_name": _get(raw, "Space Name"),
-                "outside_boundary_condition": _get(raw, "Outside Boundary Condition"),
-                "outside_boundary_condition_object": _get(raw, "Outside Boundary Condition Object"),
-                "sun_exposure": _get(raw, "Sun Exposure"),
-                "wind_exposure": _get(raw, "Wind Exposure"),
-                "view_factor_to_ground": _get(raw, "View Factor to Ground"),
-                "number_of_vertices": len(verts) if verts else _get(raw, "Number of Vertices"),
-                "vertices": vertex_items,
-            })))
+            self.idf.add(
+                BuildingSurfaceDetailed(
+                    **_clean_kwargs(
+                        {
+                            "name": name,
+                            "surface_type": _get(raw, "Surface Type"),
+                            "construction_name": _get(raw, "Construction Name"),
+                            "zone_name": _get(raw, "Zone Name"),
+                            "space_name": _get(raw, "Space Name"),
+                            "outside_boundary_condition": _get(
+                                raw, "Outside Boundary Condition"
+                            ),
+                            "outside_boundary_condition_object": _get(
+                                raw, "Outside Boundary Condition Object"
+                            ),
+                            "sun_exposure": _get(raw, "Sun Exposure"),
+                            "wind_exposure": _get(raw, "Wind Exposure"),
+                            "view_factor_to_ground": _get(raw, "View Factor to Ground"),
+                            "number_of_vertices": len(verts)
+                            if verts
+                            else _get(raw, "Number of Vertices"),
+                            "vertices": vertex_items,
+                        }
+                    )
+                )
+            )
 
     def _add_fenestrations(self, data: dict[str, Any]) -> None:
         for raw in _as_items(data.get("FenestrationSurface:Detailed")):
@@ -724,17 +911,31 @@ class ConfigState(BaseSchema):
             if not name or _idf_has(self.idf, name, "FenestrationSurface:Detailed"):
                 continue
             verts = _vertices(_get(raw, "Vertices", "vertices", default=[]))
-            kwargs = _clean_kwargs({
-                "name": name,
-                "surface_type": _get(raw, "Surface Type"),
-                "construction_name": _get(raw, "Construction Name"),
-                "building_surface_name": _get(raw, "Building Surface Name"),
-                "outside_boundary_condition_object": _get(raw, "Outside Boundary Condition Object"),
-                "frame_and_divider_name": _get(raw, "Frame and Divider Name"),
-                "multiplier": _get(raw, "Multiplier"),
-                "view_factor_to_ground": _get(raw, "View Factor to Ground"),
-                "number_of_vertices": len(verts) if verts else _get(raw, "Number of Vertices"),
-            })
+            if not verts:
+                count = int(_get(raw, "Number of Vertices", default=0) or 0)
+                for idx in range(1, count + 1):
+                    x = _get(raw, f"vertex_{idx}_x_coordinate")
+                    y = _get(raw, f"vertex_{idx}_y_coordinate")
+                    z = _get(raw, f"vertex_{idx}_z_coordinate")
+                    if x is not None and y is not None and z is not None:
+                        verts.append({"X": float(x), "Y": float(y), "Z": float(z)})
+            kwargs = _clean_kwargs(
+                {
+                    "name": name,
+                    "surface_type": _get(raw, "Surface Type"),
+                    "construction_name": _get(raw, "Construction Name"),
+                    "building_surface_name": _get(raw, "Building Surface Name"),
+                    "outside_boundary_condition_object": _get(
+                        raw, "Outside Boundary Condition Object"
+                    ),
+                    "frame_and_divider_name": _get(raw, "Frame and Divider Name"),
+                    "multiplier": _get(raw, "Multiplier"),
+                    "view_factor_to_ground": _get(raw, "View Factor to Ground"),
+                    "number_of_vertices": len(verts)
+                    if verts
+                    else _get(raw, "Number of Vertices"),
+                }
+            )
             for idx, vertex in enumerate(verts, start=1):
                 kwargs[f"vertex_{idx}_x_coordinate"] = vertex["X"]
                 kwargs[f"vertex_{idx}_y_coordinate"] = vertex["Y"]
@@ -749,24 +950,36 @@ class ConfigState(BaseSchema):
                 continue
             lower = _get(raw, "Lower Limit Value")
             upper = _get(raw, "Upper Limit Value")
-            self.idf.add(ScheduleTypeLimits(**_clean_kwargs({
-                "name": name,
-                "lower_limit_value": None if lower == "" else lower,
-                "upper_limit_value": None if upper == "" else upper,
-                "numeric_type": _get(raw, "Numeric Type"),
-                "unit_type": _get(raw, "Unit Type"),
-            })))
+            self.idf.add(
+                ScheduleTypeLimits(
+                    **_clean_kwargs(
+                        {
+                            "name": name,
+                            "lower_limit_value": None if lower == "" else lower,
+                            "upper_limit_value": None if upper == "" else upper,
+                            "numeric_type": _get(raw, "Numeric Type"),
+                            "unit_type": _get(raw, "Unit Type"),
+                        }
+                    )
+                )
+            )
 
         for raw in _as_items(schedule_data.get("Schedule:Compact")):
             name = _get(raw, "Name", "name")
-            if not name or _idf_has(self.idf, name, "Schedule:Compact", "ScheduleCompact"):
+            if not name or _idf_has(
+                self.idf, name, "Schedule:Compact", "ScheduleCompact"
+            ):
                 continue
             flat_data = _flatten_schedule_data(_get(raw, "Data", "data", default=[]))
-            self.idf.add(ScheduleCompact(
-                name=name,
-                schedule_type_limits_name=_get(raw, "Schedule Type Limits Name"),
-                data=[ScheduleCompactDataItem(field=str(item)) for item in flat_data],
-            ))
+            self.idf.add(
+                ScheduleCompact(
+                    name=name,
+                    schedule_type_limits_name=_get(raw, "Schedule Type Limits Name"),
+                    data=[
+                        ScheduleCompactDataItem(field=str(item)) for item in flat_data
+                    ],
+                )
+            )
 
     def _add_hvac(self, data: dict[str, Any]) -> None:
         hvac_data = data.get("HVAC") or {}
@@ -774,11 +987,17 @@ class ConfigState(BaseSchema):
             name = _get(raw, "Name", "name")
             if not name or _idf_has(self.idf, name, "HVACTemplate:Thermostat"):
                 continue
-            self.idf.add(HVACTemplateThermostat(
-                name=name,
-                heating_setpoint_schedule_name=_get(raw, "Heating Setpoint Schedule Name"),
-                cooling_setpoint_schedule_name=_get(raw, "Cooling Setpoint Schedule Name"),
-            ))
+            self.idf.add(
+                HVACTemplateThermostat(
+                    name=name,
+                    heating_setpoint_schedule_name=_get(
+                        raw, "Heating Setpoint Schedule Name"
+                    ),
+                    cooling_setpoint_schedule_name=_get(
+                        raw, "Cooling Setpoint Schedule Name"
+                    ),
+                )
+            )
 
         existing_zones = {
             getattr(obj, "zone_name", None)
@@ -788,11 +1007,15 @@ class ConfigState(BaseSchema):
             zone_name = _get(raw, "Zone Name", "zone_name")
             if not zone_name or zone_name in existing_zones:
                 continue
-            self.idf.add(HVACTemplateZoneIdealLoadsAirSystem(
-                zone_name=zone_name,
-                template_thermostat_name=_get(raw, "Template Thermostat Name"),
-                system_availability_schedule_name=_get(raw, "System Availability Schedule Name"),
-            ))
+            self.idf.add(
+                HVACTemplateZoneIdealLoadsAirSystem(
+                    zone_name=zone_name,
+                    template_thermostat_name=_get(raw, "Template Thermostat Name"),
+                    system_availability_schedule_name=_get(
+                        raw, "System Availability Schedule Name"
+                    ),
+                )
+            )
             existing_zones.add(zone_name)
 
     def _add_people(self, data: dict[str, Any]) -> None:
@@ -800,47 +1023,94 @@ class ConfigState(BaseSchema):
             name = _get(raw, "Name", "name")
             if not name or _idf_has(self.idf, name, "People"):
                 continue
-            self.idf.add(People(**_clean_kwargs({
-                "name": name,
-                "zone_or_zonelist_or_space_or_spacelist_name": _get(raw, "Zone or ZoneList or Space or SpaceList Name"),
-                "number_of_people_schedule_name": _get(raw, "Number of People Schedule Name"),
-                "number_of_people_calculation_method": _get(raw, "Number of People Calculation Method"),
-                "number_of_people": _get(raw, "Number of People"),
-                "people_per_floor_area": _get(raw, "People per Floor Area"),
-                "floor_area_per_person": _get(raw, "Floor Area per Person"),
-                "fraction_radiant": _get(raw, "Fraction Radiant"),
-                "sensible_heat_fraction": _get(raw, "Sensible Heat Fraction"),
-                "activity_level_schedule_name": _get(raw, "Activity Level Schedule Name"),
-                "carbon_dioxide_generation_rate": _get(raw, "Carbon Dioxide Generation Rate"),
-                "enable_ashrae_55_comfort_warnings": _yes_no(_get(raw, "Enable ASHRAE 55 Comfort Warnings")),
-                "mean_radiant_temperature_calculation_type": _get(raw, "Mean Radiant Temperature Calculation Type"),
-                "surface_name_angle_factor_list_name": _get(raw, "Surface Name Angle Factor List Name"),
-                "work_efficiency_schedule_name": _get(raw, "Work Efficiency Schedule Name"),
-                "clothing_insulation_calculation_method": _get(raw, "Clothing Insulation Calculation Method"),
-                "clothing_insulation_calculation_method_schedule_name": _get(raw, "Clothing Insulation Calculation Method Schedule Name"),
-                "clothing_insulation_schedule_name": _get(raw, "Clothing Insulation Schedule Name"),
-                "air_velocity_schedule_name": _get(raw, "Air Velocity Schedule Name"),
-            })))
+            self.idf.add(
+                People(
+                    **_clean_kwargs(
+                        {
+                            "name": name,
+                            "zone_or_zonelist_or_space_or_spacelist_name": _get(
+                                raw, "Zone or ZoneList or Space or SpaceList Name"
+                            ),
+                            "number_of_people_schedule_name": _get(
+                                raw, "Number of People Schedule Name"
+                            ),
+                            "number_of_people_calculation_method": _get(
+                                raw, "Number of People Calculation Method"
+                            ),
+                            "number_of_people": _get(raw, "Number of People"),
+                            "people_per_floor_area": _get(raw, "People per Floor Area"),
+                            "floor_area_per_person": _get(raw, "Floor Area per Person"),
+                            "fraction_radiant": _get(raw, "Fraction Radiant"),
+                            "sensible_heat_fraction": _get(
+                                raw, "Sensible Heat Fraction"
+                            ),
+                            "activity_level_schedule_name": _get(
+                                raw, "Activity Level Schedule Name"
+                            ),
+                            "carbon_dioxide_generation_rate": _get(
+                                raw, "Carbon Dioxide Generation Rate"
+                            ),
+                            "enable_ashrae_55_comfort_warnings": _yes_no(
+                                _get(raw, "Enable ASHRAE 55 Comfort Warnings")
+                            ),
+                            "mean_radiant_temperature_calculation_type": _get(
+                                raw, "Mean Radiant Temperature Calculation Type"
+                            ),
+                            "surface_name_angle_factor_list_name": _get(
+                                raw, "Surface Name Angle Factor List Name"
+                            ),
+                            "work_efficiency_schedule_name": _get(
+                                raw, "Work Efficiency Schedule Name"
+                            ),
+                            "clothing_insulation_calculation_method": _get(
+                                raw, "Clothing Insulation Calculation Method"
+                            ),
+                            "clothing_insulation_calculation_method_schedule_name": _get(
+                                raw,
+                                "Clothing Insulation Calculation Method Schedule Name",
+                            ),
+                            "clothing_insulation_schedule_name": _get(
+                                raw, "Clothing Insulation Schedule Name"
+                            ),
+                            "air_velocity_schedule_name": _get(
+                                raw, "Air Velocity Schedule Name"
+                            ),
+                        }
+                    )
+                )
+            )
 
     def _add_lights(self, data: dict[str, Any]) -> None:
         for raw in _as_items(data.get("Light") or data.get("Lights")):
             name = _get(raw, "Name", "name")
             if not name or _idf_has(self.idf, name, "Lights", "Light"):
                 continue
-            self.idf.add(Lights(**_clean_kwargs({
-                "name": name,
-                "zone_or_zonelist_or_space_or_spacelist_name": _get(raw, "Zone or ZoneList or Space or SpaceList Name", "Zone or ZoneList or SpaceList Name"),
-                "schedule_name": _get(raw, "Schedule Name"),
-                "design_level_calculation_method": _get(raw, "Design Level Calculation Method"),
-                "lighting_level": _get(raw, "Lighting Level"),
-                "watts_per_floor_area": _get(raw, "Watts per Floor Area"),
-                "watts_per_person": _get(raw, "Watts per Person"),
-                "return_air_fraction": _get(raw, "Return Air Fraction"),
-                "fraction_radiant": _get(raw, "Fraction Radiant"),
-                "fraction_visible": _get(raw, "Fraction Visible"),
-                "fraction_replaceable": _get(raw, "Fraction Replaceable"),
-                "end_use_subcategory": _get(raw, "End Use Subcategory"),
-            })))
+            self.idf.add(
+                Lights(
+                    **_clean_kwargs(
+                        {
+                            "name": name,
+                            "zone_or_zonelist_or_space_or_spacelist_name": _get(
+                                raw,
+                                "Zone or ZoneList or Space or SpaceList Name",
+                                "Zone or ZoneList or SpaceList Name",
+                            ),
+                            "schedule_name": _get(raw, "Schedule Name"),
+                            "design_level_calculation_method": _get(
+                                raw, "Design Level Calculation Method"
+                            ),
+                            "lighting_level": _get(raw, "Lighting Level"),
+                            "watts_per_floor_area": _get(raw, "Watts per Floor Area"),
+                            "watts_per_person": _get(raw, "Watts per Person"),
+                            "return_air_fraction": _get(raw, "Return Air Fraction"),
+                            "fraction_radiant": _get(raw, "Fraction Radiant"),
+                            "fraction_visible": _get(raw, "Fraction Visible"),
+                            "fraction_replaceable": _get(raw, "Fraction Replaceable"),
+                            "end_use_subcategory": _get(raw, "End Use Subcategory"),
+                        }
+                    )
+                )
+            )
 
     def _add_outputs(self, data: dict[str, Any]) -> None:
         raw = data.get("Output:VariableDictionary")
@@ -851,20 +1121,36 @@ class ConfigState(BaseSchema):
         if raw and not _idf_values(self.idf, "Output:Diagnostics"):
             key = _get(raw, "Key 1", "Key", "key_1")
             if key:
-                self.idf.add(OutputDiagnostics(diagnostics=[OutputDiagnosticsDiagnosticsItem(key=key)]))
+                self.idf.add(
+                    OutputDiagnostics(
+                        diagnostics=[OutputDiagnosticsDiagnosticsItem(key=key)]
+                    )
+                )
 
         raw = data.get("Output:Table:SummaryReports")
         if raw and not _idf_values(self.idf, "Output:Table:SummaryReports"):
             report = _get(raw, "Report 1 Name", "Report Name", "report_1_name")
             if report:
-                self.idf.add(OutputTableSummaryReports(reports=[OutputTableSummaryReportsReportsItem(report_name=report)]))
+                self.idf.add(
+                    OutputTableSummaryReports(
+                        reports=[
+                            OutputTableSummaryReportsReportsItem(report_name=report)
+                        ]
+                    )
+                )
 
         raw = data.get("OutputControl:Table:Style")
         if raw and not _idf_values(self.idf, "OutputControl:Table:Style"):
-            self.idf.add(OutputControlTableStyle(**_clean_kwargs({
-                "column_separator": _get(raw, "Column Separator"),
-                "unit_conversion": _get(raw, "Unit Conversion"),
-            })))
+            self.idf.add(
+                OutputControlTableStyle(
+                    **_clean_kwargs(
+                        {
+                            "column_separator": _get(raw, "Column Separator"),
+                            "unit_conversion": _get(raw, "Unit Conversion"),
+                        }
+                    )
+                )
+            )
 
         existing_output_variables = {
             (
@@ -882,11 +1168,13 @@ class ConfigState(BaseSchema):
             )
             if identity in existing_output_variables:
                 continue
-            self.idf.add(OutputVariable(
-                key_value=identity[0],
-                variable_name=identity[1],
-                reporting_frequency=identity[2],
-            ))
+            self.idf.add(
+                OutputVariable(
+                    key_value=identity[0],
+                    variable_name=identity[1],
+                    reporting_frequency=identity[2],
+                )
+            )
             existing_output_variables.add(identity)
 
 
@@ -899,6 +1187,10 @@ def _flatten_schedule_data(data: Any) -> list[str]:
     for item in data:
         if not isinstance(item, dict):
             result.append(str(item))
+            continue
+        field = _get(item, "Field", "field")
+        if field is not None:
+            result.append(str(field))
             continue
         through = _get(item, "Through")
         if through:

@@ -1,7 +1,11 @@
 from typing import Any
 
 from idfpy import IDF
-from idfpy.models.schedules import ScheduleCompact, ScheduleCompactDataItem, ScheduleTypeLimits
+from idfpy.models.schedules import (
+    ScheduleCompact,
+    ScheduleCompactDataItem,
+    ScheduleTypeLimits,
+)
 
 from src.converters.base_converter import BaseConverter
 from src.utils.logging import get_logger
@@ -46,15 +50,25 @@ class ScheduleConverter(BaseConverter):
         try:
             if isinstance(val_data, ScheduleTypeLimitsSchema):
                 if not self.idf.has("ScheduleTypeLimits", val_data.name):
-                    lower = val_data.lower_limit_value if val_data.lower_limit_value != "" else None
-                    upper = val_data.upper_limit_value if val_data.upper_limit_value != "" else None
-                    self.idf.add(ScheduleTypeLimits(
-                        name=val_data.name,
-                        lower_limit_value=lower,
-                        upper_limit_value=upper,
-                        numeric_type=val_data.numeric_type,
-                        unit_type=val_data.unit_type,
-                    ))
+                    lower = (
+                        val_data.lower_limit_value
+                        if val_data.lower_limit_value != ""
+                        else None
+                    )
+                    upper = (
+                        val_data.upper_limit_value
+                        if val_data.upper_limit_value != ""
+                        else None
+                    )
+                    self.idf.add(
+                        ScheduleTypeLimits(
+                            name=val_data.name,
+                            lower_limit_value=lower,
+                            upper_limit_value=upper,
+                            numeric_type=val_data.numeric_type,
+                            unit_type=val_data.unit_type,
+                        )
+                    )
                     self.state["success"] += 1
                     self.logger.success(
                         "ScheduleTypeLimits with name {} added to IDF.",
@@ -69,11 +83,15 @@ class ScheduleConverter(BaseConverter):
                     self.state["skipped"] += 1
             elif isinstance(val_data, ScheduleCompactSchema):
                 if not self.idf.has("ScheduleCompact", val_data.name):
-                    self.idf.add(ScheduleCompact(
-                        name=val_data.name,
-                        schedule_type_limits_name=val_data.schedule_type_limits_name,
-                        data=[ScheduleCompactDataItem(field=v) for v in val_data.data],
-                    ))
+                    self.idf.add(
+                        ScheduleCompact(
+                            name=val_data.name,
+                            schedule_type_limits_name=val_data.schedule_type_limits_name,
+                            data=[
+                                ScheduleCompactDataItem(field=v) for v in val_data.data
+                            ],
+                        )
+                    )
                     self.state["success"] += 1
                     self.logger.success(
                         "Schedule:Compact with name {} added to IDF.", val_data.name
