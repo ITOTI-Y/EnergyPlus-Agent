@@ -8,13 +8,15 @@ signal by scanning the zone node's message stream — otherwise a model that
 silently produced 0 zones would look clean to the report.
 """
 
+from pathlib import Path
+
 from langchain_core.messages import AIMessage
 
-from agent_test.run_robustness_test import CaseHarness, CaseResult
+from tests.agent.test_run_robustness import CaseHarness, CaseSpecSchema
 
 
-def _make_harness(tmp_path) -> CaseHarness:
-    case = {"id": "t", "data": {}, "_dir": tmp_path, "category": None, "scale": None}
+def _make_harness(tmp_path: Path) -> CaseHarness:
+    case = CaseSpecSchema(case_id="t", data={}, case_dir=tmp_path)
     return CaseHarness(case=case, output_dir=tmp_path)
 
 

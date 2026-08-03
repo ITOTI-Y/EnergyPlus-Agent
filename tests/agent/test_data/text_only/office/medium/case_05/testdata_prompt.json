@@ -1,0 +1,20 @@
+{
+  "TestName": "office_medium_05",
+  "Building location": "Guangzhou",
+  "Building type": "Medium office building",
+  "Floor area": "3500.0m2",
+  "Number of floors": "3",
+  "Number of thermal zones per floor of the building": "5",
+  "Number of total thermal zones in the building": "15",
+  "Footprint width (east-west, m)": "45.8",
+  "Footprint depth (north-south, m)": "25.5",
+  "Floor-to-floor height (m)": "3.6",
+  "Orientation (degrees from north)": "45",
+  "Window-to-wall ratio": "0.30",
+  "Space layout": "per floor: open office + 3 private offices + core",
+  "Description": "A medium office building located in Guangzhou, China. The building footprint is approximately 45.8 m (east-west) by 25.5 m (north-south), rectangular, with the long axis rotated 45 degrees from north. Total gross floor area is about 3500.0 m^2 spread over 3 floor(s), giving roughly 1166.7 m^2 per floor. Floor-to-floor height is 3.6 m. The building is divided into 15 thermal zones in total (about 5 per floor). Typical space layout: per floor: open office + 3 private offices + core. Window-to-wall ratio is approximately 30% on exterior walls, with windows distributed on all four facades. Model all zones with appropriate constructions, glazing, occupancy, lighting, equipment and HVAC (ideal loads) so the IDF runs in EnergyPlus without errors.",
+  "Top view path of the building": "",
+  "Front view path of the building": "",
+  "Building side view path": "",
+  "Path of the supplementary plan example drawing for the building": ""
+}

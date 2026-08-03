@@ -1,4 +1,4 @@
-from agent_test.run_robustness_test import _check_simulation_output
+from tests.agent.test_run_robustness import _check_simulation_output
 
 
 def test_eplustbl_alone_is_not_successful_simulation_output(tmp_path):

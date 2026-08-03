@@ -1,0 +1,20 @@
+{
+  "TestName": "office_large_03",
+  "Building location": "Shenzhen",
+  "Building type": "Large office / corporate headquarters",
+  "Floor area": "17500.0m2",
+  "Number of floors": "9",
+  "Number of thermal zones per floor of the building": "6",
+  "Number of total thermal zones in the building": "54",
+  "Footprint width (east-west, m)": "62.4",
+  "Footprint depth (north-south, m)": "31.2",
+  "Floor-to-floor height (m)": "3.8",
+  "Orientation (degrees from north)": "180",
+  "Window-to-wall ratio": "0.40",
+  "Space layout": "typical floor: open-plan + private offices + core; ground lobby, rooftop plant",
+  "Description": "A large office / corporate headquarters located in Shenzhen, China. The building footprint is approximately 62.4 m (east-west) by 31.2 m (north-south), rectangular, with the long axis rotated 180 degrees from north. Total gross floor area is about 17500.0 m^2 spread over 9 floor(s), giving roughly 1944.4 m^2 per floor. Floor-to-floor height is 3.8 m. The building is divided into 54 thermal zones in total (about 6 per floor). Typical space layout: typical floor: open-plan + private offices + core; ground lobby, rooftop plant. Window-to-wall ratio is approximately 40% on exterior walls, with windows distributed on all four facades. Model all zones with appropriate constructions, glazing, occupancy, lighting, equipment and HVAC (ideal loads) so the IDF runs in EnergyPlus without errors.",
+  "Top view path of the building": "",
+  "Front view path of the building": "",
+  "Building side view path": "",
+  "Path of the supplementary plan example drawing for the building": ""
+}

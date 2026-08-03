@@ -1,0 +1,21 @@
+{
+  "TestName": "residential_small_09",
+  "Building location": "Shenzhen",
+  "Building type": "Small apartment / studio unit",
+  "Floor area": "77.5m2",
+  "Number of floors": "1",
+  "Number of thermal zones per floor of the building": "2",
+  "Number of total thermal zones in the building": "2",
+  "Footprint width (east-west, m)": "9.6",
+  "Footprint depth (north-south, m)": "8.0",
+  "Floor-to-floor height (m)": "2.9",
+  "Orientation (degrees from north)": "15",
+  "Window-to-wall ratio": "0.20",
+  "Space layout": "2-bedroom: living + dining + kitchen + 2 bedrooms + 1 bathroom",
+  "Description": "A small apartment / studio unit located in Shenzhen, China. The building footprint is approximately 9.6 m (east-west) by 8.0 m (north-south), rectangular, with the long axis rotated 15 degrees from north. Total gross floor area is about 77.5 m^2 spread over 1 floor(s), giving roughly 77.5 m^2 per floor. Floor-to-floor height is 2.9 m. The building is divided into 2 thermal zones in total (about 2 per floor). There are 1 dwelling units per floor (2 thermal zone(s) per unit), so model each unit as its own zone(s) stacked vertically across the 1 floor(s), plus a shared core/circulation. Typical space layout: 2-bedroom: living + dining + kitchen + 2 bedrooms + 1 bathroom. Window-to-wall ratio is approximately 20% on exterior walls, with windows distributed on all four facades. Model all zones with appropriate constructions, glazing, occupancy, lighting, equipment and HVAC (ideal loads) so the IDF runs in EnergyPlus without errors.",
+  "Top view path of the building": "",
+  "Front view path of the building": "",
+  "Building side view path": "",
+  "Path of the supplementary plan example drawing for the building": "",
+  "Dwelling units per floor": "1"
+}

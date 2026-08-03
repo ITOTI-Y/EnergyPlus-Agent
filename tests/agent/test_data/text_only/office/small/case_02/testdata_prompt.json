@@ -1,0 +1,20 @@
+{
+  "TestName": "office_small_02",
+  "Building location": "Shenzhen",
+  "Building type": "Small office building",
+  "Floor area": "450.0m2",
+  "Number of floors": "1",
+  "Number of thermal zones per floor of the building": "5",
+  "Number of total thermal zones in the building": "8",
+  "Footprint width (east-west, m)": "21.2",
+  "Footprint depth (north-south, m)": "14.1",
+  "Floor-to-floor height (m)": "3.4",
+  "Orientation (degrees from north)": "90",
+  "Window-to-wall ratio": "0.30",
+  "Space layout": "open-plan office + 3 private offices + meeting room + restroom",
+  "Description": "A small office building located in Shenzhen, China. The building footprint is approximately 21.2 m (east-west) by 14.1 m (north-south), rectangular, with the long axis rotated 90 degrees from north. Total gross floor area is about 450.0 m^2 spread over 1 floor(s), giving roughly 300.0 m^2 per floor. Floor-to-floor height is 3.4 m. The building is divided into 8 thermal zones in total (about 5 per floor). Typical space layout: open-plan office + 3 private offices + meeting room + restroom. Window-to-wall ratio is approximately 30% on exterior walls, with windows distributed on all four facades. Model all zones with appropriate constructions, glazing, occupancy, lighting, equipment and HVAC (ideal loads) so the IDF runs in EnergyPlus without errors.",
+  "Top view path of the building": "",
+  "Front view path of the building": "",
+  "Building side view path": "",
+  "Path of the supplementary plan example drawing for the building": ""
+}

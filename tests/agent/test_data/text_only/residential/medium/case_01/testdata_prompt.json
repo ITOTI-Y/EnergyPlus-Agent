@@ -1,0 +1,21 @@
+{
+  "TestName": "residential_medium_01",
+  "Building location": "Guangzhou",
+  "Building type": "Low-rise multifamily apartment building",
+  "Floor area": "900.0m2",
+  "Number of floors": "3",
+  "Number of thermal zones per floor of the building": "6",
+  "Number of total thermal zones in the building": "18",
+  "Footprint width (east-west, m)": "17.3",
+  "Footprint depth (north-south, m)": "17.3",
+  "Floor-to-floor height (m)": "3.0",
+  "Orientation (degrees from north)": "0",
+  "Window-to-wall ratio": "0.20",
+  "Space layout": "per floor: 2 units (2B+1B each) + shared stairwell core",
+  "Description": "A low-rise multifamily apartment building located in Guangzhou, China. The building footprint is approximately 17.3 m (east-west) by 17.3 m (north-south), rectangular, with the long axis rotated 0 degrees from north. Total gross floor area is about 900.0 m^2 spread over 3 floor(s), giving roughly 300.0 m^2 per floor. Floor-to-floor height is 3.0 m. The building is divided into 18 thermal zones in total (about 6 per floor). There are 3 dwelling units per floor (2 thermal zone(s) per unit), so model each unit as its own zone(s) stacked vertically across the 3 floor(s), plus a shared core/circulation. Typical space layout: per floor: 2 units (2B+1B each) + shared stairwell core. Window-to-wall ratio is approximately 20% on exterior walls, with windows distributed on all four facades. Model all zones with appropriate constructions, glazing, occupancy, lighting, equipment and HVAC (ideal loads) so the IDF runs in EnergyPlus without errors.",
+  "Top view path of the building": "",
+  "Front view path of the building": "",
+  "Building side view path": "",
+  "Path of the supplementary plan example drawing for the building": "",
+  "Dwelling units per floor": "3"
+}
