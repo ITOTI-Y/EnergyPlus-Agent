@@ -1,5 +1,5 @@
-import pickle
 import os
+import pickle
 from pathlib import Path
 from typing import Any
 
@@ -9,6 +9,7 @@ from langgraph.graph.state import CompiledStateGraph
 
 from src.agent._share import ensure_schema_initialized
 from src.agent.nodes import (
+    analyze_node,
     construction_agent,
     cross_ref_complete_node,
     cross_ref_foundations_node,
@@ -159,7 +160,7 @@ def build_graph() -> CompiledStateGraph[AgentState, SimContext, AgentState, Agen
           -> cross_ref_foundations -> construction -> surface -> fenestration
           -> phase 3 [hvac, people, lights] (parallel)
           -> cross_ref_complete -> validate
-          -> (approved) simulate -> END
+          -> (approved) simulate -> analyze -> END
           -> (rejected) intake (loop)
     """
     ensure_schema_initialized()
@@ -185,6 +186,7 @@ def build_graph() -> CompiledStateGraph[AgentState, SimContext, AgentState, Agen
 
     builder.add_node("validate", validate_node)
     builder.add_node("simulate", simulate_node)
+    builder.add_node("analyze", analyze_node)
 
     # START: first turn → intake, revision turn → revise
     builder.add_conditional_edges(START, _entry_router, ["intake", "revise"])
@@ -216,6 +218,7 @@ def build_graph() -> CompiledStateGraph[AgentState, SimContext, AgentState, Agen
     builder.add_edge("cross_ref_complete", "validate")
 
     # validate routes will dynamically route via Command -> simulate or intake
-    builder.add_edge("simulate", END)
+    builder.add_edge("simulate", "analyze")
+    builder.add_edge("analyze", END)
 
     return builder.compile(checkpointer=InMemorySaver(serde=_PickleSerde()))

@@ -353,9 +353,6 @@ class ConfigState(BaseSchema):
         new = self.__class__(
             **self.model_dump(by_alias=True, exclude_defaults=False)
         )
-        # seed_idf_text is excluded=True so model_dump drops it; carry it
-        # manually so phase-node clones can still recover _idf from it.
-        new.seed_idf_text = self.seed_idf_text
         if self._idf is not None:
             new._set_idf_private(IDF.from_dict(self._idf.to_dict()))
         else:

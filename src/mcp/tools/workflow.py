@@ -115,8 +115,8 @@ class WorkflowTool:
     ) -> ToolResponse:
         """Run an EnergyPlus simulation with the current configuration.
 
-        Validates references, exports to YAML, converts to IDF, and
-        executes the EnergyPlus simulation.
+        Validates references, converts ConfigState directly to IDF (no YAML
+        file written to disk), and executes the EnergyPlus simulation.
 
         Args:
             epw_path: Path to the EPW weather data file.
