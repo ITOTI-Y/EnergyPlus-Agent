@@ -12,6 +12,7 @@ from src.agent.nodes._share import (
 from src.agent.react import build_react_agent
 from src.agent.state import AgentState, AgentStateUpdate
 from src.agent.tools import make_hvac_tools
+from src.agent.tools.rag_tools import _get_rag
 from src.agent.trace import TraceCollector, record_phase_trace
 
 HVAC_SYSTEM_PROMPT = """You are an HVAC configuration expert for EnergyPlus.
@@ -38,6 +39,12 @@ Rules:
   cooling 24 C occupied / 28 C unoccupied.
 - If the spec gives one thermostat for all zones, reuse the same
   template_thermostat_name across all zones.
+
+Reference database:
+- Call search_energyplus_reference with the location and season when design-day
+  values are needed for thermostat or sizing context.
+- Treat returned design-day values as reference context. Do not create
+  SizingPeriod objects unless the specification requests them.
 """
 
 
@@ -49,7 +56,7 @@ _HvacRoute = Literal["zone", "schedule"]
 
 def hvac_agent(state: AgentState) -> Command[_HvacRoute] | AgentStateUpdate:
     local = clone_for_phase(state)
-    tools = make_hvac_tools(local)
+    tools = make_hvac_tools(local, rag=_get_rag())
     collector = TraceCollector(phase="hvac")
 
     agent = build_react_agent(

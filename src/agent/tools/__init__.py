@@ -5,6 +5,7 @@ from src.agent.tools.lights_tools import make_lights_tools
 from src.agent.tools.material_tools import make_material_tools
 from src.agent.tools.output_tools import make_output_tools
 from src.agent.tools.people_tools import make_people_tools
+from src.agent.tools.rag_tools import make_rag_tool
 from src.agent.tools.schedule_tools import make_schedule_tools
 from src.agent.tools.surface_tools import make_surface_tools
 from src.agent.tools.zone_tools import make_zone_tools
@@ -17,6 +18,7 @@ __all__ = [
     "make_material_tools",
     "make_output_tools",
     "make_people_tools",
+    "make_rag_tool",
     "make_schedule_tools",
     "make_surface_tools",
     "make_zone_tools",

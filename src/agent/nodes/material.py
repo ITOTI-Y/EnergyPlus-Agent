@@ -5,6 +5,7 @@ from src.agent.nodes._share import clone_for_phase, invoke_with_self_repair
 from src.agent.react import build_react_agent
 from src.agent.state import AgentState, AgentStateUpdate
 from src.agent.tools import make_material_tools
+from src.agent.tools.rag_tools import _get_rag
 from src.agent.trace import TraceCollector, record_phase_trace
 
 MATERIAL_SYSTEM_PROMPT = """You are a building material expert for EnergyPlus.
@@ -82,12 +83,18 @@ Rules:
 - Roughness options: VeryRough, Rough, MediumRough, MediumSmooth, Smooth, VerySmooth.
 - Use typical ASHRAE values when the description is vague.
 - Call list_materials once at the end to verify.
+
+Reference database:
+- Call search_energyplus_reference before inventing property values for a named
+  material. Use full_data from the top result for conductivity, density,
+  specific heat, thermal resistance, and other available properties.
+- Use typical ASHRAE values only when the search returns no qualifying match.
 """
 
 
 def material_agent(state: AgentState) -> AgentStateUpdate:
     local = clone_for_phase(state)
-    tools = make_material_tools(local)
+    tools = make_material_tools(local, rag=_get_rag())
     collector = TraceCollector(phase="material")
 
     agent = build_react_agent(

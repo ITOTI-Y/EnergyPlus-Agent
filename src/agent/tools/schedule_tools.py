@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 import json
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from idfpy.models.hvac_templates import (
     HVACTemplateThermostat,
@@ -13,7 +15,15 @@ from idfpy.models.schedules import (
 )
 from langchain_core.tools import BaseTool, tool
 
+from src.agent.tools.rag_tools import (
+    TABLE_SCHEDULE_COMPACT,
+    TABLE_SCHEDULE_TYPE_LIMITS,
+    make_rag_tool,
+)
 from src.mcp.state import ConfigState
+
+if TYPE_CHECKING:
+    from src.rag.rag import RAGSystem
 from src.validator.data_model import ScheduleCompactSchema
 
 
@@ -25,7 +35,10 @@ def _err(msg: str, data=None) -> str:
     return json.dumps({"success": False, "message": msg, "data": data})
 
 
-def make_schedule_tools(config: ConfigState) -> list[BaseTool]:
+def make_schedule_tools(
+    config: ConfigState,
+    rag: RAGSystem | None = None,
+) -> list[BaseTool]:
     idf = config.idf
 
     @tool
@@ -230,7 +243,7 @@ def make_schedule_tools(config: ConfigState) -> list[BaseTool]:
         idf.remove("Schedule:Compact", name)
         return _ok(f"Schedule:Compact '{name}' deleted successfully.")
 
-    return [
+    tools = [
         create_schedule_type_limits,
         create_schedule_compact,
         list_schedules,
@@ -239,3 +252,11 @@ def make_schedule_tools(config: ConfigState) -> list[BaseTool]:
         update_schedule_compact,
         delete_schedule,
     ]
+    if rag is not None:
+        tools.append(
+            make_rag_tool(
+                [TABLE_SCHEDULE_TYPE_LIMITS, TABLE_SCHEDULE_COMPACT],
+                rag=rag,
+            )
+        )
+    return tools

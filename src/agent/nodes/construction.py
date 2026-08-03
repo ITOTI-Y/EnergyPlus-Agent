@@ -12,6 +12,7 @@ from src.agent.nodes._share import (
 from src.agent.react import build_react_agent
 from src.agent.state import AgentState, AgentStateUpdate
 from src.agent.tools import make_construction_tools
+from src.agent.tools.rag_tools import _get_rag
 from src.agent.trace import TraceCollector, record_phase_trace
 
 # Legal back-hop target for construction: a missing material layer hops
@@ -86,7 +87,7 @@ def construction_agent(
     state: AgentState,
 ) -> Command[_ConstructionRoute] | AgentStateUpdate:
     local = clone_for_phase(state)
-    tools = make_construction_tools(local)
+    tools = make_construction_tools(local, rag=_get_rag())
     collector = TraceCollector(phase="construction")
 
     agent = build_react_agent(
