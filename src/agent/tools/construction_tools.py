@@ -7,6 +7,7 @@ from idfpy.models.thermal_zones import (
 )
 from langchain_core.tools import BaseTool, tool
 
+from idfpy.models.constructions import ConstructionAirBoundary
 from src.mcp.state import ConfigState
 
 _LAYER_FIELDS = [
@@ -27,7 +28,15 @@ _ALL_MATERIAL_TYPES = [
     "Material:NoMass",
     "Material:AirGap",
     "WindowMaterial:SimpleGlazingSystem",
+    "WindowMaterial:Glazing",
 ]
+
+# idfpy object-type strings for each construction variant. The plain
+# `Construction` is a layered assembly; `Construction:AirBoundary` is a
+# layer-less open-air boundary used on interior subsurfaces (doors/windows
+# between zones) to connect them without a paired subsurface in the other
+# zone. Both are valid `construction_name` targets for surfaces/fenestrations.
+_ALL_CONSTRUCTION_TYPES = ["Construction", "Construction:AirBoundary"]
 
 
 def _ok(msg: str, data=None) -> str:
@@ -40,6 +49,20 @@ def _err(msg: str, data=None) -> str:
 
 def _material_exists(idf, name: str) -> bool:
     return any(idf.has(t, name) for t in _ALL_MATERIAL_TYPES)
+
+
+def _find_construction(idf, name: str):
+    """Return the type and object for a layered or air-boundary construction."""
+    for construction_type in _ALL_CONSTRUCTION_TYPES:
+        obj = idf.get(construction_type, name)
+        if obj is not None:
+            return construction_type, obj
+    return None, None
+
+
+def _is_airboundary_construction(idf, name: str) -> bool:
+    """Return whether name identifies an air-boundary construction."""
+    return idf.has("Construction:AirBoundary", name)
 
 
 def make_construction_tools(config: ConfigState) -> list[BaseTool]:
@@ -56,6 +79,8 @@ def make_construction_tools(config: ConfigState) -> list[BaseTool]:
         """
         if idf.has("Construction", name):
             return _err(f"Construction '{name}' already exists.")
+        if idf.has("Construction:AirBoundary", name):
+            return _err(f"Construction '{name}' already exists (as an AirBoundary).")
         if not layers:
             return _err("Construction must have at least one layer.")
         if len(layers) > 10:
@@ -80,22 +105,81 @@ def make_construction_tools(config: ConfigState) -> list[BaseTool]:
             return _err(f"Error creating construction '{name}': {e}")
 
     @tool
+    def create_airboundary_construction(
+        name: str,
+        air_exchange_method: str = "None",
+        simple_mixing_air_changes_per_hour: float | None = None,
+        simple_mixing_schedule_name: str | None = None,
+    ) -> str:
+        """Create a Construction:AirBoundary — a layer-less open-air boundary.
+
+        Used on INTERIOR subsurfaces (doors/windows/glass-doors hosted on a
+        zone-separating wall whose Outside Boundary Condition is 'Surface') to
+        model an open passage between zones. It has no material layers and
+        does NOT require a paired subsurface in the adjacent zone, unlike a
+        regular interior construction. Assign it as the construction_name of
+        interior doors/windows.
+
+        Args:
+            name: Unique construction name (e.g., 'Interior_Door_Open').
+            air_exchange_method: 'None' (radiant/daylighting only, default) or
+                                 'SimpleMixing' (adds an air-mixing rate).
+            simple_mixing_air_changes_per_hour: Required when method is
+                'SimpleMixing'; air changes per hour based on the smaller
+                zone's volume. Ignored otherwise.
+            simple_mixing_schedule_name: Optional Schedule:Compact name for the
+                SimpleMixing rate. Only valid with method 'SimpleMixing'.
+        """
+        if idf.has("Construction:AirBoundary", name):
+            return _err(f"Construction:AirBoundary '{name}' already exists.")
+        if idf.has("Construction", name):
+            return _err(f"Construction '{name}' already exists (as a layered Construction).")
+        try:
+            kwargs: dict = {"name": name, "air_exchange_method": air_exchange_method}
+            if air_exchange_method == "SimpleMixing":
+                if simple_mixing_air_changes_per_hour is None:
+                    return _err(
+                        "simple_mixing_air_changes_per_hour is required when "
+                        "air_exchange_method is 'SimpleMixing'."
+                    )
+                kwargs["simple_mixing_air_changes_per_hour"] = simple_mixing_air_changes_per_hour
+                if simple_mixing_schedule_name is not None:
+                    kwargs["simple_mixing_schedule_name"] = simple_mixing_schedule_name
+            idf.add(ConstructionAirBoundary(**kwargs))
+            return _ok(
+                f"Construction:AirBoundary '{name}' created successfully.",
+                idf.get("Construction:AirBoundary", name).model_dump(),
+            )
+        except Exception as e:
+            return _err(f"Error creating Construction:AirBoundary '{name}': {e}")
+
+    @tool
     def list_constructions() -> str:
-        """List all constructions."""
-        items = [c.model_dump() for c in idf.all_of_type(Construction).values()]
+        """List all constructions (layered Construction + Construction:AirBoundary)."""
+        items = []
+        for t in _ALL_CONSTRUCTION_TYPES:
+            for obj in idf.all_of_type(t).values():
+                items.append({"type": t, **obj.model_dump()})
         return _ok(f"Listed {len(items)} constructions.", items)
 
     @tool
     def get_construction(name: str) -> str:
-        """Read a construction by name."""
-        obj = idf.get(Construction, name)
+        """Read a construction by name (layered or AirBoundary)."""
+        const_type, obj = _find_construction(idf, name)
         if obj is None:
             return _err(f"Construction '{name}' not found.")
-        return _ok(f"Construction '{name}' read successfully.", obj.model_dump())
+        return _ok(
+            f"Construction '{name}' read successfully.",
+            {"type": const_type, **obj.model_dump()},
+        )
 
     @tool
     def update_construction(name: str, layers: list[str]) -> str:
-        """Replace the entire layer sequence of an existing construction.
+        """Replace the entire layer sequence of an existing layered Construction.
+
+        Only applies to layered `Construction` objects — NOT to
+        `Construction:AirBoundary` (which has no layers). To change an
+        AirBoundary, delete and recreate it.
 
         Args:
             name: Existing construction name.
@@ -104,6 +188,12 @@ def make_construction_tools(config: ConfigState) -> list[BaseTool]:
         """
         obj = idf.get("Construction", name)
         if obj is None:
+            # Distinguish "not found" from "is an AirBoundary (wrong tool)".
+            if idf.has("Construction:AirBoundary", name):
+                return _err(
+                    f"'{name}' is a Construction:AirBoundary and has no layers; "
+                    f"use delete_construction + create_airboundary_construction."
+                )
             return _err(f"Construction '{name}' not found.")
         if not layers or len(layers) > 10:
             return _err("Construction must have 1-10 layers.")
@@ -126,8 +216,12 @@ def make_construction_tools(config: ConfigState) -> list[BaseTool]:
 
     @tool
     def delete_construction(name: str) -> str:
-        """Delete a construction. Fails if referenced by surfaces/fenestration."""
-        if not idf.has("Construction", name):
+        """Delete a construction (layered or AirBoundary).
+
+        Fails if referenced by surfaces/fenestration.
+        """
+        const_type, _obj = _find_construction(idf, name)
+        if const_type is None:
             return _err(f"Construction '{name}' not found.")
         refs = []
         for s in idf.all_of_type(BuildingSurfaceDetailed).values():
@@ -141,7 +235,7 @@ def make_construction_tools(config: ConfigState) -> list[BaseTool]:
                 f"Construction '{name}' is referenced by other components.",
                 {"references": refs},
             )
-        idf.remove("Construction", name)
+        idf.remove(const_type, name)
         return _ok(f"Construction '{name}' deleted successfully.")
 
     @tool
@@ -155,6 +249,7 @@ def make_construction_tools(config: ConfigState) -> list[BaseTool]:
 
     return [
         create_construction,
+        create_airboundary_construction,
         list_constructions,
         get_construction,
         update_construction,

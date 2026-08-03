@@ -39,6 +39,43 @@ Rules:
   (e.g., 'ExtWall_Office', 'IntWall_Office', 'Roof_Office', 'Floor_Office',
   'Window_Office').
 - For fenestration, the construction's only layer is the glazing material.
+- FENESTRATION GLAZING RULE — DEFAULT TO SINGLE-LAYER SimpleGlazingSystem:
+  1. PREFERRED: a SINGLE-LAYER whole window whose only layer is a
+     WindowMaterial:SimpleGlazingSystem (created via create_glazing_material).
+     Use this for ALL windows unless the material phase has explicitly
+     created per-pane WindowMaterial:Glazing layers. Even for "double pane"
+     or "triple pane" specs, prefer this — the material phase should have
+     supplied an equivalent whole-window U-factor/SHGC via
+     create_glazing_material. The construction has exactly ONE layer.
+  2. MULTI-LAYER real assembly (ONLY if per-pane layers already exist):
+     per-pane WindowMaterial:Glazing layers (created via
+     create_glazing_layer_material) interleaved with Material:AirGap, e.g.
+     layers=['Clear_Glass_3mm','Air_Gap_13mm','Clear_Glass_3mm']. Use this
+     shape ONLY when list_materials shows WindowMaterial:Glazing objects;
+     otherwise fall back to single-layer SimpleGlazingSystem.
+  NEVER mix WindowMaterial:SimpleGlazingSystem with other layers (gas gaps,
+  extra panes). SimpleGlazingSystem is a whole-window equivalent
+  (U/SHGC/VT only) — combining it with other layers gives EnergyPlus no
+  per-pane data and aborts with a Fatal convergence error.
+  DECISION RULE: if list_materials contains a WindowMaterial:SimpleGlazingSystem,
+  use it as the sole layer of the window construction. Only assemble
+  per-pane layers if the spec explicitly provided per-pane optical data AND
+  the material phase created WindowMaterial:Glazing objects.
+- INTERIOR doors/windows/glass-doors between two zones (hosted on a wall that
+  separates zones, i.e. the wall's outside boundary condition is 'Surface'):
+  use create_airboundary_construction (a Construction:AirBoundary, no layers).
+  This models the door/window as an OPEN passage between zones and avoids the
+  EnergyPlus error "invalid blank Outside Boundary Condition Object" that a
+  regular layered construction would trigger there. Name it e.g.
+  'Interior_Door_Open'. EXTERIOR doors/windows still use a normal layered
+  Construction (glazing for windows, opaque for doors).
+
+Reference database:
+- Call search_energyplus_reference to look up standard layer sequences for
+  named construction types (e.g. 'ASHRAE 90.1 exterior wall office').
+  Match returned layer names to existing materials via list_materials;
+  if a reference layer has no local equivalent, use the nearest match by
+  thermal properties.
 """
 
 

@@ -47,6 +47,10 @@ Rules:
   report; do NOT invent names or create a surface with a broken reference.
 - >= 3 vertices per surface; four-vertex rectangles are most common.
 - Order counter-clockwise when viewed from OUTSIDE the zone.
+- Floor / Roof / Ceiling normals are AUTO-CORRECTED if reversed (the tool
+  flips vertex order so a Floor's outward normal points DOWN and a
+  Roof/Ceiling's points UP), so you do not need to worry about exact tilt,
+  but winding counter-clockwise from outside remains the convention.
 - No two vertices may coincide (tolerance 1e-10 m).
 - outside_boundary_condition:
     * Walls/roofs facing outdoors: 'Outdoors',
