@@ -75,7 +75,10 @@ def _load_csv(csv_path: Path) -> tuple[list[str], list[str], np.ndarray]:
     rows: list[list[str]] = []
     with csv_path.open(newline="", encoding="utf-8") as fh:
         reader = csv.reader(fh)
-        headers = next(reader)
+        try:
+            headers = next(reader)
+        except StopIteration:
+            return [], [], np.empty((0, 0), dtype=np.float64)
         for row in reader:
             rows.append(row)
 
@@ -614,8 +617,8 @@ def make_analysis_tools(output_dir: Path) -> list[BaseTool]:
         try:
             from src.results.parser import parse_tabular as _parse_tabular
             tabular = _parse_tabular(csv_path)
-        except Exception as exc:
-            return _err(f"Failed to parse eplustbl.csv: {exc}")
+        except (ValueError, KeyError, OSError) as exc:
+            return _err(f"Failed to parse eplustbl.csv: {type(exc).__name__}: {exc}")
 
         end_uses = tabular.get("end_uses", [])
         total_elec = 0.0

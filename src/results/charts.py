@@ -19,7 +19,6 @@ Chart catalogue
 
 from __future__ import annotations
 
-import re
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -651,7 +650,7 @@ def _triangulate_polygon(vertices: list[tuple[float, float, float]]) -> list[tup
 
 
 def _build_zone_mesh(
-    zone: "ZoneGeometry",
+    zone: ZoneGeometry,
 ) -> tuple[list[float], list[float], list[float], list[int], list[int], list[int]]:
     """Return (x, y, z, i, j, k) arrays for a Plotly Mesh3d of this zone."""
     all_verts: list[tuple[float, float, float]] = []
@@ -847,7 +846,7 @@ def operation_schedule_pair(
 
 
 def exterior_solar_irradiation_3d(
-    zones: dict[str, "ZoneGeometry"],
+    zones: dict[str, ZoneGeometry],
     surface_values: dict[str, float],
     unit: str = "W/m²",
     source_note: str = "",
@@ -920,7 +919,7 @@ def exterior_solar_irradiation_3d(
 
 
 def _build_surface_mesh(
-    poly: "SurfacePolygon",
+    poly: SurfacePolygon,
 ) -> tuple[list[float], list[float], list[float], list[int], list[int], list[int]]:
     """Mesh arrays for a single surface polygon."""
     from src.results.idf_geometry import SurfacePolygon  # noqa: F401
@@ -954,7 +953,7 @@ def _build_surface_mesh(
 
 
 def zone_energy_3d(
-    zones: dict[str, "ZoneGeometry"],
+    zones: dict[str, ZoneGeometry],
     ts: pd.DataFrame,
     metric: str = "cooling",
     zone_metadata: dict[str, dict] | None = None,
@@ -992,7 +991,9 @@ def zone_energy_3d(
 
     # Build CSV-key → IDF-zone-name mapping
     # CSV keys are like "ZONE_CORE", IDF names are like "Zone_Core"
-    from src.results.idf_geometry import idf_zone_to_csv_key  # local import to avoid circulars
+    from src.results.idf_geometry import (
+        idf_zone_to_csv_key,  # local import to avoid circulars
+    )
 
     idf_to_csv: dict[str, str] = {z: idf_zone_to_csv_key(z) for z in zones}
 

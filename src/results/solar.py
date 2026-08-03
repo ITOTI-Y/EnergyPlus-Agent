@@ -10,7 +10,13 @@ import math
 import re
 from pathlib import Path
 
-from src.results.idf_geometry import SurfacePolygon, ZoneGeometry, _strip_comments, _split_objects, _parse_fields
+from src.results.idf_geometry import (
+    SurfacePolygon,
+    ZoneGeometry,
+    _parse_fields,
+    _split_objects,
+    _strip_comments,
+)
 
 _SOLAR_VAR = "Surface Outside Face Incident Solar Radiation Rate per Area"
 _COMMENT_RE = re.compile(r"!-[^\n]*")
@@ -114,8 +120,8 @@ def parse_eso_surface_solar_mean(eso_path: Path) -> dict[str, float]:
     if not report_ids:
         return {}
 
-    sums: dict[str, float] = {n: 0.0 for n in report_ids.values()}
-    counts: dict[str, int] = {n: 0 for n in report_ids.values()}
+    sums: dict[str, float] = dict.fromkeys(report_ids.values(), 0.0)
+    counts: dict[str, int] = dict.fromkeys(report_ids.values(), 0)
 
     for ln in lines:
         if in_dict or ln.startswith("End") or ln.startswith("Program"):

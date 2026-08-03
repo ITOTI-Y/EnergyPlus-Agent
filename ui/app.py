@@ -8,22 +8,22 @@ import queue
 import threading
 import time
 import traceback
+from collections.abc import Generator
 from html import escape
 from pathlib import Path
-from typing import Any, Generator
+from typing import Any
 
 import gradio as gr
 import plotly.graph_objects as go
 
-from scripts._share import SIMPLE_USER_INPUT
 from src.agent import AgentState, SimContext, build_graph
 from src.agent.runner import run_session
 from src.mcp.state import ConfigState
-from src.utils.logging import setup_logger
-from src.results import load_results, parse_idf_geometry
 from src.results import charts as result_charts
-from src.results.solar import resolve_surface_solar
+from src.results import load_results, parse_idf_geometry
 from src.results.charts import ZONE_ALL
+from src.results.solar import resolve_surface_solar
+from src.utils.logging import setup_logger
 from ui.idf_viewer import build_idf_3d_model
 
 setup_logger(level="WARNING")
@@ -627,6 +627,7 @@ def run_agent(
             if latest_idf and latest_idf.exists():
                 cs = ConfigState()
                 cs.load_idf(latest_idf)
+                cs.seed_idf_text = latest_idf.read_text(encoding="utf-8")
                 history = _load_chat_history(session_id)
                 history_text = _format_history_for_revision(history[-6:])
                 effective_input = (

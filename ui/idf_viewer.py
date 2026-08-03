@@ -70,7 +70,7 @@ def _probe_boolean() -> bool:
     if _boolean_available is not None:
         return _boolean_available
     try:
-        from trimesh.boolean import difference  # noqa: F401
+        from trimesh.boolean import difference
 
         a = trimesh.creation.box([2.0, 2.0, 0.1])
         b = trimesh.creation.box([0.5, 0.5, 0.3])
