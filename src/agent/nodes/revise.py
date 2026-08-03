@@ -27,7 +27,6 @@ from src.agent.llm import create_llm
 from src.agent.nodes.intake import INTAKE_MAX_EMPTY_RETRIES
 from src.agent.state import AgentState, AgentStateUpdate, IntakeOutput
 
-
 REVISE_SYSTEM_PROMPT = """You are an EnergyPlus model-revision specialist.
 The user has ALREADY built a complete model and run a simulation. Now they
 want to MODIFY it based on the results. You receive:
@@ -82,19 +81,34 @@ _SUMMARY_SPECS: list[tuple[str, str, tuple[str, ...]]] = [
     ("Material", "material", ("thickness", "conductivity")),
     ("Material:NoMass", "material", ("thermal_resistance",)),
     ("Material:AirGap", "material", ("thermal_resistance",)),
-    ("WindowMaterial:SimpleGlazingSystem", "glazing",
-     ("u_factor", "solar_heat_gain_coefficient", "visible_transmittance")),
+    (
+        "WindowMaterial:SimpleGlazingSystem",
+        "glazing",
+        ("u_factor", "solar_heat_gain_coefficient", "visible_transmittance"),
+    ),
     ("Construction", "construction", ()),
-    ("BuildingSurface:Detailed", "surface",
-     ("surface_type", "construction_name", "zone_name")),
-    ("FenestrationSurface:Detailed", "fenestration",
-     ("surface_type", "construction_name", "building_surface_name", "multiplier")),
+    (
+        "BuildingSurface:Detailed",
+        "surface",
+        ("surface_type", "construction_name", "zone_name"),
+    ),
+    (
+        "FenestrationSurface:Detailed",
+        "fenestration",
+        ("surface_type", "construction_name", "building_surface_name", "multiplier"),
+    ),
     ("Schedule:Compact", "schedule", ("schedule_type_limits_name",)),
     ("ScheduleTypeLimits", "schedule_type_limits", ("numeric_type",)),
-    ("HVACTemplate:Thermostat", "thermostat",
-     ("heating_setpoint_schedule_name", "cooling_setpoint_schedule_name")),
-    ("HVACTemplate:Zone:IdealLoadsAirSystem", "ideal_loads",
-     ("zone_name", "template_thermostat_name")),
+    (
+        "HVACTemplate:Thermostat",
+        "thermostat",
+        ("heating_setpoint_schedule_name", "cooling_setpoint_schedule_name"),
+    ),
+    (
+        "HVACTemplate:Zone:IdealLoadsAirSystem",
+        "ideal_loads",
+        ("zone_name", "template_thermostat_name"),
+    ),
     ("People", "people", ("zone_or_zonelist_or_space_or_spacelist_name",)),
     ("Lights", "lights", ("zone_or_zonelist_or_space_or_spacelist_name",)),
 ]
@@ -107,8 +121,10 @@ def _summarize_config_for_llm(state: AgentState) -> str:
     dumps) to stay within token limits on large models.
     """
     idf = state.config_state._idf
+    if idf is None:
+        raise ValueError("IDF is None")
     lines: list[str] = ["## Existing model inventory (modify these — do NOT rebuild):"]
-    for obj_type, label, fields in _SUMMARY_SPECS:
+    for obj_type, _label, fields in _SUMMARY_SPECS:
         items = idf.all_of_type(obj_type)
         if not items:
             continue
@@ -116,7 +132,9 @@ def _summarize_config_for_llm(state: AgentState) -> str:
         for obj in items.values():
             props = {f: getattr(obj, f, None) for f in fields}
             # Filter out None/empty props for compactness
-            shown = ", ".join(f"{k}={v}" for k, v in props.items() if v not in (None, "", []))
+            shown = ", ".join(
+                f"{k}={v}" for k, v in props.items() if v not in (None, "", [])
+            )
             name = getattr(obj, "name", None) or getattr(obj, "zone_name", obj_type)
             lines.append(f"  - {name}" + (f"  ({shown})" if shown else ""))
     return "\n".join(lines)

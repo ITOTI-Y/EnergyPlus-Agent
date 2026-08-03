@@ -143,7 +143,7 @@ def make_hvac_tools(config: ConfigState) -> list[BaseTool]:
             template_thermostat_name: New thermostat name.
             system_availability_schedule_name: New availability schedule.
         """
-        items = idf.all_of_type("HVACTemplate:Zone:IdealLoadsAirSystem")
+        items = idf.all_of_type(HVACTemplateZoneIdealLoadsAirSystem)
         obj = next((v for v in items.values() if v.zone_name == zone_name), None)
         if obj is None:
             return _err(f"IdealLoadsAirSystem for zone '{zone_name}' not found.")
@@ -151,7 +151,9 @@ def make_hvac_tools(config: ConfigState) -> list[BaseTool]:
             if template_thermostat_name is not None:
                 obj.template_thermostat_name = template_thermostat_name
             if system_availability_schedule_name is not None:
-                obj.system_availability_schedule_name = system_availability_schedule_name
+                obj.system_availability_schedule_name = (
+                    system_availability_schedule_name
+                )
             return _ok(
                 f"IdealLoadsAirSystem for zone '{zone_name}' updated successfully.",
                 obj.model_dump(),

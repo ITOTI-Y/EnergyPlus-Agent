@@ -25,7 +25,6 @@ from idfpy.models.constructions import (
 from idfpy.models.thermal_zones import (
     BuildingSurfaceDetailed,
     BuildingSurfaceDetailedVerticesItem,
-    FenestrationSurfaceDetailed,
     Zone,
 )
 
@@ -66,10 +65,14 @@ def test_simple_glazing_construction_is_detected():
     """A construction whose sole layer is WindowMaterial:SimpleGlazingSystem
     must be detected as glazing (the case the original code handled)."""
     s = _state()
-    s.idf.add(WindowMaterialSimpleGlazingSystem(
-        name="Win_Simple", u_factor=1.8,
-        solar_heat_gain_coefficient=0.4, visible_transmittance=0.7,
-    ))
+    s.idf.add(
+        WindowMaterialSimpleGlazingSystem(
+            name="Win_Simple",
+            u_factor=1.8,
+            solar_heat_gain_coefficient=0.4,
+            visible_transmittance=0.7,
+        )
+    )
     s.idf.add(Construction(name="Win_Const_Simple", outside_layer="Win_Simple"))
 
     assert _is_glazing_construction(s.idf, "Win_Const_Simple") is True
@@ -82,15 +85,25 @@ def test_per_pane_glazing_construction_is_detected():
     here, rejecting every multi-pane window."""
     s = _state()
     s.idf.add(_make_glazing_layer("Clear_Glass_3mm"))
-    s.idf.add(Material(
-        name="Air_Gap_13mm", roughness="rough", thickness=0.013,
-        conductivity=0.026, density=1.2, specific_heat=1005.0,
-    ))
+    s.idf.add(
+        Material(
+            name="Air_Gap_13mm",
+            roughness="rough",
+            thickness=0.013,
+            conductivity=0.026,
+            density=1.2,
+            specific_heat=1005.0,
+        )
+    )
     # Double-pane window: glass + air gap + glass
-    s.idf.add(Construction(
-        name="Win_Double_Pane", outside_layer="Clear_Glass_3mm",
-        layer_2="Air_Gap_13mm", layer_3="Clear_Glass_3mm",
-    ))
+    s.idf.add(
+        Construction(
+            name="Win_Double_Pane",
+            outside_layer="Clear_Glass_3mm",
+            layer_2="Air_Gap_13mm",
+            layer_3="Clear_Glass_3mm",
+        )
+    )
 
     assert _is_glazing_construction(s.idf, "Win_Double_Pane") is True
 
@@ -99,10 +112,16 @@ def test_opaque_construction_is_not_detected_as_glazing():
     """A construction with only opaque Material layers must NOT be detected
     as glazing (the legitimate rejection case)."""
     s = _state()
-    s.idf.add(Material(
-        name="Brick", roughness="rough", thickness=0.1,
-        conductivity=0.7, density=1400.0, specific_heat=840.0,
-    ))
+    s.idf.add(
+        Material(
+            name="Brick",
+            roughness="rough",
+            thickness=0.1,
+            conductivity=0.7,
+            density=1400.0,
+            specific_heat=840.0,
+        )
+    )
     s.idf.add(Construction(name="Wall_Const", outside_layer="Brick"))
 
     assert _is_glazing_construction(s.idf, "Wall_Const") is False
@@ -125,34 +144,63 @@ def test_create_fenestration_accepts_per_pane_glazing_construction():
     s.idf.add(_make_glazing_layer("Glazing_Layer"))
     s.idf.add(Construction(name="Win_Const", outside_layer="Glazing_Layer"))
     s.idf.add(Zone(name="Z1"))
-    s.idf.add(BuildingSurfaceDetailed(
-        name="South_Wall", surface_type="Wall", construction_name="Win_Const",
-        zone_name="Z1", outside_boundary_condition="Outdoors",
-        sun_exposure="SunExposed", wind_exposure="WindExposed",
-        vertices=[
-            BuildingSurfaceDetailedVerticesItem(vertex_x_coordinate=0.0, vertex_y_coordinate=0.0, vertex_z_coordinate=0.0),
-            BuildingSurfaceDetailedVerticesItem(vertex_x_coordinate=5.0, vertex_y_coordinate=0.0, vertex_z_coordinate=0.0),
-            BuildingSurfaceDetailedVerticesItem(vertex_x_coordinate=5.0, vertex_y_coordinate=0.0, vertex_z_coordinate=3.0),
-            BuildingSurfaceDetailedVerticesItem(vertex_x_coordinate=0.0, vertex_y_coordinate=0.0, vertex_z_coordinate=3.0),
-        ],
-    ))
+    s.idf.add(
+        BuildingSurfaceDetailed(
+            name="South_Wall",
+            surface_type="Wall",
+            construction_name="Win_Const",
+            zone_name="Z1",
+            outside_boundary_condition="Outdoors",
+            sun_exposure="SunExposed",
+            wind_exposure="WindExposed",
+            vertices=[
+                BuildingSurfaceDetailedVerticesItem(
+                    vertex_x_coordinate=0.0,
+                    vertex_y_coordinate=0.0,
+                    vertex_z_coordinate=0.0,
+                ),
+                BuildingSurfaceDetailedVerticesItem(
+                    vertex_x_coordinate=5.0,
+                    vertex_y_coordinate=0.0,
+                    vertex_z_coordinate=0.0,
+                ),
+                BuildingSurfaceDetailedVerticesItem(
+                    vertex_x_coordinate=5.0,
+                    vertex_y_coordinate=0.0,
+                    vertex_z_coordinate=3.0,
+                ),
+                BuildingSurfaceDetailedVerticesItem(
+                    vertex_x_coordinate=0.0,
+                    vertex_y_coordinate=0.0,
+                    vertex_z_coordinate=3.0,
+                ),
+            ],
+        )
+    )
 
     tools = make_fenestration_tools(s)
-    create_fen = [t for t in tools if t.name == "create_fenestration"][0]
-    result = create_fen.invoke({
-        "name": "South_Window", "surface_type": "Window",
-        "construction_name": "Win_Const", "building_surface_name": "South_Wall",
-        "vertices": [
-            {"X": 1.0, "Y": 0.0, "Z": 1.0},
-            {"X": 4.0, "Y": 0.0, "Z": 1.0},
-            {"X": 4.0, "Y": 0.0, "Z": 2.5},
-            {"X": 1.0, "Y": 0.0, "Z": 2.5},
-        ],
-        "multiplier": 1,
-    })
+    create_fen = next(t for t in tools if t.name == "create_fenestration")
+    result = create_fen.invoke(
+        {
+            "name": "South_Window",
+            "surface_type": "Window",
+            "construction_name": "Win_Const",
+            "building_surface_name": "South_Wall",
+            "vertices": [
+                {"X": 1.0, "Y": 0.0, "Z": 1.0},
+                {"X": 4.0, "Y": 0.0, "Z": 1.0},
+                {"X": 4.0, "Y": 0.0, "Z": 2.5},
+                {"X": 1.0, "Y": 0.0, "Z": 2.5},
+            ],
+            "multiplier": 1,
+        }
+    )
 
     import json
+
     payload = json.loads(result)
-    assert payload["success"] is True, f"create_fenestration failed: {payload.get('message')}"
+    assert payload["success"] is True, (
+        f"create_fenestration failed: {payload.get('message')}"
+    )
     # The window must actually be in the IDF now.
     assert len(_idf_values(s.idf, "FenestrationSurface:Detailed")) == 1

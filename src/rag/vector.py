@@ -193,7 +193,7 @@ class AsyncQdrantVectorStore(IAsyncVectorStore):
 
         await self.client.delete(
             collection_name=self.collection_name,
-            points_selector=PointIdsList(points=ids),  # type: ignore
+            points_selector=PointIdsList(points=ids),
         )
         self.logger.info("Deleted {} points from {}", len(ids), self.collection_name)
 
@@ -378,7 +378,7 @@ class QdrantVectorStore(IVectorStore):
 
         self.client.delete(
             collection_name=self.collection_name,
-            points_selector=PointIdsList(points=ids),  # type: ignore
+            points_selector=PointIdsList(points=ids),
         )
         self.logger.info("Deleted {} points from {}", len(ids), self.collection_name)
 

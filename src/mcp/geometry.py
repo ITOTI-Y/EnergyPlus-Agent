@@ -30,7 +30,9 @@ NORMAL_DOT_TOLERANCE = 0.01
 COPLANARITY_TOLERANCE = 0.01
 
 
-def surface_normal(vertices: list[tuple[float, float, float]]) -> tuple[float, float, float]:
+def surface_normal(
+    vertices: list[tuple[float, float, float]],
+) -> tuple[float, float, float]:
     """Unit outward normal of a polygon via Newell's method.
 
     Robust to non-strictly-planar quads (sums contributions per edge), so it

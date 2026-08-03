@@ -1,3 +1,4 @@
+import contextlib
 import shutil
 import subprocess
 import tempfile
@@ -178,14 +179,9 @@ class EnergyPlusRunner:
         """
         if process.poll() is None:
             process.kill()
-            try:
+            # The OS reaper handles a process that remains after SIGKILL.
+            with contextlib.suppress(subprocess.TimeoutExpired):
                 process.wait(timeout=10)
-            except subprocess.TimeoutExpired:
-                # SIGKILL didn't reap within 10s — nothing more we can do;
-                # log and leave it to the OS reaper.
-                pass
         if process.stdout is not None:
-            try:
+            with contextlib.suppress(Exception):
                 process.stdout.close()
-            except Exception:
-                pass

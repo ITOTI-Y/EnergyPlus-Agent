@@ -160,4 +160,11 @@ def make_lights_tools(config: ConfigState) -> list[BaseTool]:
         items = [s.model_dump() for s in idf.all_of_type(ScheduleCompact).values()]
         return _ok(f"Listed {len(items)} schedules.", items)
 
-    return [create_light, list_lights, update_light, delete_light, list_zones, list_schedules]
+    return [
+        create_light,
+        list_lights,
+        update_light,
+        delete_light,
+        list_zones,
+        list_schedules,
+    ]

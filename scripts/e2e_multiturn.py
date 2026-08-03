@@ -20,7 +20,6 @@ from __future__ import annotations
 import json
 import sys
 import time
-from collections import Counter
 from pathlib import Path
 
 from langchain_core.runnables import RunnableConfig
@@ -91,10 +90,15 @@ def _object_inventory(idf_path: Path) -> dict:
     inv: dict[str, dict] = {}
     for key, types in [
         ("zones", ("Zone",)),
-        ("materials", (
-            "Material", "Material:NoMass", "Material:AirGap",
-            "WindowMaterial:SimpleGlazingSystem",
-        )),
+        (
+            "materials",
+            (
+                "Material",
+                "Material:NoMass",
+                "Material:AirGap",
+                "WindowMaterial:SimpleGlazingSystem",
+            ),
+        ),
         ("constructions", ("Construction",)),
         ("surfaces", ("BuildingSurface:Detailed",)),
         ("fenestrations", ("FenestrationSurface:Detailed",)),
@@ -154,9 +158,9 @@ def run_turn(
     context = SimContext(epw_path=EPW, output_dir=OUT)
     config: RunnableConfig = {"configurable": {"thread_id": thread_id}}
 
-    print(f"\n{'='*70}")
+    print(f"\n{'=' * 70}")
     print(f"TURN [{mode}]  thread={thread_id}")
-    print(f"{'='*70}")
+    print(f"{'=' * 70}")
     print(f"Prompt (first 200 chars): {prompt[:200]}...")
     t0 = time.time()
     state = run_session(
@@ -204,7 +208,7 @@ def main() -> int:
         print(f"  - {str(m)[:160]}")
 
     # ─── Turn 2: revise the existing model ───────────────────────────────────
-    state2, idf2 = run_turn(graph, TURN2_PROMPT, "e2e_t2", seed_idf=idf1)
+    _state2, idf2 = run_turn(graph, TURN2_PROMPT, "e2e_t2", seed_idf=idf1)
     if not idf2:
         print("FAIL: turn 2 produced no IDF")
         return 1
@@ -215,15 +219,15 @@ def main() -> int:
         print(f"  {k:14s} count={v['count']:3d}  samples={v['sample_names']}")
 
     # ─── Compare turn-1 vs turn-2 ────────────────────────────────────────────
-    print(f"\n{'='*70}")
+    print(f"\n{'=' * 70}")
     print("TURN-1 vs TURN-2 DELTA")
-    print(f"{'='*70}")
+    print(f"{'=' * 70}")
     deltas: dict[str, tuple[int, int]] = {}
     for k in inv1:
         c1, c2 = inv1[k]["count"], inv2[k]["count"]
         deltas[k] = (c1, c2)
         marker = "  " if c1 == c2 else "!!"
-        print(f"  {marker} {k:14s} {c1:3d} -> {c2:3d}  (delta {c2-c1:+d})")
+        print(f"  {marker} {k:14s} {c1:3d} -> {c2:3d}  (delta {c2 - c1:+d})")
 
     # ─── Save artifact for inspection ────────────────────────────────────────
     artifact = {

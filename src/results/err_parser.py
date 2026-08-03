@@ -63,7 +63,7 @@ def extract_errors(err_path: Path | str | None) -> dict[str, Any]:
         level = m.group(1).lower()
         # Strip the "** Severity **" tag prefix to give the LLM a clean
         # message (everything after the closing "**" of the tag).
-        message = line[m.end():].strip()
+        message = line[m.end() :].strip()
         if level == "fatal":
             result["fatal"] += 1
             result["fatal_lines"].append(message)
