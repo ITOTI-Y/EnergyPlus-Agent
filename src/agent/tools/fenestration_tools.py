@@ -1,8 +1,12 @@
 import json
 
+from idfpy.models.constructions import Construction
+from idfpy.models.thermal_zones import (
+    BuildingSurfaceDetailed,
+    FenestrationSurfaceDetailed,
+)
 from langchain_core.tools import BaseTool, tool
 
-from idfpy.models.thermal_zones import FenestrationSurfaceDetailed
 from src.mcp.state import ConfigState
 
 
@@ -15,7 +19,7 @@ def _err(msg: str, data=None) -> str:
 
 
 def make_fenestration_tools(config: ConfigState) -> list[BaseTool]:
-    idf = config._idf
+    idf = config.idf
 
     @tool
     def create_fenestration(
@@ -60,10 +64,11 @@ def make_fenestration_tools(config: ConfigState) -> list[BaseTool]:
                 kwargs[f"vertex_{i}_x_coordinate"] = float(v["X"])
                 kwargs[f"vertex_{i}_y_coordinate"] = float(v["Y"])
                 kwargs[f"vertex_{i}_z_coordinate"] = float(v["Z"])
-            idf.add(FenestrationSurfaceDetailed(**kwargs))
+            fenestration = FenestrationSurfaceDetailed(**kwargs)
+            idf.add(fenestration)
             return _ok(
                 f"Fenestration '{name}' created successfully.",
-                idf.get("FenestrationSurface:Detailed", name).model_dump(),
+                fenestration.model_dump(),
             )
         except Exception as e:
             return _err(f"Error creating fenestration '{name}': {e}")
@@ -71,13 +76,16 @@ def make_fenestration_tools(config: ConfigState) -> list[BaseTool]:
     @tool
     def list_fenestrations() -> str:
         """List all fenestration surfaces."""
-        items = [f.model_dump() for f in idf.all_of_type("FenestrationSurface:Detailed").values()]
+        items = [
+            f.model_dump()
+            for f in idf.all_of_type(FenestrationSurfaceDetailed).values()
+        ]
         return _ok(f"Listed {len(items)} fenestrations.", items)
 
     @tool
     def get_fenestration(name: str) -> str:
         """Read a fenestration by name."""
-        obj = idf.get("FenestrationSurface:Detailed", name)
+        obj = idf.get(FenestrationSurfaceDetailed, name)
         if obj is None:
             return _err(f"Fenestration '{name}' not found.")
         return _ok(f"Fenestration '{name}' read successfully.", obj.model_dump())
@@ -93,13 +101,15 @@ def make_fenestration_tools(config: ConfigState) -> list[BaseTool]:
     @tool
     def list_surfaces() -> str:
         """Read-only: list parent surfaces a fenestration can attach to."""
-        items = [s.model_dump() for s in idf.all_of_type("BuildingSurface:Detailed").values()]
+        items = [
+            s.model_dump() for s in idf.all_of_type(BuildingSurfaceDetailed).values()
+        ]
         return _ok(f"Listed {len(items)} surfaces.", items)
 
     @tool
     def list_constructions() -> str:
         """Read-only: list constructions a fenestration can reference."""
-        items = [c.model_dump() for c in idf.all_of_type("Construction").values()]
+        items = [c.model_dump() for c in idf.all_of_type(Construction).values()]
         return _ok(f"Listed {len(items)} constructions.", items)
 
     return [

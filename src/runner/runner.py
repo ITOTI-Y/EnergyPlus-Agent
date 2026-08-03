@@ -1,5 +1,6 @@
 import shutil
 import subprocess
+import tempfile
 from datetime import datetime
 from pathlib import Path
 
@@ -19,7 +20,7 @@ class EnergyPlusRunner:
         """
         self.logger = get_logger(__name__)
         self.idf_path: Path | None = None
-        self.idf = idf if idf else IDF()
+        self.idf = idf
         self.logger.info("EnergyPlusRunner initialized.")
 
     def run_idf(
@@ -39,15 +40,19 @@ class EnergyPlusRunner:
         Returns:
             bool: True if the simulation ran successfully, False otherwise
         """
+        temporary_idf_path: Path | None = None
         if idf_file_path:
             self.idf_path = Path(idf_file_path)
             self.idf = IDF.load(self.idf_path)
         elif self.idf_path:
             idf_file_path = self.idf_path
+        elif self.idf is not None:
+            with tempfile.NamedTemporaryFile(suffix=".idf", delete=False) as temp_file:
+                temporary_idf_path = Path(temp_file.name)
+            self.idf.save(temporary_idf_path)
+            self.idf_path = temporary_idf_path
         else:
-            raise ValueError(
-                "IDF file path must be provided either via parameter or IDF instance."
-            )
+            raise ValueError("IDF file path or IDF instance is required.")
         self.epw_path = Path(epw_file_path)
 
         if not self.idf_path.exists():
@@ -119,3 +124,7 @@ class EnergyPlusRunner:
         except Exception:
             self.logger.exception("Running EnergyPlus simulation failed")
             raise
+        finally:
+            if temporary_idf_path is not None:
+                temporary_idf_path.unlink(missing_ok=True)
+                self.idf_path = None

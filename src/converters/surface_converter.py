@@ -1,7 +1,10 @@
 from collections import defaultdict
 
 from idfpy import IDF
-from idfpy.models.thermal_zones import BuildingSurfaceDetailed, BuildingSurfaceDetailedVerticesItem
+from idfpy.models.thermal_zones import (
+    BuildingSurfaceDetailed,
+    BuildingSurfaceDetailedVerticesItem,
+)
 
 from src.converters.base_converter import BaseConverter
 from src.validator.data_model import GeometrySchema, SurfaceSchema
@@ -46,20 +49,14 @@ class SurfaceConverter(BaseConverter):
             )
             for v in val_data.vertices
         ]
-        self.idf.add(BuildingSurfaceDetailed(
-            name=val_data.name,
-            surface_type=val_data.surface_type,
-            construction_name=val_data.construction_name,
-            zone_name=val_data.zone_name,
-            space_name=val_data.space_name or None,
-            outside_boundary_condition=val_data.outside_boundary_condition,
-            outside_boundary_condition_object=val_data.outside_boundary_condition_object or None,
-            sun_exposure=val_data.sun_exposure,
-            wind_exposure=val_data.wind_exposure,
-            view_factor_to_ground=val_data.view_factor_to_ground,
-            number_of_vertices=len(val_data.vertices),
-            vertices=vertices,
-        ))
+        self.idf.add(
+            self._to_idf_model(
+                BuildingSurfaceDetailed,
+                val_data,
+                number_of_vertices=len(val_data.vertices),
+                vertices=vertices,
+            )
+        )
 
     def validate(self, data: dict) -> list[SurfaceSchema]:
         val_data = []

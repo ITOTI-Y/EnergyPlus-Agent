@@ -29,16 +29,7 @@ class BuildingConverter(BaseConverter):
 
         try:
             if not self.idf.has("Building", building_data.name):
-                self.idf.add(Building(
-                    name=building_data.name,
-                    north_axis=building_data.north_axis,
-                    terrain=building_data.terrain,
-                    loads_convergence_tolerance_value=building_data.loads_convergence_tolerance_value,
-                    temperature_convergence_tolerance_value=building_data.temperature_convergence_tolerance_value,
-                    solar_distribution=building_data.solar_distribution,
-                    maximum_number_of_warmup_days=building_data.maximum_number_of_warmup_days,
-                    minimum_number_of_warmup_days=building_data.minimum_number_of_warmup_days,
-                ))
+                self.idf.add(self._to_idf_model(Building, building_data))
                 self.state["success"] += 1
                 self.logger.success(
                     "Building object with name {} added to IDF.", building_data.name

@@ -1,19 +1,25 @@
 import json
 
+from idfpy.models.constructions import Construction
+from idfpy.models.thermal_zones import (
+    BuildingSurfaceDetailed,
+    FenestrationSurfaceDetailed,
+)
 from langchain_core.tools import BaseTool, tool
 
-from idfpy.models.constructions import (
-    Construction,
-    Material,
-    MaterialAirGap,
-    MaterialNoMass,
-    WindowMaterialSimpleGlazingSystem,
-)
 from src.mcp.state import ConfigState
 
 _LAYER_FIELDS = [
-    "outside_layer", "layer_2", "layer_3", "layer_4", "layer_5",
-    "layer_6", "layer_7", "layer_8", "layer_9", "layer_10",
+    "outside_layer",
+    "layer_2",
+    "layer_3",
+    "layer_4",
+    "layer_5",
+    "layer_6",
+    "layer_7",
+    "layer_8",
+    "layer_9",
+    "layer_10",
 ]
 
 _ALL_MATERIAL_TYPES = [
@@ -37,7 +43,7 @@ def _material_exists(idf, name: str) -> bool:
 
 
 def make_construction_tools(config: ConfigState) -> list[BaseTool]:
-    idf = config._idf
+    idf = config.idf
 
     @tool
     def create_construction(name: str, layers: list[str]) -> str:
@@ -64,10 +70,11 @@ def make_construction_tools(config: ConfigState) -> list[BaseTool]:
             kwargs: dict = {"name": name}
             for i, layer_name in enumerate(layers):
                 kwargs[_LAYER_FIELDS[i]] = layer_name
-            idf.add(Construction(**kwargs))
+            construction = Construction(**kwargs)
+            idf.add(construction)
             return _ok(
                 f"Construction '{name}' created successfully.",
-                idf.get("Construction", name).model_dump(),
+                construction.model_dump(),
             )
         except Exception as e:
             return _err(f"Error creating construction '{name}': {e}")
@@ -75,13 +82,13 @@ def make_construction_tools(config: ConfigState) -> list[BaseTool]:
     @tool
     def list_constructions() -> str:
         """List all constructions."""
-        items = [c.model_dump() for c in idf.all_of_type("Construction").values()]
+        items = [c.model_dump() for c in idf.all_of_type(Construction).values()]
         return _ok(f"Listed {len(items)} constructions.", items)
 
     @tool
     def get_construction(name: str) -> str:
         """Read a construction by name."""
-        obj = idf.get("Construction", name)
+        obj = idf.get(Construction, name)
         if obj is None:
             return _err(f"Construction '{name}' not found.")
         return _ok(f"Construction '{name}' read successfully.", obj.model_dump())
@@ -92,10 +99,10 @@ def make_construction_tools(config: ConfigState) -> list[BaseTool]:
         if not idf.has("Construction", name):
             return _err(f"Construction '{name}' not found.")
         refs = []
-        for s in idf.all_of_type("BuildingSurface:Detailed").values():
+        for s in idf.all_of_type(BuildingSurfaceDetailed).values():
             if s.construction_name == name:
                 refs.append(f"Surface:{s.name}")
-        for f in idf.all_of_type("FenestrationSurface:Detailed").values():
+        for f in idf.all_of_type(FenestrationSurfaceDetailed).values():
             if f.construction_name == name:
                 refs.append(f"Fenestration:{f.name}")
         if refs:

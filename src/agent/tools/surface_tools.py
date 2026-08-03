@@ -1,11 +1,14 @@
 import json
 
-from langchain_core.tools import BaseTool, tool
-
+from idfpy.models.constructions import Construction
 from idfpy.models.thermal_zones import (
     BuildingSurfaceDetailed,
     BuildingSurfaceDetailedVerticesItem,
+    FenestrationSurfaceDetailed,
+    Zone,
 )
+from langchain_core.tools import BaseTool, tool
+
 from src.mcp.state import ConfigState
 
 
@@ -18,7 +21,7 @@ def _err(msg: str, data=None) -> str:
 
 
 def make_surface_tools(config: ConfigState) -> list[BaseTool]:
-    idf = config._idf
+    idf = config.idf
 
     @tool
     def create_surface(
@@ -64,20 +67,23 @@ def make_surface_tools(config: ConfigState) -> list[BaseTool]:
                 )
                 for v in vertices
             ]
-            idf.add(BuildingSurfaceDetailed(
-                name=name,
-                surface_type=surface_type,
-                construction_name=construction_name,
-                zone_name=zone_name,
-                outside_boundary_condition=outside_boundary_condition,
-                outside_boundary_condition_object=outside_boundary_condition_object,
-                sun_exposure=sun_exposure,
-                wind_exposure=wind_exposure,
-                vertices=vertex_items,
-            ))
+            surface = BuildingSurfaceDetailed.model_validate(
+                {
+                    "name": name,
+                    "surface_type": surface_type,
+                    "construction_name": construction_name,
+                    "zone_name": zone_name,
+                    "outside_boundary_condition": outside_boundary_condition,
+                    "outside_boundary_condition_object": outside_boundary_condition_object,
+                    "sun_exposure": sun_exposure,
+                    "wind_exposure": wind_exposure,
+                    "vertices": vertex_items,
+                }
+            )
+            idf.add(surface)
             return _ok(
                 f"Surface '{name}' created successfully.",
-                idf.get("BuildingSurface:Detailed", name).model_dump(),
+                surface.model_dump(),
             )
         except Exception as e:
             return _err(f"Error creating surface '{name}': {e}")
@@ -85,13 +91,15 @@ def make_surface_tools(config: ConfigState) -> list[BaseTool]:
     @tool
     def list_surfaces() -> str:
         """List all building surfaces."""
-        items = [s.model_dump() for s in idf.all_of_type("BuildingSurface:Detailed").values()]
+        items = [
+            s.model_dump() for s in idf.all_of_type(BuildingSurfaceDetailed).values()
+        ]
         return _ok(f"Listed {len(items)} surfaces.", items)
 
     @tool
     def get_surface(name: str) -> str:
         """Read a surface by name."""
-        obj = idf.get("BuildingSurface:Detailed", name)
+        obj = idf.get(BuildingSurfaceDetailed, name)
         if obj is None:
             return _err(f"Surface '{name}' not found.")
         return _ok(f"Surface '{name}' read successfully.", obj.model_dump())
@@ -102,7 +110,7 @@ def make_surface_tools(config: ConfigState) -> list[BaseTool]:
         if not idf.has("BuildingSurface:Detailed", name):
             return _err(f"Surface '{name}' not found.")
         refs = []
-        for f in idf.all_of_type("FenestrationSurface:Detailed").values():
+        for f in idf.all_of_type(FenestrationSurfaceDetailed).values():
             if f.building_surface_name == name:
                 refs.append(f"Fenestration:{f.name}")
         if refs:
@@ -116,13 +124,13 @@ def make_surface_tools(config: ConfigState) -> list[BaseTool]:
     @tool
     def list_zones() -> str:
         """Read-only: list zones a surface can be assigned to."""
-        items = [z.model_dump() for z in idf.all_of_type("Zone").values()]
+        items = [z.model_dump() for z in idf.all_of_type(Zone).values()]
         return _ok(f"Listed {len(items)} zones.", items)
 
     @tool
     def list_constructions() -> str:
         """Read-only: list constructions a surface can reference."""
-        items = [c.model_dump() for c in idf.all_of_type("Construction").values()]
+        items = [c.model_dump() for c in idf.all_of_type(Construction).values()]
         return _ok(f"Listed {len(items)} constructions.", items)
 
     return [

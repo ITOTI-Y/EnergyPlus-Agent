@@ -1,13 +1,14 @@
 import json
 
-from langchain_core.tools import BaseTool, tool
-
 from idfpy.models.constructions import (
+    Construction,
     Material,
     MaterialAirGap,
     MaterialNoMass,
     WindowMaterialSimpleGlazingSystem,
 )
+from langchain_core.tools import BaseTool, tool
+
 from src.mcp.state import ConfigState
 
 # idfpy object-type strings for each material variant
@@ -37,7 +38,7 @@ def _find_material(idf, name: str):
 
 
 def make_material_tools(config: ConfigState) -> list[BaseTool]:
-    idf = config._idf
+    idf = config.idf
 
     @tool
     def create_standard_material(
@@ -61,17 +62,20 @@ def make_material_tools(config: ConfigState) -> list[BaseTool]:
         if idf.has("Material", name):
             return _err(f"Material '{name}' already exists.")
         try:
-            idf.add(Material(
-                name=name,
-                roughness=roughness,
-                thickness=thickness,
-                conductivity=conductivity,
-                density=density,
-                specific_heat=specific_heat,
-            ))
+            material = Material.model_validate(
+                {
+                    "name": name,
+                    "roughness": roughness,
+                    "thickness": thickness,
+                    "conductivity": conductivity,
+                    "density": density,
+                    "specific_heat": specific_heat,
+                }
+            )
+            idf.add(material)
             return _ok(
                 f"Material '{name}' created successfully.",
-                idf.get("Material", name).model_dump(),
+                material.model_dump(),
             )
         except Exception as e:
             return _err(f"Error creating material '{name}': {e}")
@@ -92,14 +96,17 @@ def make_material_tools(config: ConfigState) -> list[BaseTool]:
         if idf.has("Material:NoMass", name):
             return _err(f"Material:NoMass '{name}' already exists.")
         try:
-            idf.add(MaterialNoMass(
-                name=name,
-                roughness=roughness,
-                thermal_resistance=thermal_resistance,
-            ))
+            material = MaterialNoMass.model_validate(
+                {
+                    "name": name,
+                    "roughness": roughness,
+                    "thermal_resistance": thermal_resistance,
+                }
+            )
+            idf.add(material)
             return _ok(
                 f"Material:NoMass '{name}' created successfully.",
-                idf.get("Material:NoMass", name).model_dump(),
+                material.model_dump(),
             )
         except Exception as e:
             return _err(f"Error creating NoMass material '{name}': {e}")
@@ -110,10 +117,11 @@ def make_material_tools(config: ConfigState) -> list[BaseTool]:
         if idf.has("Material:AirGap", name):
             return _err(f"Material:AirGap '{name}' already exists.")
         try:
-            idf.add(MaterialAirGap(name=name, thermal_resistance=thermal_resistance))
+            material = MaterialAirGap(name=name, thermal_resistance=thermal_resistance)
+            idf.add(material)
             return _ok(
                 f"Material:AirGap '{name}' created successfully.",
-                idf.get("Material:AirGap", name).model_dump(),
+                material.model_dump(),
             )
         except Exception as e:
             return _err(f"Error creating AirGap material '{name}': {e}")
@@ -136,15 +144,16 @@ def make_material_tools(config: ConfigState) -> list[BaseTool]:
         if idf.has("WindowMaterial:SimpleGlazingSystem", name):
             return _err(f"WindowMaterial:SimpleGlazingSystem '{name}' already exists.")
         try:
-            idf.add(WindowMaterialSimpleGlazingSystem(
+            material = WindowMaterialSimpleGlazingSystem(
                 name=name,
                 u_factor=u_factor,
                 solar_heat_gain_coefficient=solar_heat_gain_coefficient,
                 visible_transmittance=visible_transmittance,
-            ))
+            )
+            idf.add(material)
             return _ok(
                 f"WindowMaterial:SimpleGlazingSystem '{name}' created successfully.",
-                idf.get("WindowMaterial:SimpleGlazingSystem", name).model_dump(),
+                material.model_dump(),
             )
         except Exception as e:
             return _err(f"Error creating glazing material '{name}': {e}")
@@ -164,7 +173,10 @@ def make_material_tools(config: ConfigState) -> list[BaseTool]:
         mat_type, obj = _find_material(idf, name)
         if obj is None:
             return _err(f"Material '{name}' not found.")
-        return _ok(f"Material '{name}' read successfully.", {"type": mat_type, **obj.model_dump()})
+        return _ok(
+            f"Material '{name}' read successfully.",
+            {"type": mat_type, **obj.model_dump()},
+        )
 
     @tool
     def delete_material(name: str) -> str:
@@ -175,10 +187,18 @@ def make_material_tools(config: ConfigState) -> list[BaseTool]:
         # Check if any construction references this material
         refs = []
         layer_fields = [
-            "outside_layer", "layer_2", "layer_3", "layer_4", "layer_5",
-            "layer_6", "layer_7", "layer_8", "layer_9", "layer_10",
+            "outside_layer",
+            "layer_2",
+            "layer_3",
+            "layer_4",
+            "layer_5",
+            "layer_6",
+            "layer_7",
+            "layer_8",
+            "layer_9",
+            "layer_10",
         ]
-        for c in idf.all_of_type("Construction").values():
+        for c in idf.all_of_type(Construction).values():
             for lf in layer_fields:
                 if getattr(c, lf, None) == name:
                     refs.append(f"Construction:{c.name}")

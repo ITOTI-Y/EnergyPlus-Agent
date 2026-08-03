@@ -26,7 +26,7 @@ class ThermostatTool(BaseTool):
     def _check_references(self, name: str) -> list[str]:
         refs = []
         for ils in self.state.idf.all_of_type(
-            "HVACTemplate:Zone:IdealLoadsAirSystem"
+            HVACTemplateZoneIdealLoadsAirSystem
         ).values():
             if ils.template_thermostat_name == name:
                 refs.append(f"IdealLoadsSystem:{ils.zone_name}")
@@ -41,7 +41,9 @@ class IdealLoadsSystemTool(BaseTool):
     def object_types(self) -> tuple[str, ...]:
         return ("HVACTemplate:Zone:IdealLoadsAirSystem",)
 
-    def _create_model(self, data: dict[str, Any]) -> HVACTemplateZoneIdealLoadsAirSystem:
+    def _create_model(
+        self, data: dict[str, Any]
+    ) -> HVACTemplateZoneIdealLoadsAirSystem:
         return HVACTemplateZoneIdealLoadsAirSystem(**normalize_payload(data))
 
     def _get_name(self, instance: HVACTemplateZoneIdealLoadsAirSystem) -> str:

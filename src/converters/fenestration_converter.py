@@ -45,17 +45,20 @@ class FenestrationConverter(BaseConverter):
             )
 
         verts = val_data.vertices
-        kwargs: dict = dict(
-            name=val_data.name,
-            surface_type=val_data.surface_type,
-            construction_name=val_data.construction_name,
-            building_surface_name=val_data.building_surface_name,
-            outside_boundary_condition_object=val_data.outside_boundary_condition_object or None,
-            view_factor_to_ground=val_data.view_factor_to_ground if val_data.view_factor_to_ground != "autocalculate" else None,
-            frame_and_divider_name=val_data.frame_and_divider_name or None,
-            multiplier=val_data.multiplier,
-            number_of_vertices=len(verts),
-        )
+        kwargs: dict = {
+            "name": val_data.name,
+            "surface_type": val_data.surface_type,
+            "construction_name": val_data.construction_name,
+            "building_surface_name": val_data.building_surface_name,
+            "outside_boundary_condition_object": val_data.outside_boundary_condition_object
+            or None,
+            "view_factor_to_ground": val_data.view_factor_to_ground
+            if val_data.view_factor_to_ground != "autocalculate"
+            else None,
+            "frame_and_divider_name": val_data.frame_and_divider_name or None,
+            "multiplier": val_data.multiplier,
+            "number_of_vertices": len(verts),
+        }
         for i, vertex in enumerate(verts, 1):
             kwargs[f"vertex_{i}_x_coordinate"] = float(vertex[0])
             kwargs[f"vertex_{i}_y_coordinate"] = float(vertex[1])

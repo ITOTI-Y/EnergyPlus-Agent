@@ -1,7 +1,8 @@
 import sqlite3
 from datetime import datetime
 
-from src.database.datatools._share import TIMESTAMP, UNSET, _UnsetType
+from src._share import UNSET, _UnsetType
+from src.database.datatools._share import TIMESTAMP
 from src.database.datatools.datadescription import update_description_construction
 
 MAX_LAYERS = 20

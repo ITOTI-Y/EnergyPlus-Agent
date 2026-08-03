@@ -29,10 +29,18 @@ class ConstructionConverter(BaseConverter):
                 )
                 continue
 
-    _LAYER_FIELDS = [
-        "outside_layer", "layer_2", "layer_3", "layer_4", "layer_5",
-        "layer_6", "layer_7", "layer_8", "layer_9", "layer_10",
-    ]
+    _LAYER_FIELDS = (
+        "outside_layer",
+        "layer_2",
+        "layer_3",
+        "layer_4",
+        "layer_5",
+        "layer_6",
+        "layer_7",
+        "layer_8",
+        "layer_9",
+        "layer_10",
+    )
 
     def _add_to_idf(self, val_data: ConstructionSchema) -> None:
         if self.idf.has("Construction", val_data.name):

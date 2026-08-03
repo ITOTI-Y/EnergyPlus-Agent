@@ -3,13 +3,16 @@ from typing import Any
 from idfpy.models.thermal_zones import (
     BuildingSurfaceDetailed,
     BuildingSurfaceDetailedVerticesItem,
+    FenestrationSurfaceDetailed,
 )
 
 from src.mcp.state import ConfigState
 from src.mcp.tools.base import BaseTool, normalize_payload
 
 
-def _vertex_items(vertices: list[Any] | None) -> list[BuildingSurfaceDetailedVerticesItem]:
+def _vertex_items(
+    vertices: list[Any] | None,
+) -> list[BuildingSurfaceDetailedVerticesItem]:
     items: list[BuildingSurfaceDetailedVerticesItem] = []
     for vertex in vertices or []:
         if isinstance(vertex, dict):
@@ -50,7 +53,7 @@ class SurfaceTool(BaseTool):
 
     def _check_references(self, name: str) -> list[str]:
         refs = []
-        for fen in self.state.idf.all_of_type("FenestrationSurface:Detailed").values():
+        for fen in self.state.idf.all_of_type(FenestrationSurfaceDetailed).values():
             if fen.building_surface_name == name:
                 refs.append(f"FenestrationSurface:{fen.name}")
         return refs

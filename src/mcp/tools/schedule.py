@@ -1,5 +1,10 @@
 from typing import Any
 
+from idfpy.models.hvac_templates import (
+    HVACTemplateThermostat,
+    HVACTemplateZoneIdealLoadsAirSystem,
+)
+from idfpy.models.internal_gains import Lights, People
 from idfpy.models.schedules import (
     ScheduleCompact,
     ScheduleCompactDataItem,
@@ -59,7 +64,7 @@ class ScheduleTypeLimitsTool(BaseTool):
 
     def _check_references(self, name: str) -> list[str]:
         refs = []
-        for schedule in self.state.idf.all_of_type("Schedule:Compact").values():
+        for schedule in self.state.idf.all_of_type(ScheduleCompact).values():
             if schedule.schedule_type_limits_name == name:
                 refs.append(f"ScheduleCompact:{schedule.name}")
         return refs
@@ -88,22 +93,22 @@ class ScheduleCompactTool(BaseTool):
 
     def _check_references(self, name: str) -> list[str]:
         refs = []
-        for thermostat in self.state.idf.all_of_type("HVACTemplate:Thermostat").values():
+        for thermostat in self.state.idf.all_of_type(HVACTemplateThermostat).values():
             if thermostat.heating_setpoint_schedule_name == name:
                 refs.append(f"Thermostat:{thermostat.name}")
             if thermostat.cooling_setpoint_schedule_name == name:
                 refs.append(f"Thermostat:{thermostat.name}")
         for ils in self.state.idf.all_of_type(
-            "HVACTemplate:Zone:IdealLoadsAirSystem"
+            HVACTemplateZoneIdealLoadsAirSystem
         ).values():
             if getattr(ils, "system_availability_schedule_name", None) == name:
                 refs.append(f"IdealLoadsSystem:{ils.zone_name}")
-        for people in self.state.idf.all_of_type("People").values():
+        for people in self.state.idf.all_of_type(People).values():
             if people.number_of_people_schedule_name == name:
                 refs.append(f"People:{people.name}")
             if people.activity_level_schedule_name == name:
                 refs.append(f"People:{people.name}")
-        for light in self.state.idf.all_of_type("Lights").values():
+        for light in self.state.idf.all_of_type(Lights).values():
             if light.schedule_name == name:
                 refs.append(f"Lights:{light.name}")
         return refs
