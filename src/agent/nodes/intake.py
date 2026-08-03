@@ -193,6 +193,7 @@ def intake_node(state: AgentState) -> AgentStateUpdate:
             sleep_s,
         )
         time.sleep(sleep_s)
+    assert parsed is not None
 
     config = state.config_state.clone()
     config.building = parsed.building

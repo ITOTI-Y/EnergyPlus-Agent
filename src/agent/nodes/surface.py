@@ -4,12 +4,15 @@ from langchain_core.messages import AIMessage
 from langgraph.types import Command
 
 from src.agent.llm import create_llm
-from src.agent.nodes._share import clone_for_phase, invoke_with_self_repair, maybe_backhop
+from src.agent.nodes._share import (
+    clone_for_phase,
+    invoke_with_self_repair,
+    maybe_backhop,
+)
 from src.agent.react import build_react_agent
 from src.agent.state import AgentState, AgentStateUpdate
 from src.agent.tools import make_surface_tools
 from src.agent.trace import TraceCollector, record_phase_trace
-
 
 # Legal back-hop targets for surface: a missing construction hops to
 # construction; a missing zone hops to zone. Declared on the return type

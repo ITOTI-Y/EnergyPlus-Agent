@@ -18,12 +18,12 @@ the LLM had already fixed the reference. The fix re-derives the gap from
 the LIVE IDF via detect_upstream_gap_from_state.
 """
 
+from idfpy.models.constructions import Construction, Material
 from idfpy.models.thermal_zones import (
     BuildingSurfaceDetailed,
     BuildingSurfaceDetailedVerticesItem,
     Zone,
 )
-from idfpy.models.constructions import Construction, Material
 from langchain_core.messages import AIMessage, ToolMessage
 
 from src.agent.nodes._share import MAX_SELF_REPAIR_ROUNDS, invoke_with_self_repair
@@ -141,7 +141,10 @@ def test_persistent_gap_surfaces_backhop_after_repair_budget():
     agent = _PersistentGapAgent()
 
     result = invoke_with_self_repair(
-        agent, local, "Create surfaces for Missing_Zone", phase="surface",
+        agent,
+        local,
+        "Create surfaces for Missing_Zone",
+        phase="surface",
     )
 
     # MAX_SELF_REPAIR_ROUNDS + 1 invokes, then hop_request.
@@ -159,7 +162,10 @@ def test_self_healed_gap_does_not_backhop():
     agent = _SelfHealingAgent(local)
 
     result = invoke_with_self_repair(
-        agent, local, "Create surfaces for Missing_Zone", phase="surface",
+        agent,
+        local,
+        "Create surfaces for Missing_Zone",
+        phase="surface",
     )
 
     assert agent.calls == 2  # one failed, one healed

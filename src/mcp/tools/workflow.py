@@ -138,9 +138,7 @@ class WorkflowTool:
             if geometry_errors:
                 return ToolResponse(
                     success=False,
-                    message=(
-                        "Geometry completeness errors, cannot run simulation."
-                    ),
+                    message=("Geometry completeness errors, cannot run simulation."),
                     data={"errors": geometry_errors},
                 )
 

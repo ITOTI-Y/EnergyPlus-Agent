@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Any
+from typing import Any, SupportsIndex, override
 
 import yaml
 from idfpy import IDF
@@ -35,11 +35,6 @@ from idfpy.models.schedules import (
     ScheduleTypeLimits,
 )
 from idfpy.models.simulation import Building, SimulationControl, Timestep, Version
-from src.mcp.geometry import (
-    NORMAL_DOT_TOLERANCE,
-    surface_normal,
-    surface_vertices,
-)
 from idfpy.models.thermal_zones import (
     BuildingSurfaceDetailed,
     BuildingSurfaceDetailedVerticesItem,
@@ -51,6 +46,11 @@ from loguru import logger
 from omegaconf import OmegaConf
 from pydantic import Field, PrivateAttr
 
+from src.mcp.geometry import (
+    NORMAL_DOT_TOLERANCE,
+    surface_normal,
+    surface_vertices,
+)
 from src.mcp.interface import ConfigSummary
 from src.validator import (
     BaseSchema,
@@ -244,7 +244,7 @@ class ConfigState(BaseSchema):
         if self._idf is None:
             self._set_idf_private(IDF())
 
-    def _set_idf_private(self, idf: "IDF") -> None:
+    def _set_idf_private(self, idf: IDF) -> None:
         """Assign ``_idf`` into ``__pydantic_private__`` directly.
 
         BaseSchema enables ``validate_assignment=True`` AND declares
@@ -268,15 +268,26 @@ class ConfigState(BaseSchema):
         if idf is None:
             return False
         try:
-            return any(idf.all_of_type(t) for t in (
-                "Zone", "Material", "Material:NoMass", "Material:AirGap",
-                "WindowMaterial:SimpleGlazingSystem", "WindowMaterial:Glazing",
-                "Construction",
-                "BuildingSurface:Detailed", "FenestrationSurface:Detailed",
-                "Schedule:Compact", "ScheduleTypeLimits",
-                "HVACTemplate:Thermostat", "HVACTemplate:Zone:IdealLoadsAirSystem",
-                "People", "Lights",
-            ))
+            return any(
+                idf.all_of_type(t)
+                for t in (
+                    "Zone",
+                    "Material",
+                    "Material:NoMass",
+                    "Material:AirGap",
+                    "WindowMaterial:SimpleGlazingSystem",
+                    "WindowMaterial:Glazing",
+                    "Construction",
+                    "BuildingSurface:Detailed",
+                    "FenestrationSurface:Detailed",
+                    "Schedule:Compact",
+                    "ScheduleTypeLimits",
+                    "HVACTemplate:Thermostat",
+                    "HVACTemplate:Zone:IdealLoadsAirSystem",
+                    "People",
+                    "Lights",
+                )
+            )
         except Exception:
             return False
 
@@ -318,7 +329,8 @@ class ConfigState(BaseSchema):
         except Exception:
             return False
 
-    def __reduce_ex__(self, protocol: int = 2):
+    @override
+    def __reduce_ex__(self, protocol: SupportsIndex, /) -> tuple[Any, ...]:
         """Pickle protocol: serialize IDF as text to avoid weakref.
 
         idfpy's IDF holds weakref internals that break pickle. We intercept
@@ -336,7 +348,7 @@ class ConfigState(BaseSchema):
                 os.unlink(tf.name)
         return (_reconstruct_config_state, (idf_text, self.model_dump(by_alias=True)))
 
-    def clone(self) -> "ConfigState":
+    def clone(self) -> ConfigState:
         """Deep copy that produces a pickle-safe ConfigState.
 
         idfpy IDF objects loaded via ``IDF.load`` hold weakref internals that
@@ -350,9 +362,7 @@ class ConfigState(BaseSchema):
         instead of ``model_copy(deep=True)`` wherever a ConfigState is mutated
         in-place (phase agents, simulate, revise).
         """
-        new = self.__class__(
-            **self.model_dump(by_alias=True, exclude_defaults=False)
-        )
+        new = self.__class__(**self.model_dump(by_alias=True, exclude_defaults=False))
         # seed_idf_text is excluded=True so model_dump drops it; carry it
         # manually so phase-node clones can still recover _idf from it.
         new.seed_idf_text = self.seed_idf_text
@@ -362,12 +372,13 @@ class ConfigState(BaseSchema):
             new._set_idf_private(IDF())
         return new
 
-
     @property
     def idf(self) -> IDF:
-        if self._idf is None:
-            self._set_idf_private(IDF())
-        return self._idf
+        idf = self._idf
+        if idf is None:
+            idf = IDF()
+            self._set_idf_private(idf)
+        return idf
 
     def new_idf(self) -> None:
         self._set_idf_private(IDF())
@@ -618,8 +629,15 @@ class ConfigState(BaseSchema):
         # the dangling-material check below share it.
         layer_fields = [
             "outside_layer",
-            "layer_2", "layer_3", "layer_4", "layer_5",
-            "layer_6", "layer_7", "layer_8", "layer_9", "layer_10",
+            "layer_2",
+            "layer_3",
+            "layer_4",
+            "layer_5",
+            "layer_6",
+            "layer_7",
+            "layer_8",
+            "layer_9",
+            "layer_10",
         ]
         construction_names = {
             getattr(obj, "name", "")
@@ -664,9 +682,7 @@ class ConfigState(BaseSchema):
         }
 
         for const in _idf_values(self.idf, "Construction"):
-            const_layers = [
-                getattr(const, lf, None) for lf in layer_fields
-            ]
+            const_layers = [getattr(const, lf, None) for lf in layer_fields]
             for layer in const_layers:
                 if layer and layer not in material_names:
                     errors.append(
@@ -682,7 +698,8 @@ class ConfigState(BaseSchema):
             # layers (create_glazing_layer_material), which carry true
             # per-pane optical/thermal data and may be composed with gas gaps.
             simple_layers = [
-                layer for layer in const_layers
+                layer
+                for layer in const_layers
                 if layer and layer in simple_glazing_names
             ]
             if simple_layers and any(
@@ -723,14 +740,17 @@ class ConfigState(BaseSchema):
             if surface.surface_type in ("Floor", "Roof", "Ceiling"):
                 verts = surface_vertices(surface)
                 if len(verts) >= 3:
-                    nx, ny, nz = surface_normal(verts)
+                    _nx, _ny, nz = surface_normal(verts)
                     # Only flip when the normal is decisively off the expected
                     # vertical axis (|z| well above the tolerance), so a
                     # tilted/sloped surface is left untouched.
                     flipped = False
-                    if surface.surface_type == "Floor" and nz > NORMAL_DOT_TOLERANCE:
-                        flipped = True
-                    elif surface.surface_type in ("Roof", "Ceiling") and nz < -NORMAL_DOT_TOLERANCE:
+                    if (
+                        surface.surface_type == "Floor" and nz > NORMAL_DOT_TOLERANCE
+                    ) or (
+                        surface.surface_type in ("Roof", "Ceiling")
+                        and nz < -NORMAL_DOT_TOLERANCE
+                    ):
                         flipped = True
                     if flipped and getattr(surface, "vertices", None):
                         surface.vertices.reverse()
@@ -739,7 +759,10 @@ class ConfigState(BaseSchema):
         # a window (glazing) construction. A plain Door is the only type that
         # may use an opaque construction.
         _glazing_surface_types = {
-            "Window", "GlassDoor", "TubularDaylightDiffuser", "TubularDaylightDome",
+            "Window",
+            "GlassDoor",
+            "TubularDaylightDiffuser",
+            "TubularDaylightDome",
         }
         for fen in _idf_values(self.idf, "FenestrationSurface:Detailed"):
             if fen.construction_name not in construction_names:
@@ -1087,71 +1110,96 @@ class ConfigState(BaseSchema):
                     )
                 )
             elif material_type == "Glazing":
-                self.idf.add(WindowMaterialSimpleGlazingSystem(
-                    name=name,
-                    u_factor=_get(raw, "U-Factor", "U Factor"),
-                    solar_heat_gain_coefficient=_get(
-                        raw,
-                        "Solar_Heat_Gain_Coefficient",
-                        "Solar Heat Gain Coefficient",
-                    ),
-                    visible_transmittance=_get(raw, "Visible_Transmittance", "Visible Transmittance"),
-                ))
+                self.idf.add(
+                    WindowMaterialSimpleGlazingSystem(
+                        name=name,
+                        u_factor=_get(raw, "U-Factor", "U Factor"),
+                        solar_heat_gain_coefficient=_get(
+                            raw,
+                            "Solar_Heat_Gain_Coefficient",
+                            "Solar Heat Gain Coefficient",
+                        ),
+                        visible_transmittance=_get(
+                            raw, "Visible_Transmittance", "Visible Transmittance"
+                        ),
+                    )
+                )
             elif material_type == "GlazingLayer":
                 # A true per-pane glass layer (WindowMaterial:Glazing). Unlike
                 # the whole-window SimpleGlazingSystem above, this carries
                 # thickness + optical/thermal data per pane and MAY be composed
                 # with gas gaps in multi-pane assemblies. optical_data_type is
                 # fixed to SpectralAverage for the simplified YAML path.
-                self.idf.add(WindowMaterialGlazing(**_clean_kwargs({
-                    "name": name,
-                    "optical_data_type": _get(
-                        raw, "Optical_Data_Type", "Optical Data Type",
-                        default="SpectralAverage",
-                    ),
-                    "thickness": _get(raw, "Thickness"),
-                    "solar_transmittance_at_normal_incidence": _get(
-                        raw, "Solar_Transmittance_at_Normal_Incidence",
-                        "Solar Transmittance at Normal Incidence",
-                    ),
-                    "front_side_solar_reflectance_at_normal_incidence": _get(
-                        raw, "Front_Side_Solar_Reflectance_at_Normal_Incidence",
-                        "Front Side Solar Reflectance at Normal Incidence",
-                    ),
-                    "back_side_solar_reflectance_at_normal_incidence": _get(
-                        raw, "Back_Side_Solar_Reflectance_at_Normal_Incidence",
-                        "Back Side Solar Reflectance at Normal Incidence",
-                    ),
-                    "visible_transmittance_at_normal_incidence": _get(
-                        raw, "Visible_Transmittance_at_Normal_Incidence",
-                        "Visible Transmittance at Normal Incidence",
-                    ),
-                    "front_side_visible_reflectance_at_normal_incidence": _get(
-                        raw, "Front_Side_Visible_Reflectance_at_Normal_Incidence",
-                        "Front Side Visible Reflectance at Normal Incidence",
-                    ),
-                    "back_side_visible_reflectance_at_normal_incidence": _get(
-                        raw, "Back_Side_Visible_Reflectance_at_Normal_Incidence",
-                        "Back Side Visible Reflectance at Normal Incidence",
-                    ),
-                    "infrared_transmittance_at_normal_incidence": _get(
-                        raw, "Infrared_Transmittance_at_Normal_Incidence",
-                        "Infrared Transmittance at Normal Incidence",
-                    ),
-                    "front_side_infrared_hemispherical_emissivity": _get(
-                        raw, "Front_Side_Infrared_Hemispherical_Emissivity",
-                        "Front Side Infrared Hemispherical Emissivity",
-                    ),
-                    "back_side_infrared_hemispherical_emissivity": _get(
-                        raw, "Back_Side_Infrared_Hemispherical_Emissivity",
-                        "Back Side Infrared Hemispherical Emissivity",
-                    ),
-                    "conductivity": _get(raw, "Conductivity"),
-                    "dirt_correction_factor": _get(
-                        raw, "Dirt_Correction_Factor", "Dirt Correction Factor",
-                    ),
-                    "solar_diffusing": _get(raw, "Solar_Diffusing", "Solar Diffusing"),
-                })))
+                self.idf.add(
+                    WindowMaterialGlazing(
+                        **_clean_kwargs(
+                            {
+                                "name": name,
+                                "optical_data_type": _get(
+                                    raw,
+                                    "Optical_Data_Type",
+                                    "Optical Data Type",
+                                    default="SpectralAverage",
+                                ),
+                                "thickness": _get(raw, "Thickness"),
+                                "solar_transmittance_at_normal_incidence": _get(
+                                    raw,
+                                    "Solar_Transmittance_at_Normal_Incidence",
+                                    "Solar Transmittance at Normal Incidence",
+                                ),
+                                "front_side_solar_reflectance_at_normal_incidence": _get(
+                                    raw,
+                                    "Front_Side_Solar_Reflectance_at_Normal_Incidence",
+                                    "Front Side Solar Reflectance at Normal Incidence",
+                                ),
+                                "back_side_solar_reflectance_at_normal_incidence": _get(
+                                    raw,
+                                    "Back_Side_Solar_Reflectance_at_Normal_Incidence",
+                                    "Back Side Solar Reflectance at Normal Incidence",
+                                ),
+                                "visible_transmittance_at_normal_incidence": _get(
+                                    raw,
+                                    "Visible_Transmittance_at_Normal_Incidence",
+                                    "Visible Transmittance at Normal Incidence",
+                                ),
+                                "front_side_visible_reflectance_at_normal_incidence": _get(
+                                    raw,
+                                    "Front_Side_Visible_Reflectance_at_Normal_Incidence",
+                                    "Front Side Visible Reflectance at Normal Incidence",
+                                ),
+                                "back_side_visible_reflectance_at_normal_incidence": _get(
+                                    raw,
+                                    "Back_Side_Visible_Reflectance_at_Normal_Incidence",
+                                    "Back Side Visible Reflectance at Normal Incidence",
+                                ),
+                                "infrared_transmittance_at_normal_incidence": _get(
+                                    raw,
+                                    "Infrared_Transmittance_at_Normal_Incidence",
+                                    "Infrared Transmittance at Normal Incidence",
+                                ),
+                                "front_side_infrared_hemispherical_emissivity": _get(
+                                    raw,
+                                    "Front_Side_Infrared_Hemispherical_Emissivity",
+                                    "Front Side Infrared Hemispherical Emissivity",
+                                ),
+                                "back_side_infrared_hemispherical_emissivity": _get(
+                                    raw,
+                                    "Back_Side_Infrared_Hemispherical_Emissivity",
+                                    "Back Side Infrared Hemispherical Emissivity",
+                                ),
+                                "conductivity": _get(raw, "Conductivity"),
+                                "dirt_correction_factor": _get(
+                                    raw,
+                                    "Dirt_Correction_Factor",
+                                    "Dirt Correction Factor",
+                                ),
+                                "solar_diffusing": _get(
+                                    raw, "Solar_Diffusing", "Solar Diffusing"
+                                ),
+                            }
+                        )
+                    )
+                )
 
     def _add_constructions(self, data: dict[str, Any]) -> None:
         layer_fields = [
@@ -1561,11 +1609,12 @@ def _flatten_schedule_data(data: Any) -> list[str]:
     return result
 
 
-def _reconstruct_config_state(idf_text: str, fields: dict) -> "ConfigState":
+def _reconstruct_config_state(idf_text: str, fields: dict) -> ConfigState:
     """Rebuild a ConfigState from pickled IDF text + field dict."""
     cs = ConfigState(**fields)
     if idf_text:
         import tempfile
+
         with tempfile.NamedTemporaryFile(mode="w", suffix=".idf", delete=False) as tf:
             tf.write(idf_text)
             loaded = IDF.load(Path(tf.name))

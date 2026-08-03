@@ -49,7 +49,9 @@ def build_react_agent(
 
     def llm_node(state: ReactState) -> dict:
         base_messages = [SystemMessage(content=effective_prompt), *state.messages]
-        has_tool_history = any(getattr(m, "type", None) == "tool" for m in state.messages)
+        has_tool_history = any(
+            getattr(m, "type", None) == "tool" for m in state.messages
+        )
         retry_messages: list[AnyMessage] = []
         last_error: Exception | None = None
 
@@ -63,7 +65,7 @@ def build_react_agent(
                     last_error = exc
                     if exc_attempt == LLM_EXCEPTION_RETRIES:
                         raise
-                    time.sleep(2 ** exc_attempt)
+                    time.sleep(2**exc_attempt)
 
             tool_calls = getattr(response, "tool_calls", None) or []
             if has_tool_history or tool_calls:

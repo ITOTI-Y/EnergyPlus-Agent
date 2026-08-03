@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Annotated, Any, Final, Literal
+from typing import Annotated, Any, Final
 
 from langchain_core.messages import AnyMessage
 from langgraph.graph.message import add_messages
@@ -169,14 +169,25 @@ def _idf_has_objects(cs: ConfigState) -> bool:
     if idf is None:
         return False
     try:
-        return any(idf.all_of_type(t) for t in (
-            "Zone", "Material", "Material:NoMass", "Material:AirGap",
-            "WindowMaterial:SimpleGlazingSystem", "Construction",
-            "BuildingSurface:Detailed", "FenestrationSurface:Detailed",
-            "Schedule:Compact", "ScheduleTypeLimits",
-            "HVACTemplate:Thermostat", "HVACTemplate:Zone:IdealLoadsAirSystem",
-            "People", "Lights",
-        ))
+        return any(
+            idf.all_of_type(t)
+            for t in (
+                "Zone",
+                "Material",
+                "Material:NoMass",
+                "Material:AirGap",
+                "WindowMaterial:SimpleGlazingSystem",
+                "Construction",
+                "BuildingSurface:Detailed",
+                "FenestrationSurface:Detailed",
+                "Schedule:Compact",
+                "ScheduleTypeLimits",
+                "HVACTemplate:Thermostat",
+                "HVACTemplate:Zone:IdealLoadsAirSystem",
+                "People",
+                "Lights",
+            )
+        )
     except Exception:
         return False
 
@@ -196,8 +207,11 @@ def _merge_idf(old: ConfigState, new: ConfigState) -> Any:
     """
     from idfpy import IDF
 
-    old_d = old._idf.to_dict() if _idf_has_objects(old) else {}
-    new_d = new._idf.to_dict() if _idf_has_objects(new) else {}
+    old_idf = old._idf
+    new_idf = new._idf
+
+    old_d = old_idf.to_dict() if old_idf is not None and _idf_has_objects(old) else {}
+    new_d = new_idf.to_dict() if new_idf is not None and _idf_has_objects(new) else {}
     if not old_d and not new_d:
         return None
 
@@ -294,13 +308,11 @@ def merge_config_state(old: ConfigState, new: ConfigState) -> ConfigState:
 def _idf_from_text(idf_text: str) -> Any:
     """Rebuild an idfpy IDF from saved IDF text (used by merge_config_state
     to recover the seed model on revision turns)."""
-    from idfpy import IDF
-
     import tempfile
 
-    with tempfile.NamedTemporaryFile(
-        mode="w", suffix=".idf", delete=False
-    ) as tf:
+    from idfpy import IDF
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".idf", delete=False) as tf:
         tf.write(idf_text)
         loaded = IDF.load(Path(tf.name))
         Path(tf.name).unlink()

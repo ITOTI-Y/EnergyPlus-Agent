@@ -1,5 +1,6 @@
-import pickle
 import os
+import pickle
+from contextlib import suppress
 from pathlib import Path
 from typing import Any
 
@@ -112,7 +113,8 @@ class _ConfigStateSurrogate:
                 os.unlink(tf.name)
         # Capture Pydantic fields (public ones, not PrivateAttr)
         fields = {
-            k: v for k, v in cs.__dict__.items()
+            k: v
+            for k, v in cs.__dict__.items()
             if not k.startswith("_") and not k.startswith("__")
         }
         return cls(idf_text=idf_text, fields=fields)
@@ -133,10 +135,8 @@ class _ConfigStateSurrogate:
                 os.unlink(tf.name)
         # Restore public Pydantic fields
         for k, v in self.fields.items():
-            try:
+            with suppress(Exception):
                 setattr(cs, k, v)
-            except Exception:
-                pass
         return cs
 
 

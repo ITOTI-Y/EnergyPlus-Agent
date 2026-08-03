@@ -77,13 +77,16 @@ def zone_agent(state: AgentState) -> AgentStateUpdate:
             if v_round > 0:
                 logger.info(
                     "[zone] validator approved on round {}/{}",
-                    v_round + 1, MAX_ZONE_VALIDATION_ROUNDS,
+                    v_round + 1,
+                    MAX_ZONE_VALIDATION_ROUNDS,
                 )
             break
         # Rejected — feed reasons back to the main agent and rebuild.
         logger.info(
             "[zone] validator rejected (round {}/{}): {}",
-            v_round + 1, MAX_ZONE_VALIDATION_ROUNDS, reasons,
+            v_round + 1,
+            MAX_ZONE_VALIDATION_ROUNDS,
+            reasons,
         )
         final_validation_errors = list(reasons or [])
         feedback = HumanMessage(
@@ -97,16 +100,15 @@ def zone_agent(state: AgentState) -> AgentStateUpdate:
                 + language_directive()
             )
         )
-        result = agent.invoke(
-            ReactState(messages=[*result["messages"], feedback])
-        )
+        result = agent.invoke(ReactState(messages=[*result["messages"], feedback]))
     else:
         # Exhausted all rounds and still not approved — proceed with whatever
         # zones exist (do not block the pipeline). Downstream hvac back-hop
         # and simulate integrity checks remain as safety nets.
         logger.warning(
             "[zone] validation still not approved after {} rounds; proceeding "
-            "with current zones", MAX_ZONE_VALIDATION_ROUNDS,
+            "with current zones",
+            MAX_ZONE_VALIDATION_ROUNDS,
         )
         final_validation_errors = [
             "Zone validation failed after "

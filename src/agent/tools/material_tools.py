@@ -241,23 +241,25 @@ def make_material_tools(config: ConfigState) -> list[BaseTool]:
             data={"hint": "use create_glazing_material instead"},
         )
         try:  # pragma: no cover - unreachable while the guard above is active
-            idf.add(WindowMaterialGlazing(
-                name=name,
-                optical_data_type="SpectralAverage",
-                thickness=thickness,
-                solar_transmittance_at_normal_incidence=solar_transmittance,
-                front_side_solar_reflectance_at_normal_incidence=front_solar_reflectance,
-                back_side_solar_reflectance_at_normal_incidence=back_solar_reflectance,
-                visible_transmittance_at_normal_incidence=visible_transmittance,
-                front_side_visible_reflectance_at_normal_incidence=front_visible_reflectance,
-                back_side_visible_reflectance_at_normal_incidence=back_visible_reflectance,
-                infrared_transmittance_at_normal_incidence=infrared_transmittance,
-                front_side_infrared_hemispherical_emissivity=front_emissivity,
-                back_side_infrared_hemispherical_emissivity=back_emissivity,
-                conductivity=conductivity,
-                dirt_correction_factor_for_solar_and_visible_transmittance=dirt_correction_factor,
-                solar_diffusing=solar_diffusing,
-            ))
+            idf.add(
+                WindowMaterialGlazing(
+                    name=name,
+                    optical_data_type="SpectralAverage",
+                    thickness=thickness,
+                    solar_transmittance_at_normal_incidence=solar_transmittance,
+                    front_side_solar_reflectance_at_normal_incidence=front_solar_reflectance,
+                    back_side_solar_reflectance_at_normal_incidence=back_solar_reflectance,
+                    visible_transmittance_at_normal_incidence=visible_transmittance,
+                    front_side_visible_reflectance_at_normal_incidence=front_visible_reflectance,
+                    back_side_visible_reflectance_at_normal_incidence=back_visible_reflectance,
+                    infrared_transmittance_at_normal_incidence=infrared_transmittance,
+                    front_side_infrared_hemispherical_emissivity=front_emissivity,
+                    back_side_infrared_hemispherical_emissivity=back_emissivity,
+                    conductivity=conductivity,
+                    dirt_correction_factor_for_solar_and_visible_transmittance=dirt_correction_factor,
+                    solar_diffusing=solar_diffusing,
+                )
+            )
             return _ok(
                 f"WindowMaterial:Glazing '{name}' created successfully.",
                 idf.get("WindowMaterial:Glazing", name).model_dump(),
@@ -339,8 +341,10 @@ def make_material_tools(config: ConfigState) -> list[BaseTool]:
                     obj.solar_heat_gain_coefficient = solar_heat_gain_coefficient
                 if visible_transmittance is not None:
                     obj.visible_transmittance = visible_transmittance
-            return _ok(f"Material '{name}' updated successfully.",
-                       {"type": mat_type, **obj.model_dump()})
+            return _ok(
+                f"Material '{name}' updated successfully.",
+                {"type": mat_type, **obj.model_dump()},
+            )
         except Exception as e:
             return _err(f"Error updating material '{name}': {e}")
 

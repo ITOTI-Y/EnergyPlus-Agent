@@ -123,10 +123,7 @@ def make_zone_validator_tools() -> list[BaseTool]:
 
 def _created_zones(local: ConfigState) -> list[dict[str, Any]]:
     """Serialize the zones currently in ``local`` for the validator prompt."""
-    return [
-        z.model_dump(exclude_none=True)
-        for z in _idf_values(local.idf, "Zone")
-    ]
+    return [z.model_dump(exclude_none=True) for z in _idf_values(local.idf, "Zone")]
 
 
 def _parse_verdict(result: dict[str, Any]) -> ValidatorVerdict:
