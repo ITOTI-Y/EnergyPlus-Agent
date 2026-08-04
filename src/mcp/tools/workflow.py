@@ -86,6 +86,7 @@ class WorkflowTool:
             ToolResponse with IDF path and output directory on success.
         """
         from uuid import uuid4
+
         try:
             validation = self.validate_config()
             if not validation.success:
@@ -95,7 +96,10 @@ class WorkflowTool:
                     data=validation.data,
                 )
 
-            run_dir = Path(output_dir) / f"run_{time.strftime('%Y%m%d_%H%M%S')}_{uuid4().hex[:8]}"
+            run_dir = (
+                Path(output_dir)
+                / f"run_{time.strftime('%Y%m%d_%H%M%S')}_{uuid4().hex[:8]}"
+            )
             run_dir.mkdir(parents=True, exist_ok=True)
             temp_idf = run_dir / "temp.idf"
             self.state.save_idf(temp_idf)

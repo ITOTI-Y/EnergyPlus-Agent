@@ -1126,9 +1126,7 @@ class ConfigState(BaseSchema):
         if raw and not _idf_values(self.idf, "Output:Diagnostics"):
             items = _as_items(_get(raw, "diagnostics", "Diagnostics"))
             keys = [
-                k
-                for item in items
-                if (k := _get(item, "key", "Key", "Key 1", "key_1"))
+                k for item in items if (k := _get(item, "key", "Key", "Key 1", "key_1"))
             ]
             if not keys:
                 key = _get(raw, "Key 1", "Key", "key_1")
@@ -1137,7 +1135,9 @@ class ConfigState(BaseSchema):
             if keys:
                 self.idf.add(
                     OutputDiagnostics(
-                        diagnostics=[OutputDiagnosticsDiagnosticsItem(key=k) for k in keys]
+                        diagnostics=[
+                            OutputDiagnosticsDiagnosticsItem(key=k) for k in keys
+                        ]
                     )
                 )
 

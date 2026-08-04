@@ -58,7 +58,11 @@ class BaseTool(ABC):
             try:
                 items = self.state.idf.all_of_type(object_type)
             except (KeyError, ValueError, TypeError) as exc:
-                logger.error("Error iterating over {object_type}s: {exc!s}", object_type=object_type, exc=exc)
+                logger.error(
+                    "Error iterating over {object_type}s: {exc!s}",
+                    object_type=object_type,
+                    exc=exc,
+                )
                 continue
             for key, obj in items.items():
                 yield object_type, key, obj
