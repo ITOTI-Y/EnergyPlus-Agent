@@ -1,4 +1,5 @@
 import json
+from typing import Literal
 
 from idfpy.models.constructions import Construction
 from idfpy.models.thermal_zones import (
@@ -19,12 +20,11 @@ def _err(msg: str, data=None) -> str:
 
 
 def make_fenestration_tools(config: ConfigState) -> list[BaseTool]:
-    idf = config.idf
 
     @tool
     def create_fenestration(
         name: str,
-        surface_type: str,
+        surface_type: Literal["Window", "Door", "GlassDoor"],
         construction_name: str,
         building_surface_name: str,
         vertices: list[dict[str, float]],
@@ -49,22 +49,37 @@ def make_fenestration_tools(config: ConfigState) -> list[BaseTool]:
                          {"X": 1.75, "Y": 0.0, "Z": 2.0}]
             multiplier: Number of identical copies (>= 1).
         """
+        idf = config.idf
         if idf.has("FenestrationSurface:Detailed", name):
             return _err(f"Fenestration '{name}' already exists.")
         try:
-            kwargs: dict = {
-                "name": name,
-                "surface_type": surface_type,
-                "construction_name": construction_name,
-                "building_surface_name": building_surface_name,
-                "multiplier": float(multiplier),
-                "number_of_vertices": len(vertices),
-            }
-            for i, v in enumerate(vertices, start=1):
-                kwargs[f"vertex_{i}_x_coordinate"] = float(v["X"])
-                kwargs[f"vertex_{i}_y_coordinate"] = float(v["Y"])
-                kwargs[f"vertex_{i}_z_coordinate"] = float(v["Z"])
-            fenestration = FenestrationSurfaceDetailed(**kwargs)
+            assert len(vertices) >= 3, "At least 3 vertices are required."
+            fenestration = FenestrationSurfaceDetailed(
+                name=name,
+                surface_type=surface_type,
+                construction_name=construction_name,
+                building_surface_name=building_surface_name,
+                multiplier=float(multiplier),
+                number_of_vertices=len(vertices),
+                vertex_1_x_coordinate=float(vertices[0]["X"]),
+                vertex_1_y_coordinate=float(vertices[0]["Y"]),
+                vertex_1_z_coordinate=float(vertices[0]["Z"]),
+                vertex_2_x_coordinate=float(vertices[1]["X"]),
+                vertex_2_y_coordinate=float(vertices[1]["Y"]),
+                vertex_2_z_coordinate=float(vertices[1]["Z"]),
+                vertex_3_x_coordinate=float(vertices[2]["X"]),
+                vertex_3_y_coordinate=float(vertices[2]["Y"]),
+                vertex_3_z_coordinate=float(vertices[2]["Z"]),
+                vertex_4_x_coordinate=float(vertices[3]["X"])
+                if len(vertices) > 3
+                else None,
+                vertex_4_y_coordinate=float(vertices[3]["Y"])
+                if len(vertices) > 3
+                else None,
+                vertex_4_z_coordinate=float(vertices[3]["Z"])
+                if len(vertices) > 3
+                else None,
+            )
             idf.add(fenestration)
             return _ok(
                 f"Fenestration '{name}' created successfully.",
@@ -76,6 +91,7 @@ def make_fenestration_tools(config: ConfigState) -> list[BaseTool]:
     @tool
     def list_fenestrations() -> str:
         """List all fenestration surfaces."""
+        idf = config.idf
         items = [
             f.model_dump()
             for f in idf.all_of_type(FenestrationSurfaceDetailed).values()
@@ -85,6 +101,7 @@ def make_fenestration_tools(config: ConfigState) -> list[BaseTool]:
     @tool
     def get_fenestration(name: str) -> str:
         """Read a fenestration by name."""
+        idf = config.idf
         obj = idf.get(FenestrationSurfaceDetailed, name)
         if obj is None:
             return _err(f"Fenestration '{name}' not found.")
@@ -93,6 +110,7 @@ def make_fenestration_tools(config: ConfigState) -> list[BaseTool]:
     @tool
     def delete_fenestration(name: str) -> str:
         """Delete a fenestration."""
+        idf = config.idf
         if not idf.has("FenestrationSurface:Detailed", name):
             return _err(f"Fenestration '{name}' not found.")
         idf.remove("FenestrationSurface:Detailed", name)
@@ -101,6 +119,7 @@ def make_fenestration_tools(config: ConfigState) -> list[BaseTool]:
     @tool
     def list_surfaces() -> str:
         """Read-only: list parent surfaces a fenestration can attach to."""
+        idf = config.idf
         items = [
             s.model_dump() for s in idf.all_of_type(BuildingSurfaceDetailed).values()
         ]
@@ -109,6 +128,7 @@ def make_fenestration_tools(config: ConfigState) -> list[BaseTool]:
     @tool
     def list_constructions() -> str:
         """Read-only: list constructions a fenestration can reference."""
+        idf = config.idf
         items = [c.model_dump() for c in idf.all_of_type(Construction).values()]
         return _ok(f"Listed {len(items)} constructions.", items)
 

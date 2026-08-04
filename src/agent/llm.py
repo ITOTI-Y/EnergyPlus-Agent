@@ -26,7 +26,7 @@ def create_llm(config: LLMConfig | None = None) -> BaseChatModel:
         )
         config = LLMConfig.model_validate(OmegaConf.to_container(raw, resolve=True))
 
-    model_id = f"{config.provider}:{config.model_name}"
+    model_id = f"{config.model_name}"
     kwargs: dict[str, Any] = {
         "temperature": config.temperature,
         "max_tokens": config.max_tokens,

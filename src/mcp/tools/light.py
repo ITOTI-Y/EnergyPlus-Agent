@@ -14,7 +14,12 @@ class LightTool(BaseTool):
     def object_types(self) -> tuple[str, ...]:
         return ("Lights", "Light")
 
-    def _create_model(self, data: dict[str, Any]) -> Lights:
+    def _create_model(
+        self,
+        data: dict[str, Any],
+        *,
+        existing_object_type: str | None = None,
+    ) -> Lights:
         return Lights(**normalize_payload(data))
 
     def _get_name(self, instance: Lights) -> str:

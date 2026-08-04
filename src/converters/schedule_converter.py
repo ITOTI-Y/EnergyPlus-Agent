@@ -82,7 +82,7 @@ class ScheduleConverter(BaseConverter):
                     )
                     self.state["skipped"] += 1
             elif isinstance(val_data, ScheduleCompactSchema):
-                if not self.idf.has("ScheduleCompact", val_data.name):
+                if not self.idf.has(ScheduleCompact, val_data.name):
                     self.idf.add(
                         ScheduleCompact(
                             name=val_data.name,

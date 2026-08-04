@@ -17,7 +17,6 @@ def _err(msg: str, data=None) -> str:
 
 def make_zone_tools(config: ConfigState) -> list[BaseTool]:
     """Create Zone CRUD tools bound to `config`."""
-    idf = config.idf
 
     @tool
     def create_zone(
@@ -38,6 +37,7 @@ def make_zone_tools(config: ConfigState) -> list[BaseTool]:
             direction_of_relative_north: Zone rotation (degrees, 0-360).
             multiplier: Zone multiplier (>= 1) for repeated identical zones.
         """
+        idf = config.idf
         if idf.has("Zone", name):
             return _err(f"Zone '{name}' already exists.")
         try:
@@ -60,12 +60,14 @@ def make_zone_tools(config: ConfigState) -> list[BaseTool]:
     @tool
     def list_zones() -> str:
         """List all existing thermal zones."""
+        idf = config.idf
         items = [z.model_dump() for z in idf.all_of_type(Zone).values()]
         return _ok(f"Listed {len(items)} zones.", items)
 
     @tool
     def get_zone(name: str) -> str:
         """Read a zone by name."""
+        idf = config.idf
         obj = idf.get(Zone, name)
         if obj is None:
             return _err(f"Zone '{name}' not found.")
@@ -81,6 +83,7 @@ def make_zone_tools(config: ConfigState) -> list[BaseTool]:
         multiplier: int | None = None,
     ) -> str:
         """Update a zone's origin coordinates."""
+        idf = config.idf
         obj = idf.get(Zone, name)
         if obj is None:
             return _err(f"Zone '{name}' not found.")
@@ -99,6 +102,7 @@ def make_zone_tools(config: ConfigState) -> list[BaseTool]:
     @tool
     def delete_zone(name: str) -> str:
         """Delete a zone by name."""
+        idf = config.idf
         refs = []
         for s in idf.all_of_type(BuildingSurfaceDetailed).values():
             if s.zone_name == name:

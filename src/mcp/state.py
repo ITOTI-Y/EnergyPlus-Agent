@@ -117,11 +117,16 @@ def _vertices(value: Any) -> list[dict[str, float]]:
     result: list[dict[str, float]] = []
     for vertex in value or []:
         if isinstance(vertex, dict):
+            x = _get(vertex, "X", "x", "vertex_x_coordinate")
+            y = _get(vertex, "Y", "y", "vertex_y_coordinate")
+            z = _get(vertex, "Z", "z", "vertex_z_coordinate")
+            if x is None or y is None or z is None:
+                continue
             result.append(
                 {
-                    "X": float(_get(vertex, "X", "x")),
-                    "Y": float(_get(vertex, "Y", "y")),
-                    "Z": float(_get(vertex, "Z", "z")),
+                    "X": float(x),
+                    "Y": float(y),
+                    "Z": float(z),
                 }
             )
         elif isinstance(vertex, (list, tuple)) and len(vertex) >= 3:
@@ -137,8 +142,8 @@ def _idf_values(idf: IDF, *object_types: str) -> list[Any]:
     for object_type in object_types:
         try:
             objs = idf.all_of_type(object_type)
-        except Exception:
-            continue
+        except Exception as e:
+            raise ValueError(f"Unknown object type: {object_type}") from e
         for obj in objs.values():
             marker = id(obj)
             if marker not in seen:
@@ -1119,11 +1124,20 @@ class ConfigState(BaseSchema):
 
         raw = data.get("Output:Diagnostics")
         if raw and not _idf_values(self.idf, "Output:Diagnostics"):
-            key = _get(raw, "Key 1", "Key", "key_1")
-            if key:
+            items = _as_items(_get(raw, "diagnostics", "Diagnostics"))
+            keys = [
+                k
+                for item in items
+                if (k := _get(item, "key", "Key", "Key 1", "key_1"))
+            ]
+            if not keys:
+                key = _get(raw, "Key 1", "Key", "key_1")
+                if key:
+                    keys = [key]
+            if keys:
                 self.idf.add(
                     OutputDiagnostics(
-                        diagnostics=[OutputDiagnosticsDiagnosticsItem(key=key)]
+                        diagnostics=[OutputDiagnosticsDiagnosticsItem(key=k) for k in keys]
                     )
                 )
 

@@ -14,7 +14,12 @@ class LocationTool(BaseTool):
     def object_types(self) -> tuple[str, ...]:
         return ("Site:Location",)
 
-    def _create_model(self, data: dict[str, Any]) -> SiteLocation:
+    def _create_model(
+        self,
+        data: dict[str, Any],
+        *,
+        existing_object_type: str | None = None,
+    ) -> SiteLocation:
         return SiteLocation(**normalize_payload(data))
 
     def _get_name(self, instance: SiteLocation) -> str:
