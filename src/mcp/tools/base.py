@@ -40,7 +40,12 @@ class BaseTool(ABC):
     def object_types(self) -> tuple[str, ...]: ...
 
     @abstractmethod
-    def _create_model(self, data: dict[str, Any]) -> Any: ...
+    def _create_model(
+        self,
+        data: dict[str, Any],
+        *,
+        existing_object_type: str | None = None,
+    ) -> Any: ...
 
     @abstractmethod
     def _get_name(self, instance: Any) -> str: ...
@@ -52,7 +57,8 @@ class BaseTool(ABC):
         for object_type in self.object_types:
             try:
                 items = self.state.idf.all_of_type(object_type)
-            except Exception:
+            except (KeyError, ValueError, TypeError) as exc:
+                logger.error("Error iterating over {object_type}s: {exc!s}", object_type=object_type, exc=exc)
                 continue
             for key, obj in items.items():
                 yield object_type, key, obj
@@ -136,17 +142,20 @@ class BaseTool(ABC):
         )
 
     def update(self, name: str, data: dict[str, Any]) -> ToolResponse:
-        obj = self.storage.get(name)
-        if obj is None:
+        entry = self._find_entry(name)
+        if entry is None:
             return ToolResponse(
                 success=False,
                 message=f"Component '{self.component_name}':'{name}' not found.",
             )
+        object_type, _key, obj = entry
 
         try:
             existing_data = dump_obj(obj)
             existing_data.update(normalize_payload(data))
-            updated = self._create_model(existing_data)
+            updated = self._create_model(
+                existing_data, existing_object_type=object_type
+            )
             new_name = self._get_name(updated)
             if new_name != name and new_name in self.storage:
                 return ToolResponse(
@@ -155,7 +164,11 @@ class BaseTool(ABC):
                 )
 
             self._remove_from_idf(name)
-            self._add_to_idf(updated)
+            try:
+                self._add_to_idf(updated)
+            except Exception:
+                self._add_to_idf(obj)
+                raise
             return ToolResponse(
                 success=True,
                 message=f"Component '{self.component_name}':'{name}' updated successfully.",

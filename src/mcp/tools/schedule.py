@@ -52,7 +52,12 @@ class ScheduleTypeLimitsTool(BaseTool):
     def object_types(self) -> tuple[str, ...]:
         return ("ScheduleTypeLimits",)
 
-    def _create_model(self, data: dict[str, Any]) -> ScheduleTypeLimits:
+    def _create_model(
+        self,
+        data: dict[str, Any],
+        *,
+        existing_object_type: str | None = None,
+    ) -> ScheduleTypeLimits:
         payload = normalize_payload(data)
         for key in ("lower_limit_value", "upper_limit_value"):
             if payload.get(key) == "":
@@ -78,7 +83,12 @@ class ScheduleCompactTool(BaseTool):
     def object_types(self) -> tuple[str, ...]:
         return ("Schedule:Compact", "ScheduleCompact")
 
-    def _create_model(self, data: dict[str, Any]) -> ScheduleCompact:
+    def _create_model(
+        self,
+        data: dict[str, Any],
+        *,
+        existing_object_type: str | None = None,
+    ) -> ScheduleCompact:
         payload = normalize_payload(data)
         raw_data = payload.pop("data", payload.pop("times", None))
         if raw_data is not None:

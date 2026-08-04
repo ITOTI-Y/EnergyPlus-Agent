@@ -1,4 +1,5 @@
 import json
+from typing import Literal
 
 from idfpy.models.outputs import OutputVariable
 from langchain_core.tools import BaseTool, tool
@@ -15,13 +16,14 @@ def _err(msg: str, data=None) -> str:
 
 
 def make_output_tools(config: ConfigState) -> list[BaseTool]:
-    idf = config.idf
 
     @tool
     def add_output_variable(
         variable_name: str,
         key_value: str = "*",
-        reporting_frequency: str = "Hourly",
+        reporting_frequency: Literal[
+            "Detailed", "Timestep", "Hourly", "Daily", "Monthly", "RunPeriod"
+        ] = "Hourly",
     ) -> str:
         """Add an Output:Variable request.
 
@@ -30,13 +32,12 @@ def make_output_tools(config: ConfigState) -> list[BaseTool]:
             key_value: Object key filter; '*' means all matching objects.
             reporting_frequency: Detailed / Timestep / Hourly / Daily / Monthly / RunPeriod.
         """
+        idf = config.idf
         try:
-            output_variable = OutputVariable.model_validate(
-                {
-                    "key_value": key_value,
-                    "variable_name": variable_name,
-                    "reporting_frequency": reporting_frequency,
-                }
+            output_variable = OutputVariable(
+                key_value=key_value,
+                variable_name=variable_name,
+                reporting_frequency=reporting_frequency,
             )
             idf.add(output_variable)
             return _ok(f"Output:Variable '{variable_name}' added successfully.")
@@ -46,7 +47,8 @@ def make_output_tools(config: ConfigState) -> list[BaseTool]:
     @tool
     def list_output_variables() -> str:
         """List all registered Output:Variable entries."""
-        items = [ov.model_dump() for ov in idf.all_of_type("Output:Variable").values()]
+        idf = config.idf
+        items = [ov.model_dump() for ov in idf.all_of_type(OutputVariable).values()]
         return _ok(f"Listed {len(items)} Output:Variable entries.", items)
 
     return [add_output_variable, list_output_variables]

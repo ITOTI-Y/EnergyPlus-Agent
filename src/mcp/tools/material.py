@@ -11,6 +11,15 @@ from idfpy.models.constructions import (
 from src.mcp.state import ConfigState
 from src.mcp.tools.base import BaseTool, normalize_payload
 
+_OBJECT_TYPE_TO_MATERIAL_TYPE = {
+    "Material": "Standard",
+    "Material:NoMass": "NoMass",
+    "MaterialNoMass": "NoMass",
+    "Material:AirGap": "AirGap",
+    "MaterialAirGap": "AirGap",
+    "WindowMaterial:SimpleGlazingSystem": "Glazing",
+}
+
 
 class MaterialTool(BaseTool):
     def __init__(self, state: ConfigState):
@@ -30,9 +39,19 @@ class MaterialTool(BaseTool):
     def _create_model(
         self,
         data: dict[str, Any],
+        *,
+        existing_object_type: str | None = None,
     ) -> Material | MaterialNoMass | MaterialAirGap | WindowMaterialSimpleGlazingSystem:
         payload = normalize_payload(data)
-        material_type = payload.pop("type", payload.pop("material_type", None))
+        material_type = payload.pop("type", None)
+        if material_type is None:
+            material_type = payload.pop("material_type", None)
+        else:
+            payload.pop("material_type", None)
+
+        if material_type is None and existing_object_type is not None:
+            material_type = _OBJECT_TYPE_TO_MATERIAL_TYPE.get(existing_object_type)
+
         if material_type is None:
             if "u_factor" in payload:
                 material_type = "Glazing"

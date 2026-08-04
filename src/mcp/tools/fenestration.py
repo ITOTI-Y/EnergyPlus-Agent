@@ -14,7 +14,12 @@ class FenestrationTool(BaseTool):
     def object_types(self) -> tuple[str, ...]:
         return ("FenestrationSurface:Detailed",)
 
-    def _create_model(self, data: dict[str, Any]) -> FenestrationSurfaceDetailed:
+    def _create_model(
+        self,
+        data: dict[str, Any],
+        *,
+        existing_object_type: str | None = None,
+    ) -> FenestrationSurfaceDetailed:
         payload = normalize_payload(data)
         vertices = payload.pop("vertices", None)
         if str(payload.get("view_factor_to_ground", "")).lower() == "autocalculate":

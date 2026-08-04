@@ -14,7 +14,12 @@ class BuildingTool(BaseTool):
     def object_types(self) -> tuple[str, ...]:
         return ("Building",)
 
-    def _create_model(self, data: dict[str, Any]) -> Building:
+    def _create_model(
+        self,
+        data: dict[str, Any],
+        *,
+        existing_object_type: str | None = None,
+    ) -> Building:
         payload = normalize_payload(data)
         payload.setdefault("loads_convergence_tolerance_value", 0.04)
         payload.setdefault("temperature_convergence_tolerance_value", 0.4)
@@ -26,7 +31,7 @@ class BuildingTool(BaseTool):
     def _get_name(self, instance: Building) -> str:
         if instance.name is None:
             raise ValueError("Building name is required.")
-        return instance.name
+        return instance.name or ""
 
     def _check_references(self, name: str) -> list[str]:
         return []

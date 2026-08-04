@@ -31,7 +31,12 @@ class ConstructionTool(BaseTool):
     def object_types(self) -> tuple[str, ...]:
         return ("Construction",)
 
-    def _create_model(self, data: dict[str, Any]) -> Construction:
+    def _create_model(
+        self,
+        data: dict[str, Any],
+        *,
+        existing_object_type: str | None = None,
+    ) -> Construction:
         payload = normalize_payload(data)
         layers = payload.pop("layers", None)
         if layers:

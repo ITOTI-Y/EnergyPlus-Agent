@@ -17,7 +17,12 @@ class ThermostatTool(BaseTool):
     def object_types(self) -> tuple[str, ...]:
         return ("HVACTemplate:Thermostat",)
 
-    def _create_model(self, data: dict[str, Any]) -> HVACTemplateThermostat:
+    def _create_model(
+        self,
+        data: dict[str, Any],
+        *,
+        existing_object_type: str | None = None,
+    ) -> HVACTemplateThermostat:
         return HVACTemplateThermostat(**normalize_payload(data))
 
     def _get_name(self, instance: HVACTemplateThermostat) -> str:
@@ -42,7 +47,10 @@ class IdealLoadsSystemTool(BaseTool):
         return ("HVACTemplate:Zone:IdealLoadsAirSystem",)
 
     def _create_model(
-        self, data: dict[str, Any]
+        self,
+        data: dict[str, Any],
+        *,
+        existing_object_type: str | None = None,
     ) -> HVACTemplateZoneIdealLoadsAirSystem:
         return HVACTemplateZoneIdealLoadsAirSystem(**normalize_payload(data))
 
