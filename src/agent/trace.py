@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
+from langchain.agents.middleware import AgentMiddleware, wrap_tool_call
 from langchain_core.messages import ToolMessage
 from langgraph.prebuilt.tool_node import ToolCallRequest
 from langgraph.types import Command
@@ -10,11 +11,10 @@ from loguru import logger
 
 
 class TraceCollector:
-    """Collect tool-call traces via ToolNode.wrap_tool_call.
+    """Collect tool-call traces for one phase agent.
 
-    Usage:
-        collector = TraceCollector()
-        tool_node = ToolNode(tools, wrap_tool_call=collector.wrap)
+    Plugged into `create_agent` graphs via `trace_middleware(collector)`,
+    whose `wrap_tool_call` hook delegates to `self.wrap`.
 
     Each phase agent should instantiate its own collector to avoid
     cross-phase contamination under parallel execution.
@@ -59,6 +59,17 @@ class TraceCollector:
 
     def clear(self) -> None:
         self.traces.clear()
+
+
+def trace_middleware(collector: TraceCollector) -> AgentMiddleware:
+    """Adapt a collector to a `create_agent` middleware.
+
+    `create_agent` builds its own ToolNode, so `collector.wrap` cannot be
+    passed as `wrap_tool_call=`. The middleware `wrap_tool_call` hook takes
+    the same `(request, handler)` shape, so the collector plugs in directly.
+    """
+    factory = wrap_tool_call(name=f"TraceMiddleware_{collector.phase}")
+    return factory(collector.wrap)
 
 
 _trace_store: dict[str, list[dict[str, Any]]] = {}

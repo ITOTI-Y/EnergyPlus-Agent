@@ -71,4 +71,6 @@ dev = [
     "grandalf>=0.8",
     "langsmith>=0.7.23",
     "pytest>=9.0.2",
+    "pytest-cov>=7.1.0",
+    "pytest-recording>=0.13.4",
 ]

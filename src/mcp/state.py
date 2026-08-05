@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-from idfpy import IDF
+from idfpy import IDF, RefError
 from idfpy.models.constructions import (
     Construction,
     Material,
@@ -164,6 +164,19 @@ def _field_dict(obj: Any) -> dict[str, Any]:
     return dict(getattr(obj, "__dict__", {}))
 
 
+def missing_references(idf: IDF, instance: Any, object_name: str) -> list[str]:
+    """Validate one instance's cross-references before it is added to the IDF.
+
+    Wraps idfpy's private per-object validation (``IDF.validate()`` only
+    covers objects already added); the instance itself need not be in the
+    IDF, only the referenced providers must already exist. Sole call site
+    of the private API — update here if idfpy changes it.
+    """
+    errors: list[RefError] = []
+    idf._validate_obj_refs(object_name, instance, errors)
+    return [f"{err.field_name}: {err.detail}" for err in errors]
+
+
 class ConfigState(BaseSchema):
     """MCP configuration state backed by an ``idfpy.IDF`` object.
 
@@ -236,6 +249,9 @@ class ConfigState(BaseSchema):
     def new_idf(self) -> None:
         self._idf = IDF()
 
+    def attach_idf(self, idf: IDF) -> None:
+        self._idf = idf
+
     def to_yaml_dict(self) -> dict[str, Any]:
         """Serialize the current IDF contents into a YAML-friendly dict."""
         data: dict[str, Any] = {}
@@ -271,7 +287,7 @@ class ConfigState(BaseSchema):
             "BuildingSurface:Detailed": ("BuildingSurface:Detailed",),
             "FenestrationSurface:Detailed": ("FenestrationSurface:Detailed",),
             "People": ("People",),
-            "Light": ("Lights", "Light"),
+            "Light": ("Lights",),
             "Output:Variable": ("Output:Variable",),
         }
         for yaml_key, object_types in grouped_map.items():
@@ -537,7 +553,7 @@ class ConfigState(BaseSchema):
                         f"People '{people.name}' references schedule '{sched}' which does not exist."
                     )
 
-        for light in _idf_values(self.idf, "Lights", "Light"):
+        for light in _idf_values(self.idf, "Lights"):
             zone = getattr(light, "zone_or_zonelist_or_space_or_spacelist_name", None)
             zone = zone or getattr(
                 light, "zone_or_zone_list_or_space_or_space_list_name", ""
@@ -1088,7 +1104,7 @@ class ConfigState(BaseSchema):
     def _add_lights(self, data: dict[str, Any]) -> None:
         for raw in _as_items(data.get("Light") or data.get("Lights")):
             name = _get(raw, "Name", "name")
-            if not name or _idf_has(self.idf, name, "Lights", "Light"):
+            if not name or _idf_has(self.idf, name, "Lights"):
                 continue
             self.idf.add(
                 Lights(

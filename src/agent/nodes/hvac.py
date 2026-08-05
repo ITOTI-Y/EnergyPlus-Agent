@@ -1,11 +1,11 @@
 from langchain_core.messages import AIMessage
+from pydantic import BaseModel, Field
 
-from src.agent.llm import create_llm
+from src.agent.llm import build_agent
 from src.agent.nodes._share import invoke_with_self_repair
-from src.agent.react import build_react_agent
 from src.agent.state import AgentState, AgentStateUpdate
 from src.agent.tools import make_hvac_tools
-from src.agent.trace import TraceCollector, record_phase_trace
+from src.agent.trace import TraceCollector, record_phase_trace, trace_middleware
 
 HVAC_SYSTEM_PROMPT = """You are an HVAC configuration expert for EnergyPlus.
 Given HVAC specifications, create Thermostat templates and one
@@ -34,25 +34,33 @@ Rules:
 """
 
 
+class HVACResponse(BaseModel):
+    """Structured summary returned by the HVAC phase agent."""
+
+    thermostat_names: list[str] = Field(description="Names of all thermostats created")
+    ideal_loads_zone_names: list[str] = Field(
+        description="Zone names that received an IdealLoadsAirSystem"
+    )
+    summary: str = Field(description="One-line summary of the HVAC creation result")
+
+
 def hvac_agent(state: AgentState) -> AgentStateUpdate:
     local = state.config_state.model_copy(deep=True)
     tools = make_hvac_tools(local)
     collector = TraceCollector(phase="hvac")
 
-    agent = build_react_agent(
-        llm=create_llm(),
+    agent = build_agent(
         tools=tools,
         system_prompt=HVAC_SYSTEM_PROMPT,
-        trace_collector=collector,
+        response_format=HVACResponse,
+        middleware=[trace_middleware(collector)],
     )
 
     specs = state.intake_output.hvac_specs if state.intake_output else state.user_input
     result = invoke_with_self_repair(agent, local, specs, phase="hvac")
 
-    final = [
-        m for m in result["messages"] if isinstance(m, AIMessage) and not m.tool_calls
-    ]
-    summary = final[-1].content if final else "hvac done"
+    response: HVACResponse | None = result.get("structured_response")
+    summary = response.summary if response else "hvac done"
 
     record_phase_trace("hvac", collector.export())
     return AgentStateUpdate(
