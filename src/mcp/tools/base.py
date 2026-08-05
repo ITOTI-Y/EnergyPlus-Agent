@@ -7,7 +7,7 @@ from typing import Any
 from pydantic import ValidationError
 
 from src.mcp.interface import SchemaValidationError, ToolResponse
-from src.mcp.state import ConfigState
+from src.mcp.state import ConfigState, missing_references
 from src.utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -99,6 +99,14 @@ class BaseTool(ABC):
                     message=f"Component '{self.component_name}':'{name}' already exists.",
                 )
 
+            missing = missing_references(self.state.idf, instance, name)
+            if missing:
+                return ToolResponse(
+                    success=False,
+                    message=f"Component '{self.component_name}':'{name}' references missing objects.",
+                    data={"missing_references": missing},
+                )
+
             self._add_to_idf(instance)
             logger.info(
                 "Component '{}':'{}' created with idfpy.",
@@ -165,6 +173,14 @@ class BaseTool(ABC):
                 return ToolResponse(
                     success=False,
                     message=f"Component '{self.component_name}':'{new_name}' already exists.",
+                )
+
+            missing = missing_references(self.state.idf, updated, name)
+            if missing:
+                return ToolResponse(
+                    success=False,
+                    message=f"Component '{self.component_name}':'{name}' references missing objects.",
+                    data={"missing_references": missing},
                 )
 
             self._remove_from_idf(name)

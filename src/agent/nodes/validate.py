@@ -5,8 +5,11 @@ from langgraph.types import Command, interrupt
 
 from src.agent.state import AgentState
 
+Destination = Literal["simulate", "intake"]
+ValidateCommand = Command[Destination]
 
-def validate_node(state: AgentState) -> Command[Literal["simulate", "intake"]]:
+
+def validate_node(state: AgentState) -> ValidateCommand:
     """Validate full config; auto-retry on error up to max_retries; else HITL.
 
     Return behavior:
@@ -18,7 +21,7 @@ def validate_node(state: AgentState) -> Command[Literal["simulate", "intake"]]:
     errors = state.config_state.validate_references()
 
     if errors and state.retry_count < state.max_retries:
-        return Command(
+        return ValidateCommand(
             goto="intake",
             update={
                 "validation_errors": errors,
@@ -41,9 +44,9 @@ def validate_node(state: AgentState) -> Command[Literal["simulate", "intake"]]:
     )
 
     if decision.get("approved"):
-        return Command(goto="simulate")
+        return ValidateCommand(goto="simulate")
 
-    return Command(
+    return ValidateCommand(
         goto="intake",
         update={
             "user_input": decision.get("feedback", state.user_input),

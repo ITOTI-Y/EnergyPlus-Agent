@@ -53,7 +53,9 @@ def make_fenestration_tools(config: ConfigState) -> list[BaseTool]:
         if idf.has("FenestrationSurface:Detailed", name):
             return _err(f"Fenestration '{name}' already exists.")
         try:
-            assert len(vertices) >= 3, "At least 3 vertices are required."
+            assert 3 <= len(vertices) <= 4, (
+                "At least 3 vertices are required, and at most 4 vertices are allowed."
+            )
             fenestration = FenestrationSurfaceDetailed(
                 name=name,
                 surface_type=surface_type,

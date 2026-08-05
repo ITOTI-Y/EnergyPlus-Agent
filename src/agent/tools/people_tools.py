@@ -6,7 +6,7 @@ from idfpy.models.schedules import ScheduleCompact
 from idfpy.models.thermal_zones import Zone
 from langchain_core.tools import BaseTool, tool
 
-from src.mcp.state import ConfigState
+from src.mcp.state import ConfigState, missing_references
 
 
 def _ok(msg: str, data=None) -> str:
@@ -47,7 +47,7 @@ def make_people_tools(config: ConfigState) -> list[BaseTool]:
             fraction_radiant: Radiant fraction of sensible heat (0-1).
         """
         idf = config.idf
-        if idf.has("People", name):
+        if idf.has(People, name):
             return _err(f"People '{name}' already exists.")
         try:
             people = People(
@@ -61,6 +61,12 @@ def make_people_tools(config: ConfigState) -> list[BaseTool]:
                 floor_area_per_person=floor_area_per_person,
                 fraction_radiant=fraction_radiant,
             )
+            missing = missing_references(idf, people, name)
+            if missing:
+                return _err(
+                    f"Cannot create people '{name}': referenced objects do not exist.",
+                    {"missing_references": missing},
+                )
             idf.add(people)
             return _ok(
                 f"People '{name}' created successfully.",

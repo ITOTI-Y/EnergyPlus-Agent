@@ -1,11 +1,11 @@
 from langchain_core.messages import AIMessage
+from pydantic import BaseModel, Field
 
-from src.agent.llm import create_llm
+from src.agent.llm import build_agent
 from src.agent.nodes._share import invoke_with_self_repair
-from src.agent.react import build_react_agent
 from src.agent.state import AgentState, AgentStateUpdate
 from src.agent.tools import make_people_tools
-from src.agent.trace import TraceCollector, record_phase_trace
+from src.agent.trace import TraceCollector, record_phase_trace, trace_middleware
 
 PEOPLE_SYSTEM_PROMPT = """You are an occupancy-load expert for EnergyPlus.
 For each specified zone, create a People object via create_people.
@@ -31,16 +31,23 @@ Rules:
 """
 
 
+class PeopleResponse(BaseModel):
+    """Structured summary returned by the people phase agent."""
+
+    people_names: list[str] = Field(description="Names of all People objects created")
+    summary: str = Field(description="One-line summary of the people creation result")
+
+
 def people_agent(state: AgentState) -> AgentStateUpdate:
     local = state.config_state.model_copy(deep=True)
     tools = make_people_tools(local)
     collector = TraceCollector(phase="people")
 
-    agent = build_react_agent(
-        llm=create_llm(),
+    agent = build_agent(
         tools=tools,
         system_prompt=PEOPLE_SYSTEM_PROMPT,
-        trace_collector=collector,
+        response_format=PeopleResponse,
+        middleware=[trace_middleware(collector)],
     )
 
     specs = (
@@ -48,10 +55,8 @@ def people_agent(state: AgentState) -> AgentStateUpdate:
     )
     result = invoke_with_self_repair(agent, local, specs, phase="people")
 
-    final = [
-        m for m in result["messages"] if isinstance(m, AIMessage) and not m.tool_calls
-    ]
-    summary = final[-1].content if final else "people done"
+    response: PeopleResponse | None = result.get("structured_response")
+    summary = response.summary if response else "people done"
 
     record_phase_trace("people", collector.export())
     return AgentStateUpdate(

@@ -13,7 +13,6 @@ from langgraph.graph.state import CompiledStateGraph
 from loguru import logger
 
 from src.agent._share import language_directive
-from src.agent.react import ReactState
 from src.mcp.state import ConfigState
 
 MAX_SELF_REPAIR_ROUNDS: Final = 2
@@ -32,7 +31,7 @@ def invoke_with_self_repair(
     *,
     phase: str,
 ) -> dict[str, Any]:
-    """Run a phase ReAct agent and force cross-reference self-repair.
+    """Run a phase agent and force cross-reference self-repair.
 
     After each `agent.invoke`, call `local_config.validate_references()`
     in code (not tool — cannot be skipped by the LLM). If errors exist,
@@ -46,18 +45,19 @@ def invoke_with_self_repair(
     report in summary; outer validate loop handles the recovery).
 
     Args:
-        agent: Compiled ReAct subgraph from `build_react_agent`.
+        agent: Compiled agent graph from `build_agent`.
         local_config: The deep-copied ConfigState the phase mutates.
         specs: Natural-language task for the phase (from intake_output).
         phase: Name used in logs ("construction", "surface", ...).
 
     Returns:
-        The final ReAct result dict (shape {"messages": [...]}).
+        The final agent result dict (shape {"messages": [...]}, plus
+        "structured_response" when the agent declares a response_format).
     """
     messages: list[AnyMessage] = [HumanMessage(content=specs)]
 
     for attempt in range(MAX_SELF_REPAIR_ROUNDS + 1):
-        result = agent.invoke(ReactState(messages=messages))
+        result = agent.invoke({"messages": messages})
         errors = local_config.validate_references()
 
         if not errors:
