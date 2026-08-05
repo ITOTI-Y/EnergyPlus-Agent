@@ -48,9 +48,11 @@ from src.agent.runner import run_session
 from src.agent.trace import export_traces, reset_traces
 from src.mcp.state import ConfigState, _idf_values
 from src.results.err_parser import extract_errors
+from tests.agent import gen_test_data
 
 REPO_ROOT: Final = Path(__file__).resolve().parents[2]
-TEST_DATA_ROOT: Final = REPO_ROOT / "tests" / "agent" / "test_data" / "text_only"
+# The corpus is generated on demand outside the repo; gen_test_data owns the path.
+TEST_DATA_ROOT: Final = gen_test_data.OUT_ROOT
 DEFAULT_EPW: Final = REPO_ROOT / "data" / "weather" / "Shenzhen.epw"
 RESULTS_DIR: Final = REPO_ROOT / "output" / "agent_robustness"
 LLM_YAML: Final = REPO_ROOT / "src" / "configs" / "llm.yaml"
@@ -203,7 +205,14 @@ def discover_cases(root: Path = TEST_DATA_ROOT) -> list[CaseSpecSchema]:
     tree; ``--only`` matches prefixes against it. ``category`` and ``scale``
     are sliced from the first two path segments when present so the report
     can aggregate per building type / scale.
+
+    The default corpus lives outside the repo and is regenerated here when
+    missing; an explicit ``root`` is used as-is.
     """
+    if root == TEST_DATA_ROOT and not any(root.rglob("testdata_prompt.json")):
+        logger.info("corpus missing under {}; generating", root)
+        gen_test_data.main()
+
     cases: list[CaseSpecSchema] = []
     for p in sorted(root.rglob("testdata_prompt.json")):
         with p.open(encoding="utf-8") as f:

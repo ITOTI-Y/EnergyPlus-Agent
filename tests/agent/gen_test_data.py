@@ -2,7 +2,11 @@
 
 Creates 9 scale-buckets x 10 cases = 90 ``testdata_prompt.json`` files under
 
-    tests/agent/test_data/text_only/<category>/<scale>/case_<NN>/
+    <system temp dir>/energyplus-agent/test_data/text_only/<category>/<scale>/case_<NN>/
+
+The corpus is a deterministic function of the tables in this module, so it
+is regenerated on demand rather than tracked in git. ``test_run_robustness``
+calls this automatically when the corpus is absent.
 
 Every case is built from real, literature-grounded parameters (DOE
 Commercial Reference Buildings, PNNL prototype models, NIST TN 1765) and
@@ -16,13 +20,15 @@ Idempotent — existing files are overwritten. Run from the repo root:
 
 import json
 import math
+import tempfile
 from pathlib import Path
 from typing import Any, Final
 
 from loguru import logger
 
-REPO_ROOT: Final = Path(__file__).resolve().parents[2]
-OUT_ROOT: Final = REPO_ROOT / "tests" / "agent" / "test_data" / "text_only"
+OUT_ROOT: Final = (
+    Path(tempfile.gettempdir()) / "energyplus-agent" / "test_data" / "text_only"
+)
 
 CASES_PER_BUCKET: Final = 10
 
