@@ -1,10 +1,10 @@
 from langchain_core.messages import AIMessage, HumanMessage
+from pydantic import BaseModel, Field
 
-from src.agent.llm import create_llm
-from src.agent.react import ReactState, build_react_agent
+from src.agent.llm import build_agent
 from src.agent.state import AgentState, AgentStateUpdate
 from src.agent.tools import make_zone_tools
-from src.agent.trace import TraceCollector, record_phase_trace
+from src.agent.trace import TraceCollector, record_phase_trace, trace_middleware
 
 ZONE_SYSTEM_PROMPT = """You are a thermal zone creation expert for EnergyPlus.
 Given zone specifications, create all required zones using create_zone tool.
@@ -21,25 +21,30 @@ Rules:
 """
 
 
+class ZoneResponse(BaseModel):
+    """Structured summary returned by the zone phase agent."""
+
+    zone_names: list[str] = Field(description="Names of all zones created")
+    summary: str = Field(description="One-line summary of the zone creation result")
+
+
 def zone_agent(state: AgentState) -> AgentStateUpdate:
     local = state.config_state.model_copy(deep=True)
     tools = make_zone_tools(local)
     collector = TraceCollector(phase="zone")
 
-    agent = build_react_agent(
-        llm=create_llm(),
+    agent = build_agent(
         tools=tools,
         system_prompt=ZONE_SYSTEM_PROMPT,
-        trace_collector=collector,
+        response_format=ZoneResponse,
+        middleware=[trace_middleware(collector)],
     )
 
     specs = state.intake_output.zone_specs if state.intake_output else state.user_input
-    result = agent.invoke(ReactState(messages=[HumanMessage(content=specs)]))
+    result = agent.invoke({"messages": [HumanMessage(content=specs)]})
 
-    final = [
-        m for m in result["messages"] if isinstance(m, AIMessage) and not m.tool_calls
-    ]
-    summary = final[-1].content if final else "zone done"
+    response: ZoneResponse | None = result.get("structured_response")
+    summary = response.summary if response else "zone done"
 
     record_phase_trace("zone", collector.export())
 

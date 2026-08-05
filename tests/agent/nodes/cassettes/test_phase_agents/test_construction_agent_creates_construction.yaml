@@ -1,0 +1,487 @@
+interactions:
+- request:
+    body: "{\"messages\":[{\"content\":\"You are a construction-assembly expert for
+      EnergyPlus.\\nGiven construction specifications, create all required Construction
+      objects.\\n\\nWorkflow:\\n1. FIRST call `list_materials` to discover which materials
+      are already\\n   defined and their full properties (thickness, conductivity,
+      U-Factor\\n   for glazing, etc.). DO NOT skip this step \u2014 the materials
+      phase uses\\n   names that may differ from what the intake spec suggested.\\n2.
+      Pick the correct layer composition for each construction using the\\n   material
+      names returned by list_materials, verbatim.\\n3. Call `create_construction`
+      for each construction in the spec.\\n4. Call `list_constructions` once at the
+      end to confirm.\\n\\nRules:\\n- Layer names passed to `create_construction`
+      MUST appear verbatim in\\n  the list_materials result (exact case, underscores,
+      dashes, numbers).\\n- If a needed material is missing from list_materials, STOP
+      and report\\n  the gap; do NOT invent names or call create with a broken reference.\\n-
+      Each Construction is an ordered list of layers from OUTSIDE to INSIDE.\\n- Use
+      separate constructions per surface type when thermal properties differ\\n  (e.g.,
+      'ExtWall_Office', 'IntWall_Office', 'Roof_Office', 'Floor_Office',\\n  'Window_Office').\\n-
+      For fenestration, the construction's only layer is the glazing material.\\n\",\"role\":\"system\"},{\"content\":\"Create
+      exactly one construction named 'ExtWall_Simple' with a single layer 'Brick_100mm'.\",\"role\":\"user\"}],\"model\":\"opencode/glm-5.2\",\"max_completion_tokens\":64000,\"parallel_tool_calls\":false,\"stream\":false,\"temperature\":0.7,\"tool_choice\":\"required\",\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"create_construction\",\"description\":\"Create
+      a Construction as an ordered list of material layers.\\n\\n        Args:\\n
+      \           name: Unique construction name (e.g., 'ExtWall_Brick').\\n            layers:
+      Material names from outside to inside. All names must\\n                    already
+      exist in the materials list. >= 1 layer.\",\"parameters\":{\"properties\":{\"name\":{\"type\":\"string\"},\"layers\":{\"items\":{\"type\":\"string\"},\"type\":\"array\"}},\"required\":[\"name\",\"layers\"],\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"list_constructions\",\"description\":\"List
+      all constructions.\",\"parameters\":{\"properties\":{},\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"get_construction\",\"description\":\"Read
+      a construction by name.\",\"parameters\":{\"properties\":{\"name\":{\"type\":\"string\"}},\"required\":[\"name\"],\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"delete_construction\",\"description\":\"Delete
+      a construction. Fails if referenced by surfaces/fenestration.\",\"parameters\":{\"properties\":{\"name\":{\"type\":\"string\"}},\"required\":[\"name\"],\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"list_materials\",\"description\":\"Read-only:
+      list all materials available for use as construction layers.\",\"parameters\":{\"properties\":{},\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"ConstructionResponse\",\"description\":\"Structured
+      summary returned by the construction phase agent.\",\"parameters\":{\"properties\":{\"construction_names\":{\"description\":\"Names
+      of all constructions created\",\"items\":{\"type\":\"string\"},\"type\":\"array\"},\"summary\":{\"description\":\"One-line
+      summary of the construction creation result\",\"type\":\"string\"}},\"required\":[\"construction_names\",\"summary\"],\"type\":\"object\"}}}],\"max_thinking_budget\":4096}"
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate, zstd
+      connection:
+      - keep-alive
+      content-length:
+      - '3386'
+      content-type:
+      - application/json
+      host:
+      - one.chat-yu.net
+      user-agent:
+      - OpenAI/Python 2.52.0
+      x-stainless-arch:
+      - x64
+      x-stainless-async:
+      - 'false'
+      x-stainless-lang:
+      - python
+      x-stainless-os:
+      - Linux
+      x-stainless-package-version:
+      - 2.52.0
+      x-stainless-raw-response:
+      - 'true'
+      x-stainless-retry-count:
+      - '0'
+      x-stainless-runtime:
+      - CPython
+      x-stainless-runtime-version:
+      - 3.12.3
+    method: POST
+    uri: https://one.chat-yu.net/v1/chat/completions
+  response:
+    body:
+      string: !!binary |
+        KLUv/QBYzQsABltQJSCNVgdYXd4Kui2h4hQWxaj7UkKnMrhKk24BaG7A4tZoBQEEBwJMAD8ARwDq
+        npy4rwssGgBwn7OvOhJ+ORoDDAHTYB4B7I520+m+HuVrXQhKt2inEBH5dQcyEWEUMBy05zQoCECi
+        hwCR0GCwCwALQddt4s7uvEsBzWpXcXD2jtpRuq93bM2PuZ1dV85L7Po0ZoVfu1Fk54ic0CP367zb
+        XLNS9tmj5KazmfCLT/K1sEuoE98lB3YODMGj2W0VyZsa0fxWoWpNaJ74FLb49QU3PwlVCgiXJaCh
+        uDchCqUzYqWUBpVsxdve1G5Q6UbavhbRlE5aPfFRnE6cqkRUzxbTl7M3S/c1TRI772utTrMcDGZb
+        y/5yML6WhWHnqBTZTUNQTij6epimh2n6JJ2dOyqMntm+3jS/vcRcjCRnV6jSX38EEwBBkKSmvp0C
+        yNNmcxEZ7i9wZnK7itW42a7b4GYFOKwB6lgKHo3kscsdm2I2AH5hiAyYKSg=
+    headers:
+      alt-svc:
+      - h3=":443"; ma=86400
+      cf-cache-status:
+      - DYNAMIC
+      cf-placement:
+      - remote-ORD
+      cf-ray:
+      - a26281a43c33d743-NRT
+      connection:
+      - keep-alive
+      content-encoding:
+      - zstd
+      content-type:
+      - application/json
+      date:
+      - Wed, 05 Aug 2026 02:52:36 GMT
+      nel:
+      - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
+      report-to:
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=UfxA39Pg%2FVyfVT2uMMOopZthqZ0vR6qMHvA6wZI49YeqOpv9F%2B0rP92AV59V48LTt2jPoq6XvXADAfvpQuv%2BWNNiAD6L4nmjdEwpmusZ003aFvpZID6umoVBWLzLckfgvDc%3D"}]}'
+      server:
+      - cloudflare
+      strict-transport-security:
+      - max-age=31536000
+      transfer-encoding:
+      - chunked
+      via:
+      - 1.1 Caddy
+      x-new-api-version:
+      - v1.0.0-rc.21
+      x-oneapi-request-id:
+      - 202608050252334543816198268d9d6vhJteMzO
+    status:
+      code: 200
+      message: OK
+- request:
+    body: "{\"messages\":[{\"content\":\"You are a construction-assembly expert for
+      EnergyPlus.\\nGiven construction specifications, create all required Construction
+      objects.\\n\\nWorkflow:\\n1. FIRST call `list_materials` to discover which materials
+      are already\\n   defined and their full properties (thickness, conductivity,
+      U-Factor\\n   for glazing, etc.). DO NOT skip this step \u2014 the materials
+      phase uses\\n   names that may differ from what the intake spec suggested.\\n2.
+      Pick the correct layer composition for each construction using the\\n   material
+      names returned by list_materials, verbatim.\\n3. Call `create_construction`
+      for each construction in the spec.\\n4. Call `list_constructions` once at the
+      end to confirm.\\n\\nRules:\\n- Layer names passed to `create_construction`
+      MUST appear verbatim in\\n  the list_materials result (exact case, underscores,
+      dashes, numbers).\\n- If a needed material is missing from list_materials, STOP
+      and report\\n  the gap; do NOT invent names or call create with a broken reference.\\n-
+      Each Construction is an ordered list of layers from OUTSIDE to INSIDE.\\n- Use
+      separate constructions per surface type when thermal properties differ\\n  (e.g.,
+      'ExtWall_Office', 'IntWall_Office', 'Roof_Office', 'Floor_Office',\\n  'Window_Office').\\n-
+      For fenestration, the construction's only layer is the glazing material.\\n\",\"role\":\"system\"},{\"content\":\"Create
+      exactly one construction named 'ExtWall_Simple' with a single layer 'Brick_100mm'.\",\"role\":\"user\"},{\"content\":\"I'll
+      start by checking the available materials to make sure 'Brick_100mm' exists.\",\"role\":\"assistant\",\"tool_calls\":[{\"type\":\"function\",\"id\":\"call_7987\",\"function\":{\"name\":\"list_materials\",\"arguments\":\"{}\"}}]},{\"content\":\"{\\\"success\\\":
+      true, \\\"message\\\": \\\"Listed 1 materials.\\\", \\\"data\\\": [{\\\"type\\\":
+      \\\"Material\\\", \\\"name\\\": \\\"Brick_100mm\\\", \\\"roughness\\\": \\\"MediumRough\\\",
+      \\\"thickness\\\": 0.1, \\\"conductivity\\\": 0.89, \\\"density\\\": 1920.0,
+      \\\"specific_heat\\\": 790.0, \\\"thermal_absorptance\\\": 0.9, \\\"solar_absorptance\\\":
+      0.7, \\\"visible_absorptance\\\": 0.7}]}\",\"role\":\"tool\",\"tool_call_id\":\"call_7987\"}],\"model\":\"opencode/glm-5.2\",\"max_completion_tokens\":64000,\"parallel_tool_calls\":false,\"stream\":false,\"temperature\":0.7,\"tool_choice\":\"required\",\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"create_construction\",\"description\":\"Create
+      a Construction as an ordered list of material layers.\\n\\n        Args:\\n
+      \           name: Unique construction name (e.g., 'ExtWall_Brick').\\n            layers:
+      Material names from outside to inside. All names must\\n                    already
+      exist in the materials list. >= 1 layer.\",\"parameters\":{\"properties\":{\"name\":{\"type\":\"string\"},\"layers\":{\"items\":{\"type\":\"string\"},\"type\":\"array\"}},\"required\":[\"name\",\"layers\"],\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"list_constructions\",\"description\":\"List
+      all constructions.\",\"parameters\":{\"properties\":{},\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"get_construction\",\"description\":\"Read
+      a construction by name.\",\"parameters\":{\"properties\":{\"name\":{\"type\":\"string\"}},\"required\":[\"name\"],\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"delete_construction\",\"description\":\"Delete
+      a construction. Fails if referenced by surfaces/fenestration.\",\"parameters\":{\"properties\":{\"name\":{\"type\":\"string\"}},\"required\":[\"name\"],\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"list_materials\",\"description\":\"Read-only:
+      list all materials available for use as construction layers.\",\"parameters\":{\"properties\":{},\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"ConstructionResponse\",\"description\":\"Structured
+      summary returned by the construction phase agent.\",\"parameters\":{\"properties\":{\"construction_names\":{\"description\":\"Names
+      of all constructions created\",\"items\":{\"type\":\"string\"},\"type\":\"array\"},\"summary\":{\"description\":\"One-line
+      summary of the construction creation result\",\"type\":\"string\"}},\"required\":[\"construction_names\",\"summary\"],\"type\":\"object\"}}}],\"max_thinking_budget\":4096}"
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate, zstd
+      connection:
+      - keep-alive
+      content-length:
+      - '3996'
+      content-type:
+      - application/json
+      host:
+      - one.chat-yu.net
+      user-agent:
+      - OpenAI/Python 2.52.0
+      x-stainless-arch:
+      - x64
+      x-stainless-async:
+      - 'false'
+      x-stainless-lang:
+      - python
+      x-stainless-os:
+      - Linux
+      x-stainless-package-version:
+      - 2.52.0
+      x-stainless-raw-response:
+      - 'true'
+      x-stainless-retry-count:
+      - '0'
+      x-stainless-runtime:
+      - CPython
+      x-stainless-runtime-version:
+      - 3.12.3
+    method: POST
+    uri: https://one.chat-yu.net/v1/chat/completions
+  response:
+    body:
+      string: !!binary |
+        KLUv/QBYvQwAtlxVJRCPVgdAzzNBspLpU+sRo2aF+RutxEkvgoZw5WEj5prjAAAAAHBQAEYASgDu
+        F4n1uc1FqF0v0HgAPK58nfeJ7wp5DEQkkUcEErD+bLOV7XoYXS9HL7ZGt6WgxOufiQeiITgMLFim
+        wHw8kGdgaaAoSHAA4Oi1ZlD7+uN+CQFORXOygKGYObnNnloI4usNt2Fs1zdkPd2c7OvLUf6yvhU2
+        574rswTXJyXKqBL5+snMmsMx9tdhnGylA00H3cSVWbfsAwPRcw8OM4toy8Ebtd40l6/PhvukimTX
+        O5elh9LE1ze66OuXoTAOM9M7Fej2MXh9A0bXTZI9YWxqoVaKmaGgLCKDasyezrKK8R7DBNOZr/eM
+        7TpNzBLcdtLC0QgB5FmosfbL+mTHeh9HHRIJs459JXBcIw7J+oRbEdvp6EUZSdfJNE2m6dPkzRsJ
+        td5MuReM3yh9sxwXADxLuTkIqEUIgsw19e0UwJo2A0REnf7sfXqtwPgRbQ5kyNi1eBaNpVZgaxeQ
+        GcdqbCLZAPlBBjNoBgqYqT0=
+    headers:
+      alt-svc:
+      - h3=":443"; ma=86400
+      cf-cache-status:
+      - DYNAMIC
+      cf-placement:
+      - remote-ORD
+      cf-ray:
+      - a26281b99b2ed743-NRT
+      connection:
+      - keep-alive
+      content-encoding:
+      - zstd
+      content-type:
+      - application/json
+      date:
+      - Wed, 05 Aug 2026 02:52:38 GMT
+      nel:
+      - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
+      report-to:
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=JfmpOSaR8hKuOmnAMKvEjNZnNRL7Wh3GF1TezEWJzurM1a%2FCfq5mfF%2F5UeQK%2BBRzXu7Pq1XmfyE8Zk3Qh59tmr3mw3SWuD1Td%2FJpz3ReBKUQj5M8wpFQLo5aWr6C0TOk1a4%3D"}]}'
+      server:
+      - cloudflare
+      strict-transport-security:
+      - max-age=31536000
+      transfer-encoding:
+      - chunked
+      via:
+      - 1.1 Caddy
+      x-new-api-version:
+      - v1.0.0-rc.21
+      x-oneapi-request-id:
+      - 202608050252368717878468268d9d6RVoZxsQH
+    status:
+      code: 200
+      message: OK
+- request:
+    body: "{\"messages\":[{\"content\":\"You are a construction-assembly expert for
+      EnergyPlus.\\nGiven construction specifications, create all required Construction
+      objects.\\n\\nWorkflow:\\n1. FIRST call `list_materials` to discover which materials
+      are already\\n   defined and their full properties (thickness, conductivity,
+      U-Factor\\n   for glazing, etc.). DO NOT skip this step \u2014 the materials
+      phase uses\\n   names that may differ from what the intake spec suggested.\\n2.
+      Pick the correct layer composition for each construction using the\\n   material
+      names returned by list_materials, verbatim.\\n3. Call `create_construction`
+      for each construction in the spec.\\n4. Call `list_constructions` once at the
+      end to confirm.\\n\\nRules:\\n- Layer names passed to `create_construction`
+      MUST appear verbatim in\\n  the list_materials result (exact case, underscores,
+      dashes, numbers).\\n- If a needed material is missing from list_materials, STOP
+      and report\\n  the gap; do NOT invent names or call create with a broken reference.\\n-
+      Each Construction is an ordered list of layers from OUTSIDE to INSIDE.\\n- Use
+      separate constructions per surface type when thermal properties differ\\n  (e.g.,
+      'ExtWall_Office', 'IntWall_Office', 'Roof_Office', 'Floor_Office',\\n  'Window_Office').\\n-
+      For fenestration, the construction's only layer is the glazing material.\\n\",\"role\":\"system\"},{\"content\":\"Create
+      exactly one construction named 'ExtWall_Simple' with a single layer 'Brick_100mm'.\",\"role\":\"user\"},{\"content\":\"I'll
+      start by checking the available materials to make sure 'Brick_100mm' exists.\",\"role\":\"assistant\",\"tool_calls\":[{\"type\":\"function\",\"id\":\"call_7987\",\"function\":{\"name\":\"list_materials\",\"arguments\":\"{}\"}}]},{\"content\":\"{\\\"success\\\":
+      true, \\\"message\\\": \\\"Listed 1 materials.\\\", \\\"data\\\": [{\\\"type\\\":
+      \\\"Material\\\", \\\"name\\\": \\\"Brick_100mm\\\", \\\"roughness\\\": \\\"MediumRough\\\",
+      \\\"thickness\\\": 0.1, \\\"conductivity\\\": 0.89, \\\"density\\\": 1920.0,
+      \\\"specific_heat\\\": 790.0, \\\"thermal_absorptance\\\": 0.9, \\\"solar_absorptance\\\":
+      0.7, \\\"visible_absorptance\\\": 0.7}]}\",\"role\":\"tool\",\"tool_call_id\":\"call_7987\"},{\"content\":\"The
+      material 'Brick_100mm' exists. Now I'll create the construction.\",\"role\":\"assistant\",\"tool_calls\":[{\"type\":\"function\",\"id\":\"call_0b0e\",\"function\":{\"name\":\"create_construction\",\"arguments\":\"{\\\"name\\\":
+      \\\"ExtWall_Simple\\\", \\\"layers\\\": [\\\"Brick_100mm\\\"]}\"}}]},{\"content\":\"{\\\"success\\\":
+      true, \\\"message\\\": \\\"Construction 'ExtWall_Simple' created successfully.\\\",
+      \\\"data\\\": {\\\"name\\\": \\\"ExtWall_Simple\\\", \\\"outside_layer\\\":
+      \\\"Brick_100mm\\\", \\\"layer_2\\\": null, \\\"layer_3\\\": null, \\\"layer_4\\\":
+      null, \\\"layer_5\\\": null, \\\"layer_6\\\": null, \\\"layer_7\\\": null, \\\"layer_8\\\":
+      null, \\\"layer_9\\\": null, \\\"layer_10\\\": null}}\",\"role\":\"tool\",\"tool_call_id\":\"call_0b0e\"}],\"model\":\"opencode/glm-5.2\",\"max_completion_tokens\":64000,\"parallel_tool_calls\":false,\"stream\":false,\"temperature\":0.7,\"tool_choice\":\"required\",\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"create_construction\",\"description\":\"Create
+      a Construction as an ordered list of material layers.\\n\\n        Args:\\n
+      \           name: Unique construction name (e.g., 'ExtWall_Brick').\\n            layers:
+      Material names from outside to inside. All names must\\n                    already
+      exist in the materials list. >= 1 layer.\",\"parameters\":{\"properties\":{\"name\":{\"type\":\"string\"},\"layers\":{\"items\":{\"type\":\"string\"},\"type\":\"array\"}},\"required\":[\"name\",\"layers\"],\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"list_constructions\",\"description\":\"List
+      all constructions.\",\"parameters\":{\"properties\":{},\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"get_construction\",\"description\":\"Read
+      a construction by name.\",\"parameters\":{\"properties\":{\"name\":{\"type\":\"string\"}},\"required\":[\"name\"],\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"delete_construction\",\"description\":\"Delete
+      a construction. Fails if referenced by surfaces/fenestration.\",\"parameters\":{\"properties\":{\"name\":{\"type\":\"string\"}},\"required\":[\"name\"],\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"list_materials\",\"description\":\"Read-only:
+      list all materials available for use as construction layers.\",\"parameters\":{\"properties\":{},\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"ConstructionResponse\",\"description\":\"Structured
+      summary returned by the construction phase agent.\",\"parameters\":{\"properties\":{\"construction_names\":{\"description\":\"Names
+      of all constructions created\",\"items\":{\"type\":\"string\"},\"type\":\"array\"},\"summary\":{\"description\":\"One-line
+      summary of the construction creation result\",\"type\":\"string\"}},\"required\":[\"construction_names\",\"summary\"],\"type\":\"object\"}}}],\"max_thinking_budget\":4096}"
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate, zstd
+      connection:
+      - keep-alive
+      content-length:
+      - '4663'
+      content-type:
+      - application/json
+      host:
+      - one.chat-yu.net
+      user-agent:
+      - OpenAI/Python 2.52.0
+      x-stainless-arch:
+      - x64
+      x-stainless-async:
+      - 'false'
+      x-stainless-lang:
+      - python
+      x-stainless-os:
+      - Linux
+      x-stainless-package-version:
+      - 2.52.0
+      x-stainless-raw-response:
+      - 'true'
+      x-stainless-retry-count:
+      - '0'
+      x-stainless-runtime:
+      - CPython
+      x-stainless-runtime-version:
+      - 3.12.3
+    method: POST
+    uri: https://one.chat-yu.net/v1/chat/completions
+  response:
+    body:
+      string: !!binary |
+        KLUv/QBYDQsAdplKJDBt2wZY7LDJt5ftpigs9jtxYrGeUKwG0AGjJ8TjGmQ6GBhQBUYAOwA+AMc3
+        Fg4Ap87VNRt2R4gj4AF5OB4Di3qTvRJixy+3Tn0cs0WzfIjw8QwZcbCgwJINIFnQECCCSMQgqaBI
+        ANDHsV4TdvWmXQrZy+z43tWvvbeunsrQJfV01nvpjqrRqr8IQ4/DevxTXYxR5r768lsJMZPXtkmO
+        DPWJbLZdalB/yRpPWNA6nunX9JLCbyS5ej4UfXzTaEgY1YVnnG3p1h6/eMutWQT1W2aK6lKcbf2a
+        KhQRxUFNssyUdEqnKhKMcPXe0xlX78fsOE2q0WY3SIJBhgCkyQlb7JL607Y6GwYhy6KruY8CxwDG
+        sqi/TQhuph/H0BMdHabJYZo+SVd/vekiJxMASijl5iCgCEOQuSZkHhgeEmTD/x0BO5AMubm21aKd
+        z8oe7bIe49iKTRAb4KoGIgNmCgo=
+    headers:
+      alt-svc:
+      - h3=":443"; ma=86400
+      cf-cache-status:
+      - DYNAMIC
+      cf-placement:
+      - remote-ORD
+      cf-ray:
+      - a26281c25811d743-NRT
+      connection:
+      - keep-alive
+      content-encoding:
+      - zstd
+      content-type:
+      - application/json
+      date:
+      - Wed, 05 Aug 2026 02:52:40 GMT
+      nel:
+      - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
+      report-to:
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=1kGeHQAo0OFQzQSq0InuV3OEAlyRB9x1dfZLGYHXcMZxHD0quI6g0jbkhvbHfsFkcvpAlzxzZlQs4qGA4SQWsr7O2Ora6wS1oN%2FSfbO5Xx7zBn0X4og4GuyiZIimNoZc%2Bsk%3D"}]}'
+      server:
+      - cloudflare
+      strict-transport-security:
+      - max-age=31536000
+      transfer-encoding:
+      - chunked
+      via:
+      - 1.1 Caddy
+      x-new-api-version:
+      - v1.0.0-rc.21
+      x-oneapi-request-id:
+      - 202608050252382764198598268d9d6q2qpiZ07
+    status:
+      code: 200
+      message: OK
+- request:
+    body: "{\"messages\":[{\"content\":\"You are a construction-assembly expert for
+      EnergyPlus.\\nGiven construction specifications, create all required Construction
+      objects.\\n\\nWorkflow:\\n1. FIRST call `list_materials` to discover which materials
+      are already\\n   defined and their full properties (thickness, conductivity,
+      U-Factor\\n   for glazing, etc.). DO NOT skip this step \u2014 the materials
+      phase uses\\n   names that may differ from what the intake spec suggested.\\n2.
+      Pick the correct layer composition for each construction using the\\n   material
+      names returned by list_materials, verbatim.\\n3. Call `create_construction`
+      for each construction in the spec.\\n4. Call `list_constructions` once at the
+      end to confirm.\\n\\nRules:\\n- Layer names passed to `create_construction`
+      MUST appear verbatim in\\n  the list_materials result (exact case, underscores,
+      dashes, numbers).\\n- If a needed material is missing from list_materials, STOP
+      and report\\n  the gap; do NOT invent names or call create with a broken reference.\\n-
+      Each Construction is an ordered list of layers from OUTSIDE to INSIDE.\\n- Use
+      separate constructions per surface type when thermal properties differ\\n  (e.g.,
+      'ExtWall_Office', 'IntWall_Office', 'Roof_Office', 'Floor_Office',\\n  'Window_Office').\\n-
+      For fenestration, the construction's only layer is the glazing material.\\n\",\"role\":\"system\"},{\"content\":\"Create
+      exactly one construction named 'ExtWall_Simple' with a single layer 'Brick_100mm'.\",\"role\":\"user\"},{\"content\":\"I'll
+      start by checking the available materials to make sure 'Brick_100mm' exists.\",\"role\":\"assistant\",\"tool_calls\":[{\"type\":\"function\",\"id\":\"call_7987\",\"function\":{\"name\":\"list_materials\",\"arguments\":\"{}\"}}]},{\"content\":\"{\\\"success\\\":
+      true, \\\"message\\\": \\\"Listed 1 materials.\\\", \\\"data\\\": [{\\\"type\\\":
+      \\\"Material\\\", \\\"name\\\": \\\"Brick_100mm\\\", \\\"roughness\\\": \\\"MediumRough\\\",
+      \\\"thickness\\\": 0.1, \\\"conductivity\\\": 0.89, \\\"density\\\": 1920.0,
+      \\\"specific_heat\\\": 790.0, \\\"thermal_absorptance\\\": 0.9, \\\"solar_absorptance\\\":
+      0.7, \\\"visible_absorptance\\\": 0.7}]}\",\"role\":\"tool\",\"tool_call_id\":\"call_7987\"},{\"content\":\"The
+      material 'Brick_100mm' exists. Now I'll create the construction.\",\"role\":\"assistant\",\"tool_calls\":[{\"type\":\"function\",\"id\":\"call_0b0e\",\"function\":{\"name\":\"create_construction\",\"arguments\":\"{\\\"name\\\":
+      \\\"ExtWall_Simple\\\", \\\"layers\\\": [\\\"Brick_100mm\\\"]}\"}}]},{\"content\":\"{\\\"success\\\":
+      true, \\\"message\\\": \\\"Construction 'ExtWall_Simple' created successfully.\\\",
+      \\\"data\\\": {\\\"name\\\": \\\"ExtWall_Simple\\\", \\\"outside_layer\\\":
+      \\\"Brick_100mm\\\", \\\"layer_2\\\": null, \\\"layer_3\\\": null, \\\"layer_4\\\":
+      null, \\\"layer_5\\\": null, \\\"layer_6\\\": null, \\\"layer_7\\\": null, \\\"layer_8\\\":
+      null, \\\"layer_9\\\": null, \\\"layer_10\\\": null}}\",\"role\":\"tool\",\"tool_call_id\":\"call_0b0e\"},{\"content\":\"Now
+      let me confirm by listing all constructions.\",\"role\":\"assistant\",\"tool_calls\":[{\"type\":\"function\",\"id\":\"call_f22d\",\"function\":{\"name\":\"list_constructions\",\"arguments\":\"{}\"}}]},{\"content\":\"{\\\"success\\\":
+      true, \\\"message\\\": \\\"Listed 1 constructions.\\\", \\\"data\\\": [{\\\"name\\\":
+      \\\"ExtWall_Simple\\\", \\\"outside_layer\\\": \\\"Brick_100mm\\\", \\\"layer_2\\\":
+      null, \\\"layer_3\\\": null, \\\"layer_4\\\": null, \\\"layer_5\\\": null, \\\"layer_6\\\":
+      null, \\\"layer_7\\\": null, \\\"layer_8\\\": null, \\\"layer_9\\\": null, \\\"layer_10\\\":
+      null}]}\",\"role\":\"tool\",\"tool_call_id\":\"call_f22d\"}],\"model\":\"opencode/glm-5.2\",\"max_completion_tokens\":64000,\"parallel_tool_calls\":false,\"stream\":false,\"temperature\":0.7,\"tool_choice\":\"required\",\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"create_construction\",\"description\":\"Create
+      a Construction as an ordered list of material layers.\\n\\n        Args:\\n
+      \           name: Unique construction name (e.g., 'ExtWall_Brick').\\n            layers:
+      Material names from outside to inside. All names must\\n                    already
+      exist in the materials list. >= 1 layer.\",\"parameters\":{\"properties\":{\"name\":{\"type\":\"string\"},\"layers\":{\"items\":{\"type\":\"string\"},\"type\":\"array\"}},\"required\":[\"name\",\"layers\"],\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"list_constructions\",\"description\":\"List
+      all constructions.\",\"parameters\":{\"properties\":{},\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"get_construction\",\"description\":\"Read
+      a construction by name.\",\"parameters\":{\"properties\":{\"name\":{\"type\":\"string\"}},\"required\":[\"name\"],\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"delete_construction\",\"description\":\"Delete
+      a construction. Fails if referenced by surfaces/fenestration.\",\"parameters\":{\"properties\":{\"name\":{\"type\":\"string\"}},\"required\":[\"name\"],\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"list_materials\",\"description\":\"Read-only:
+      list all materials available for use as construction layers.\",\"parameters\":{\"properties\":{},\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"ConstructionResponse\",\"description\":\"Structured
+      summary returned by the construction phase agent.\",\"parameters\":{\"properties\":{\"construction_names\":{\"description\":\"Names
+      of all constructions created\",\"items\":{\"type\":\"string\"},\"type\":\"array\"},\"summary\":{\"description\":\"One-line
+      summary of the construction creation result\",\"type\":\"string\"}},\"required\":[\"construction_names\",\"summary\"],\"type\":\"object\"}}}],\"max_thinking_budget\":4096}"
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate, zstd
+      connection:
+      - keep-alive
+      content-length:
+      - '5224'
+      content-type:
+      - application/json
+      host:
+      - one.chat-yu.net
+      user-agent:
+      - OpenAI/Python 2.52.0
+      x-stainless-arch:
+      - x64
+      x-stainless-async:
+      - 'false'
+      x-stainless-lang:
+      - python
+      x-stainless-os:
+      - Linux
+      x-stainless-package-version:
+      - 2.52.0
+      x-stainless-raw-response:
+      - 'true'
+      x-stainless-retry-count:
+      - '0'
+      x-stainless-runtime:
+      - CPython
+      x-stainless-runtime-version:
+      - 3.12.3
+    method: POST
+    uri: https://one.chat-yu.net/v1/chat/completions
+  response:
+    body:
+      string: !!binary |
+        KLUv/QBYxQ4AZuJkJRBvrAMg8Y4VHCO7cGJL4DoNDj5wKZEh7gqUV3hBPFeiAAAA4HBfAFQAWwCf
+        lN1WJ2I4IcXZ0o6xz4SnItp5H6TROzvkEXHICL097kPlmYBEYEIwiUwGmPZn2219Z58U9kZJ0vfo
+        txUT9OwIDhAlVigkGChALCTIjIaGiTA5QBgLjijJ1y56b3/gqezPSh4nRsfuQBOudPPsrVKdlBOv
+        jXpxY+sirMezskKKSd9iuKAJo67UtTh4e8/tSd/Ze7pmyOzevpHWU+0LOeaVZzFOs50naJUgGs/O
+        MbrnREr7LXItCwOwGlIuC+NQHqwFjVW34uLaCE3Iy62o4cVqNFZbzDJ4s9qbN4tJvNkoScjgxOge
+        GuPgTcRqb3ilm857Q72de66coOrOvjypxLsw1eZJDU61NyeKt69U6QfVl7c303dWVTFOcxvWC4dN
+        JgvzbPTcO9XOEbrex2EMAYSJrmmfSSRnEQiEaee5FNpOS5JWaTqTqCqJqnr15hGwD+QJF+21D+Se
+        6GKUB+vEiqCJVoec4LNyyRgASygF59CgCEOQr6YWnmX1IfuCp4uIXuWBBB+NO4yUJr+TslH0RjLk
+        dhUrY7N1tsHQBKAxjqXYxLABpmYgMmCmoA==
+    headers:
+      alt-svc:
+      - h3=":443"; ma=86400
+      cf-cache-status:
+      - DYNAMIC
+      cf-placement:
+      - remote-ORD
+      cf-ray:
+      - a26281cfad2dd743-NRT
+      connection:
+      - keep-alive
+      content-encoding:
+      - zstd
+      content-type:
+      - application/json
+      date:
+      - Wed, 05 Aug 2026 02:52:43 GMT
+      nel:
+      - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
+      report-to:
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=dNTOnX726Hrg0SlYeM73w1v93Eu5o%2Ff2mOeTBNmroSfzZ3j%2BOnCbhAtQUVeQThZg3bboqYGRG90nbaJlKz7J5wub0g%2FEtZG0bei60WLsbdURfIs1LVo6Wxqf5N9Hzekg0TE%3D"}]}'
+      server:
+      - cloudflare
+      strict-transport-security:
+      - max-age=31536000
+      transfer-encoding:
+      - chunked
+      via:
+      - 1.1 Caddy
+      x-new-api-version:
+      - v1.0.0-rc.21
+      x-oneapi-request-id:
+      - 202608050252404046473318268d9d6B13F0oDY
+    status:
+      code: 200
+      message: OK
+version: 1

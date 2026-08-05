@@ -1,11 +1,11 @@
 from langchain_core.messages import AIMessage
+from pydantic import BaseModel, Field
 
-from src.agent.llm import create_llm
+from src.agent.llm import build_agent
 from src.agent.nodes._share import invoke_with_self_repair
-from src.agent.react import build_react_agent
 from src.agent.state import AgentState, AgentStateUpdate
 from src.agent.tools import make_construction_tools
-from src.agent.trace import TraceCollector, record_phase_trace
+from src.agent.trace import TraceCollector, record_phase_trace, trace_middleware
 
 CONSTRUCTION_SYSTEM_PROMPT = """You are a construction-assembly expert for EnergyPlus.
 Given construction specifications, create all required Construction objects.
@@ -33,16 +33,27 @@ Rules:
 """
 
 
+class ConstructionResponse(BaseModel):
+    """Structured summary returned by the construction phase agent."""
+
+    construction_names: list[str] = Field(
+        description="Names of all constructions created"
+    )
+    summary: str = Field(
+        description="One-line summary of the construction creation result"
+    )
+
+
 def construction_agent(state: AgentState) -> AgentStateUpdate:
     local = state.config_state.model_copy(deep=True)
     tools = make_construction_tools(local)
     collector = TraceCollector(phase="construction")
 
-    agent = build_react_agent(
-        llm=create_llm(),
+    agent = build_agent(
         tools=tools,
         system_prompt=CONSTRUCTION_SYSTEM_PROMPT,
-        trace_collector=collector,
+        response_format=ConstructionResponse,
+        middleware=[trace_middleware(collector)],
     )
 
     specs = (
@@ -52,10 +63,8 @@ def construction_agent(state: AgentState) -> AgentStateUpdate:
     )
     result = invoke_with_self_repair(agent, local, specs, phase="construction")
 
-    final = [
-        m for m in result["messages"] if isinstance(m, AIMessage) and not m.tool_calls
-    ]
-    summary = final[-1].content if final else "construction done"
+    response: ConstructionResponse | None = result.get("structured_response")
+    summary = response.summary if response else "construction done"
 
     record_phase_trace("construction", collector.export())
     return AgentStateUpdate(

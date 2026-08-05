@@ -1,3 +1,7 @@
+from idfpy.models.constructions import Material
+from idfpy.models.outputs import OutputVariable
+from idfpy.models.thermal_zones import Zone
+
 from src.agent.state import merge_config_state
 from src.mcp.state import ConfigState
 from src.validator import ScheduleCollectionSchema, ZoneSchema
@@ -71,3 +75,100 @@ def test_merge_schedules_nested():
     )
     merged = merge_config_state(a, b)
     assert {s.name for s in merged.schedules.schedules} == {"S1", "S2"}
+
+
+def test_merge_preserves_idf_objects():
+    parent = ConfigState()
+    branch = parent.model_copy(deep=True)
+    branch.idf.add(Zone(name="F1_Office"))
+
+    merged = merge_config_state(parent, branch)
+
+    assert "F1_Office" in merged.idf.all_of_type(Zone)
+
+
+def test_merge_idf_parallel_branches_union():
+    parent = ConfigState()
+    parent.idf.add(Zone(name="Z0"))
+    branch_a = parent.model_copy(deep=True)
+    branch_a.idf.add(Zone(name="Z_A"))
+    branch_b = parent.model_copy(deep=True)
+    branch_b.idf.add(
+        Material(
+            name="Concrete",
+            roughness="Rough",
+            thickness=0.1,
+            conductivity=1.4,
+            density=2100.0,
+            specific_heat=900.0,
+        )
+    )
+
+    merged = merge_config_state(merge_config_state(parent, branch_a), branch_b)
+
+    assert set(merged.idf.all_of_type(Zone)) == {"Z0", "Z_A"}
+    assert "Concrete" in merged.idf.all_of_type(Material)
+
+
+def test_merge_idf_new_wins_on_conflict():
+    old = ConfigState()
+    old.idf.add(Zone(name="Z", x_origin=1.0))
+    new = ConfigState()
+    new.idf.add(Zone(name="Z", x_origin=9.0))
+
+    merged = merge_config_state(old, new)
+
+    zone = merged.idf.get(Zone, "Z")
+    assert zone is not None
+    assert zone.x_origin == 9.0
+
+
+def test_merge_idf_nameless_objects_not_duplicated():
+    parent = ConfigState()
+    parent.idf.add(OutputVariable(key_value="*", variable_name="Zone Air Temperature"))
+    branch = parent.model_copy(deep=True)
+    branch.idf.add(
+        OutputVariable(key_value="*", variable_name="Zone Mean Radiant Temperature")
+    )
+
+    merged = merge_config_state(parent, branch)
+
+    assert len(merged.idf.all_of_type(OutputVariable)) == 2
+
+
+def test_merge_idf_nameless_objects_from_parallel_branches_both_retained():
+    parent = ConfigState()
+    parent.idf.add(OutputVariable(key_value="*", variable_name="Zone Air Temperature"))
+    branch_a = parent.model_copy(deep=True)
+    branch_a.idf.add(
+        OutputVariable(key_value="*", variable_name="Zone Mean Radiant Temperature")
+    )
+    branch_b = parent.model_copy(deep=True)
+    branch_b.idf.add(
+        OutputVariable(
+            key_value="*", variable_name="Site Outdoor Air Drybulb Temperature"
+        )
+    )
+
+    merged = merge_config_state(merge_config_state(parent, branch_a), branch_b)
+
+    variable_names = {
+        v.variable_name for v in merged.idf.all_of_type(OutputVariable).values()
+    }
+    assert variable_names == {
+        "Zone Air Temperature",
+        "Zone Mean Radiant Temperature",
+        "Site Outdoor Air Drybulb Temperature",
+    }
+
+
+def test_merge_does_not_mutate_inputs():
+    old = ConfigState()
+    old.idf.add(Zone(name="Z_OLD"))
+    new = ConfigState()
+    new.idf.add(Zone(name="Z_NEW"))
+
+    merge_config_state(old, new)
+
+    assert set(old.idf.all_of_type(Zone)) == {"Z_OLD"}
+    assert set(new.idf.all_of_type(Zone)) == {"Z_NEW"}
