@@ -1252,8 +1252,8 @@ class ScheduleTypeLimitsSchema(BaseSchema):
         return v
 
     @field_validator("lower_limit_value", "upper_limit_value")
-    def validate_limit_value(cls, v: float | str | None) -> float | str | None:
-        if v == "":
+    def validate_limit_value(cls, v: float | str | None) -> float | str:
+        if v is None or v == "":
             return ""
         if isinstance(v, (int, float)):
             return v

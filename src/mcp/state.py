@@ -471,6 +471,17 @@ class ConfigState(BaseSchema):
             getattr(obj, "name", "")
             for obj in _idf_values(self.idf, "HVACTemplate:Thermostat")
         }
+        type_limits_names = {
+            getattr(obj, "name", "")
+            for obj in _idf_values(self.idf, "ScheduleTypeLimits")
+        }
+
+        for schedule in _idf_values(self.idf, "Schedule:Compact", "ScheduleCompact"):
+            limits = schedule.schedule_type_limits_name
+            if limits and limits not in type_limits_names:
+                errors.append(
+                    f"Schedule '{schedule.name}' references type limits '{limits}' which does not exist."
+                )
 
         layer_fields = [
             "outside_layer",
@@ -546,6 +557,11 @@ class ConfigState(BaseSchema):
             for field in (
                 "number_of_people_schedule_name",
                 "activity_level_schedule_name",
+                "work_efficiency_schedule_name",
+                "clothing_insulation_calculation_method_schedule_name",
+                "clothing_insulation_schedule_name",
+                "air_velocity_schedule_name",
+                "ankle_level_air_velocity_schedule_name",
             ):
                 sched = getattr(people, field, None)
                 if sched and sched not in schedule_names:
