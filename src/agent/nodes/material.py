@@ -2,6 +2,7 @@ from langchain_core.messages import AIMessage, HumanMessage
 from pydantic import BaseModel, Field
 
 from src.agent.llm import build_agent
+from src.agent.nodes._share import clone_for_phase
 from src.agent.state import AgentState, AgentStateUpdate
 from src.agent.tools import make_material_tools
 from src.agent.trace import TraceCollector, record_phase_trace, trace_middleware

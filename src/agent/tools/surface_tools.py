@@ -143,10 +143,13 @@ def make_surface_tools(config: ConfigState) -> list[BaseTool]:
             sun_exposure / wind_exposure: SunExposed / NoSun, WindExposed / NoWind.
             vertices: New full vertex list ({"X","Y","Z"} dicts), >= 3 points.
         """
+        idf = config.idf
         obj = idf.get("BuildingSurface:Detailed", name)
         if obj is None:
             return _err(f"Surface '{name}' not found.")
-        if construction_name is not None and not idf.has("Construction", construction_name):
+        if construction_name is not None and not idf.has(
+            "Construction", construction_name
+        ):
             return _err(
                 f"Construction '{construction_name}' not found.",
                 {"missing_ref": "Construction", "missing_name": construction_name},
@@ -164,7 +167,9 @@ def make_surface_tools(config: ConfigState) -> list[BaseTool]:
             if outside_boundary_condition is not None:
                 obj.outside_boundary_condition = outside_boundary_condition
             if outside_boundary_condition_object is not None:
-                obj.outside_boundary_condition_object = outside_boundary_condition_object
+                obj.outside_boundary_condition_object = (
+                    outside_boundary_condition_object
+                )
             if sun_exposure is not None:
                 obj.sun_exposure = sun_exposure
             if wind_exposure is not None:

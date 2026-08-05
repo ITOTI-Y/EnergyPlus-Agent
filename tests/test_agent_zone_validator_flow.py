@@ -34,8 +34,8 @@ class _FakeZoneAgent:
         self.local = local
         self.calls = []
 
-    def invoke(self, react_state):
-        self.calls.append(react_state)
+    def invoke(self, payload):
+        self.calls.append(payload)
         if not self.local.idf.has("Zone", "F1_Corridor"):
             self.local.idf.add(Zone(name="F1_Corridor"))
         return {"messages": [AIMessage(content="repaired zones")]}
@@ -45,7 +45,7 @@ def test_zone_agent_reinvokes_main_agent_after_validator_reject(monkeypatch):
     fake_agents = []
     current_local = {"value": None}
 
-    def fake_build_react_agent(**kwargs):
+    def fake_build_agent(**kwargs):
         agent = _FakeZoneAgent(current_local["value"])
         fake_agents.append(agent)
         return agent
@@ -66,8 +66,7 @@ def test_zone_agent_reinvokes_main_agent_after_validator_reject(monkeypatch):
         ]
     )
 
-    monkeypatch.setattr(zone_module, "create_llm", lambda: object())
-    monkeypatch.setattr(zone_module, "build_react_agent", fake_build_react_agent)
+    monkeypatch.setattr(zone_module, "build_agent", fake_build_agent)
     monkeypatch.setattr(
         zone_module, "invoke_with_self_repair", fake_invoke_with_self_repair
     )
@@ -80,7 +79,7 @@ def test_zone_agent_reinvokes_main_agent_after_validator_reject(monkeypatch):
     zones = out["config_state"].idf.all_of_type("Zone")
     assert set(zones) == {"F1_Office", "F1_Corridor"}
     assert len(fake_agents[0].calls) == 1
-    feedback = fake_agents[0].calls[0].messages[-1].content
+    feedback = fake_agents[0].calls[0]["messages"][-1].content
     assert "F1_Corridor" in feedback
 
 
@@ -88,17 +87,14 @@ def test_zone_agent_stops_after_validator_retry_budget(monkeypatch):
     repair_calls = []
 
     class AlwaysNoopAgent:
-        def invoke(self, react_state):
-            repair_calls.append(react_state)
+        def invoke(self, payload):
+            repair_calls.append(payload)
             return {"messages": [AIMessage(content="still incomplete")]}
 
     def fake_invoke_with_self_repair(agent, local_config, specs, **kwargs):
         return {"messages": [AIMessage(content="created no zones")]}
 
-    monkeypatch.setattr(zone_module, "create_llm", lambda: object())
-    monkeypatch.setattr(
-        zone_module, "build_react_agent", lambda **kwargs: AlwaysNoopAgent()
-    )
+    monkeypatch.setattr(zone_module, "build_agent", lambda **kwargs: AlwaysNoopAgent())
     monkeypatch.setattr(
         zone_module, "invoke_with_self_repair", fake_invoke_with_self_repair
     )
@@ -126,9 +122,8 @@ def test_zone_agent_clears_consumed_upstream_request(monkeypatch):
         local_config.idf.add(Zone(name="Missing_Zone"))
         return {"messages": [AIMessage(content="created upstream zone")]}
 
-    monkeypatch.setattr(zone_module, "create_llm", lambda: object())
     monkeypatch.setattr(
-        zone_module, "build_react_agent", lambda **kwargs: _FakeZoneAgent(None)
+        zone_module, "build_agent", lambda **kwargs: _FakeZoneAgent(None)
     )
     monkeypatch.setattr(
         zone_module, "invoke_with_self_repair", fake_invoke_with_self_repair

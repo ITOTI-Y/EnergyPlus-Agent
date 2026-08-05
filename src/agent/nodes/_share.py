@@ -6,8 +6,7 @@ nodes-internal — no other part of the agent package uses these.
 
 from __future__ import annotations
 
-import json
-from typing import Any, Final
+from typing import Any, Final, Literal
 
 from langchain_core.messages import AnyMessage, HumanMessage
 from langgraph.graph.state import CompiledStateGraph
@@ -15,7 +14,19 @@ from langgraph.types import Command
 from loguru import logger
 
 from src.agent._share import language_directive
-from src.mcp.state import ConfigState
+from src.agent.state import AgentState
+from src.mcp.state import ConfigState, _idf_values
+
+
+def clone_for_phase(state: AgentState) -> ConfigState:
+    """Clone config_state for in-place phase mutation, seed model included.
+
+    LangGraph strips the ``_idf`` PrivateAttr on every checkpoint write, so
+    recovery from ``seed_idf_text`` must happen before the clone.
+    """
+    state.config_state.recover_idf_from_seed()
+    return state.config_state.clone()
+
 
 MAX_SELF_REPAIR_ROUNDS: Final = 2
 """Max extra invokes per phase for cross-ref self-repair.
@@ -30,19 +41,6 @@ HOP_LIMIT: Final[int] = 3
 ``Command(goto=<earlier phase>)`` once ``state.hop_count`` reaches this,
 falling through to the outer validate loop instead. Prevents infinite
 A->B->A ping-pong between phases."""
-
-# Maps a tool-reported ``missing_ref`` object type to the phase that
-# OWNS (should have created) that object. Used by :func:`detect_upstream_gap`
-# to decide where to back-hop when a downstream phase finds a missing
-# upstream dependency at tool-call time.
-_MISSING_REF_TO_PHASE: Final[dict[str, str]] = {
-    "Construction": "construction",
-    "Material": "material",
-    "WindowMaterial:SimpleGlazingSystem": "material",
-    "BuildingSurface:Detailed": "surface",
-    "Zone": "zone",
-    "Schedule:Compact": "schedule",
-}
 
 REVISION_PREFIX: Final[str] = (
     "IMPORTANT — REVISION MODE. You are MODIFYING an existing model that was "
@@ -74,7 +72,19 @@ VALIDATION_ERROR_HEADER: Final[str] = (
 # roll back to the earliest one: fixing upstream often resolves downstream
 # refs as a side effect (and downstream phases re-run anyway via normal
 # graph edges from the rollback target).
-PIPELINE_ORDER: Final[tuple[str, ...]] = (
+PhaseName = Literal[
+    "zone",
+    "material",
+    "schedule",
+    "construction",
+    "surface",
+    "fenestration",
+    "hvac",
+    "people",
+    "lights",
+]
+
+PIPELINE_ORDER: Final[tuple[PhaseName, ...]] = (
     "zone",
     "material",
     "schedule",
@@ -124,7 +134,7 @@ def classify_errors(errors: list[str]) -> dict[str, list[str]]:
     return grouped
 
 
-def earliest_phase(phases: set[str]) -> str | None:
+def earliest_phase(phases: set[str]) -> PhaseName | None:
     """Return the earliest phase in PIPELINE_ORDER present in *phases*."""
     for phase in PIPELINE_ORDER:
         if phase in phases:
@@ -172,12 +182,9 @@ def _is_upstream(target: str, current: str) -> bool:
 
 # Maps a substring of ``validate_references()`` error text (the
 # ``references <kind> '<name>'`` part) to ``(ref_type, owning_phase)``.
-# This is the IDF-grounded counterpart of ``_MISSING_REF_TO_PHASE``: instead
-# of trusting tool-reported ``missing_ref`` payloads (which stay forever in
-# the message history and cause stale-gap false back-hops), we re-derive the
-# gap from the LIVE cross-ref check on the IDF itself. A reference described
-# as "references zone 'X'" that "does not exist" means phase 'zone' owes us
-# 'X'; "references construction 'Y'" means 'construction' owes us 'Y'; etc.
+# The gap is re-derived from the live cross-ref check rather than from
+# tool-reported payloads, which linger in the message history and would
+# cause stale-gap false back-hops.
 _REF_KIND_TO_PHASE: Final[tuple[tuple[str, str, str], ...]] = (
     # Order matters only for specificity (longer/unique needles first).
     ("references heating setpoint schedule", "Schedule:Compact", "schedule"),
@@ -191,62 +198,6 @@ _REF_KIND_TO_PHASE: Final[tuple[tuple[str, str, str], ...]] = (
     # Thermostat refs are owned by hvac itself (same phase), so they are NOT
     # a back-hop target and intentionally omitted — they self-repair locally.
 )
-
-
-def detect_upstream_gap(result: dict[str, Any], phase: str) -> dict[str, str] | None:
-    """Scan a ReAct result for a 'missing upstream object' tool error.
-
-    .. deprecated-paths::
-        This reads tool-reported ``missing_ref`` payloads from the message
-        history. Because ReAct's ``add_messages`` reducer accumulates every
-        prior round's ToolMessages, a gap reported on round 0 is STILL
-        visible on round N even after the LLM successfully self-healed —
-        producing a false back-hop. ``invoke_with_self_repair`` therefore
-        uses :func:`detect_upstream_gap_from_state` (IDF-grounded) instead.
-        This function is retained for any caller that wants the raw
-        tool-signal view.
-
-    Tools report reference failures as ``{"success": false, "data":
-    {"missing_ref": <object type>, "missing_name": <name>}}``. When such
-    an error points at an object owned by an **earlier** phase, we can
-    back-hop to that phase and have it create the missing object,
-    instead of aborting the pipeline.
-
-    Args:
-        result: The dict returned by ``agent.invoke(ReactState(...))`` —
-            shape ``{"messages": [...]}``.
-        phase: Name of the current phase (e.g. "fenestration").
-
-    Returns:
-        ``{"target": <phase>, "missing_ref": <type>, "missing_name": <name>}``
-        for the first upstream gap found, or ``None``.
-    """
-    for msg in result.get("messages", []):
-        # ToolMessage has .type == "tool"; guard against other message kinds.
-        if getattr(msg, "type", None) != "tool":
-            continue
-        try:
-            payload = json.loads(msg.content)
-        except (TypeError, ValueError, json.JSONDecodeError):
-            continue
-        if not isinstance(payload, dict) or payload.get("success"):
-            continue
-        data = payload.get("data") or {}
-        if not isinstance(data, dict):
-            continue
-        ref_type = data.get("missing_ref")
-        if not ref_type:
-            continue
-        target = _MISSING_REF_TO_PHASE.get(str(ref_type))
-        if not target:
-            continue
-        if _is_upstream(target, phase):
-            return {
-                "target": target,
-                "missing_ref": str(ref_type),
-                "missing_name": str(data.get("missing_name", "")),
-            }
-    return None
 
 
 def detect_upstream_gap_from_state(
@@ -297,7 +248,7 @@ def detect_upstream_gap_from_state(
             idx = err.find(needle)
             if idx < 0:
                 continue
-            tail = err[idx + len(needle):]
+            tail = err[idx + len(needle) :]
             # tail looks like " 'F1_Office' which does not exist." — pull the
             # first single-quoted token, which is the missing reference name.
             name = _first_quoted(tail)
@@ -321,7 +272,7 @@ def _first_quoted(text: str) -> str | None:
     end = text.find("'", start + 1)
     if end < 0:
         return None
-    return text[start + 1:end]
+    return text[start + 1 : end]
 
 
 def invoke_with_self_repair(
@@ -379,13 +330,21 @@ def invoke_with_self_repair(
 
     for attempt in range(MAX_SELF_REPAIR_ROUNDS + 1):
         result = agent.invoke({"messages": messages})
-        errors = local_config.validate_references()
 
-        if not errors:
+        all_errors = local_config.validate_references()
+        scoped = _scoped_errors(all_errors)
+        # Read the gap from the live IDF, never the message history: a
+        # tool-reported missing_ref stays in add_messages forever and would
+        # re-trigger a back-hop the LLM already fixed.
+        gap = detect_upstream_gap_from_state(local_config, phase, all_errors)
+
+        surface_empty = phase == "surface" and not _idf_values(
+            local_config.idf, "BuildingSurface:Detailed"
+        )
+
+        if not scoped and not gap and not surface_empty:
             if attempt > 0:
-                logger.info(
-                    "[{}] self-repair succeeded on round {}", phase, attempt
-                )
+                logger.info("[{}] self-repair succeeded on round {}", phase, attempt)
             return result
 
         if attempt == MAX_SELF_REPAIR_ROUNDS:
@@ -499,8 +458,7 @@ def _build_repair_feedback(
         "names an upstream resource (zone / schedule / material / "
         "construction / surface) that truly does not exist, report it in "
         "your final message and do NOT fabricate a replacement — upstream "
-        "phases own those objects."
-        + language_directive()
+        "phases own those objects." + language_directive()
     )
     return "\n".join(parts)
 
@@ -583,14 +541,20 @@ def maybe_backhop(
     if state.hop_count >= HOP_LIMIT:
         logger.warning(
             "[{}] back-hop to {} suppressed: hop_count={} reached HOP_LIMIT={}",
-            phase, gap["target"], state.hop_count, HOP_LIMIT,
+            phase,
+            gap["target"],
+            state.hop_count,
+            HOP_LIMIT,
         )
         return None
 
     specs_for_upstream = build_upstream_specs(gap, state)
     logger.info(
         "[{}] issuing back-hop Command -> {} (hop_count {}->{})",
-        phase, gap["target"], state.hop_count, state.hop_count + 1,
+        phase,
+        gap["target"],
+        state.hop_count,
+        state.hop_count + 1,
     )
     return Command(
         goto=gap["target"],

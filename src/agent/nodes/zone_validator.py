@@ -1,10 +1,9 @@
 """Independent LLM-based completeness validator for the zone phase.
 
-After the zone ReAct agent finishes, this module inspects whether the zones
-actually created satisfy the ``zone_specs`` task. It runs as its own ReAct
-subgraph (built via :func:`build_react_agent`) with two terminal tools —
-``approve`` and ``reject`` — so the validator LLM must call one of them to
-reach a verdict (``tools_condition`` keeps looping the LLM until it does).
+After the zone agent finishes, this module inspects whether the zones
+actually created satisfy the ``zone_specs`` task. It runs as its own agent
+(built via :func:`build_agent`) with two terminal tools, ``approve`` and
+``reject``, so the validator LLM must call one of them to reach a verdict.
 
 The verdict flows back to :func:`zone_agent`, which on ``reject`` feeds the
 reasons to the main zone LLM as a ``HumanMessage`` and re-invokes it, up to
@@ -23,11 +22,10 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import HumanMessage
 from langchain_core.tools import BaseTool, tool
 
-from src.agent.react import ReactState, build_react_agent
+from src.agent.llm import build_agent
 from src.mcp.state import ConfigState, _idf_values
 
 # Verdict tuple shape returned by run_zone_validator:
@@ -123,10 +121,7 @@ def make_zone_validator_tools() -> list[BaseTool]:
 
 def _created_zones(local: ConfigState) -> list[dict[str, Any]]:
     """Serialize the zones currently in ``local`` for the validator prompt."""
-    return [
-        z.model_dump(exclude_none=True)
-        for z in _idf_values(local.idf, "Zone")
-    ]
+    return [z.model_dump(exclude_none=True) for z in _idf_values(local.idf, "Zone")]
 
 
 def _parse_verdict(result: dict[str, Any]) -> ValidatorVerdict:
@@ -161,21 +156,17 @@ def _parse_verdict(result: dict[str, Any]) -> ValidatorVerdict:
 def run_zone_validator(
     zone_specs: str,
     local: ConfigState,
-    llm: BaseChatModel,
 ) -> ValidatorVerdict:
     """Run the zone-completeness validator and return its verdict.
 
-    Builds a fresh ReAct subgraph with the two verdict tools, feeds it the
-    zone_specs (task) plus the zones actually created (read live from
-    ``local``), and returns ``("approved", None)`` or
-    ``("rejected", [reasons])``.
+    Builds a fresh agent with the two verdict tools, feeds it the zone_specs
+    (task) plus the zones actually created (read live from ``local``), and
+    returns ``("approved", None)`` or ``("rejected", [reasons])``.
 
     Args:
         zone_specs: The original zone-creation task (from intake_output).
         local: The phase-local ConfigState the main zone agent mutated; the
             validator reads (never writes) the zones from it.
-        llm: A BaseChatModel instance (reused from the main zone agent to
-            avoid re-parsing the LLM config YAML).
     """
     zones_created = _created_zones(local)
     content = (
@@ -184,13 +175,12 @@ def run_zone_validator(
         "ZONES ACTUALLY CREATED (read from the model):\n"
         f"{json.dumps(zones_created, indent=2, ensure_ascii=False, default=str)}"
     )
-    agent = build_react_agent(
-        llm=llm,
+    agent = build_agent(
         tools=make_zone_validator_tools(),
         system_prompt=ZONE_VALIDATOR_SYSTEM_PROMPT,
     )
     result = agent.invoke(
-        ReactState(messages=[HumanMessage(content=content)]),
+        {"messages": [HumanMessage(content=content)]},
         config={"recursion_limit": _VALIDATOR_RECURSION_LIMIT},
     )
     return _parse_verdict(result)

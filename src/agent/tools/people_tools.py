@@ -49,23 +49,6 @@ def make_people_tools(config: ConfigState) -> list[BaseTool]:
         idf = config.idf
         if idf.has(People, name):
             return _err(f"People '{name}' already exists.")
-        # Reference checks: emit missing_ref so the agent's detect_upstream_gap
-        # can back-hop to the owning phase (zone / schedule) to create it.
-        if zone_name and not idf.has("Zone", zone_name):
-            return _err(
-                f"Zone '{zone_name}' not found.",
-                {"missing_ref": "Zone", "missing_name": zone_name},
-            )
-        if number_of_people_schedule_name and not idf.has("Schedule:Compact", number_of_people_schedule_name):
-            return _err(
-                f"Schedule:Compact '{number_of_people_schedule_name}' not found.",
-                {"missing_ref": "Schedule:Compact", "missing_name": number_of_people_schedule_name},
-            )
-        if activity_level_schedule_name and not idf.has("Schedule:Compact", activity_level_schedule_name):
-            return _err(
-                f"Schedule:Compact '{activity_level_schedule_name}' not found.",
-                {"missing_ref": "Schedule:Compact", "missing_name": activity_level_schedule_name},
-            )
         try:
             people = People(
                 name=name,
@@ -126,6 +109,7 @@ def make_people_tools(config: ConfigState) -> list[BaseTool]:
                 Load values (use the one matching the calculation method).
             fraction_radiant: Radiant fraction of sensible heat (0-1).
         """
+        idf = config.idf
         obj = idf.get("People", name)
         if obj is None:
             return _err(f"People '{name}' not found.")
@@ -137,7 +121,9 @@ def make_people_tools(config: ConfigState) -> list[BaseTool]:
             if activity_level_schedule_name is not None:
                 obj.activity_level_schedule_name = activity_level_schedule_name
             if number_of_people_calculation_method is not None:
-                obj.number_of_people_calculation_method = number_of_people_calculation_method
+                obj.number_of_people_calculation_method = (
+                    number_of_people_calculation_method
+                )
             if number_of_people is not None:
                 obj.number_of_people = number_of_people
             if people_per_floor_area is not None:
@@ -173,4 +159,11 @@ def make_people_tools(config: ConfigState) -> list[BaseTool]:
         items = [s.model_dump() for s in idf.all_of_type(ScheduleCompact).values()]
         return _ok(f"Listed {len(items)} schedules.", items)
 
-    return [create_people, list_people, update_people, delete_people, list_zones, list_schedules]
+    return [
+        create_people,
+        list_people,
+        update_people,
+        delete_people,
+        list_zones,
+        list_schedules,
+    ]

@@ -1,10 +1,8 @@
-from typing import Literal
-
 from langchain_core.messages import AIMessage
 from pydantic import BaseModel, Field
 
 from src.agent.llm import build_agent
-from src.agent.nodes._share import invoke_with_self_repair
+from src.agent.nodes._share import clone_for_phase, invoke_with_self_repair
 from src.agent.state import AgentState, AgentStateUpdate
 from src.agent.tools import make_hvac_tools
 from src.agent.trace import TraceCollector, record_phase_trace, trace_middleware
@@ -47,7 +45,7 @@ class HVACResponse(BaseModel):
 
 
 def hvac_agent(state: AgentState) -> AgentStateUpdate:
-    local = state.config_state.model_copy(deep=True)
+    local = clone_for_phase(state)
     tools = make_hvac_tools(local)
     collector = TraceCollector(phase="hvac")
 

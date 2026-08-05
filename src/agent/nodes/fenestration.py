@@ -1,13 +1,20 @@
 from typing import Literal
 
 from langchain_core.messages import AIMessage
+from langgraph.types import Command
 from pydantic import BaseModel, Field
 
 from src.agent.llm import build_agent
-from src.agent.nodes._share import invoke_with_self_repair
+from src.agent.nodes._share import (
+    clone_for_phase,
+    invoke_with_self_repair,
+    maybe_backhop,
+)
 from src.agent.state import AgentState, AgentStateUpdate
 from src.agent.tools import make_fenestration_tools
 from src.agent.trace import TraceCollector, record_phase_trace, trace_middleware
+
+_FenestrationRoute = Literal["construction", "surface"]
 
 FENESTRATION_SYSTEM_PROMPT = """You are a window/door geometry expert for EnergyPlus.
 Given fenestration specifications, create FenestrationSurface:Detailed
@@ -58,8 +65,10 @@ class FenestrationResponse(BaseModel):
     )
 
 
-def fenestration_agent(state: AgentState) -> AgentStateUpdate:
-    local = state.config_state.model_copy(deep=True)
+def fenestration_agent(
+    state: AgentState,
+) -> Command[_FenestrationRoute] | AgentStateUpdate:
+    local = clone_for_phase(state)
     tools = make_fenestration_tools(local)
     collector = TraceCollector(phase="fenestration")
 
@@ -96,7 +105,6 @@ def fenestration_agent(state: AgentState) -> AgentStateUpdate:
     response: FenestrationResponse | None = result.get("structured_response")
     summary = response.summary if response else "fenestration done"
 
-    record_phase_trace("fenestration", collector.export())
     return AgentStateUpdate(
         config_state=local,
         upstream_request=None,  # consume any stale back-hop request

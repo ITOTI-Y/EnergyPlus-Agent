@@ -9,8 +9,8 @@ from src.validator import ZoneSchema
 
 
 class _FakeValidatorAgent:
-    def invoke(self, state, config=None):
-        content = state.messages[0].content
+    def invoke(self, payload_in, config=None):
+        content = payload_in["messages"][0].content
         payload = json.loads(
             content.split("ZONES ACTUALLY CREATED (read from the model):\n", 1)[1]
         )
@@ -58,12 +58,11 @@ def _state_with_zones(*names: str) -> ConfigState:
 
 
 def test_zone_validator_rejects_zero_zones(monkeypatch):
-    monkeypatch.setattr(zv, "build_react_agent", lambda **kwargs: _FakeValidatorAgent())
+    monkeypatch.setattr(zv, "build_agent", lambda **kwargs: _FakeValidatorAgent())
 
     decision, reasons = zv.run_zone_validator(
         "Create two zones: F1_Office and F1_Corridor",
         ConfigState(),
-        llm=object(),
     )
 
     assert decision == "rejected"
@@ -71,12 +70,11 @@ def test_zone_validator_rejects_zero_zones(monkeypatch):
 
 
 def test_zone_validator_rejects_missing_named_zone(monkeypatch):
-    monkeypatch.setattr(zv, "build_react_agent", lambda **kwargs: _FakeValidatorAgent())
+    monkeypatch.setattr(zv, "build_agent", lambda **kwargs: _FakeValidatorAgent())
 
     decision, reasons = zv.run_zone_validator(
         "Create two zones: F1_Office and F1_Corridor",
         _state_with_zones("F1_Office"),
-        llm=object(),
     )
 
     assert decision == "rejected"
@@ -84,12 +82,11 @@ def test_zone_validator_rejects_missing_named_zone(monkeypatch):
 
 
 def test_zone_validator_approves_matching_zones(monkeypatch):
-    monkeypatch.setattr(zv, "build_react_agent", lambda **kwargs: _FakeValidatorAgent())
+    monkeypatch.setattr(zv, "build_agent", lambda **kwargs: _FakeValidatorAgent())
 
     decision, reasons = zv.run_zone_validator(
         "Create two zones: F1_Office and F1_Corridor",
         _state_with_zones("F1_Office", "F1_Corridor"),
-        llm=object(),
     )
 
     assert decision == "approved"
@@ -97,12 +94,11 @@ def test_zone_validator_approves_matching_zones(monkeypatch):
 
 
 def test_zone_validator_fails_closed_without_verdict(monkeypatch):
-    monkeypatch.setattr(zv, "build_react_agent", lambda **kwargs: _NoVerdictAgent())
+    monkeypatch.setattr(zv, "build_agent", lambda **kwargs: _NoVerdictAgent())
 
     decision, reasons = zv.run_zone_validator(
         "Create one zone: F1_Office",
         _state_with_zones("F1_Office"),
-        llm=object(),
     )
 
     assert decision == "rejected"

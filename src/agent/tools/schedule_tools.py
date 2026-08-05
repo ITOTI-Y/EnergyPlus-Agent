@@ -182,7 +182,8 @@ def make_schedule_tools(config: ConfigState) -> list[BaseTool]:
             schedule_type_limits_name: New ScheduleTypeLimits name.
             data: New nested Through/Days/Times structure (replaces all).
         """
-        obj = idf.get("Schedule:Compact", name)
+        idf = config.idf
+        obj = idf.get(ScheduleCompact, name)
         if obj is None:
             return _err(f"Schedule:Compact '{name}' not found.")
         try:
@@ -190,16 +191,17 @@ def make_schedule_tools(config: ConfigState) -> list[BaseTool]:
                 obj.schedule_type_limits_name = schedule_type_limits_name
             if data is not None:
                 # Validate the new data via the schema, then rebuild items
-                validated = ScheduleCompactSchema.model_validate({
-                    "Name": name,
-                    "Schedule Type Limits Name": obj.schedule_type_limits_name,
-                    "Data": data,
-                })
-                obj.data = [
-                    ScheduleCompactDataItem(field=v) for v in validated.data
-                ]
-            return _ok(f"Schedule:Compact '{name}' updated successfully.",
-                       obj.model_dump())
+                validated = ScheduleCompactSchema.model_validate(
+                    {
+                        "Name": name,
+                        "Schedule Type Limits Name": obj.schedule_type_limits_name,
+                        "Data": data,
+                    }
+                )
+                obj.data = [ScheduleCompactDataItem(field=v) for v in validated.data]
+            return _ok(
+                f"Schedule:Compact '{name}' updated successfully.", obj.model_dump()
+            )
         except Exception as e:
             return _err(f"Error updating Schedule:Compact '{name}': {e}")
 

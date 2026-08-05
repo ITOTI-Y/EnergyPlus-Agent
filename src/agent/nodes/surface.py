@@ -1,13 +1,20 @@
 from typing import Literal
 
 from langchain_core.messages import AIMessage
+from langgraph.types import Command
 from pydantic import BaseModel, Field
 
 from src.agent.llm import build_agent
-from src.agent.nodes._share import invoke_with_self_repair
+from src.agent.nodes._share import (
+    clone_for_phase,
+    invoke_with_self_repair,
+    maybe_backhop,
+)
 from src.agent.state import AgentState, AgentStateUpdate
 from src.agent.tools import make_surface_tools
 from src.agent.trace import TraceCollector, record_phase_trace, trace_middleware
+
+_SurfaceRoute = Literal["construction", "zone"]
 
 SURFACE_SYSTEM_PROMPT = """You are a building geometry expert for EnergyPlus.
 Given surface specifications, create all BuildingSurface:Detailed objects
@@ -64,8 +71,8 @@ class SurfaceResponse(BaseModel):
     summary: str = Field(description="One-line summary of the surface creation result")
 
 
-def surface_agent(state: AgentState) -> AgentStateUpdate:
-    local = state.config_state.model_copy(deep=True)
+def surface_agent(state: AgentState) -> Command[_SurfaceRoute] | AgentStateUpdate:
+    local = clone_for_phase(state)
     tools = make_surface_tools(local)
     collector = TraceCollector(phase="surface")
 
@@ -106,7 +113,6 @@ def surface_agent(state: AgentState) -> AgentStateUpdate:
     response: SurfaceResponse | None = result.get("structured_response")
     summary = response.summary if response else "surface done"
 
-    record_phase_trace("surface", collector.export())
     return AgentStateUpdate(
         config_state=local,
         upstream_request=None,  # consume the back-hop request

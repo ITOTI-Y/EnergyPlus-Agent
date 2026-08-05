@@ -215,17 +215,16 @@ def make_material_tools(config: ConfigState) -> list[BaseTool]:
             u_factor / solar_heat_gain_coefficient / visible_transmittance:
                 Glazing (SimpleGlazingSystem) fields.
         """
-        mat_type, obj = _find_material(idf, name)
+        idf = config.idf
+        obj = _find_material(idf, name)
         if obj is None:
             return _err(f"Material '{name}' not found.")
         try:
-            # Fields common to standard/nomass/airgap
             if roughness is not None and hasattr(obj, "roughness"):
                 obj.roughness = roughness
             if thermal_resistance is not None and hasattr(obj, "thermal_resistance"):
                 obj.thermal_resistance = thermal_resistance
-            # Standard-only fields
-            if mat_type == "Material":
+            if isinstance(obj, Material):
                 if thickness is not None:
                     obj.thickness = thickness
                 if conductivity is not None:
@@ -234,16 +233,17 @@ def make_material_tools(config: ConfigState) -> list[BaseTool]:
                     obj.density = density
                 if specific_heat is not None:
                     obj.specific_heat = specific_heat
-            # Glazing-only fields
-            if mat_type == "WindowMaterial:SimpleGlazingSystem":
+            if isinstance(obj, WindowMaterialSimpleGlazingSystem):
                 if u_factor is not None:
                     obj.u_factor = u_factor
                 if solar_heat_gain_coefficient is not None:
                     obj.solar_heat_gain_coefficient = solar_heat_gain_coefficient
                 if visible_transmittance is not None:
                     obj.visible_transmittance = visible_transmittance
-            return _ok(f"Material '{name}' updated successfully.",
-                       {"type": mat_type, **obj.model_dump()})
+            return _ok(
+                f"Material '{name}' updated successfully.",
+                {"type": type(obj).__name__, **obj.model_dump()},
+            )
         except Exception as e:
             return _err(f"Error updating material '{name}': {e}")
 

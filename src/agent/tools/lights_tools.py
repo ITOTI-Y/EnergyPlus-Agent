@@ -114,6 +114,7 @@ def make_lights_tools(config: ConfigState) -> list[BaseTool]:
                 Load values (use the one matching the calculation method).
             fraction_radiant / fraction_visible: Light distribution fractions (0-1).
         """
+        idf = config.idf
         obj = idf.get("Lights", name)
         if obj is None:
             return _err(f"Lights '{name}' not found.")
@@ -161,4 +162,11 @@ def make_lights_tools(config: ConfigState) -> list[BaseTool]:
         items = [s.model_dump() for s in idf.all_of_type(ScheduleCompact).values()]
         return _ok(f"Listed {len(items)} schedules.", items)
 
-    return [create_light, list_lights, update_light, delete_light, list_zones, list_schedules]
+    return [
+        create_light,
+        list_lights,
+        update_light,
+        delete_light,
+        list_zones,
+        list_schedules,
+    ]

@@ -60,7 +60,10 @@ def make_fenestration_tools(config: ConfigState) -> list[BaseTool]:
         if not idf.has("BuildingSurface:Detailed", building_surface_name):
             return _err(
                 f"Parent surface '{building_surface_name}' not found.",
-                {"missing_ref": "BuildingSurface:Detailed", "missing_name": building_surface_name},
+                {
+                    "missing_ref": "BuildingSurface:Detailed",
+                    "missing_name": building_surface_name,
+                },
             )
         try:
             assert 3 <= len(vertices) <= 4, (
@@ -142,18 +145,26 @@ def make_fenestration_tools(config: ConfigState) -> list[BaseTool]:
             vertices: New full vertex list ({"X","Y","Z"} dicts), >= 3 points,
                       coplanar with the parent surface.
         """
+        idf = config.idf
         obj = idf.get("FenestrationSurface:Detailed", name)
         if obj is None:
             return _err(f"Fenestration '{name}' not found.")
-        if construction_name is not None and not idf.has("Construction", construction_name):
+        if construction_name is not None and not idf.has(
+            "Construction", construction_name
+        ):
             return _err(
                 f"Construction '{construction_name}' not found.",
                 {"missing_ref": "Construction", "missing_name": construction_name},
             )
-        if building_surface_name is not None and not idf.has("BuildingSurface:Detailed", building_surface_name):
+        if building_surface_name is not None and not idf.has(
+            "BuildingSurface:Detailed", building_surface_name
+        ):
             return _err(
                 f"Parent surface '{building_surface_name}' not found.",
-                {"missing_ref": "BuildingSurface:Detailed", "missing_name": building_surface_name},
+                {
+                    "missing_ref": "BuildingSurface:Detailed",
+                    "missing_name": building_surface_name,
+                },
             )
         try:
             if construction_name is not None:
@@ -176,8 +187,7 @@ def make_fenestration_tools(config: ConfigState) -> list[BaseTool]:
                     setattr(obj, f"vertex_{i}_y_coordinate", float(v["Y"]))
                     setattr(obj, f"vertex_{i}_z_coordinate", float(v["Z"]))
                 obj.number_of_vertices = len(vertices)
-            return _ok(f"Fenestration '{name}' updated successfully.",
-                       obj.model_dump())
+            return _ok(f"Fenestration '{name}' updated successfully.", obj.model_dump())
         except Exception as e:
             return _err(f"Error updating fenestration '{name}': {e}")
 

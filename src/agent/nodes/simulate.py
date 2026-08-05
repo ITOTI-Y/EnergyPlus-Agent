@@ -1,11 +1,11 @@
 """Export YAML -> IDF, run EnergyPlus, and route on failure.
 
-On success: route to ``analyze`` (the normal path).
 On failure (``response.success`` is False OR ``eplusout.err`` has Fatal/Severe
 lines) with retries remaining: route back to ``revise`` with the extracted
-error text so the agent can fix the model and re-run. Once
-``sim_retry_count`` reaches ``max_sim_retries``, fall through to ``analyze``
-so the failure is still recorded (the run is not left dangling).
+error text so the agent can fix the model and re-run. On success, or once
+``sim_retry_count`` reaches ``max_sim_retries``, return a plain state update
+and let the static ``simulate -> END`` edge finish the run, so the failure is
+still recorded rather than left dangling.
 """
 
 from typing import Literal
@@ -15,7 +15,7 @@ from langgraph.runtime import Runtime
 from langgraph.types import Command
 
 from src.agent.nodes._share import clone_for_phase
-from src.agent.state import AgentState, SimContext
+from src.agent.state import AgentState, AgentStateUpdate, SimContext
 from src.mcp.tools.workflow import WorkflowTool
 from src.results.err_parser import extract_errors, format_errors_for_llm
 
@@ -33,9 +33,10 @@ _DEFAULT_OUTPUT_VARIABLES: tuple[tuple[str, str, str], ...] = (
     ("", "Facility Total HVAC Electricity Demand Rate", "Hourly"),
 )
 
-# Where simulate may route. Kept explicit so LangGraph recognizes the
-# Command targets (analyze = normal path, revise = failure-rollback path).
-_SimRoute = Literal["analyze", "revise"]
+# The only Command target; the success path falls through to the static
+# simulate -> END edge instead of routing.
+_SimRoute = Literal["revise"]
+SimCommand = Command[_SimRoute]
 
 
 def _ensure_default_output_variables(config) -> None:
@@ -59,7 +60,7 @@ def _ensure_default_output_variables(config) -> None:
 
 def simulate_node(
     state: AgentState, runtime: Runtime[SimContext]
-) -> Command[_SimRoute]:
+) -> SimCommand | AgentStateUpdate:
     """Export YAML -> IDF, run EnergyPlus, route on success/failure.
 
     Failure detection uses two independent signals (either triggers a
@@ -108,19 +109,22 @@ def simulate_node(
             # without surfacing them the LLM only sees "cannot run
             # simulation" and has no idea what to fix.
             if response.message:
-                error_block = (error_block + "\n" if error_block else "") + response.message
+                error_block = (
+                    error_block + "\n" if error_block else ""
+                ) + response.message
             if isinstance(response.data, dict):
                 preflight_errors = response.data.get("errors") or []
                 if preflight_errors:
                     bullet = "\n".join(f"  - {e}" for e in preflight_errors)
                     error_block = (
                         (error_block + "\n" if error_block else "")
-                        + "Geometry completeness errors:\n" + bullet
+                        + "Geometry completeness errors:\n"
+                        + bullet
                     )
         errors_for_phase = (
             [error_block] if error_block else ["EnergyPlus simulation failed."]
         )
-        return Command(
+        return SimCommand(
             goto="revise",
             update={
                 "simulation_errors": errors_for_phase,
@@ -143,7 +147,4 @@ def simulate_node(
         if response.success and isinstance(response.data, dict):
             message += f" idf={response.data.get('idf_path')}"
 
-    return Command(
-        goto="analyze",
-        update={"messages": [AIMessage(content=message)]},
-    )
+    return AgentStateUpdate(messages=[AIMessage(content=message)])
