@@ -1,0 +1,661 @@
+interactions:
+- request:
+    body: "{\"messages\":[{\"content\":\"You are a building geometry expert for EnergyPlus.\\nGiven
+      surface specifications, create all BuildingSurface:Detailed objects\\n(walls,
+      floors, roofs, ceilings) with 3D vertex polygons.\\n\\nVertices MUST be a list
+      of dicts, each with explicit X / Y / Z keys (not\\na bare [x, y, z] list). Meters,
+      in the global coordinate system. Example\\nshape for a 5m x 2m south wall at
+      y=0 (ground to 2m tall):\\n\\n    [\\n      {\\\"X\\\": 0.0, \\\"Y\\\": 0.0,
+      \\\"Z\\\": 0.0},\\n      {\\\"X\\\": 5.0, \\\"Y\\\": 0.0, \\\"Z\\\": 0.0},\\n
+      \     {\\\"X\\\": 5.0, \\\"Y\\\": 0.0, \\\"Z\\\": 2.0},\\n      {\\\"X\\\":
+      0.0, \\\"Y\\\": 0.0, \\\"Z\\\": 2.0}\\n    ]\\n\\nWorkflow:\\n1. FIRST call
+      `list_zones` to discover the exact zone names created by\\n   the zone phase.\\n2.
+      THEN call `list_constructions` to discover the exact construction\\n   names
+      and their layer composition (helps you match the right\\n   construction to
+      each surface type \u2014 wall / floor / roof / window).\\n3. Create each surface
+      via `create_surface`, reusing those names verbatim.\\n4. Call `list_surfaces`
+      once at the end to confirm.\\n\\nRules:\\n- `zone_name` and `construction_name`
+      MUST appear verbatim in the\\n  list_zones / list_constructions results (exact
+      case, underscores).\\n- If a needed zone or construction is missing after list,
+      STOP and\\n  report; do NOT invent names or create a surface with a broken reference.\\n-
+      >= 3 vertices per surface; four-vertex rectangles are most common.\\n- Order
+      counter-clockwise when viewed from OUTSIDE the zone.\\n- No two vertices may
+      coincide (tolerance 1e-10 m).\\n- outside_boundary_condition:\\n    * Walls/roofs
+      facing outdoors: 'Outdoors',\\n      sun_exposure='SunExposed', wind_exposure='WindExposed'\\n
+      \   * Floors on ground slab: 'Ground',\\n      sun_exposure='NoSun', wind_exposure='NoWind'\\n
+      \   * Internal partitions between zones: 'Surface',\\n      sun_exposure='NoSun',
+      wind_exposure='NoWind',\\n      and outside_boundary_condition_object must reference
+      the matching\\n      partner surface in the other zone\\n    * Adiabatic walls
+      (e.g., between identical thermal zones): 'Adiabatic'\\n- surface_type is one
+      of Wall, Floor, Roof, Ceiling (case-insensitive).\\n- Name convention: '{zone}_{direction}_{type}',
+      e.g.,\\n  'F1_Office_North_Wall', 'F1_Office_Floor', 'F1_Office_Roof'.\\n\",\"role\":\"system\"},{\"content\":\"Create
+      exactly one floor surface named 'F1_Office_Floor' for zone 'F1_Office' with
+      construction 'ExtWall_Simple': a 6m x 6m square at ground level (z=0, corners
+      (0,0), (6,0), (6,6), (0,6)), outside boundary condition Ground.\",\"role\":\"user\"}],\"model\":\"opencode/glm-5.2\",\"max_completion_tokens\":64000,\"parallel_tool_calls\":false,\"stream\":false,\"temperature\":0.7,\"tool_choice\":\"required\",\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"create_surface\",\"description\":\"Create
+      a BuildingSurface:Detailed (wall/floor/roof/ceiling).\\n\\n        Args:\\n
+      \           name: Unique surface name.\\n            surface_type: Wall / Floor
+      / Roof / Ceiling.\\n            construction_name: Existing Construction name.\\n
+      \           zone_name: Existing Zone name the surface belongs to.\\n            outside_boundary_condition:
+      Outdoors / Ground / Zone / Adiabatic / Surface.\\n            vertices: List
+      of vertex dicts in meters. Each vertex is\\n                      `{\\\"X\\\":
+      float, \\\"Y\\\": float, \\\"Z\\\": float}`. >= 3 points,\\n                      ordered
+      counter-clockwise when viewed from OUTSIDE.\\n                      Example
+      4-vertex south wall (2m tall, 5m wide, at y=0):\\n                        [{\\\"X\\\":
+      0.0, \\\"Y\\\": 0.0, \\\"Z\\\": 0.0},\\n                         {\\\"X\\\":
+      5.0, \\\"Y\\\": 0.0, \\\"Z\\\": 0.0},\\n                         {\\\"X\\\":
+      5.0, \\\"Y\\\": 0.0, \\\"Z\\\": 2.0},\\n                         {\\\"X\\\":
+      0.0, \\\"Y\\\": 0.0, \\\"Z\\\": 2.0}]\\n            sun_exposure: SunExposed
+      / NoSun (use SunExposed for outdoor-facing walls/roof).\\n            wind_exposure:
+      WindExposed / NoWind.\\n            outside_boundary_condition_object: Matching
+      surface name when\\n                                               outside_boundary_condition
+      in {Surface, Zone}.\",\"parameters\":{\"properties\":{\"name\":{\"type\":\"string\"},\"surface_type\":{\"enum\":[\"Ceiling\",\"Floor\",\"Roof\",\"Wall\"],\"type\":\"string\"},\"construction_name\":{\"type\":\"string\"},\"zone_name\":{\"type\":\"string\"},\"outside_boundary_condition\":{\"enum\":[\"Outdoors\",\"Ground\",\"Zone\",\"Adiabatic\",\"Surface\"],\"type\":\"string\"},\"vertices\":{\"items\":{\"additionalProperties\":{\"type\":\"number\"},\"type\":\"object\"},\"type\":\"array\"},\"sun_exposure\":{\"default\":\"NoSun\",\"enum\":[\"SunExposed\",\"NoSun\"],\"type\":\"string\"},\"wind_exposure\":{\"default\":\"NoWind\",\"enum\":[\"WindExposed\",\"NoWind\"],\"type\":\"string\"},\"outside_boundary_condition_object\":{\"anyOf\":[{\"enum\":[\"Surface\",\"Zone\"],\"type\":\"string\"},{\"type\":\"null\"}],\"default\":null}},\"required\":[\"name\",\"surface_type\",\"construction_name\",\"zone_name\",\"outside_boundary_condition\",\"vertices\"],\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"list_surfaces\",\"description\":\"List
+      all building surfaces.\",\"parameters\":{\"properties\":{},\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"get_surface\",\"description\":\"Read
+      a surface by name.\",\"parameters\":{\"properties\":{\"name\":{\"type\":\"string\"}},\"required\":[\"name\"],\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"delete_surface\",\"description\":\"Delete
+      a surface. Fails if fenestration references it.\",\"parameters\":{\"properties\":{\"name\":{\"type\":\"string\"}},\"required\":[\"name\"],\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"list_zones\",\"description\":\"Read-only:
+      list zones a surface can be assigned to.\",\"parameters\":{\"properties\":{},\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"list_constructions\",\"description\":\"Read-only:
+      list constructions a surface can reference.\",\"parameters\":{\"properties\":{},\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"SurfaceResponse\",\"description\":\"Structured
+      summary returned by the surface phase agent.\",\"parameters\":{\"properties\":{\"surface_names\":{\"description\":\"Names
+      of all surfaces created\",\"items\":{\"type\":\"string\"},\"type\":\"array\"},\"summary\":{\"description\":\"One-line
+      summary of the surface creation result\",\"type\":\"string\"}},\"required\":[\"surface_names\",\"summary\"],\"type\":\"object\"}}}],\"max_thinking_budget\":4096}"
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate, zstd
+      connection:
+      - keep-alive
+      content-length:
+      - '6168'
+      content-type:
+      - application/json
+      host:
+      - one.chat-yu.net
+      user-agent:
+      - OpenAI/Python 2.52.0
+      x-stainless-arch:
+      - x64
+      x-stainless-async:
+      - 'false'
+      x-stainless-lang:
+      - python
+      x-stainless-os:
+      - Linux
+      x-stainless-package-version:
+      - 2.52.0
+      x-stainless-raw-response:
+      - 'true'
+      x-stainless-retry-count:
+      - '0'
+      x-stainless-runtime:
+      - CPython
+      x-stainless-runtime-version:
+      - 3.12.3
+    method: POST
+    uri: https://one.chat-yu.net/v1/chat/completions
+  response:
+    body:
+      string: !!binary |
+        KLUv/QBY3Q8A5uJjJBCPtg0ANZ7JTuv15mjx+424udqTOUqF8GH94cEygURVVVVVM2EAUwBXAF++
+        jlc+5uG2zbkSWG6RzbZXIJZzsuYedvUBhiMAUsmXazYOunIIGDwgD8fDoLG8yV752NXXtU6NIMcY
+        zXIi4q6eID089gIyeZQDhITJAsShWWB4EQWGAI0g1uthX960VwLQ2qsztmFzs0jkhNbiutZMes3r
+        GDa7MNddYD6Nkm0Up72sQEoE+61mVAVI+PLe7HXs6r2ruTGvL09175XlKVnMCV2pSrucI+5FEqdX
+        Z9XFGHWuA8qoLrYRG8GYOHUonpu8jFRbMzYquYcxAVuKoGq2LBKbbE5jGTFFdUnNDvLpzadRuUbm
+        5qbY/JqDCWGnAjKSLedJjM85dXAhusaEkHvXBF+yhPk0MJJtGdMFvrzZsatpqixnbauzYRSEwKCh
+        q11fETyuHAUFjeW8SeGa6QhyL5KuJKZJYjUeTE3Tp8qXc29CkuStq7+yqK/kfHlGlL56BNI8GNWl
+        ztBUXW9FuA2ZaW4BKCAwQmIMxHpDSF2lj1vAjrKZoQgTp+EoBxCT1OT8b1/ElrG9uGUb91kBA7lA
+        d3xoa/hQxNWyHC3T7T6mGOIJwzwKI7OMN4ZvV0KA1DbStT0ZVZx3FIgXo8FiNq0OUIi4iBfATJsM
+        6Coo
+    headers:
+      alt-svc:
+      - h3=":443"; ma=86400
+      cf-cache-status:
+      - DYNAMIC
+      cf-placement:
+      - remote-ORD
+      cf-ray:
+      - a26289ddfec762d0-NRT
+      connection:
+      - keep-alive
+      content-encoding:
+      - zstd
+      content-type:
+      - application/json
+      date:
+      - Wed, 05 Aug 2026 02:58:26 GMT
+      nel:
+      - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
+      report-to:
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=tgJ5NwJ7p4HSN0LL54iNOfgrKHfZBt2JHMN25eRuj2veqJMDNS28nyrAdHK8iykElue5GFPVxT4wDDrKDXeux7UpjRzZTeh1%2FYBKZnBCiNlfkgRSxHTKrmerZEANXVAtTUE%3D"}]}'
+      server:
+      - cloudflare
+      strict-transport-security:
+      - max-age=31536000
+      transfer-encoding:
+      - chunked
+      via:
+      - 1.1 Caddy
+      x-new-api-version:
+      - v1.0.0-rc.21
+      x-oneapi-request-id:
+      - 202608050258103671085268268d9d6pp5J9gCG
+    status:
+      code: 200
+      message: OK
+- request:
+    body: "{\"messages\":[{\"content\":\"You are a building geometry expert for EnergyPlus.\\nGiven
+      surface specifications, create all BuildingSurface:Detailed objects\\n(walls,
+      floors, roofs, ceilings) with 3D vertex polygons.\\n\\nVertices MUST be a list
+      of dicts, each with explicit X / Y / Z keys (not\\na bare [x, y, z] list). Meters,
+      in the global coordinate system. Example\\nshape for a 5m x 2m south wall at
+      y=0 (ground to 2m tall):\\n\\n    [\\n      {\\\"X\\\": 0.0, \\\"Y\\\": 0.0,
+      \\\"Z\\\": 0.0},\\n      {\\\"X\\\": 5.0, \\\"Y\\\": 0.0, \\\"Z\\\": 0.0},\\n
+      \     {\\\"X\\\": 5.0, \\\"Y\\\": 0.0, \\\"Z\\\": 2.0},\\n      {\\\"X\\\":
+      0.0, \\\"Y\\\": 0.0, \\\"Z\\\": 2.0}\\n    ]\\n\\nWorkflow:\\n1. FIRST call
+      `list_zones` to discover the exact zone names created by\\n   the zone phase.\\n2.
+      THEN call `list_constructions` to discover the exact construction\\n   names
+      and their layer composition (helps you match the right\\n   construction to
+      each surface type \u2014 wall / floor / roof / window).\\n3. Create each surface
+      via `create_surface`, reusing those names verbatim.\\n4. Call `list_surfaces`
+      once at the end to confirm.\\n\\nRules:\\n- `zone_name` and `construction_name`
+      MUST appear verbatim in the\\n  list_zones / list_constructions results (exact
+      case, underscores).\\n- If a needed zone or construction is missing after list,
+      STOP and\\n  report; do NOT invent names or create a surface with a broken reference.\\n-
+      >= 3 vertices per surface; four-vertex rectangles are most common.\\n- Order
+      counter-clockwise when viewed from OUTSIDE the zone.\\n- No two vertices may
+      coincide (tolerance 1e-10 m).\\n- outside_boundary_condition:\\n    * Walls/roofs
+      facing outdoors: 'Outdoors',\\n      sun_exposure='SunExposed', wind_exposure='WindExposed'\\n
+      \   * Floors on ground slab: 'Ground',\\n      sun_exposure='NoSun', wind_exposure='NoWind'\\n
+      \   * Internal partitions between zones: 'Surface',\\n      sun_exposure='NoSun',
+      wind_exposure='NoWind',\\n      and outside_boundary_condition_object must reference
+      the matching\\n      partner surface in the other zone\\n    * Adiabatic walls
+      (e.g., between identical thermal zones): 'Adiabatic'\\n- surface_type is one
+      of Wall, Floor, Roof, Ceiling (case-insensitive).\\n- Name convention: '{zone}_{direction}_{type}',
+      e.g.,\\n  'F1_Office_North_Wall', 'F1_Office_Floor', 'F1_Office_Roof'.\\n\",\"role\":\"system\"},{\"content\":\"Create
+      exactly one floor surface named 'F1_Office_Floor' for zone 'F1_Office' with
+      construction 'ExtWall_Simple': a 6m x 6m square at ground level (z=0, corners
+      (0,0), (6,0), (6,6), (0,6)), outside boundary condition Ground.\",\"role\":\"user\"},{\"content\":\"I'll
+      start by verifying the zone and construction names exist in the model.\",\"role\":\"assistant\",\"tool_calls\":[{\"type\":\"function\",\"id\":\"call_8d9b\",\"function\":{\"name\":\"list_zones\",\"arguments\":\"{}\"}},{\"type\":\"function\",\"id\":\"call_c81a\",\"function\":{\"name\":\"list_constructions\",\"arguments\":\"{}\"}}]},{\"content\":\"{\\\"success\\\":
+      true, \\\"message\\\": \\\"Listed 1 zones.\\\", \\\"data\\\": [{\\\"name\\\":
+      \\\"F1_Office\\\", \\\"direction_of_relative_north\\\": 0.0, \\\"x_origin\\\":
+      0.0, \\\"y_origin\\\": 0.0, \\\"z_origin\\\": 0.0, \\\"type\\\": 1, \\\"multiplier\\\":
+      1, \\\"ceiling_height\\\": \\\"Autocalculate\\\", \\\"volume\\\": \\\"Autocalculate\\\",
+      \\\"floor_area\\\": \\\"Autocalculate\\\", \\\"zone_inside_convection_algorithm\\\":
+      null, \\\"zone_outside_convection_algorithm\\\": null, \\\"part_of_total_floor_area\\\":
+      \\\"Yes\\\"}]}\",\"role\":\"tool\",\"tool_call_id\":\"call_8d9b\"},{\"content\":\"{\\\"success\\\":
+      true, \\\"message\\\": \\\"Listed 1 constructions.\\\", \\\"data\\\": [{\\\"name\\\":
+      \\\"ExtWall_Simple\\\", \\\"outside_layer\\\": \\\"Brick_100mm\\\", \\\"layer_2\\\":
+      null, \\\"layer_3\\\": null, \\\"layer_4\\\": null, \\\"layer_5\\\": null, \\\"layer_6\\\":
+      null, \\\"layer_7\\\": null, \\\"layer_8\\\": null, \\\"layer_9\\\": null, \\\"layer_10\\\":
+      null}]}\",\"role\":\"tool\",\"tool_call_id\":\"call_c81a\"}],\"model\":\"opencode/glm-5.2\",\"max_completion_tokens\":64000,\"parallel_tool_calls\":false,\"stream\":false,\"temperature\":0.7,\"tool_choice\":\"required\",\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"create_surface\",\"description\":\"Create
+      a BuildingSurface:Detailed (wall/floor/roof/ceiling).\\n\\n        Args:\\n
+      \           name: Unique surface name.\\n            surface_type: Wall / Floor
+      / Roof / Ceiling.\\n            construction_name: Existing Construction name.\\n
+      \           zone_name: Existing Zone name the surface belongs to.\\n            outside_boundary_condition:
+      Outdoors / Ground / Zone / Adiabatic / Surface.\\n            vertices: List
+      of vertex dicts in meters. Each vertex is\\n                      `{\\\"X\\\":
+      float, \\\"Y\\\": float, \\\"Z\\\": float}`. >= 3 points,\\n                      ordered
+      counter-clockwise when viewed from OUTSIDE.\\n                      Example
+      4-vertex south wall (2m tall, 5m wide, at y=0):\\n                        [{\\\"X\\\":
+      0.0, \\\"Y\\\": 0.0, \\\"Z\\\": 0.0},\\n                         {\\\"X\\\":
+      5.0, \\\"Y\\\": 0.0, \\\"Z\\\": 0.0},\\n                         {\\\"X\\\":
+      5.0, \\\"Y\\\": 0.0, \\\"Z\\\": 2.0},\\n                         {\\\"X\\\":
+      0.0, \\\"Y\\\": 0.0, \\\"Z\\\": 2.0}]\\n            sun_exposure: SunExposed
+      / NoSun (use SunExposed for outdoor-facing walls/roof).\\n            wind_exposure:
+      WindExposed / NoWind.\\n            outside_boundary_condition_object: Matching
+      surface name when\\n                                               outside_boundary_condition
+      in {Surface, Zone}.\",\"parameters\":{\"properties\":{\"name\":{\"type\":\"string\"},\"surface_type\":{\"enum\":[\"Ceiling\",\"Floor\",\"Roof\",\"Wall\"],\"type\":\"string\"},\"construction_name\":{\"type\":\"string\"},\"zone_name\":{\"type\":\"string\"},\"outside_boundary_condition\":{\"enum\":[\"Outdoors\",\"Ground\",\"Zone\",\"Adiabatic\",\"Surface\"],\"type\":\"string\"},\"vertices\":{\"items\":{\"additionalProperties\":{\"type\":\"number\"},\"type\":\"object\"},\"type\":\"array\"},\"sun_exposure\":{\"default\":\"NoSun\",\"enum\":[\"SunExposed\",\"NoSun\"],\"type\":\"string\"},\"wind_exposure\":{\"default\":\"NoWind\",\"enum\":[\"WindExposed\",\"NoWind\"],\"type\":\"string\"},\"outside_boundary_condition_object\":{\"anyOf\":[{\"enum\":[\"Surface\",\"Zone\"],\"type\":\"string\"},{\"type\":\"null\"}],\"default\":null}},\"required\":[\"name\",\"surface_type\",\"construction_name\",\"zone_name\",\"outside_boundary_condition\",\"vertices\"],\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"list_surfaces\",\"description\":\"List
+      all building surfaces.\",\"parameters\":{\"properties\":{},\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"get_surface\",\"description\":\"Read
+      a surface by name.\",\"parameters\":{\"properties\":{\"name\":{\"type\":\"string\"}},\"required\":[\"name\"],\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"delete_surface\",\"description\":\"Delete
+      a surface. Fails if fenestration references it.\",\"parameters\":{\"properties\":{\"name\":{\"type\":\"string\"}},\"required\":[\"name\"],\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"list_zones\",\"description\":\"Read-only:
+      list zones a surface can be assigned to.\",\"parameters\":{\"properties\":{},\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"list_constructions\",\"description\":\"Read-only:
+      list constructions a surface can reference.\",\"parameters\":{\"properties\":{},\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"SurfaceResponse\",\"description\":\"Structured
+      summary returned by the surface phase agent.\",\"parameters\":{\"properties\":{\"surface_names\":{\"description\":\"Names
+      of all surfaces created\",\"items\":{\"type\":\"string\"},\"type\":\"array\"},\"summary\":{\"description\":\"One-line
+      summary of the surface creation result\",\"type\":\"string\"}},\"required\":[\"surface_names\",\"summary\"],\"type\":\"object\"}}}],\"max_thinking_budget\":4096}"
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate, zstd
+      connection:
+      - keep-alive
+      content-length:
+      - '7351'
+      content-type:
+      - application/json
+      host:
+      - one.chat-yu.net
+      user-agent:
+      - OpenAI/Python 2.52.0
+      x-stainless-arch:
+      - x64
+      x-stainless-async:
+      - 'false'
+      x-stainless-lang:
+      - python
+      x-stainless-os:
+      - Linux
+      x-stainless-package-version:
+      - 2.52.0
+      x-stainless-raw-response:
+      - 'true'
+      x-stainless-retry-count:
+      - '0'
+      x-stainless-runtime:
+      - CPython
+      x-stainless-runtime-version:
+      - 3.12.3
+    method: POST
+    uri: https://one.chat-yu.net/v1/chat/completions
+  response:
+    body:
+      string: !!binary |
+        KLUv/QBYvRAAVmNoJfCSVgegG2iClBUZHyOiGNXUmUno/J+2synuE8KepcaJw+KwCC9iAFoAWgDc
+        Z1+eTmW7TLiw8hVhx+iz8BkM9qkP8uV9XQBSEABFy9mjPgx9CQwYHCAcFBwYSNgfbafyfX0ZtsYI
+        4gfppxoU/vqbVA4oFQwfEwqRhuiiwTJh0PDmw0QExAh67S7v7A98JqqDHxSkJ8SoahqNEQQlWoyO
+        ojEKTaOWYT9J9lx+6lmnmkYfrFQgmmShaZQufyi9tLo0J5y9V3v5fb3X9YRzurNrZPkMu1rcnAp9
+        xSgt+6SwjCwcvz5jdK9FDtLkCKNtn5VYMizDhs/yax7SPSsxpekDZ0usyx8t8uh2R607kjkutDuK
+        3XEyZ5+9CkkW6b7eMmx9pcrZNfLorz8RimsxuvVmWaiQ269D9LmKlKaSzLGiYgRwCNMjZ+/J72ua
+        YpRWG8qOtggmk0cvz71n2GeErvVpi2BAIhBdc38hfBUMIEjY5+oGd+sIYhlJXxnTlDFNnzIiE7Wm
+        C4s7akUgEcXuVNzJYCh2Z+qDLZUDUjwLO1aS4AcZLyBgIhll5wHLlIIN4lsgTj4LHRzM+jTtiysE
+        JZQnKAOJN4GMy7dv3J/AYZOA9fOpQIoexwQOey/BaGipATaQwDh8E/AANlARspFTvCrV7vbLl6Yc
+        yJOxt3gFje9WAIALXM3xg01JDXBU4uoL4OWGDJg9KA==
+    headers:
+      alt-svc:
+      - h3=":443"; ma=86400
+      cf-cache-status:
+      - DYNAMIC
+      cf-placement:
+      - remote-ORD
+      cf-ray:
+      - a2628a40ef4262d0-NRT
+      connection:
+      - keep-alive
+      content-encoding:
+      - zstd
+      content-type:
+      - application/json
+      date:
+      - Wed, 05 Aug 2026 02:58:53 GMT
+      nel:
+      - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
+      report-to:
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=hv8U%2FUNF7glNoQYLfjyFm1RJ%2F6HGnj8FBNxs5LCIQNTgLSjD7S%2FjhFMgpr7GmkdaZTjSXEyEJjDgaZCTmhFIVFSI2GWuDn70BuZN%2BWJpQJYc6NtR32Fk0RYEJJyO5eyVXWk%3D"}]}'
+      server:
+      - cloudflare
+      strict-transport-security:
+      - max-age=31536000
+      transfer-encoding:
+      - chunked
+      via:
+      - 1.1 Caddy
+      x-new-api-version:
+      - v1.0.0-rc.21
+      x-oneapi-request-id:
+      - 202608050258261980944398268d9d6GigZBlCt
+    status:
+      code: 200
+      message: OK
+- request:
+    body: "{\"messages\":[{\"content\":\"You are a building geometry expert for EnergyPlus.\\nGiven
+      surface specifications, create all BuildingSurface:Detailed objects\\n(walls,
+      floors, roofs, ceilings) with 3D vertex polygons.\\n\\nVertices MUST be a list
+      of dicts, each with explicit X / Y / Z keys (not\\na bare [x, y, z] list). Meters,
+      in the global coordinate system. Example\\nshape for a 5m x 2m south wall at
+      y=0 (ground to 2m tall):\\n\\n    [\\n      {\\\"X\\\": 0.0, \\\"Y\\\": 0.0,
+      \\\"Z\\\": 0.0},\\n      {\\\"X\\\": 5.0, \\\"Y\\\": 0.0, \\\"Z\\\": 0.0},\\n
+      \     {\\\"X\\\": 5.0, \\\"Y\\\": 0.0, \\\"Z\\\": 2.0},\\n      {\\\"X\\\":
+      0.0, \\\"Y\\\": 0.0, \\\"Z\\\": 2.0}\\n    ]\\n\\nWorkflow:\\n1. FIRST call
+      `list_zones` to discover the exact zone names created by\\n   the zone phase.\\n2.
+      THEN call `list_constructions` to discover the exact construction\\n   names
+      and their layer composition (helps you match the right\\n   construction to
+      each surface type \u2014 wall / floor / roof / window).\\n3. Create each surface
+      via `create_surface`, reusing those names verbatim.\\n4. Call `list_surfaces`
+      once at the end to confirm.\\n\\nRules:\\n- `zone_name` and `construction_name`
+      MUST appear verbatim in the\\n  list_zones / list_constructions results (exact
+      case, underscores).\\n- If a needed zone or construction is missing after list,
+      STOP and\\n  report; do NOT invent names or create a surface with a broken reference.\\n-
+      >= 3 vertices per surface; four-vertex rectangles are most common.\\n- Order
+      counter-clockwise when viewed from OUTSIDE the zone.\\n- No two vertices may
+      coincide (tolerance 1e-10 m).\\n- outside_boundary_condition:\\n    * Walls/roofs
+      facing outdoors: 'Outdoors',\\n      sun_exposure='SunExposed', wind_exposure='WindExposed'\\n
+      \   * Floors on ground slab: 'Ground',\\n      sun_exposure='NoSun', wind_exposure='NoWind'\\n
+      \   * Internal partitions between zones: 'Surface',\\n      sun_exposure='NoSun',
+      wind_exposure='NoWind',\\n      and outside_boundary_condition_object must reference
+      the matching\\n      partner surface in the other zone\\n    * Adiabatic walls
+      (e.g., between identical thermal zones): 'Adiabatic'\\n- surface_type is one
+      of Wall, Floor, Roof, Ceiling (case-insensitive).\\n- Name convention: '{zone}_{direction}_{type}',
+      e.g.,\\n  'F1_Office_North_Wall', 'F1_Office_Floor', 'F1_Office_Roof'.\\n\",\"role\":\"system\"},{\"content\":\"Create
+      exactly one floor surface named 'F1_Office_Floor' for zone 'F1_Office' with
+      construction 'ExtWall_Simple': a 6m x 6m square at ground level (z=0, corners
+      (0,0), (6,0), (6,6), (0,6)), outside boundary condition Ground.\",\"role\":\"user\"},{\"content\":\"I'll
+      start by verifying the zone and construction names exist in the model.\",\"role\":\"assistant\",\"tool_calls\":[{\"type\":\"function\",\"id\":\"call_8d9b\",\"function\":{\"name\":\"list_zones\",\"arguments\":\"{}\"}},{\"type\":\"function\",\"id\":\"call_c81a\",\"function\":{\"name\":\"list_constructions\",\"arguments\":\"{}\"}}]},{\"content\":\"{\\\"success\\\":
+      true, \\\"message\\\": \\\"Listed 1 zones.\\\", \\\"data\\\": [{\\\"name\\\":
+      \\\"F1_Office\\\", \\\"direction_of_relative_north\\\": 0.0, \\\"x_origin\\\":
+      0.0, \\\"y_origin\\\": 0.0, \\\"z_origin\\\": 0.0, \\\"type\\\": 1, \\\"multiplier\\\":
+      1, \\\"ceiling_height\\\": \\\"Autocalculate\\\", \\\"volume\\\": \\\"Autocalculate\\\",
+      \\\"floor_area\\\": \\\"Autocalculate\\\", \\\"zone_inside_convection_algorithm\\\":
+      null, \\\"zone_outside_convection_algorithm\\\": null, \\\"part_of_total_floor_area\\\":
+      \\\"Yes\\\"}]}\",\"role\":\"tool\",\"tool_call_id\":\"call_8d9b\"},{\"content\":\"{\\\"success\\\":
+      true, \\\"message\\\": \\\"Listed 1 constructions.\\\", \\\"data\\\": [{\\\"name\\\":
+      \\\"ExtWall_Simple\\\", \\\"outside_layer\\\": \\\"Brick_100mm\\\", \\\"layer_2\\\":
+      null, \\\"layer_3\\\": null, \\\"layer_4\\\": null, \\\"layer_5\\\": null, \\\"layer_6\\\":
+      null, \\\"layer_7\\\": null, \\\"layer_8\\\": null, \\\"layer_9\\\": null, \\\"layer_10\\\":
+      null}]}\",\"role\":\"tool\",\"tool_call_id\":\"call_c81a\"},{\"content\":\"Both
+      the zone **F1_Office** and construction **ExtWall_Simple** exist. Now I'll create
+      the floor surface.\",\"role\":\"assistant\",\"tool_calls\":[{\"type\":\"function\",\"id\":\"call_ab0d\",\"function\":{\"name\":\"create_surface\",\"arguments\":\"{\\\"name\\\":
+      \\\"F1_Office_Floor\\\", \\\"surface_type\\\": \\\"Floor\\\", \\\"construction_name\\\":
+      \\\"ExtWall_Simple\\\", \\\"zone_name\\\": \\\"F1_Office\\\", \\\"outside_boundary_condition\\\":
+      \\\"Ground\\\", \\\"sun_exposure\\\": \\\"NoSun\\\", \\\"wind_exposure\\\":
+      \\\"NoWind\\\", \\\"vertices\\\": [{\\\"X\\\": 0.0, \\\"Y\\\": 0.0, \\\"Z\\\":
+      0.0}, {\\\"X\\\": 6.0, \\\"Y\\\": 0.0, \\\"Z\\\": 0.0}, {\\\"X\\\": 6.0, \\\"Y\\\":
+      6.0, \\\"Z\\\": 0.0}, {\\\"X\\\": 0.0, \\\"Y\\\": 6.0, \\\"Z\\\": 0.0}]}\"}}]},{\"content\":\"{\\\"success\\\":
+      true, \\\"message\\\": \\\"Surface 'F1_Office_Floor' created successfully.\\\",
+      \\\"data\\\": {\\\"name\\\": \\\"F1_Office_Floor\\\", \\\"surface_type\\\":
+      \\\"Floor\\\", \\\"construction_name\\\": \\\"ExtWall_Simple\\\", \\\"zone_name\\\":
+      \\\"F1_Office\\\", \\\"space_name\\\": null, \\\"outside_boundary_condition\\\":
+      \\\"Ground\\\", \\\"outside_boundary_condition_object\\\": null, \\\"sun_exposure\\\":
+      \\\"NoSun\\\", \\\"wind_exposure\\\": \\\"NoWind\\\", \\\"view_factor_to_ground\\\":
+      \\\"Autocalculate\\\", \\\"number_of_vertices\\\": \\\"Autocalculate\\\", \\\"vertices\\\":
+      [{\\\"vertex_x_coordinate\\\": 0.0, \\\"vertex_y_coordinate\\\": 0.0, \\\"vertex_z_coordinate\\\":
+      0.0}, {\\\"vertex_x_coordinate\\\": 6.0, \\\"vertex_y_coordinate\\\": 0.0, \\\"vertex_z_coordinate\\\":
+      0.0}, {\\\"vertex_x_coordinate\\\": 6.0, \\\"vertex_y_coordinate\\\": 6.0, \\\"vertex_z_coordinate\\\":
+      0.0}, {\\\"vertex_x_coordinate\\\": 0.0, \\\"vertex_y_coordinate\\\": 6.0, \\\"vertex_z_coordinate\\\":
+      0.0}]}}\",\"role\":\"tool\",\"tool_call_id\":\"call_ab0d\"}],\"model\":\"opencode/glm-5.2\",\"max_completion_tokens\":64000,\"parallel_tool_calls\":false,\"stream\":false,\"temperature\":0.7,\"tool_choice\":\"required\",\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"create_surface\",\"description\":\"Create
+      a BuildingSurface:Detailed (wall/floor/roof/ceiling).\\n\\n        Args:\\n
+      \           name: Unique surface name.\\n            surface_type: Wall / Floor
+      / Roof / Ceiling.\\n            construction_name: Existing Construction name.\\n
+      \           zone_name: Existing Zone name the surface belongs to.\\n            outside_boundary_condition:
+      Outdoors / Ground / Zone / Adiabatic / Surface.\\n            vertices: List
+      of vertex dicts in meters. Each vertex is\\n                      `{\\\"X\\\":
+      float, \\\"Y\\\": float, \\\"Z\\\": float}`. >= 3 points,\\n                      ordered
+      counter-clockwise when viewed from OUTSIDE.\\n                      Example
+      4-vertex south wall (2m tall, 5m wide, at y=0):\\n                        [{\\\"X\\\":
+      0.0, \\\"Y\\\": 0.0, \\\"Z\\\": 0.0},\\n                         {\\\"X\\\":
+      5.0, \\\"Y\\\": 0.0, \\\"Z\\\": 0.0},\\n                         {\\\"X\\\":
+      5.0, \\\"Y\\\": 0.0, \\\"Z\\\": 2.0},\\n                         {\\\"X\\\":
+      0.0, \\\"Y\\\": 0.0, \\\"Z\\\": 2.0}]\\n            sun_exposure: SunExposed
+      / NoSun (use SunExposed for outdoor-facing walls/roof).\\n            wind_exposure:
+      WindExposed / NoWind.\\n            outside_boundary_condition_object: Matching
+      surface name when\\n                                               outside_boundary_condition
+      in {Surface, Zone}.\",\"parameters\":{\"properties\":{\"name\":{\"type\":\"string\"},\"surface_type\":{\"enum\":[\"Ceiling\",\"Floor\",\"Roof\",\"Wall\"],\"type\":\"string\"},\"construction_name\":{\"type\":\"string\"},\"zone_name\":{\"type\":\"string\"},\"outside_boundary_condition\":{\"enum\":[\"Outdoors\",\"Ground\",\"Zone\",\"Adiabatic\",\"Surface\"],\"type\":\"string\"},\"vertices\":{\"items\":{\"additionalProperties\":{\"type\":\"number\"},\"type\":\"object\"},\"type\":\"array\"},\"sun_exposure\":{\"default\":\"NoSun\",\"enum\":[\"SunExposed\",\"NoSun\"],\"type\":\"string\"},\"wind_exposure\":{\"default\":\"NoWind\",\"enum\":[\"WindExposed\",\"NoWind\"],\"type\":\"string\"},\"outside_boundary_condition_object\":{\"anyOf\":[{\"enum\":[\"Surface\",\"Zone\"],\"type\":\"string\"},{\"type\":\"null\"}],\"default\":null}},\"required\":[\"name\",\"surface_type\",\"construction_name\",\"zone_name\",\"outside_boundary_condition\",\"vertices\"],\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"list_surfaces\",\"description\":\"List
+      all building surfaces.\",\"parameters\":{\"properties\":{},\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"get_surface\",\"description\":\"Read
+      a surface by name.\",\"parameters\":{\"properties\":{\"name\":{\"type\":\"string\"}},\"required\":[\"name\"],\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"delete_surface\",\"description\":\"Delete
+      a surface. Fails if fenestration references it.\",\"parameters\":{\"properties\":{\"name\":{\"type\":\"string\"}},\"required\":[\"name\"],\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"list_zones\",\"description\":\"Read-only:
+      list zones a surface can be assigned to.\",\"parameters\":{\"properties\":{},\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"list_constructions\",\"description\":\"Read-only:
+      list constructions a surface can reference.\",\"parameters\":{\"properties\":{},\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"SurfaceResponse\",\"description\":\"Structured
+      summary returned by the surface phase agent.\",\"parameters\":{\"properties\":{\"surface_names\":{\"description\":\"Names
+      of all surfaces created\",\"items\":{\"type\":\"string\"},\"type\":\"array\"},\"summary\":{\"description\":\"One-line
+      summary of the surface creation result\",\"type\":\"string\"}},\"required\":[\"surface_names\",\"summary\"],\"type\":\"object\"}}}],\"max_thinking_budget\":4096}"
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate, zstd
+      connection:
+      - keep-alive
+      content-length:
+      - '8929'
+      content-type:
+      - application/json
+      host:
+      - one.chat-yu.net
+      user-agent:
+      - OpenAI/Python 2.52.0
+      x-stainless-arch:
+      - x64
+      x-stainless-async:
+      - 'false'
+      x-stainless-lang:
+      - python
+      x-stainless-os:
+      - Linux
+      x-stainless-package-version:
+      - 2.52.0
+      x-stainless-raw-response:
+      - 'true'
+      x-stainless-retry-count:
+      - '0'
+      x-stainless-runtime:
+      - CPython
+      x-stainless-runtime-version:
+      - 3.12.3
+    method: POST
+    uri: https://one.chat-yu.net/v1/chat/completions
+  response:
+    body:
+      string: !!binary |
+        KLUv/QBYZQoA5hdHJDCNmwPF1Vmxy2RPxX2L0r2dy8zVpc584B3iVsA/QpQcKSgIlEIAOAA8AABP
+        n69rOvuuII+IREDCSCKNdSebZWxXh+s6FXrbFt0yYrJXhxwQPIUGZtpkwKDgiSQUsAGDw8YFAIVe
+        a1ZpX3fcpeyY2ddTN15az4cx57tSjeA6TzZCz+rVWZW1Rnf763CZZWwq7KCjXDHWKdKB7tLDOmdz
+        W2lXdyyYq8GI8vWEKvrqDwhjGlWm3jzQ5WPw6gvOxigx4kWVLQ90zU6XisnyoqPAbUu+pVOXiUX4
+        esNsuO3qDVkH0xlfb952NU3SOqtjnU6jGowAh7LevoI0rhjJw7HOMCW2m4beRii6gpgmiGn6JH2d
+        G+aLnsiu3jQ7vRQQAEOQuqY+ngL20Wabnww+CCRDblexMDY7ZxsITQAZ4ziKTQsbQFoGIgNmCgo=
+    headers:
+      alt-svc:
+      - h3=":443"; ma=86400
+      cf-cache-status:
+      - DYNAMIC
+      cf-placement:
+      - remote-ORD
+      cf-ray:
+      - a2628ae9abd462d0-NRT
+      connection:
+      - keep-alive
+      content-encoding:
+      - zstd
+      content-type:
+      - application/json
+      date:
+      - Wed, 05 Aug 2026 02:58:56 GMT
+      nel:
+      - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
+      report-to:
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=ZEYFiISnIL8vMxbVBJfCKskHaklBETBrxXO6Aj%2FsA5K0JZi8blD%2BzKZ9jnvf4b8ZEVL%2FfoWEqGZHnxodfTHp%2FjXhTyV%2FY08sYA5XHTr9iwr7QvFJYZT4LF%2BJ3mj3GHQL%2BOM%3D"}]}'
+      server:
+      - cloudflare
+      strict-transport-security:
+      - max-age=31536000
+      transfer-encoding:
+      - chunked
+      via:
+      - 1.1 Caddy
+      x-new-api-version:
+      - v1.0.0-rc.21
+      x-oneapi-request-id:
+      - 202608050258531992665148268d9d6P0YNa7Ny
+    status:
+      code: 200
+      message: OK
+- request:
+    body: "{\"messages\":[{\"content\":\"You are a building geometry expert for EnergyPlus.\\nGiven
+      surface specifications, create all BuildingSurface:Detailed objects\\n(walls,
+      floors, roofs, ceilings) with 3D vertex polygons.\\n\\nVertices MUST be a list
+      of dicts, each with explicit X / Y / Z keys (not\\na bare [x, y, z] list). Meters,
+      in the global coordinate system. Example\\nshape for a 5m x 2m south wall at
+      y=0 (ground to 2m tall):\\n\\n    [\\n      {\\\"X\\\": 0.0, \\\"Y\\\": 0.0,
+      \\\"Z\\\": 0.0},\\n      {\\\"X\\\": 5.0, \\\"Y\\\": 0.0, \\\"Z\\\": 0.0},\\n
+      \     {\\\"X\\\": 5.0, \\\"Y\\\": 0.0, \\\"Z\\\": 2.0},\\n      {\\\"X\\\":
+      0.0, \\\"Y\\\": 0.0, \\\"Z\\\": 2.0}\\n    ]\\n\\nWorkflow:\\n1. FIRST call
+      `list_zones` to discover the exact zone names created by\\n   the zone phase.\\n2.
+      THEN call `list_constructions` to discover the exact construction\\n   names
+      and their layer composition (helps you match the right\\n   construction to
+      each surface type \u2014 wall / floor / roof / window).\\n3. Create each surface
+      via `create_surface`, reusing those names verbatim.\\n4. Call `list_surfaces`
+      once at the end to confirm.\\n\\nRules:\\n- `zone_name` and `construction_name`
+      MUST appear verbatim in the\\n  list_zones / list_constructions results (exact
+      case, underscores).\\n- If a needed zone or construction is missing after list,
+      STOP and\\n  report; do NOT invent names or create a surface with a broken reference.\\n-
+      >= 3 vertices per surface; four-vertex rectangles are most common.\\n- Order
+      counter-clockwise when viewed from OUTSIDE the zone.\\n- No two vertices may
+      coincide (tolerance 1e-10 m).\\n- outside_boundary_condition:\\n    * Walls/roofs
+      facing outdoors: 'Outdoors',\\n      sun_exposure='SunExposed', wind_exposure='WindExposed'\\n
+      \   * Floors on ground slab: 'Ground',\\n      sun_exposure='NoSun', wind_exposure='NoWind'\\n
+      \   * Internal partitions between zones: 'Surface',\\n      sun_exposure='NoSun',
+      wind_exposure='NoWind',\\n      and outside_boundary_condition_object must reference
+      the matching\\n      partner surface in the other zone\\n    * Adiabatic walls
+      (e.g., between identical thermal zones): 'Adiabatic'\\n- surface_type is one
+      of Wall, Floor, Roof, Ceiling (case-insensitive).\\n- Name convention: '{zone}_{direction}_{type}',
+      e.g.,\\n  'F1_Office_North_Wall', 'F1_Office_Floor', 'F1_Office_Roof'.\\n\",\"role\":\"system\"},{\"content\":\"Create
+      exactly one floor surface named 'F1_Office_Floor' for zone 'F1_Office' with
+      construction 'ExtWall_Simple': a 6m x 6m square at ground level (z=0, corners
+      (0,0), (6,0), (6,6), (0,6)), outside boundary condition Ground.\",\"role\":\"user\"},{\"content\":\"I'll
+      start by verifying the zone and construction names exist in the model.\",\"role\":\"assistant\",\"tool_calls\":[{\"type\":\"function\",\"id\":\"call_8d9b\",\"function\":{\"name\":\"list_zones\",\"arguments\":\"{}\"}},{\"type\":\"function\",\"id\":\"call_c81a\",\"function\":{\"name\":\"list_constructions\",\"arguments\":\"{}\"}}]},{\"content\":\"{\\\"success\\\":
+      true, \\\"message\\\": \\\"Listed 1 zones.\\\", \\\"data\\\": [{\\\"name\\\":
+      \\\"F1_Office\\\", \\\"direction_of_relative_north\\\": 0.0, \\\"x_origin\\\":
+      0.0, \\\"y_origin\\\": 0.0, \\\"z_origin\\\": 0.0, \\\"type\\\": 1, \\\"multiplier\\\":
+      1, \\\"ceiling_height\\\": \\\"Autocalculate\\\", \\\"volume\\\": \\\"Autocalculate\\\",
+      \\\"floor_area\\\": \\\"Autocalculate\\\", \\\"zone_inside_convection_algorithm\\\":
+      null, \\\"zone_outside_convection_algorithm\\\": null, \\\"part_of_total_floor_area\\\":
+      \\\"Yes\\\"}]}\",\"role\":\"tool\",\"tool_call_id\":\"call_8d9b\"},{\"content\":\"{\\\"success\\\":
+      true, \\\"message\\\": \\\"Listed 1 constructions.\\\", \\\"data\\\": [{\\\"name\\\":
+      \\\"ExtWall_Simple\\\", \\\"outside_layer\\\": \\\"Brick_100mm\\\", \\\"layer_2\\\":
+      null, \\\"layer_3\\\": null, \\\"layer_4\\\": null, \\\"layer_5\\\": null, \\\"layer_6\\\":
+      null, \\\"layer_7\\\": null, \\\"layer_8\\\": null, \\\"layer_9\\\": null, \\\"layer_10\\\":
+      null}]}\",\"role\":\"tool\",\"tool_call_id\":\"call_c81a\"},{\"content\":\"Both
+      the zone **F1_Office** and construction **ExtWall_Simple** exist. Now I'll create
+      the floor surface.\",\"role\":\"assistant\",\"tool_calls\":[{\"type\":\"function\",\"id\":\"call_ab0d\",\"function\":{\"name\":\"create_surface\",\"arguments\":\"{\\\"name\\\":
+      \\\"F1_Office_Floor\\\", \\\"surface_type\\\": \\\"Floor\\\", \\\"construction_name\\\":
+      \\\"ExtWall_Simple\\\", \\\"zone_name\\\": \\\"F1_Office\\\", \\\"outside_boundary_condition\\\":
+      \\\"Ground\\\", \\\"sun_exposure\\\": \\\"NoSun\\\", \\\"wind_exposure\\\":
+      \\\"NoWind\\\", \\\"vertices\\\": [{\\\"X\\\": 0.0, \\\"Y\\\": 0.0, \\\"Z\\\":
+      0.0}, {\\\"X\\\": 6.0, \\\"Y\\\": 0.0, \\\"Z\\\": 0.0}, {\\\"X\\\": 6.0, \\\"Y\\\":
+      6.0, \\\"Z\\\": 0.0}, {\\\"X\\\": 0.0, \\\"Y\\\": 6.0, \\\"Z\\\": 0.0}]}\"}}]},{\"content\":\"{\\\"success\\\":
+      true, \\\"message\\\": \\\"Surface 'F1_Office_Floor' created successfully.\\\",
+      \\\"data\\\": {\\\"name\\\": \\\"F1_Office_Floor\\\", \\\"surface_type\\\":
+      \\\"Floor\\\", \\\"construction_name\\\": \\\"ExtWall_Simple\\\", \\\"zone_name\\\":
+      \\\"F1_Office\\\", \\\"space_name\\\": null, \\\"outside_boundary_condition\\\":
+      \\\"Ground\\\", \\\"outside_boundary_condition_object\\\": null, \\\"sun_exposure\\\":
+      \\\"NoSun\\\", \\\"wind_exposure\\\": \\\"NoWind\\\", \\\"view_factor_to_ground\\\":
+      \\\"Autocalculate\\\", \\\"number_of_vertices\\\": \\\"Autocalculate\\\", \\\"vertices\\\":
+      [{\\\"vertex_x_coordinate\\\": 0.0, \\\"vertex_y_coordinate\\\": 0.0, \\\"vertex_z_coordinate\\\":
+      0.0}, {\\\"vertex_x_coordinate\\\": 6.0, \\\"vertex_y_coordinate\\\": 0.0, \\\"vertex_z_coordinate\\\":
+      0.0}, {\\\"vertex_x_coordinate\\\": 6.0, \\\"vertex_y_coordinate\\\": 6.0, \\\"vertex_z_coordinate\\\":
+      0.0}, {\\\"vertex_x_coordinate\\\": 0.0, \\\"vertex_y_coordinate\\\": 6.0, \\\"vertex_z_coordinate\\\":
+      0.0}]}}\",\"role\":\"tool\",\"tool_call_id\":\"call_ab0d\"},{\"content\":\"Now
+      let me confirm by listing all surfaces.\",\"role\":\"assistant\",\"tool_calls\":[{\"type\":\"function\",\"id\":\"call_5a63\",\"function\":{\"name\":\"list_surfaces\",\"arguments\":\"{}\"}}]},{\"content\":\"{\\\"success\\\":
+      true, \\\"message\\\": \\\"Listed 1 surfaces.\\\", \\\"data\\\": [{\\\"name\\\":
+      \\\"F1_Office_Floor\\\", \\\"surface_type\\\": \\\"Floor\\\", \\\"construction_name\\\":
+      \\\"ExtWall_Simple\\\", \\\"zone_name\\\": \\\"F1_Office\\\", \\\"space_name\\\":
+      null, \\\"outside_boundary_condition\\\": \\\"Ground\\\", \\\"outside_boundary_condition_object\\\":
+      null, \\\"sun_exposure\\\": \\\"NoSun\\\", \\\"wind_exposure\\\": \\\"NoWind\\\",
+      \\\"view_factor_to_ground\\\": \\\"Autocalculate\\\", \\\"number_of_vertices\\\":
+      \\\"Autocalculate\\\", \\\"vertices\\\": [{\\\"vertex_x_coordinate\\\": 0.0,
+      \\\"vertex_y_coordinate\\\": 0.0, \\\"vertex_z_coordinate\\\": 0.0}, {\\\"vertex_x_coordinate\\\":
+      6.0, \\\"vertex_y_coordinate\\\": 0.0, \\\"vertex_z_coordinate\\\": 0.0}, {\\\"vertex_x_coordinate\\\":
+      6.0, \\\"vertex_y_coordinate\\\": 6.0, \\\"vertex_z_coordinate\\\": 0.0}, {\\\"vertex_x_coordinate\\\":
+      0.0, \\\"vertex_y_coordinate\\\": 6.0, \\\"vertex_z_coordinate\\\": 0.0}]}]}\",\"role\":\"tool\",\"tool_call_id\":\"call_5a63\"}],\"model\":\"opencode/glm-5.2\",\"max_completion_tokens\":64000,\"parallel_tool_calls\":false,\"stream\":false,\"temperature\":0.7,\"tool_choice\":\"required\",\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"create_surface\",\"description\":\"Create
+      a BuildingSurface:Detailed (wall/floor/roof/ceiling).\\n\\n        Args:\\n
+      \           name: Unique surface name.\\n            surface_type: Wall / Floor
+      / Roof / Ceiling.\\n            construction_name: Existing Construction name.\\n
+      \           zone_name: Existing Zone name the surface belongs to.\\n            outside_boundary_condition:
+      Outdoors / Ground / Zone / Adiabatic / Surface.\\n            vertices: List
+      of vertex dicts in meters. Each vertex is\\n                      `{\\\"X\\\":
+      float, \\\"Y\\\": float, \\\"Z\\\": float}`. >= 3 points,\\n                      ordered
+      counter-clockwise when viewed from OUTSIDE.\\n                      Example
+      4-vertex south wall (2m tall, 5m wide, at y=0):\\n                        [{\\\"X\\\":
+      0.0, \\\"Y\\\": 0.0, \\\"Z\\\": 0.0},\\n                         {\\\"X\\\":
+      5.0, \\\"Y\\\": 0.0, \\\"Z\\\": 0.0},\\n                         {\\\"X\\\":
+      5.0, \\\"Y\\\": 0.0, \\\"Z\\\": 2.0},\\n                         {\\\"X\\\":
+      0.0, \\\"Y\\\": 0.0, \\\"Z\\\": 2.0}]\\n            sun_exposure: SunExposed
+      / NoSun (use SunExposed for outdoor-facing walls/roof).\\n            wind_exposure:
+      WindExposed / NoWind.\\n            outside_boundary_condition_object: Matching
+      surface name when\\n                                               outside_boundary_condition
+      in {Surface, Zone}.\",\"parameters\":{\"properties\":{\"name\":{\"type\":\"string\"},\"surface_type\":{\"enum\":[\"Ceiling\",\"Floor\",\"Roof\",\"Wall\"],\"type\":\"string\"},\"construction_name\":{\"type\":\"string\"},\"zone_name\":{\"type\":\"string\"},\"outside_boundary_condition\":{\"enum\":[\"Outdoors\",\"Ground\",\"Zone\",\"Adiabatic\",\"Surface\"],\"type\":\"string\"},\"vertices\":{\"items\":{\"additionalProperties\":{\"type\":\"number\"},\"type\":\"object\"},\"type\":\"array\"},\"sun_exposure\":{\"default\":\"NoSun\",\"enum\":[\"SunExposed\",\"NoSun\"],\"type\":\"string\"},\"wind_exposure\":{\"default\":\"NoWind\",\"enum\":[\"WindExposed\",\"NoWind\"],\"type\":\"string\"},\"outside_boundary_condition_object\":{\"anyOf\":[{\"enum\":[\"Surface\",\"Zone\"],\"type\":\"string\"},{\"type\":\"null\"}],\"default\":null}},\"required\":[\"name\",\"surface_type\",\"construction_name\",\"zone_name\",\"outside_boundary_condition\",\"vertices\"],\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"list_surfaces\",\"description\":\"List
+      all building surfaces.\",\"parameters\":{\"properties\":{},\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"get_surface\",\"description\":\"Read
+      a surface by name.\",\"parameters\":{\"properties\":{\"name\":{\"type\":\"string\"}},\"required\":[\"name\"],\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"delete_surface\",\"description\":\"Delete
+      a surface. Fails if fenestration references it.\",\"parameters\":{\"properties\":{\"name\":{\"type\":\"string\"}},\"required\":[\"name\"],\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"list_zones\",\"description\":\"Read-only:
+      list zones a surface can be assigned to.\",\"parameters\":{\"properties\":{},\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"list_constructions\",\"description\":\"Read-only:
+      list constructions a surface can reference.\",\"parameters\":{\"properties\":{},\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"SurfaceResponse\",\"description\":\"Structured
+      summary returned by the surface phase agent.\",\"parameters\":{\"properties\":{\"surface_names\":{\"description\":\"Names
+      of all surfaces created\",\"items\":{\"type\":\"string\"},\"type\":\"array\"},\"summary\":{\"description\":\"One-line
+      summary of the surface creation result\",\"type\":\"string\"}},\"required\":[\"surface_names\",\"summary\"],\"type\":\"object\"}}}],\"max_thinking_budget\":4096}"
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate, zstd
+      connection:
+      - keep-alive
+      content-length:
+      - '10014'
+      content-type:
+      - application/json
+      host:
+      - one.chat-yu.net
+      user-agent:
+      - OpenAI/Python 2.52.0
+      x-stainless-arch:
+      - x64
+      x-stainless-async:
+      - 'false'
+      x-stainless-lang:
+      - python
+      x-stainless-os:
+      - Linux
+      x-stainless-package-version:
+      - 2.52.0
+      x-stainless-raw-response:
+      - 'true'
+      x-stainless-retry-count:
+      - '0'
+      x-stainless-runtime:
+      - CPython
+      x-stainless-runtime-version:
+      - 3.12.3
+    method: POST
+    uri: https://one.chat-yu.net/v1/chat/completions
+  response:
+    body:
+      string: !!binary |
+        KLUv/QBYfRcANrCTOVBr0wYwM0v8JKKq4gk2te7GxkaRbU0ypYi1liQJNhIgiV5eUXyzmMd5Kxnb
+        BGSEoItYMzAdMzMmBIUAhQCCAHS+ORszbviSN4z70ubsyAvC6oynxsvq8pAXTwibk+A/Zcb+s7WU
+        MPP5o3g9jDl68scbCYxnu/cYx4sjJhOSCC/MGPb0kdczQakIqExUKBCMp6atpePF/o82rOK7CXVN
+        QeN5MYKKRcVrCTA2LiBcNLg0oFRYaC4WOOBAAqvoaMM4Zjw93gSNMfl74NXyCmSdX3FYrFfL5PXl
+        gTf5U6xGtsnrF4BVfBYJwvaAclj4P+qqpNOfwj9CpbmIRHaC/IcGpHaPohZIEAYmLGcjkY5NQSSy
+        HI8kEgnHI852hQ1jOauhsquXDJbjkUds2zVK1rmNoUv9amSLsc5tOx9aNoIF0P4VzJh6U3/Hi6m3
+        EBKQLv46NufFE0jmYWs8tqc3af2NL6mdOtNvY70xme35MhXcQyeRTb2+26llT/J3QZ4BHY+FvdHw
+        srTtxsr61ELYFkNfZv3t1FE+yt/t5G01EFZqznauzp0tI/8htY258MgjzkI0bIgLBXhk4LBxoY73
+        QNBjMVzosJBnPet5zHaPyh1+mDGd73h1OhvGE75Ge5KWgEoFNvqUV4QEL4oEFMF4eld4KtEqvqwq
+        r4xOJ6PT4U4GRxxJWMbR7Nhc4mgXRxO3F3+ztn/HyqcW4jRWhCjT89QoitBjHx4gKDhaxhFHG2Y8
+        qXesF9l4cU//arYDC2/YYq8UM+5KQ3kxBElQEoRt8SQ9IEACYhAbKh+EJDHBYwzBNIKM9J6+DAwk
+        le/1zFrdQayNkbUGIdcFwv6AqKbayRf7HSIbpSWPkBpNztzMbettB3bZdF8W2PKheg81bCLVgMdP
+        iImo8eROqIJm1aVwiCQjIVfT3JLnwMBJeNwV7PlU4sujM64WCEIERB8wPBopoEVRrV9+s0FAn4DL
+        kyFQXVCcAtjvfZsz7uBkQHdBAQ==
+    headers:
+      alt-svc:
+      - h3=":443"; ma=86400
+      cf-cache-status:
+      - DYNAMIC
+      cf-placement:
+      - remote-ORD
+      cf-ray:
+      - a2628b010ae262d0-NRT
+      connection:
+      - keep-alive
+      content-encoding:
+      - zstd
+      content-type:
+      - application/json
+      date:
+      - Wed, 05 Aug 2026 02:59:10 GMT
+      nel:
+      - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
+      report-to:
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=sEis5KfeUni9N8RWeWVbe0Mi1mt1al7QgmWbFIQzl9zxMRfaCAivoDzTUUF%2BOG4eGD75PBSj54cJwNTeoHJmH6HO3XVBkojFft8lOxSuVtuC3Rd5tbZelZRGex8nz9Ibg%2B4%3D"}]}'
+      server:
+      - cloudflare
+      strict-transport-security:
+      - max-age=31536000
+      transfer-encoding:
+      - chunked
+      via:
+      - 1.1 Caddy
+      x-new-api-version:
+      - v1.0.0-rc.21
+      x-oneapi-request-id:
+      - 202608050258569417931228268d9d6qH2cWa4a
+    status:
+      code: 200
+      message: OK
+version: 1

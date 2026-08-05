@@ -85,6 +85,8 @@ class WorkflowTool:
     def load_yaml(self, yaml_path: str) -> ToolResponse:
         try:
             path = Path(yaml_path)
+            staged = ConfigState.load_yaml(path)
+            self.state.update_from(staged)
             self.state.load_yaml_into_idf(path)
             summary = self.state.get_summary()
             return ToolResponse(
@@ -125,6 +127,8 @@ class WorkflowTool:
         Returns:
             ToolResponse with IDF path and output directory on success.
         """
+        from uuid import uuid4
+
         try:
             validation = self.validate_config()
             if not validation.success:
@@ -134,18 +138,12 @@ class WorkflowTool:
                     data=validation.data,
                 )
 
-            geometry_errors = validate_geometry_completeness(self.state)
-            if geometry_errors:
-                return ToolResponse(
-                    success=False,
-                    message=(
-                        "Geometry completeness errors, cannot run simulation."
-                    ),
-                    data={"errors": geometry_errors},
-                )
-
-            timestamp = time.strftime("%Y%m%d_%H%M%S")
-            temp_idf = Path(output_dir) / f"temp_{timestamp}.idf"
+            run_dir = (
+                Path(output_dir)
+                / f"run_{time.strftime('%Y%m%d_%H%M%S')}_{uuid4().hex[:8]}"
+            )
+            run_dir.mkdir(parents=True, exist_ok=True)
+            temp_idf = run_dir / "temp.idf"
             self.state.save_idf(temp_idf)
 
             runner = EnergyPlusRunner()

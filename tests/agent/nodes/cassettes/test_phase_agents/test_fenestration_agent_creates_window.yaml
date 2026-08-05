@@ -1,0 +1,664 @@
+interactions:
+- request:
+    body: "{\"messages\":[{\"content\":\"You are a window/door geometry expert for
+      EnergyPlus.\\nGiven fenestration specifications, create FenestrationSurface:Detailed\\nobjects
+      (windows, doors, skylights) that lie on existing parent surfaces.\\n\\nVertices
+      MUST be a list of dicts with explicit X / Y / Z keys (not a\\nbare [x, y, z]
+      list). Example: a 1.5m x 1.2m window centered on a south\\nwall that spans x=0..5
+      at y=0, window sill at 0.8m:\\n\\n    [\\n      {\\\"X\\\": 1.75, \\\"Y\\\":
+      0.0, \\\"Z\\\": 0.8},\\n      {\\\"X\\\": 3.25, \\\"Y\\\": 0.0, \\\"Z\\\": 0.8},\\n
+      \     {\\\"X\\\": 3.25, \\\"Y\\\": 0.0, \\\"Z\\\": 2.0},\\n      {\\\"X\\\":
+      1.75, \\\"Y\\\": 0.0, \\\"Z\\\": 2.0}\\n    ]\\n\\nWorkflow:\\n1. FIRST call
+      `list_surfaces` to see parent surface names AND their\\n   vertex geometry \u2014
+      you need the parent surface's plane to place the\\n   fenestration's coplanar
+      vertices correctly.\\n2. THEN call `list_constructions` to find glazing/door
+      construction names.\\n3. Create each fenestration via `create_fenestration`.\\n4.
+      Call `list_fenestrations` once at the end to confirm.\\n\\nRules:\\n- `building_surface_name`
+      and `construction_name` MUST appear verbatim\\n  in the list_surfaces / list_constructions
+      results.\\n- If a needed surface or construction is missing after list, STOP
+      and\\n  report; do NOT invent names.\\n- construction_name should be a Glazing
+      construction for windows/skylights.\\n- >= 3 vertices, counter-clockwise from
+      OUTSIDE, and MUST lie on the\\n  parent surface's plane (coplanar \u2014 share
+      one coordinate for walls).\\n- surface_type is Window, Door, or GlassDoor.\\n-
+      Typical window-to-wall ratio: 0.3-0.4 on facade walls; derive vertex\\n  coordinates
+      from the parent wall's corners and the WWR.\\n- Naming: '{parent_surface}_Window'
+      or '{zone}_{direction}_Window_{index}'.\\n\",\"role\":\"system\"},{\"content\":\"Create
+      exactly one window named 'F1_Office_South_Wall_Window' on surface 'F1_Office_South_Wall'
+      with construction 'Window_Simple': 1.5m wide x 1.2m tall, centered horizontally,
+      sill at 0.8m.\",\"role\":\"user\"}],\"model\":\"opencode/glm-5.2\",\"max_completion_tokens\":64000,\"parallel_tool_calls\":false,\"stream\":false,\"temperature\":0.7,\"tool_choice\":\"required\",\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"create_fenestration\",\"description\":\"Create
+      a FenestrationSurface:Detailed (window/door/skylight).\\n\\n        Args:\\n
+      \           name: Unique fenestration name.\\n            surface_type: Window
+      / Door / GlassDoor.\\n            construction_name: Existing Glazing construction
+      name.\\n            building_surface_name: Existing parent Surface name.\\n
+      \           vertices: List of vertex dicts in meters. Each vertex is\\n                      `{\\\"X\\\":
+      float, \\\"Y\\\": float, \\\"Z\\\": float}`. >= 3 points,\\n                      counter-clockwise
+      from the outside, MUST lie on the\\n                      parent surface plane
+      (coplanar).\\n                      Example 1.5x1.2m window centered on a south
+      wall at\\n                      sill 0.8m (wall at y=0, spans x=0..5):\\n                        [{\\\"X\\\":
+      1.75, \\\"Y\\\": 0.0, \\\"Z\\\": 0.8},\\n                         {\\\"X\\\":
+      3.25, \\\"Y\\\": 0.0, \\\"Z\\\": 0.8},\\n                         {\\\"X\\\":
+      3.25, \\\"Y\\\": 0.0, \\\"Z\\\": 2.0},\\n                         {\\\"X\\\":
+      1.75, \\\"Y\\\": 0.0, \\\"Z\\\": 2.0}]\\n            multiplier: Number of identical
+      copies (>= 1).\",\"parameters\":{\"properties\":{\"name\":{\"type\":\"string\"},\"surface_type\":{\"enum\":[\"Window\",\"Door\",\"GlassDoor\"],\"type\":\"string\"},\"construction_name\":{\"type\":\"string\"},\"building_surface_name\":{\"type\":\"string\"},\"vertices\":{\"items\":{\"additionalProperties\":{\"type\":\"number\"},\"type\":\"object\"},\"type\":\"array\"},\"multiplier\":{\"default\":1,\"type\":\"integer\"}},\"required\":[\"name\",\"surface_type\",\"construction_name\",\"building_surface_name\",\"vertices\"],\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"list_fenestrations\",\"description\":\"List
+      all fenestration surfaces.\",\"parameters\":{\"properties\":{},\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"get_fenestration\",\"description\":\"Read
+      a fenestration by name.\",\"parameters\":{\"properties\":{\"name\":{\"type\":\"string\"}},\"required\":[\"name\"],\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"delete_fenestration\",\"description\":\"Delete
+      a fenestration.\",\"parameters\":{\"properties\":{\"name\":{\"type\":\"string\"}},\"required\":[\"name\"],\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"list_surfaces\",\"description\":\"Read-only:
+      list parent surfaces a fenestration can attach to.\",\"parameters\":{\"properties\":{},\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"list_constructions\",\"description\":\"Read-only:
+      list constructions a fenestration can reference.\",\"parameters\":{\"properties\":{},\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"FenestrationResponse\",\"description\":\"Structured
+      summary returned by the fenestration phase agent.\",\"parameters\":{\"properties\":{\"fenestration_names\":{\"description\":\"Names
+      of all fenestration surfaces created\",\"items\":{\"type\":\"string\"},\"type\":\"array\"},\"summary\":{\"description\":\"One-line
+      summary of the fenestration creation result\",\"type\":\"string\"}},\"required\":[\"fenestration_names\",\"summary\"],\"type\":\"object\"}}}],\"max_thinking_budget\":4096}"
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate, zstd
+      connection:
+      - keep-alive
+      content-length:
+      - '5088'
+      content-type:
+      - application/json
+      host:
+      - one.chat-yu.net
+      user-agent:
+      - OpenAI/Python 2.52.0
+      x-stainless-arch:
+      - x64
+      x-stainless-async:
+      - 'false'
+      x-stainless-lang:
+      - python
+      x-stainless-os:
+      - Linux
+      x-stainless-package-version:
+      - 2.52.0
+      x-stainless-raw-response:
+      - 'true'
+      x-stainless-retry-count:
+      - '0'
+      x-stainless-runtime:
+      - CPython
+      x-stainless-runtime-version:
+      - 3.12.3
+    method: POST
+    uri: https://one.chat-yu.net/v1/chat/completions
+  response:
+    body:
+      string: !!binary |
+        KLUv/QBYLQwAFltPJDCNmwNFNbJi12hXQ/pmYpsYmVNV67ysOpP1jS+UoDJEREQIAkwAPwBEAKzN
+        QUn7OiOhBDzrnH2Vgc8XQxFwPByKQ2DBzminxvb1B13rQg9siW7qEIFfhyQ0g4UYCVLhgIABmUAm
+        A4pncuAUAhZ6WqeknZ1xlwIxm9UuQMHZ+2k/2L7eL5sdc55dF8ZL7Ooksz5fu9Fj5wiMkAP367yb
+        bVkI++wPcmpcJOyea74U7BDKPHeJgT1XKKK/zsiGWXZTH9WKsDjP6ZPv64lmB6Gqn8aEIhoXdaJg
+        K37QdYti84NNMS8Va8smRqx0I7kuJ6lU0sp5rtmtioioDtMVZ2+G7WuaJHZel63MshxKY7HZsL8e
+        ja+HorFg56cPsJeGHhih6Kthmhqapqxp+iSdnfvpEzkxv740u73E1l/UnAUZAEOQuqY+ngV8JJvh
+        L2Fi0KC3DiCYYxeHfYyUp8nYtXjeGrOvQN1eYFoDPmIo2JgqGds0tQG0DKFSTTDVK2irhAyYKSg=
+    headers:
+      alt-svc:
+      - h3=":443"; ma=86400
+      cf-cache-status:
+      - DYNAMIC
+      cf-placement:
+      - remote-ORD
+      cf-ray:
+      - a2628b573aaa62d0-NRT
+      connection:
+      - keep-alive
+      content-encoding:
+      - zstd
+      content-type:
+      - application/json
+      date:
+      - Wed, 05 Aug 2026 02:59:12 GMT
+      nel:
+      - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
+      report-to:
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=6eA%2B0bnnDMj5BY67ZMxgkaY5eT7u2uUW4isY6EPFkt8gPOgf0SyKdH%2BXRIZOf3Qe4siTegvZ7RRBY9Hmq4ghTsNLxYVaSQvOl3bfBIdXsyNERNV0jPaSBBpJJhRtv%2FPNi8M%3D"}]}'
+      server:
+      - cloudflare
+      strict-transport-security:
+      - max-age=31536000
+      transfer-encoding:
+      - chunked
+      via:
+      - 1.1 Caddy
+      x-new-api-version:
+      - v1.0.0-rc.21
+      x-oneapi-request-id:
+      - 202608050259107234794658268d9d6PJF8JFYG
+    status:
+      code: 200
+      message: OK
+- request:
+    body: "{\"messages\":[{\"content\":\"You are a window/door geometry expert for
+      EnergyPlus.\\nGiven fenestration specifications, create FenestrationSurface:Detailed\\nobjects
+      (windows, doors, skylights) that lie on existing parent surfaces.\\n\\nVertices
+      MUST be a list of dicts with explicit X / Y / Z keys (not a\\nbare [x, y, z]
+      list). Example: a 1.5m x 1.2m window centered on a south\\nwall that spans x=0..5
+      at y=0, window sill at 0.8m:\\n\\n    [\\n      {\\\"X\\\": 1.75, \\\"Y\\\":
+      0.0, \\\"Z\\\": 0.8},\\n      {\\\"X\\\": 3.25, \\\"Y\\\": 0.0, \\\"Z\\\": 0.8},\\n
+      \     {\\\"X\\\": 3.25, \\\"Y\\\": 0.0, \\\"Z\\\": 2.0},\\n      {\\\"X\\\":
+      1.75, \\\"Y\\\": 0.0, \\\"Z\\\": 2.0}\\n    ]\\n\\nWorkflow:\\n1. FIRST call
+      `list_surfaces` to see parent surface names AND their\\n   vertex geometry \u2014
+      you need the parent surface's plane to place the\\n   fenestration's coplanar
+      vertices correctly.\\n2. THEN call `list_constructions` to find glazing/door
+      construction names.\\n3. Create each fenestration via `create_fenestration`.\\n4.
+      Call `list_fenestrations` once at the end to confirm.\\n\\nRules:\\n- `building_surface_name`
+      and `construction_name` MUST appear verbatim\\n  in the list_surfaces / list_constructions
+      results.\\n- If a needed surface or construction is missing after list, STOP
+      and\\n  report; do NOT invent names.\\n- construction_name should be a Glazing
+      construction for windows/skylights.\\n- >= 3 vertices, counter-clockwise from
+      OUTSIDE, and MUST lie on the\\n  parent surface's plane (coplanar \u2014 share
+      one coordinate for walls).\\n- surface_type is Window, Door, or GlassDoor.\\n-
+      Typical window-to-wall ratio: 0.3-0.4 on facade walls; derive vertex\\n  coordinates
+      from the parent wall's corners and the WWR.\\n- Naming: '{parent_surface}_Window'
+      or '{zone}_{direction}_Window_{index}'.\\n\",\"role\":\"system\"},{\"content\":\"Create
+      exactly one window named 'F1_Office_South_Wall_Window' on surface 'F1_Office_South_Wall'
+      with construction 'Window_Simple': 1.5m wide x 1.2m tall, centered horizontally,
+      sill at 0.8m.\",\"role\":\"user\"},{\"content\":\"I'll start by listing the
+      available surfaces and constructions to verify the parent surface and construction
+      exist.\",\"role\":\"assistant\",\"tool_calls\":[{\"type\":\"function\",\"id\":\"call_dfa2\",\"function\":{\"name\":\"list_surfaces\",\"arguments\":\"{}\"}},{\"type\":\"function\",\"id\":\"call_d5cf\",\"function\":{\"name\":\"list_constructions\",\"arguments\":\"{}\"}}]},{\"content\":\"{\\\"success\\\":
+      true, \\\"message\\\": \\\"Listed 1 surfaces.\\\", \\\"data\\\": [{\\\"name\\\":
+      \\\"F1_Office_South_Wall\\\", \\\"surface_type\\\": \\\"Wall\\\", \\\"construction_name\\\":
+      \\\"ExtWall_Simple\\\", \\\"zone_name\\\": \\\"F1_Office\\\", \\\"space_name\\\":
+      null, \\\"outside_boundary_condition\\\": \\\"Outdoors\\\", \\\"outside_boundary_condition_object\\\":
+      null, \\\"sun_exposure\\\": \\\"SunExposed\\\", \\\"wind_exposure\\\": \\\"WindExposed\\\",
+      \\\"view_factor_to_ground\\\": \\\"Autocalculate\\\", \\\"number_of_vertices\\\":
+      4.0, \\\"vertices\\\": [{\\\"vertex_x_coordinate\\\": 0.0, \\\"vertex_y_coordinate\\\":
+      0.0, \\\"vertex_z_coordinate\\\": 3.0}, {\\\"vertex_x_coordinate\\\": 0.0, \\\"vertex_y_coordinate\\\":
+      0.0, \\\"vertex_z_coordinate\\\": 0.0}, {\\\"vertex_x_coordinate\\\": 6.0, \\\"vertex_y_coordinate\\\":
+      0.0, \\\"vertex_z_coordinate\\\": 0.0}, {\\\"vertex_x_coordinate\\\": 6.0, \\\"vertex_y_coordinate\\\":
+      0.0, \\\"vertex_z_coordinate\\\": 3.0}]}]}\",\"role\":\"tool\",\"tool_call_id\":\"call_dfa2\"},{\"content\":\"{\\\"success\\\":
+      true, \\\"message\\\": \\\"Listed 2 constructions.\\\", \\\"data\\\": [{\\\"name\\\":
+      \\\"ExtWall_Simple\\\", \\\"outside_layer\\\": \\\"Brick_100mm\\\", \\\"layer_2\\\":
+      null, \\\"layer_3\\\": null, \\\"layer_4\\\": null, \\\"layer_5\\\": null, \\\"layer_6\\\":
+      null, \\\"layer_7\\\": null, \\\"layer_8\\\": null, \\\"layer_9\\\": null, \\\"layer_10\\\":
+      null}, {\\\"name\\\": \\\"Window_Simple\\\", \\\"outside_layer\\\": \\\"Glass_U18\\\",
+      \\\"layer_2\\\": null, \\\"layer_3\\\": null, \\\"layer_4\\\": null, \\\"layer_5\\\":
+      null, \\\"layer_6\\\": null, \\\"layer_7\\\": null, \\\"layer_8\\\": null, \\\"layer_9\\\":
+      null, \\\"layer_10\\\": null}]}\",\"role\":\"tool\",\"tool_call_id\":\"call_d5cf\"}],\"model\":\"opencode/glm-5.2\",\"max_completion_tokens\":64000,\"parallel_tool_calls\":false,\"stream\":false,\"temperature\":0.7,\"tool_choice\":\"required\",\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"create_fenestration\",\"description\":\"Create
+      a FenestrationSurface:Detailed (window/door/skylight).\\n\\n        Args:\\n
+      \           name: Unique fenestration name.\\n            surface_type: Window
+      / Door / GlassDoor.\\n            construction_name: Existing Glazing construction
+      name.\\n            building_surface_name: Existing parent Surface name.\\n
+      \           vertices: List of vertex dicts in meters. Each vertex is\\n                      `{\\\"X\\\":
+      float, \\\"Y\\\": float, \\\"Z\\\": float}`. >= 3 points,\\n                      counter-clockwise
+      from the outside, MUST lie on the\\n                      parent surface plane
+      (coplanar).\\n                      Example 1.5x1.2m window centered on a south
+      wall at\\n                      sill 0.8m (wall at y=0, spans x=0..5):\\n                        [{\\\"X\\\":
+      1.75, \\\"Y\\\": 0.0, \\\"Z\\\": 0.8},\\n                         {\\\"X\\\":
+      3.25, \\\"Y\\\": 0.0, \\\"Z\\\": 0.8},\\n                         {\\\"X\\\":
+      3.25, \\\"Y\\\": 0.0, \\\"Z\\\": 2.0},\\n                         {\\\"X\\\":
+      1.75, \\\"Y\\\": 0.0, \\\"Z\\\": 2.0}]\\n            multiplier: Number of identical
+      copies (>= 1).\",\"parameters\":{\"properties\":{\"name\":{\"type\":\"string\"},\"surface_type\":{\"enum\":[\"Window\",\"Door\",\"GlassDoor\"],\"type\":\"string\"},\"construction_name\":{\"type\":\"string\"},\"building_surface_name\":{\"type\":\"string\"},\"vertices\":{\"items\":{\"additionalProperties\":{\"type\":\"number\"},\"type\":\"object\"},\"type\":\"array\"},\"multiplier\":{\"default\":1,\"type\":\"integer\"}},\"required\":[\"name\",\"surface_type\",\"construction_name\",\"building_surface_name\",\"vertices\"],\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"list_fenestrations\",\"description\":\"List
+      all fenestration surfaces.\",\"parameters\":{\"properties\":{},\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"get_fenestration\",\"description\":\"Read
+      a fenestration by name.\",\"parameters\":{\"properties\":{\"name\":{\"type\":\"string\"}},\"required\":[\"name\"],\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"delete_fenestration\",\"description\":\"Delete
+      a fenestration.\",\"parameters\":{\"properties\":{\"name\":{\"type\":\"string\"}},\"required\":[\"name\"],\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"list_surfaces\",\"description\":\"Read-only:
+      list parent surfaces a fenestration can attach to.\",\"parameters\":{\"properties\":{},\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"list_constructions\",\"description\":\"Read-only:
+      list constructions a fenestration can reference.\",\"parameters\":{\"properties\":{},\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"FenestrationResponse\",\"description\":\"Structured
+      summary returned by the fenestration phase agent.\",\"parameters\":{\"properties\":{\"fenestration_names\":{\"description\":\"Names
+      of all fenestration surfaces created\",\"items\":{\"type\":\"string\"},\"type\":\"array\"},\"summary\":{\"description\":\"One-line
+      summary of the fenestration creation result\",\"type\":\"string\"}},\"required\":[\"fenestration_names\",\"summary\"],\"type\":\"object\"}}}],\"max_thinking_budget\":4096}"
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate, zstd
+      connection:
+      - keep-alive
+      content-length:
+      - '6948'
+      content-type:
+      - application/json
+      host:
+      - one.chat-yu.net
+      user-agent:
+      - OpenAI/Python 2.52.0
+      x-stainless-arch:
+      - x64
+      x-stainless-async:
+      - 'false'
+      x-stainless-lang:
+      - python
+      x-stainless-os:
+      - Linux
+      x-stainless-package-version:
+      - 2.52.0
+      x-stainless-raw-response:
+      - 'true'
+      x-stainless-retry-count:
+      - '0'
+      x-stainless-runtime:
+      - CPython
+      x-stainless-runtime-version:
+      - 3.12.3
+    method: POST
+    uri: https://one.chat-yu.net/v1/chat/completions
+  response:
+    body:
+      string: !!binary |
+        KLUv/QBYpSYAukhEDTdwS9MB/H+uqioWixX0RESI3Ulbb5m2rJa7W9qb3L2uf98YK/H3+USNpuhm
+        to2aJFnCktxU+m9exwDBAMUAjtOzoqTEY6GRSwrHWafyocv66hSKPK7jzBkpnukvKvE0JCuVBs/j
+        gONsQ7FiXXXf24rV9vQ7PSXAj9/7nULM+D1+lbVGftyTWqx53FKstSlmc17+uFZQq5LoZMZ1zgg9
+        k9Lnx05rbOuZqnRZYeYeXzpyyZoJj2tDkk4QM4Y0iYOaEj+eHVGKmXtMJgAmkknE43HUH9uCmLFT
+        +T0rikLtoa5QQZnxUyyYDLhIgMk4wFjoCJJKQebCgHSRceCYFQV9nCB+HEnWBEt/o27fBGuhDLY5
+        VAeHiUdy2VR0ZvwabgMsRnJpQelkbEey/kWXolZlu0qLBUQn5LD6/aLQ1obkW/3AoUPXIEt/J83t
+        yyyTRLTI0l8JpEH2XXayH3dOWZc1XIssZS/LWMyc8Z1mpEWnjdrq94aWzRl/KUh7bAYN25G0LCVp
+        j32OE8k4zjLHgWjNLWUvjrOSS/dY1WWO45ayGMfZ1x5ntXNGinU4fBjrm6It7ZzR0hnMjB63qf2e
+        a6EMHDrc9lVeegPbqitziY4La7gVsJiNrGihv4zVptJWOUUg3LJGhDnmGA5fW3G9L6S0NW77i1bE
+        tXA5PXsZKRy6BmGOsa8xkUAahLFvHb7qsalttCWjxTgWbGs4CuSyMvbjVtnTRAOzfSE/Su2sdZPL
+        PhbI/CTJnpZNmqNIrMPhZWldtm/OaIHYuE4LrMNhoybNXSKtOUpmGURrjnJxFMy63CqphMOKfuTB
+        4U+StCAY2yIU/acVDuLwKz0dFf11LHPLHGPbw+FrMMbFhEOHLRt2/PgrhZhtNnNe3i8ty8Mm7uER
+        9QRFiDWP65TxO3oYxEVAZnz6zABAJswiEZPH4+ptQf/5iqJWdTGjsNlQ2Gx489jH0Go5K/nzohgu
+        o+AaZNlmIoHhMtfcPoYRGC5jCIGhZsI+ho/kMpryqngqzD8MlzF8GO5jCDX8uL43dUlWjNbX9q48
+        msfYrwo/7grzzBji4QHAM2dk3CJKEWyrsmdFxUvXnqCP1FbpGsThqw4fp4ltX+mJ4cIGDBc27Fd6
+        vq7YaF7UEoCdqGGpQcjUiIyIjCQFqXRAQoIUmlIPEoCguZRGYUVNBRMQTVJQKA17BstyyNTAmgRF
+        MxHmhX8niT9SojkTfEFP7+nUeFCm8Ct0aFISaThKDqqY3Si6ZRkQi8yKxW8IKLPwgH5jl/3S38wP
+        54mDVIkgRvZrUA7KbWxhEJZ7FyAvY98aDdF+ZKEcjhhyH7jCyM/WCTjodxZ62VPtyNeodJXtggeH
+        wGWDDVKbwnd3c1hVwmCG583IYosAL2AoRUZP/Uq6lo1fElhKSmlFQXnhQgPOTkCIOMU/xfkNVzmn
+        R3k/aKweJKhEL4YRVH7Uxe5kM4AawRevePiFq6lFt1l2w+Z4FIjYeGvSnGau5MR4z4/1cSMp9J10
+        Ecq46EtV2HKecCByIcpaKThj+04XiEzoxBNsAvwK3k7c12cJF9fSxXkGFvs56mbuzmWv4WXv6gyv
+        JrxMwX7B2O+Db7L6OuuBxl7rB1d8zyln5E1v2J9C1QtSBrQ9hK4yUX7qBFYBX/gP
+    headers:
+      alt-svc:
+      - h3=":443"; ma=86400
+      cf-cache-status:
+      - DYNAMIC
+      cf-placement:
+      - remote-ORD
+      cf-ray:
+      - a2628b620d2762d0-NRT
+      connection:
+      - keep-alive
+      content-encoding:
+      - zstd
+      content-type:
+      - application/json
+      date:
+      - Wed, 05 Aug 2026 03:00:11 GMT
+      nel:
+      - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
+      report-to:
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=QFa9n1cHQgLtOG2ztmKUPO3y8k61UOG9AFC%2FUsoH0l0NbceTGdbbCYeMxvcMCO3IjjLfh7R0l0UHxWhiRINBUtjYyCgv95wBp%2FUPPDEMLllgmzuB3%2Fsk7akT%2B4yZ2vXmQts%3D"}]}'
+      server:
+      - cloudflare
+      strict-transport-security:
+      - max-age=31536000
+      transfer-encoding:
+      - chunked
+      via:
+      - 1.1 Caddy
+      x-new-api-version:
+      - v1.0.0-rc.21
+      x-oneapi-request-id:
+      - 202608050259124614000858268d9d6FYfgH4FT
+    status:
+      code: 200
+      message: OK
+- request:
+    body: "{\"messages\":[{\"content\":\"You are a window/door geometry expert for
+      EnergyPlus.\\nGiven fenestration specifications, create FenestrationSurface:Detailed\\nobjects
+      (windows, doors, skylights) that lie on existing parent surfaces.\\n\\nVertices
+      MUST be a list of dicts with explicit X / Y / Z keys (not a\\nbare [x, y, z]
+      list). Example: a 1.5m x 1.2m window centered on a south\\nwall that spans x=0..5
+      at y=0, window sill at 0.8m:\\n\\n    [\\n      {\\\"X\\\": 1.75, \\\"Y\\\":
+      0.0, \\\"Z\\\": 0.8},\\n      {\\\"X\\\": 3.25, \\\"Y\\\": 0.0, \\\"Z\\\": 0.8},\\n
+      \     {\\\"X\\\": 3.25, \\\"Y\\\": 0.0, \\\"Z\\\": 2.0},\\n      {\\\"X\\\":
+      1.75, \\\"Y\\\": 0.0, \\\"Z\\\": 2.0}\\n    ]\\n\\nWorkflow:\\n1. FIRST call
+      `list_surfaces` to see parent surface names AND their\\n   vertex geometry \u2014
+      you need the parent surface's plane to place the\\n   fenestration's coplanar
+      vertices correctly.\\n2. THEN call `list_constructions` to find glazing/door
+      construction names.\\n3. Create each fenestration via `create_fenestration`.\\n4.
+      Call `list_fenestrations` once at the end to confirm.\\n\\nRules:\\n- `building_surface_name`
+      and `construction_name` MUST appear verbatim\\n  in the list_surfaces / list_constructions
+      results.\\n- If a needed surface or construction is missing after list, STOP
+      and\\n  report; do NOT invent names.\\n- construction_name should be a Glazing
+      construction for windows/skylights.\\n- >= 3 vertices, counter-clockwise from
+      OUTSIDE, and MUST lie on the\\n  parent surface's plane (coplanar \u2014 share
+      one coordinate for walls).\\n- surface_type is Window, Door, or GlassDoor.\\n-
+      Typical window-to-wall ratio: 0.3-0.4 on facade walls; derive vertex\\n  coordinates
+      from the parent wall's corners and the WWR.\\n- Naming: '{parent_surface}_Window'
+      or '{zone}_{direction}_Window_{index}'.\\n\",\"role\":\"system\"},{\"content\":\"Create
+      exactly one window named 'F1_Office_South_Wall_Window' on surface 'F1_Office_South_Wall'
+      with construction 'Window_Simple': 1.5m wide x 1.2m tall, centered horizontally,
+      sill at 0.8m.\",\"role\":\"user\"},{\"content\":\"I'll start by listing the
+      available surfaces and constructions to verify the parent surface and construction
+      exist.\",\"role\":\"assistant\",\"tool_calls\":[{\"type\":\"function\",\"id\":\"call_dfa2\",\"function\":{\"name\":\"list_surfaces\",\"arguments\":\"{}\"}},{\"type\":\"function\",\"id\":\"call_d5cf\",\"function\":{\"name\":\"list_constructions\",\"arguments\":\"{}\"}}]},{\"content\":\"{\\\"success\\\":
+      true, \\\"message\\\": \\\"Listed 1 surfaces.\\\", \\\"data\\\": [{\\\"name\\\":
+      \\\"F1_Office_South_Wall\\\", \\\"surface_type\\\": \\\"Wall\\\", \\\"construction_name\\\":
+      \\\"ExtWall_Simple\\\", \\\"zone_name\\\": \\\"F1_Office\\\", \\\"space_name\\\":
+      null, \\\"outside_boundary_condition\\\": \\\"Outdoors\\\", \\\"outside_boundary_condition_object\\\":
+      null, \\\"sun_exposure\\\": \\\"SunExposed\\\", \\\"wind_exposure\\\": \\\"WindExposed\\\",
+      \\\"view_factor_to_ground\\\": \\\"Autocalculate\\\", \\\"number_of_vertices\\\":
+      4.0, \\\"vertices\\\": [{\\\"vertex_x_coordinate\\\": 0.0, \\\"vertex_y_coordinate\\\":
+      0.0, \\\"vertex_z_coordinate\\\": 3.0}, {\\\"vertex_x_coordinate\\\": 0.0, \\\"vertex_y_coordinate\\\":
+      0.0, \\\"vertex_z_coordinate\\\": 0.0}, {\\\"vertex_x_coordinate\\\": 6.0, \\\"vertex_y_coordinate\\\":
+      0.0, \\\"vertex_z_coordinate\\\": 0.0}, {\\\"vertex_x_coordinate\\\": 6.0, \\\"vertex_y_coordinate\\\":
+      0.0, \\\"vertex_z_coordinate\\\": 3.0}]}]}\",\"role\":\"tool\",\"tool_call_id\":\"call_dfa2\"},{\"content\":\"{\\\"success\\\":
+      true, \\\"message\\\": \\\"Listed 2 constructions.\\\", \\\"data\\\": [{\\\"name\\\":
+      \\\"ExtWall_Simple\\\", \\\"outside_layer\\\": \\\"Brick_100mm\\\", \\\"layer_2\\\":
+      null, \\\"layer_3\\\": null, \\\"layer_4\\\": null, \\\"layer_5\\\": null, \\\"layer_6\\\":
+      null, \\\"layer_7\\\": null, \\\"layer_8\\\": null, \\\"layer_9\\\": null, \\\"layer_10\\\":
+      null}, {\\\"name\\\": \\\"Window_Simple\\\", \\\"outside_layer\\\": \\\"Glass_U18\\\",
+      \\\"layer_2\\\": null, \\\"layer_3\\\": null, \\\"layer_4\\\": null, \\\"layer_5\\\":
+      null, \\\"layer_6\\\": null, \\\"layer_7\\\": null, \\\"layer_8\\\": null, \\\"layer_9\\\":
+      null, \\\"layer_10\\\": null}]}\",\"role\":\"tool\",\"tool_call_id\":\"call_d5cf\"},{\"content\":\"Both
+      the parent surface **F1_Office_South_Wall** and the construction **Window_Simple**
+      exist. \\n\\nNow let me analyze the wall geometry:\\n- Wall plane: **y = 0**,
+      spanning **x = 0..6**, **z = 0..3**\\n- Window: 1.5m wide \xD7 1.2m tall, centered
+      horizontally (center x = 3.0), sill at z = 0.8\\n- Window x: 2.25 to 3.75, z:
+      0.8 to 2.0\\n\\nVertices counter-clockwise from outside (looking from y < 0):\",\"role\":\"assistant\",\"tool_calls\":[{\"type\":\"function\",\"id\":\"call_9446\",\"function\":{\"name\":\"create_fenestration\",\"arguments\":\"{\\\"name\\\":
+      \\\"F1_Office_South_Wall_Window\\\", \\\"surface_type\\\": \\\"Window\\\", \\\"construction_name\\\":
+      \\\"Window_Simple\\\", \\\"building_surface_name\\\": \\\"F1_Office_South_Wall\\\",
+      \\\"vertices\\\": [{\\\"X\\\": 2.25, \\\"Y\\\": 0.0, \\\"Z\\\": 0.8}, {\\\"X\\\":
+      3.75, \\\"Y\\\": 0.0, \\\"Z\\\": 0.8}, {\\\"X\\\": 3.75, \\\"Y\\\": 0.0, \\\"Z\\\":
+      2.0}, {\\\"X\\\": 2.25, \\\"Y\\\": 0.0, \\\"Z\\\": 2.0}], \\\"multiplier\\\":
+      1}\"}}]},{\"content\":\"{\\\"success\\\": true, \\\"message\\\": \\\"Fenestration
+      'F1_Office_South_Wall_Window' created successfully.\\\", \\\"data\\\": {\\\"name\\\":
+      \\\"F1_Office_South_Wall_Window\\\", \\\"surface_type\\\": \\\"Window\\\", \\\"construction_name\\\":
+      \\\"Window_Simple\\\", \\\"building_surface_name\\\": \\\"F1_Office_South_Wall\\\",
+      \\\"outside_boundary_condition_object\\\": null, \\\"view_factor_to_ground\\\":
+      \\\"Autocalculate\\\", \\\"frame_and_divider_name\\\": null, \\\"multiplier\\\":
+      1.0, \\\"number_of_vertices\\\": 4.0, \\\"vertex_1_x_coordinate\\\": 2.25, \\\"vertex_1_y_coordinate\\\":
+      0.0, \\\"vertex_1_z_coordinate\\\": 0.8, \\\"vertex_2_x_coordinate\\\": 3.75,
+      \\\"vertex_2_y_coordinate\\\": 0.0, \\\"vertex_2_z_coordinate\\\": 0.8, \\\"vertex_3_x_coordinate\\\":
+      3.75, \\\"vertex_3_y_coordinate\\\": 0.0, \\\"vertex_3_z_coordinate\\\": 2.0,
+      \\\"vertex_4_x_coordinate\\\": 2.25, \\\"vertex_4_y_coordinate\\\": 0.0, \\\"vertex_4_z_coordinate\\\":
+      2.0}}\",\"role\":\"tool\",\"tool_call_id\":\"call_9446\"}],\"model\":\"opencode/glm-5.2\",\"max_completion_tokens\":64000,\"parallel_tool_calls\":false,\"stream\":false,\"temperature\":0.7,\"tool_choice\":\"required\",\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"create_fenestration\",\"description\":\"Create
+      a FenestrationSurface:Detailed (window/door/skylight).\\n\\n        Args:\\n
+      \           name: Unique fenestration name.\\n            surface_type: Window
+      / Door / GlassDoor.\\n            construction_name: Existing Glazing construction
+      name.\\n            building_surface_name: Existing parent Surface name.\\n
+      \           vertices: List of vertex dicts in meters. Each vertex is\\n                      `{\\\"X\\\":
+      float, \\\"Y\\\": float, \\\"Z\\\": float}`. >= 3 points,\\n                      counter-clockwise
+      from the outside, MUST lie on the\\n                      parent surface plane
+      (coplanar).\\n                      Example 1.5x1.2m window centered on a south
+      wall at\\n                      sill 0.8m (wall at y=0, spans x=0..5):\\n                        [{\\\"X\\\":
+      1.75, \\\"Y\\\": 0.0, \\\"Z\\\": 0.8},\\n                         {\\\"X\\\":
+      3.25, \\\"Y\\\": 0.0, \\\"Z\\\": 0.8},\\n                         {\\\"X\\\":
+      3.25, \\\"Y\\\": 0.0, \\\"Z\\\": 2.0},\\n                         {\\\"X\\\":
+      1.75, \\\"Y\\\": 0.0, \\\"Z\\\": 2.0}]\\n            multiplier: Number of identical
+      copies (>= 1).\",\"parameters\":{\"properties\":{\"name\":{\"type\":\"string\"},\"surface_type\":{\"enum\":[\"Window\",\"Door\",\"GlassDoor\"],\"type\":\"string\"},\"construction_name\":{\"type\":\"string\"},\"building_surface_name\":{\"type\":\"string\"},\"vertices\":{\"items\":{\"additionalProperties\":{\"type\":\"number\"},\"type\":\"object\"},\"type\":\"array\"},\"multiplier\":{\"default\":1,\"type\":\"integer\"}},\"required\":[\"name\",\"surface_type\",\"construction_name\",\"building_surface_name\",\"vertices\"],\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"list_fenestrations\",\"description\":\"List
+      all fenestration surfaces.\",\"parameters\":{\"properties\":{},\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"get_fenestration\",\"description\":\"Read
+      a fenestration by name.\",\"parameters\":{\"properties\":{\"name\":{\"type\":\"string\"}},\"required\":[\"name\"],\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"delete_fenestration\",\"description\":\"Delete
+      a fenestration.\",\"parameters\":{\"properties\":{\"name\":{\"type\":\"string\"}},\"required\":[\"name\"],\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"list_surfaces\",\"description\":\"Read-only:
+      list parent surfaces a fenestration can attach to.\",\"parameters\":{\"properties\":{},\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"list_constructions\",\"description\":\"Read-only:
+      list constructions a fenestration can reference.\",\"parameters\":{\"properties\":{},\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"FenestrationResponse\",\"description\":\"Structured
+      summary returned by the fenestration phase agent.\",\"parameters\":{\"properties\":{\"fenestration_names\":{\"description\":\"Names
+      of all fenestration surfaces created\",\"items\":{\"type\":\"string\"},\"type\":\"array\"},\"summary\":{\"description\":\"One-line
+      summary of the fenestration creation result\",\"type\":\"string\"}},\"required\":[\"fenestration_names\",\"summary\"],\"type\":\"object\"}}}],\"max_thinking_budget\":4096}"
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate, zstd
+      connection:
+      - keep-alive
+      content-length:
+      - '8746'
+      content-type:
+      - application/json
+      host:
+      - one.chat-yu.net
+      user-agent:
+      - OpenAI/Python 2.52.0
+      x-stainless-arch:
+      - x64
+      x-stainless-async:
+      - 'false'
+      x-stainless-lang:
+      - python
+      x-stainless-os:
+      - Linux
+      x-stainless-package-version:
+      - 2.52.0
+      x-stainless-raw-response:
+      - 'true'
+      x-stainless-retry-count:
+      - '0'
+      x-stainless-runtime:
+      - CPython
+      x-stainless-runtime-version:
+      - 3.12.3
+    method: POST
+    uri: https://one.chat-yu.net/v1/chat/completions
+  response:
+    body:
+      string: !!binary |
+        KLUv/QBY/QoARhlKIyCNtg1GGDX5973M2Wq41qhPGk71kxBIq8fYUeYKIVkBCIHyRwA6AD0AeEZA
+        A8Cpc3XN5rkjY/F4EDwaj4GFepO9EmLH72ud+rjHApolBOQd3xi4QAFieSISCBOKyXLgFhIaFNEq
+        AOjjWC8Ju3rTLgX72PG9q7kxr6unPuiSejqLOd1RNVp1hjzocZ4ez6qLMfpeX30fr4QYCbdtkaNC
+        fSKbbZcc1DlZexL2kQOt45nmppcU2yhy9XwmffzCsTQY1YVnnG3p1h6veF/rBTXnZkRRXYqzrbmp
+        MoEoDmqRfUxJp3QaXL03O9MVV29+7DhNqtFmN0iCQUfj0aSELXZJnbWtzoZBhmNh6OrXR4LFUWBZ
+        GOq8GfGa6cc96ImOD9P0ME2fpKtzb7oTAEsoBecgYAtDkK+mFp6yDtK+s5/AATuQDLldxcrYbJ1t
+        MDQBaIxjKTYxbICpGYgMmCko
+    headers:
+      alt-svc:
+      - h3=":443"; ma=86400
+      cf-cache-status:
+      - DYNAMIC
+      cf-placement:
+      - remote-ORD
+      cf-ray:
+      - a2628cd15ed562d0-NRT
+      connection:
+      - keep-alive
+      content-encoding:
+      - zstd
+      content-type:
+      - application/json
+      date:
+      - Wed, 05 Aug 2026 03:00:12 GMT
+      nel:
+      - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
+      report-to:
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=oWRcBOXmJOq6yTs3Yy4HnLFnsbIgZsjbmWrFB542gmjBHoxA0y3dOsIW63CkTIdXGb%2BCWLM%2BVH0C1RHLhJwHA8Gs89jmAvh%2BJjVnOY%2BxIp6wncx5WmLGbxPqQKzL7BKvXRo%3D"}]}'
+      server:
+      - cloudflare
+      strict-transport-security:
+      - max-age=31536000
+      transfer-encoding:
+      - chunked
+      via:
+      - 1.1 Caddy
+      x-new-api-version:
+      - v1.0.0-rc.21
+      x-oneapi-request-id:
+      - 202608050300112311822958268d9d68Ht2ObJ4
+    status:
+      code: 200
+      message: OK
+- request:
+    body: "{\"messages\":[{\"content\":\"You are a window/door geometry expert for
+      EnergyPlus.\\nGiven fenestration specifications, create FenestrationSurface:Detailed\\nobjects
+      (windows, doors, skylights) that lie on existing parent surfaces.\\n\\nVertices
+      MUST be a list of dicts with explicit X / Y / Z keys (not a\\nbare [x, y, z]
+      list). Example: a 1.5m x 1.2m window centered on a south\\nwall that spans x=0..5
+      at y=0, window sill at 0.8m:\\n\\n    [\\n      {\\\"X\\\": 1.75, \\\"Y\\\":
+      0.0, \\\"Z\\\": 0.8},\\n      {\\\"X\\\": 3.25, \\\"Y\\\": 0.0, \\\"Z\\\": 0.8},\\n
+      \     {\\\"X\\\": 3.25, \\\"Y\\\": 0.0, \\\"Z\\\": 2.0},\\n      {\\\"X\\\":
+      1.75, \\\"Y\\\": 0.0, \\\"Z\\\": 2.0}\\n    ]\\n\\nWorkflow:\\n1. FIRST call
+      `list_surfaces` to see parent surface names AND their\\n   vertex geometry \u2014
+      you need the parent surface's plane to place the\\n   fenestration's coplanar
+      vertices correctly.\\n2. THEN call `list_constructions` to find glazing/door
+      construction names.\\n3. Create each fenestration via `create_fenestration`.\\n4.
+      Call `list_fenestrations` once at the end to confirm.\\n\\nRules:\\n- `building_surface_name`
+      and `construction_name` MUST appear verbatim\\n  in the list_surfaces / list_constructions
+      results.\\n- If a needed surface or construction is missing after list, STOP
+      and\\n  report; do NOT invent names.\\n- construction_name should be a Glazing
+      construction for windows/skylights.\\n- >= 3 vertices, counter-clockwise from
+      OUTSIDE, and MUST lie on the\\n  parent surface's plane (coplanar \u2014 share
+      one coordinate for walls).\\n- surface_type is Window, Door, or GlassDoor.\\n-
+      Typical window-to-wall ratio: 0.3-0.4 on facade walls; derive vertex\\n  coordinates
+      from the parent wall's corners and the WWR.\\n- Naming: '{parent_surface}_Window'
+      or '{zone}_{direction}_Window_{index}'.\\n\",\"role\":\"system\"},{\"content\":\"Create
+      exactly one window named 'F1_Office_South_Wall_Window' on surface 'F1_Office_South_Wall'
+      with construction 'Window_Simple': 1.5m wide x 1.2m tall, centered horizontally,
+      sill at 0.8m.\",\"role\":\"user\"},{\"content\":\"I'll start by listing the
+      available surfaces and constructions to verify the parent surface and construction
+      exist.\",\"role\":\"assistant\",\"tool_calls\":[{\"type\":\"function\",\"id\":\"call_dfa2\",\"function\":{\"name\":\"list_surfaces\",\"arguments\":\"{}\"}},{\"type\":\"function\",\"id\":\"call_d5cf\",\"function\":{\"name\":\"list_constructions\",\"arguments\":\"{}\"}}]},{\"content\":\"{\\\"success\\\":
+      true, \\\"message\\\": \\\"Listed 1 surfaces.\\\", \\\"data\\\": [{\\\"name\\\":
+      \\\"F1_Office_South_Wall\\\", \\\"surface_type\\\": \\\"Wall\\\", \\\"construction_name\\\":
+      \\\"ExtWall_Simple\\\", \\\"zone_name\\\": \\\"F1_Office\\\", \\\"space_name\\\":
+      null, \\\"outside_boundary_condition\\\": \\\"Outdoors\\\", \\\"outside_boundary_condition_object\\\":
+      null, \\\"sun_exposure\\\": \\\"SunExposed\\\", \\\"wind_exposure\\\": \\\"WindExposed\\\",
+      \\\"view_factor_to_ground\\\": \\\"Autocalculate\\\", \\\"number_of_vertices\\\":
+      4.0, \\\"vertices\\\": [{\\\"vertex_x_coordinate\\\": 0.0, \\\"vertex_y_coordinate\\\":
+      0.0, \\\"vertex_z_coordinate\\\": 3.0}, {\\\"vertex_x_coordinate\\\": 0.0, \\\"vertex_y_coordinate\\\":
+      0.0, \\\"vertex_z_coordinate\\\": 0.0}, {\\\"vertex_x_coordinate\\\": 6.0, \\\"vertex_y_coordinate\\\":
+      0.0, \\\"vertex_z_coordinate\\\": 0.0}, {\\\"vertex_x_coordinate\\\": 6.0, \\\"vertex_y_coordinate\\\":
+      0.0, \\\"vertex_z_coordinate\\\": 3.0}]}]}\",\"role\":\"tool\",\"tool_call_id\":\"call_dfa2\"},{\"content\":\"{\\\"success\\\":
+      true, \\\"message\\\": \\\"Listed 2 constructions.\\\", \\\"data\\\": [{\\\"name\\\":
+      \\\"ExtWall_Simple\\\", \\\"outside_layer\\\": \\\"Brick_100mm\\\", \\\"layer_2\\\":
+      null, \\\"layer_3\\\": null, \\\"layer_4\\\": null, \\\"layer_5\\\": null, \\\"layer_6\\\":
+      null, \\\"layer_7\\\": null, \\\"layer_8\\\": null, \\\"layer_9\\\": null, \\\"layer_10\\\":
+      null}, {\\\"name\\\": \\\"Window_Simple\\\", \\\"outside_layer\\\": \\\"Glass_U18\\\",
+      \\\"layer_2\\\": null, \\\"layer_3\\\": null, \\\"layer_4\\\": null, \\\"layer_5\\\":
+      null, \\\"layer_6\\\": null, \\\"layer_7\\\": null, \\\"layer_8\\\": null, \\\"layer_9\\\":
+      null, \\\"layer_10\\\": null}]}\",\"role\":\"tool\",\"tool_call_id\":\"call_d5cf\"},{\"content\":\"Both
+      the parent surface **F1_Office_South_Wall** and the construction **Window_Simple**
+      exist. \\n\\nNow let me analyze the wall geometry:\\n- Wall plane: **y = 0**,
+      spanning **x = 0..6**, **z = 0..3**\\n- Window: 1.5m wide \xD7 1.2m tall, centered
+      horizontally (center x = 3.0), sill at z = 0.8\\n- Window x: 2.25 to 3.75, z:
+      0.8 to 2.0\\n\\nVertices counter-clockwise from outside (looking from y < 0):\",\"role\":\"assistant\",\"tool_calls\":[{\"type\":\"function\",\"id\":\"call_9446\",\"function\":{\"name\":\"create_fenestration\",\"arguments\":\"{\\\"name\\\":
+      \\\"F1_Office_South_Wall_Window\\\", \\\"surface_type\\\": \\\"Window\\\", \\\"construction_name\\\":
+      \\\"Window_Simple\\\", \\\"building_surface_name\\\": \\\"F1_Office_South_Wall\\\",
+      \\\"vertices\\\": [{\\\"X\\\": 2.25, \\\"Y\\\": 0.0, \\\"Z\\\": 0.8}, {\\\"X\\\":
+      3.75, \\\"Y\\\": 0.0, \\\"Z\\\": 0.8}, {\\\"X\\\": 3.75, \\\"Y\\\": 0.0, \\\"Z\\\":
+      2.0}, {\\\"X\\\": 2.25, \\\"Y\\\": 0.0, \\\"Z\\\": 2.0}], \\\"multiplier\\\":
+      1}\"}}]},{\"content\":\"{\\\"success\\\": true, \\\"message\\\": \\\"Fenestration
+      'F1_Office_South_Wall_Window' created successfully.\\\", \\\"data\\\": {\\\"name\\\":
+      \\\"F1_Office_South_Wall_Window\\\", \\\"surface_type\\\": \\\"Window\\\", \\\"construction_name\\\":
+      \\\"Window_Simple\\\", \\\"building_surface_name\\\": \\\"F1_Office_South_Wall\\\",
+      \\\"outside_boundary_condition_object\\\": null, \\\"view_factor_to_ground\\\":
+      \\\"Autocalculate\\\", \\\"frame_and_divider_name\\\": null, \\\"multiplier\\\":
+      1.0, \\\"number_of_vertices\\\": 4.0, \\\"vertex_1_x_coordinate\\\": 2.25, \\\"vertex_1_y_coordinate\\\":
+      0.0, \\\"vertex_1_z_coordinate\\\": 0.8, \\\"vertex_2_x_coordinate\\\": 3.75,
+      \\\"vertex_2_y_coordinate\\\": 0.0, \\\"vertex_2_z_coordinate\\\": 0.8, \\\"vertex_3_x_coordinate\\\":
+      3.75, \\\"vertex_3_y_coordinate\\\": 0.0, \\\"vertex_3_z_coordinate\\\": 2.0,
+      \\\"vertex_4_x_coordinate\\\": 2.25, \\\"vertex_4_y_coordinate\\\": 0.0, \\\"vertex_4_z_coordinate\\\":
+      2.0}}\",\"role\":\"tool\",\"tool_call_id\":\"call_9446\"},{\"content\":\"Let
+      me confirm by listing all fenestrations:\",\"role\":\"assistant\",\"tool_calls\":[{\"type\":\"function\",\"id\":\"call_5461\",\"function\":{\"name\":\"list_fenestrations\",\"arguments\":\"{}\"}}]},{\"content\":\"{\\\"success\\\":
+      true, \\\"message\\\": \\\"Listed 1 fenestrations.\\\", \\\"data\\\": [{\\\"name\\\":
+      \\\"F1_Office_South_Wall_Window\\\", \\\"surface_type\\\": \\\"Window\\\", \\\"construction_name\\\":
+      \\\"Window_Simple\\\", \\\"building_surface_name\\\": \\\"F1_Office_South_Wall\\\",
+      \\\"outside_boundary_condition_object\\\": null, \\\"view_factor_to_ground\\\":
+      \\\"Autocalculate\\\", \\\"frame_and_divider_name\\\": null, \\\"multiplier\\\":
+      1.0, \\\"number_of_vertices\\\": 4.0, \\\"vertex_1_x_coordinate\\\": 2.25, \\\"vertex_1_y_coordinate\\\":
+      0.0, \\\"vertex_1_z_coordinate\\\": 0.8, \\\"vertex_2_x_coordinate\\\": 3.75,
+      \\\"vertex_2_y_coordinate\\\": 0.0, \\\"vertex_2_z_coordinate\\\": 0.8, \\\"vertex_3_x_coordinate\\\":
+      3.75, \\\"vertex_3_y_coordinate\\\": 0.0, \\\"vertex_3_z_coordinate\\\": 2.0,
+      \\\"vertex_4_x_coordinate\\\": 2.25, \\\"vertex_4_y_coordinate\\\": 0.0, \\\"vertex_4_z_coordinate\\\":
+      2.0}]}\",\"role\":\"tool\",\"tool_call_id\":\"call_5461\"}],\"model\":\"opencode/glm-5.2\",\"max_completion_tokens\":64000,\"parallel_tool_calls\":false,\"stream\":false,\"temperature\":0.7,\"tool_choice\":\"required\",\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"create_fenestration\",\"description\":\"Create
+      a FenestrationSurface:Detailed (window/door/skylight).\\n\\n        Args:\\n
+      \           name: Unique fenestration name.\\n            surface_type: Window
+      / Door / GlassDoor.\\n            construction_name: Existing Glazing construction
+      name.\\n            building_surface_name: Existing parent Surface name.\\n
+      \           vertices: List of vertex dicts in meters. Each vertex is\\n                      `{\\\"X\\\":
+      float, \\\"Y\\\": float, \\\"Z\\\": float}`. >= 3 points,\\n                      counter-clockwise
+      from the outside, MUST lie on the\\n                      parent surface plane
+      (coplanar).\\n                      Example 1.5x1.2m window centered on a south
+      wall at\\n                      sill 0.8m (wall at y=0, spans x=0..5):\\n                        [{\\\"X\\\":
+      1.75, \\\"Y\\\": 0.0, \\\"Z\\\": 0.8},\\n                         {\\\"X\\\":
+      3.25, \\\"Y\\\": 0.0, \\\"Z\\\": 0.8},\\n                         {\\\"X\\\":
+      3.25, \\\"Y\\\": 0.0, \\\"Z\\\": 2.0},\\n                         {\\\"X\\\":
+      1.75, \\\"Y\\\": 0.0, \\\"Z\\\": 2.0}]\\n            multiplier: Number of identical
+      copies (>= 1).\",\"parameters\":{\"properties\":{\"name\":{\"type\":\"string\"},\"surface_type\":{\"enum\":[\"Window\",\"Door\",\"GlassDoor\"],\"type\":\"string\"},\"construction_name\":{\"type\":\"string\"},\"building_surface_name\":{\"type\":\"string\"},\"vertices\":{\"items\":{\"additionalProperties\":{\"type\":\"number\"},\"type\":\"object\"},\"type\":\"array\"},\"multiplier\":{\"default\":1,\"type\":\"integer\"}},\"required\":[\"name\",\"surface_type\",\"construction_name\",\"building_surface_name\",\"vertices\"],\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"list_fenestrations\",\"description\":\"List
+      all fenestration surfaces.\",\"parameters\":{\"properties\":{},\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"get_fenestration\",\"description\":\"Read
+      a fenestration by name.\",\"parameters\":{\"properties\":{\"name\":{\"type\":\"string\"}},\"required\":[\"name\"],\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"delete_fenestration\",\"description\":\"Delete
+      a fenestration.\",\"parameters\":{\"properties\":{\"name\":{\"type\":\"string\"}},\"required\":[\"name\"],\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"list_surfaces\",\"description\":\"Read-only:
+      list parent surfaces a fenestration can attach to.\",\"parameters\":{\"properties\":{},\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"list_constructions\",\"description\":\"Read-only:
+      list constructions a fenestration can reference.\",\"parameters\":{\"properties\":{},\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"FenestrationResponse\",\"description\":\"Structured
+      summary returned by the fenestration phase agent.\",\"parameters\":{\"properties\":{\"fenestration_names\":{\"description\":\"Names
+      of all fenestration surfaces created\",\"items\":{\"type\":\"string\"},\"type\":\"array\"},\"summary\":{\"description\":\"One-line
+      summary of the fenestration creation result\",\"type\":\"string\"}},\"required\":[\"fenestration_names\",\"summary\"],\"type\":\"object\"}}}],\"max_thinking_budget\":4096}"
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate, zstd
+      connection:
+      - keep-alive
+      content-length:
+      - '9796'
+      content-type:
+      - application/json
+      host:
+      - one.chat-yu.net
+      user-agent:
+      - OpenAI/Python 2.52.0
+      x-stainless-arch:
+      - x64
+      x-stainless-async:
+      - 'false'
+      x-stainless-lang:
+      - python
+      x-stainless-os:
+      - Linux
+      x-stainless-package-version:
+      - 2.52.0
+      x-stainless-raw-response:
+      - 'true'
+      x-stainless-retry-count:
+      - '0'
+      x-stainless-runtime:
+      - CPython
+      x-stainless-runtime-version:
+      - 3.12.3
+    method: POST
+    uri: https://one.chat-yu.net/v1/chat/completions
+  response:
+    body:
+      string: !!binary |
+        KLUv/QBYxRgABvWeN2Br0wEwDBuCIEhADwxGREYneieRf8ukjFa2tbTy0rJHIowROqQEUatMLTaZ
+        Iu19u0R7JSVBEPCQAJMAjABcNdho3/k9umX73n6+OdtGyx3lZqJlS5uT4bLuy6OdFVFaltjLdnY3
+        N3WMv9F6nI3lVM3nr7LsiRaDKX+biRDtZPdi5ZYt5EgesC0bbTMV4TKHCIUigCKhTCDRUvyNpVu2
+        Ht9zWzA65x1bVMRli4CAhcUBy8QFhgMIE58Xi4fCRQInAMPg0RZ03yq30VJvMwFvKoP6OBF9UAz9
+        phRLfmeIN2NEd3uFCjkQvYBBmXoXhSpxIBlPwrWKvCT0nWWL4Lbgk5g8vneX/OkRwsI0cDhUwoOp
+        uz2Yqr+ixMTuVSoLJkgBCapRh4NhU+BwqMalx+OhcUmjfHWbUI1iXrIVZYRqXHIpwsgG4TW16QTA
+        kg2og+m+KnOyc9dUdeYKna3SS6T8XTQW5pftQ3HgqbuxnSz+GDZfts5XlscVxT/5umBZ/bs4OMV0
+        t/eY8WSsdD6lvClj6s2/osIoK8rzXSa42O4h+f2KTlk2ZQ2PPiimoeytLe1uF+Xq1aPya6Wg8ooV
+        7R7gkkuax4EmTqShFipk0AaK8yh7lEkgB2pMdu8lTzRAfRzIit9QqBTn0QfN0G/aHZt9Ntqf0S3b
+        bLov53/yMjEoEgCiuHLNbSba2a89UxOjQN0+/jLJE1kWgSZQtNN5QvzpLRildS2j2GwoNpvdrOQ4
+        VYu/eal61AZIcR4GIQeiE+p5LklSKHEgDYhCrKTRSispo1hppQgarTQZNp8qK2U22vnO8LLItmx5
+        erQmM/D4vsmf7FxgMxFbvyobLQc7IDACQhRzQz6LSsEYGkUgJp0pNisdhpI2o0BEidTAAncYeXpC
+        CkEf1UFn0ugztkgzo9jCR2IspHDNwTZFcpS97fjW0oNjVm0y5wCAPVEum6MdzWvwpHfqXUARL2QX
+        dgyP08yst+WvLbLRYhuXTyOlpaQEWDJMMlSHUxaWbvjCtA0HgDBSR2A3QPwUt7sWsPZ8F5CWYpYB
+        MwMF
+    headers:
+      alt-svc:
+      - h3=":443"; ma=86400
+      cf-cache-status:
+      - DYNAMIC
+      cf-placement:
+      - remote-ORD
+      cf-ray:
+      - a2628cd8d90d62d0-NRT
+      connection:
+      - keep-alive
+      content-encoding:
+      - zstd
+      content-type:
+      - application/json
+      date:
+      - Wed, 05 Aug 2026 03:00:36 GMT
+      nel:
+      - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
+      report-to:
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=nbTh%2F2NqV4F6s5KpdPyWCFWNO2sf1Iwhcfyd3EcNSMe4BERUCB6viVKrU2YtiodZbKuDnG2PawR5TZg2iUqlNlKfp5e7pSaaf%2F8OAGOH26YKGdXfTZUt9nscrvZptdyG0Yw%3D"}]}'
+      server:
+      - cloudflare
+      strict-transport-security:
+      - max-age=31536000
+      transfer-encoding:
+      - chunked
+      via:
+      - 1.1 Caddy
+      x-new-api-version:
+      - v1.0.0-rc.21
+      x-oneapi-request-id:
+      - 202608050300124310529758268d9d6nEmNfPXV
+    status:
+      code: 200
+      message: OK
+version: 1

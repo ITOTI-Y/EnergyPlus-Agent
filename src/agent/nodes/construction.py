@@ -1,20 +1,13 @@
 from typing import Literal
 
 from langchain_core.messages import AIMessage
-from langgraph.types import Command
+from pydantic import BaseModel, Field
 
-from src.agent.llm import create_llm
-from src.agent.nodes._share import clone_for_phase, invoke_with_self_repair, maybe_backhop
-from src.agent.react import build_react_agent
+from src.agent.llm import build_agent
+from src.agent.nodes._share import invoke_with_self_repair
 from src.agent.state import AgentState, AgentStateUpdate
 from src.agent.tools import make_construction_tools
-from src.agent.trace import TraceCollector, record_phase_trace
-
-
-# Legal back-hop target for construction: a missing material layer hops
-# to the material phase. Declared on the return type so LangGraph accepts
-# Command(goto=...).
-_ConstructionRoute = Literal["material"]
+from src.agent.trace import TraceCollector, record_phase_trace, trace_middleware
 
 CONSTRUCTION_SYSTEM_PROMPT = """You are a construction-assembly expert for EnergyPlus.
 Given construction specifications, create all required Construction objects.
@@ -42,16 +35,27 @@ Rules:
 """
 
 
-def construction_agent(state: AgentState) -> Command[_ConstructionRoute] | AgentStateUpdate:
-    local = clone_for_phase(state)
+class ConstructionResponse(BaseModel):
+    """Structured summary returned by the construction phase agent."""
+
+    construction_names: list[str] = Field(
+        description="Names of all constructions created"
+    )
+    summary: str = Field(
+        description="One-line summary of the construction creation result"
+    )
+
+
+def construction_agent(state: AgentState) -> AgentStateUpdate:
+    local = state.config_state.model_copy(deep=True)
     tools = make_construction_tools(local)
     collector = TraceCollector(phase="construction")
 
-    agent = build_react_agent(
-        llm=create_llm(),
+    agent = build_agent(
         tools=tools,
         system_prompt=CONSTRUCTION_SYSTEM_PROMPT,
-        trace_collector=collector,
+        response_format=ConstructionResponse,
+        middleware=[trace_middleware(collector)],
     )
 
     specs = (
@@ -81,10 +85,10 @@ def construction_agent(state: AgentState) -> Command[_ConstructionRoute] | Agent
     if hop is not None:
         return hop
 
-    final = [
-        m for m in result["messages"] if isinstance(m, AIMessage) and not m.tool_calls
-    ]
-    summary = final[-1].content if final else "construction done"
+    response: ConstructionResponse | None = result.get("structured_response")
+    summary = response.summary if response else "construction done"
+
+    record_phase_trace("construction", collector.export())
     return AgentStateUpdate(
         config_state=local,
         upstream_request=None,  # consume the back-hop request

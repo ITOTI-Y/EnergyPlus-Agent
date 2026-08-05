@@ -1,0 +1,803 @@
+interactions:
+- request:
+    body: "{\"messages\":[{\"content\":\"You are a scheduling expert for EnergyPlus.\\nGiven
+      schedule specifications, create all ScheduleTypeLimits and\\nSchedule:Compact
+      objects required by later phases (HVAC, People, Lights).\\n\\nRequired type
+      limits to create first (if referenced):\\n- 'Fraction' (0.0 to 1.0, CONTINUOUS,
+      Dimensionless)\\n- 'Temperature' (-100 to 100, CONTINUOUS, Temperature)\\n-
+      'Activity Level' (0 to 1000, CONTINUOUS, Dimensionless)\\n- 'OnOff' (0 to 1,
+      DISCRETE, Dimensionless)\\n\\nThen create Schedule:Compact entries. The `data`
+      argument is a NESTED LIST\\nOF DICTS (not a flat string list). Shape:\\n\\n
+      \   [\\n      {\\n        \\\"Through\\\": \\\"MM/DD\\\",              // last
+      block MUST be \\\"12/31\\\"\\n        \\\"Days\\\": [\\n          {\\n            \\\"For\\\":
+      \\\"<DayType>\\\",           // Weekdays / Weekends / Saturday / Sunday /\\n
+      \                                         // AllDays / AllOtherDays / Holidays
+      /\\n                                          // SummerDesignDay / WinterDesignDay
+      /\\n                                          // Monday..Friday / CustomDay1
+      / CustomDay2\\n            \\\"Times\\\": [\\n              {\\\"Until\\\":
+      {\\\"Time\\\": \\\"HH:MM\\\", \\\"Value\\\": <float>}},\\n              ...\\n
+      \             {\\\"Until\\\": {\\\"Time\\\": \\\"24:00\\\", \\\"Value\\\": <float>}}
+      \  // last MUST be 24:00\\n            ]\\n          },\\n          ...   //
+      additional day-type blocks under the same Through\\n        ]\\n      },\\n
+      \     ...   // additional Through blocks for seasonal variation\\n    ]\\n\\nExample
+      (medium-office lighting fraction schedule):\\n\\n    [\\n      {\\n        \\\"Through\\\":
+      \\\"12/31\\\",\\n        \\\"Days\\\": [\\n          {\\\"For\\\": \\\"Weekdays\\\",
+      \\\"Times\\\": [\\n            {\\\"Until\\\": {\\\"Time\\\": \\\"05:00\\\",
+      \\\"Value\\\": 0.05}},\\n            {\\\"Until\\\": {\\\"Time\\\": \\\"07:00\\\",
+      \\\"Value\\\": 0.10}},\\n            {\\\"Until\\\": {\\\"Time\\\": \\\"08:00\\\",
+      \\\"Value\\\": 0.30}},\\n            {\\\"Until\\\": {\\\"Time\\\": \\\"17:00\\\",
+      \\\"Value\\\": 0.90}},\\n            {\\\"Until\\\": {\\\"Time\\\": \\\"18:00\\\",
+      \\\"Value\\\": 0.70}},\\n            {\\\"Until\\\": {\\\"Time\\\": \\\"20:00\\\",
+      \\\"Value\\\": 0.50}},\\n            {\\\"Until\\\": {\\\"Time\\\": \\\"22:00\\\",
+      \\\"Value\\\": 0.30}},\\n            {\\\"Until\\\": {\\\"Time\\\": \\\"23:00\\\",
+      \\\"Value\\\": 0.10}},\\n            {\\\"Until\\\": {\\\"Time\\\": \\\"24:00\\\",
+      \\\"Value\\\": 0.05}}\\n          ]},\\n          {\\\"For\\\": \\\"Saturday\\\",
+      \\\"Times\\\": [\\n            {\\\"Until\\\": {\\\"Time\\\": \\\"06:00\\\",
+      \\\"Value\\\": 0.05}},\\n            {\\\"Until\\\": {\\\"Time\\\": \\\"08:00\\\",
+      \\\"Value\\\": 0.10}},\\n            {\\\"Until\\\": {\\\"Time\\\": \\\"14:00\\\",
+      \\\"Value\\\": 0.50}},\\n            {\\\"Until\\\": {\\\"Time\\\": \\\"17:00\\\",
+      \\\"Value\\\": 0.15}},\\n            {\\\"Until\\\": {\\\"Time\\\": \\\"24:00\\\",
+      \\\"Value\\\": 0.05}}\\n          ]},\\n          {\\\"For\\\": \\\"AllOtherDays\\\",
+      \\\"Times\\\": [\\n            {\\\"Until\\\": {\\\"Time\\\": \\\"24:00\\\",
+      \\\"Value\\\": 0.05}}\\n          ]}\\n        ]\\n      }\\n    ]\\n\\nDownstream
+      completeness checklist \u2014 BEFORE finishing, re-read the spec\\nand ensure
+      every schedule the downstream phases will reference exists.\\nTypical required
+      schedules for a conditioned occupied zone:\\n\\n  Downstream field                              |
+      Type           | Typical values\\n  ----------------------------------------------|----------------|----------------\\n
+      \ thermostat.heating_setpoint_schedule_name     | Temperature    | 20 occupied
+      / 15 setback\\n  thermostat.cooling_setpoint_schedule_name     | Temperature
+      \   | 24 occupied / 28 setback\\n  ideal_loads.system_availability_schedule_name
+      | Fraction/OnOff | 1 during hours, else 0\\n  people.number_of_people_schedule_name
+      \        | Fraction       | occupancy pattern\\n  people.activity_level_schedule_name
+      \          | Activity Level | ~120 W/person seated\\n  lights.schedule_name
+      \                         | Fraction       | lighting pattern\\n\\nIf the spec
+      implies occupancy but does not explicitly name an activity-\\nlevel schedule,
+      CREATE ONE anyway (e.g. \\\"Office_Activity_Level\\\" at\\n120 W/person constant).
+      People objects cannot be built without it.\\n\\nRules:\\n- Create type limits
+      BEFORE the schedules that reference them.\\n- Use the EXACT schedule names the
+      spec states; otherwise downstream\\n  phases will reference non-existent schedules.\\n-
+      The LAST \\\"Through\\\" block must be \\\"12/31\\\" (full-year coverage).\\n-
+      Within each \\\"For\\\" block, the LAST \\\"Until.Time\\\" must be \\\"24:00\\\".\\n-
+      Cover every day type: either use \\\"AllDays\\\", or use specific day types\\n
+      \ followed by \\\"AllOtherDays\\\" to catch the rest.\\n- Call list_schedules
+      once at the end.\\n\",\"role\":\"system\"},{\"content\":\"Create the ScheduleTypeLimits
+      'Fraction' (0.0 to 1.0, CONTINUOUS, Dimensionless) and exactly one Schedule:Compact
+      named 'Office_Occupancy' using it: 1.0 for all days, all year.\",\"role\":\"user\"}],\"model\":\"opencode/glm-5.2\",\"max_completion_tokens\":64000,\"parallel_tool_calls\":false,\"stream\":false,\"temperature\":0.7,\"tool_choice\":\"required\",\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"create_schedule_type_limits\",\"description\":\"Create
+      a ScheduleTypeLimits.\\n\\n        Args:\\n            name: Unique name (e.g.,
+      'Fraction', 'Temperature', 'OnOff').\\n            lower_limit_value: Minimum
+      allowed value (None = unbounded).\\n            upper_limit_value: Maximum allowed
+      value (None = unbounded).\\n            numeric_type: CONTINUOUS or DISCRETE.\\n
+      \           unit_type: EnergyPlus unit category (Dimensionless / Temperature
+      / Power / ...).\",\"parameters\":{\"properties\":{\"name\":{\"type\":\"string\"},\"lower_limit_value\":{\"anyOf\":[{\"type\":\"number\"},{\"type\":\"null\"}],\"default\":null},\"upper_limit_value\":{\"anyOf\":[{\"type\":\"number\"},{\"type\":\"null\"}],\"default\":null},\"numeric_type\":{\"default\":\"CONTINUOUS\",\"type\":\"string\"},\"unit_type\":{\"default\":\"Dimensionless\",\"type\":\"string\"}},\"required\":[\"name\"],\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"create_schedule_compact\",\"description\":\"Create
+      a Schedule:Compact.\\n\\n        Args:\\n            name: Unique schedule name.\\n
+      \           schedule_type_limits_name: Existing ScheduleTypeLimits name.\\n
+      \           data: Nested schedule structure. Each element is one \\\"Through\\\"-block:\\n\\n
+      \               {\\n                  \\\"Through\\\": \\\"MM/DD\\\",               #
+      last block must be \\\"12/31\\\"\\n                  \\\"Days\\\": [\\n                    {\\n
+      \                     \\\"For\\\": \\\"<DayType>\\\",           # Weekdays /
+      Weekends / Saturday /\\n                                                    #
+      Sunday / AllDays / AllOtherDays /\\n                                                    #
+      SummerDesignDay / WinterDesignDay /\\n                                                    #
+      Monday...Friday / Holidays /\\n                                                    #
+      CustomDay1 / CustomDay2\\n                      \\\"Times\\\": [\\n                        {\\\"Until\\\":
+      {\\\"Time\\\": \\\"HH:MM\\\", \\\"Value\\\": <float>}},\\n                        ...\\n
+      \                       {\\\"Until\\\": {\\\"Time\\\": \\\"24:00\\\", \\\"Value\\\":
+      <float>}},  # last must be 24:00\\n                      ],\\n                    },\\n
+      \                   ...  # additional day-type blocks under the same Through\\n
+      \                 ],\\n                }\\n\\n                Example (office
+      fraction schedule, weekdays 8-18 at 1.0, else 0.0):\\n\\n                [\\n
+      \                 {\\n                    \\\"Through\\\": \\\"12/31\\\",\\n
+      \                   \\\"Days\\\": [\\n                      {\\\"For\\\": \\\"Weekdays\\\",
+      \\\"Times\\\": [\\n                        {\\\"Until\\\": {\\\"Time\\\": \\\"08:00\\\",
+      \\\"Value\\\": 0.0}},\\n                        {\\\"Until\\\": {\\\"Time\\\":
+      \\\"18:00\\\", \\\"Value\\\": 1.0}},\\n                        {\\\"Until\\\":
+      {\\\"Time\\\": \\\"24:00\\\", \\\"Value\\\": 0.0}},\\n                      ]},\\n
+      \                     {\\\"For\\\": \\\"AllOtherDays\\\", \\\"Times\\\": [\\n
+      \                       {\\\"Until\\\": {\\\"Time\\\": \\\"24:00\\\", \\\"Value\\\":
+      0.0}},\\n                      ]},\\n                    ],\\n                  },\\n
+      \               ]\",\"parameters\":{\"properties\":{\"name\":{\"type\":\"string\"},\"schedule_type_limits_name\":{\"type\":\"string\"},\"data\":{\"items\":{\"additionalProperties\":true,\"type\":\"object\"},\"type\":\"array\"}},\"required\":[\"name\",\"schedule_type_limits_name\",\"data\"],\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"list_schedules\",\"description\":\"List
+      all Schedule:Compact objects.\",\"parameters\":{\"properties\":{},\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"list_schedule_type_limits\",\"description\":\"List
+      all ScheduleTypeLimits objects.\",\"parameters\":{\"properties\":{},\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"get_schedule\",\"description\":\"Read
+      a Schedule:Compact by name.\",\"parameters\":{\"properties\":{\"name\":{\"type\":\"string\"}},\"required\":[\"name\"],\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"delete_schedule\",\"description\":\"Delete
+      a Schedule:Compact. Fails if referenced.\",\"parameters\":{\"properties\":{\"name\":{\"type\":\"string\"}},\"required\":[\"name\"],\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"ScheduleResponse\",\"description\":\"Structured
+      summary returned by the schedule phase agent.\",\"parameters\":{\"properties\":{\"schedule_names\":{\"description\":\"Names
+      of all Schedule:Compact objects created\",\"items\":{\"type\":\"string\"},\"type\":\"array\"},\"summary\":{\"description\":\"One-line
+      summary of the schedule creation result\",\"type\":\"string\"}},\"required\":[\"schedule_names\",\"summary\"],\"type\":\"object\"}}}],\"max_thinking_budget\":4096}"
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate, zstd
+      connection:
+      - keep-alive
+      content-length:
+      - '9225'
+      content-type:
+      - application/json
+      host:
+      - one.chat-yu.net
+      user-agent:
+      - OpenAI/Python 2.52.0
+      x-stainless-arch:
+      - x64
+      x-stainless-async:
+      - 'false'
+      x-stainless-lang:
+      - python
+      x-stainless-os:
+      - Linux
+      x-stainless-package-version:
+      - 2.52.0
+      x-stainless-raw-response:
+      - 'true'
+      x-stainless-retry-count:
+      - '0'
+      x-stainless-runtime:
+      - CPython
+      x-stainless-runtime-version:
+      - 3.12.3
+    method: POST
+    uri: https://one.chat-yu.net/v1/chat/completions
+  response:
+    body:
+      string: !!binary |
+        KLUv/QBYNRMA9ih3JgCROAdgBfVl+6+02hqCfN85wnyUUiCPrJcHkqv63gwx1aX//18hbwBnAG8A
+        3D4tpFVdZDz7jNG9KErZb2c53VrRNCFDy9nTrrESw2sm2uc+KKd3dohDIEDFy9vjSpI6eyIRiYGE
+        QFLwaJe23Vrv7Cxhb6wo+Zx+e2Ehz75xZcCGXpAiGxOJd7WDhBC5UMBYOAjEinrtpvd2CV4TupTO
+        ZodRa+elO0FEF4ZLOT6701DnPl5rLWtpu6l1akXmsauu9yrRPmixVHinVtbTghadDSm4sFUGYuMl
+        7fQetIIl7OeshArdqVVjdFDe3rzN8p292fWEc7q3b5TWNe17cXMudRbjFSrtslJUTmUXhj2hxkqd
+        Em+1UiZGd/U7UCfqVplm95TCEEOO5TbDZsZJGqNTS1r0cR66V3QZOjXEXBjOSx39XEXJSYMwFDDn
+        RpZw8lIQQdlDRCWCgQLBUJkoe5yHytbHeQDU4VBpKcdOJ+o8GGqyA5s/b+8p39lmo2mfEbpeKWKP
+        ggFIdC377JE8zh4GD0j75MWQHXVFSau6zig2G4rN5ptDDflBa6mLD1XV9ThPZC1GxkPKDh3SdgjS
+        vH02L3VdLHf2aKtMR5GmsfNleftWmT47wRZsFKNjlx0zICBCQqC6O4SR2pxGtoD0t5muEe/CEwTN
+        BM2woQ36A/jvDtgW4MdoDHIgTvfmhjeDyru79I7qgZw/cqiPGfuL96AxQwlU4gJsxGH2jPohB5OP
+        Q2MB4BtC8YIxKUUdYkXfupmcoYWAZoKTM5Vfib2R4n8QY+KdzUf4FBkzs3Vs6JKGgQJmeA8=
+    headers:
+      alt-svc:
+      - h3=":443"; ma=86400
+      cf-cache-status:
+      - DYNAMIC
+      cf-placement:
+      - remote-ORD
+      cf-ray:
+      - a26288d019e462d0-NRT
+      connection:
+      - keep-alive
+      content-encoding:
+      - zstd
+      content-type:
+      - application/json
+      date:
+      - Wed, 05 Aug 2026 02:57:41 GMT
+      nel:
+      - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
+      report-to:
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=5Q%2FZ6kDfXoCgv0Ig4C%2BdLpvl78%2BDqPk8mqo2NPnjTugbrO05WJDMO6dnDXXHrG%2FPr71RwkJuX2464kBlww0CWwFWTjg6Rq9q%2BwooGw8%2Bdz07gmKC%2BfD90lOlgu1DCkaMAcA%3D"}]}'
+      server:
+      - cloudflare
+      strict-transport-security:
+      - max-age=31536000
+      transfer-encoding:
+      - chunked
+      via:
+      - 1.1 Caddy
+      x-new-api-version:
+      - v1.0.0-rc.21
+      x-oneapi-request-id:
+      - 202608050257279984990198268d9d67OS7ZApn
+    status:
+      code: 200
+      message: OK
+- request:
+    body: "{\"messages\":[{\"content\":\"You are a scheduling expert for EnergyPlus.\\nGiven
+      schedule specifications, create all ScheduleTypeLimits and\\nSchedule:Compact
+      objects required by later phases (HVAC, People, Lights).\\n\\nRequired type
+      limits to create first (if referenced):\\n- 'Fraction' (0.0 to 1.0, CONTINUOUS,
+      Dimensionless)\\n- 'Temperature' (-100 to 100, CONTINUOUS, Temperature)\\n-
+      'Activity Level' (0 to 1000, CONTINUOUS, Dimensionless)\\n- 'OnOff' (0 to 1,
+      DISCRETE, Dimensionless)\\n\\nThen create Schedule:Compact entries. The `data`
+      argument is a NESTED LIST\\nOF DICTS (not a flat string list). Shape:\\n\\n
+      \   [\\n      {\\n        \\\"Through\\\": \\\"MM/DD\\\",              // last
+      block MUST be \\\"12/31\\\"\\n        \\\"Days\\\": [\\n          {\\n            \\\"For\\\":
+      \\\"<DayType>\\\",           // Weekdays / Weekends / Saturday / Sunday /\\n
+      \                                         // AllDays / AllOtherDays / Holidays
+      /\\n                                          // SummerDesignDay / WinterDesignDay
+      /\\n                                          // Monday..Friday / CustomDay1
+      / CustomDay2\\n            \\\"Times\\\": [\\n              {\\\"Until\\\":
+      {\\\"Time\\\": \\\"HH:MM\\\", \\\"Value\\\": <float>}},\\n              ...\\n
+      \             {\\\"Until\\\": {\\\"Time\\\": \\\"24:00\\\", \\\"Value\\\": <float>}}
+      \  // last MUST be 24:00\\n            ]\\n          },\\n          ...   //
+      additional day-type blocks under the same Through\\n        ]\\n      },\\n
+      \     ...   // additional Through blocks for seasonal variation\\n    ]\\n\\nExample
+      (medium-office lighting fraction schedule):\\n\\n    [\\n      {\\n        \\\"Through\\\":
+      \\\"12/31\\\",\\n        \\\"Days\\\": [\\n          {\\\"For\\\": \\\"Weekdays\\\",
+      \\\"Times\\\": [\\n            {\\\"Until\\\": {\\\"Time\\\": \\\"05:00\\\",
+      \\\"Value\\\": 0.05}},\\n            {\\\"Until\\\": {\\\"Time\\\": \\\"07:00\\\",
+      \\\"Value\\\": 0.10}},\\n            {\\\"Until\\\": {\\\"Time\\\": \\\"08:00\\\",
+      \\\"Value\\\": 0.30}},\\n            {\\\"Until\\\": {\\\"Time\\\": \\\"17:00\\\",
+      \\\"Value\\\": 0.90}},\\n            {\\\"Until\\\": {\\\"Time\\\": \\\"18:00\\\",
+      \\\"Value\\\": 0.70}},\\n            {\\\"Until\\\": {\\\"Time\\\": \\\"20:00\\\",
+      \\\"Value\\\": 0.50}},\\n            {\\\"Until\\\": {\\\"Time\\\": \\\"22:00\\\",
+      \\\"Value\\\": 0.30}},\\n            {\\\"Until\\\": {\\\"Time\\\": \\\"23:00\\\",
+      \\\"Value\\\": 0.10}},\\n            {\\\"Until\\\": {\\\"Time\\\": \\\"24:00\\\",
+      \\\"Value\\\": 0.05}}\\n          ]},\\n          {\\\"For\\\": \\\"Saturday\\\",
+      \\\"Times\\\": [\\n            {\\\"Until\\\": {\\\"Time\\\": \\\"06:00\\\",
+      \\\"Value\\\": 0.05}},\\n            {\\\"Until\\\": {\\\"Time\\\": \\\"08:00\\\",
+      \\\"Value\\\": 0.10}},\\n            {\\\"Until\\\": {\\\"Time\\\": \\\"14:00\\\",
+      \\\"Value\\\": 0.50}},\\n            {\\\"Until\\\": {\\\"Time\\\": \\\"17:00\\\",
+      \\\"Value\\\": 0.15}},\\n            {\\\"Until\\\": {\\\"Time\\\": \\\"24:00\\\",
+      \\\"Value\\\": 0.05}}\\n          ]},\\n          {\\\"For\\\": \\\"AllOtherDays\\\",
+      \\\"Times\\\": [\\n            {\\\"Until\\\": {\\\"Time\\\": \\\"24:00\\\",
+      \\\"Value\\\": 0.05}}\\n          ]}\\n        ]\\n      }\\n    ]\\n\\nDownstream
+      completeness checklist \u2014 BEFORE finishing, re-read the spec\\nand ensure
+      every schedule the downstream phases will reference exists.\\nTypical required
+      schedules for a conditioned occupied zone:\\n\\n  Downstream field                              |
+      Type           | Typical values\\n  ----------------------------------------------|----------------|----------------\\n
+      \ thermostat.heating_setpoint_schedule_name     | Temperature    | 20 occupied
+      / 15 setback\\n  thermostat.cooling_setpoint_schedule_name     | Temperature
+      \   | 24 occupied / 28 setback\\n  ideal_loads.system_availability_schedule_name
+      | Fraction/OnOff | 1 during hours, else 0\\n  people.number_of_people_schedule_name
+      \        | Fraction       | occupancy pattern\\n  people.activity_level_schedule_name
+      \          | Activity Level | ~120 W/person seated\\n  lights.schedule_name
+      \                         | Fraction       | lighting pattern\\n\\nIf the spec
+      implies occupancy but does not explicitly name an activity-\\nlevel schedule,
+      CREATE ONE anyway (e.g. \\\"Office_Activity_Level\\\" at\\n120 W/person constant).
+      People objects cannot be built without it.\\n\\nRules:\\n- Create type limits
+      BEFORE the schedules that reference them.\\n- Use the EXACT schedule names the
+      spec states; otherwise downstream\\n  phases will reference non-existent schedules.\\n-
+      The LAST \\\"Through\\\" block must be \\\"12/31\\\" (full-year coverage).\\n-
+      Within each \\\"For\\\" block, the LAST \\\"Until.Time\\\" must be \\\"24:00\\\".\\n-
+      Cover every day type: either use \\\"AllDays\\\", or use specific day types\\n
+      \ followed by \\\"AllOtherDays\\\" to catch the rest.\\n- Call list_schedules
+      once at the end.\\n\",\"role\":\"system\"},{\"content\":\"Create the ScheduleTypeLimits
+      'Fraction' (0.0 to 1.0, CONTINUOUS, Dimensionless) and exactly one Schedule:Compact
+      named 'Office_Occupancy' using it: 1.0 for all days, all year.\",\"role\":\"user\"},{\"content\":\"I'll
+      create the `Fraction` ScheduleTypeLimits first, then the `Office_Occupancy`
+      schedule that references it.\",\"role\":\"assistant\",\"tool_calls\":[{\"type\":\"function\",\"id\":\"call_e7e5\",\"function\":{\"name\":\"create_schedule_type_limits\",\"arguments\":\"{\\\"name\\\":
+      \\\"Fraction\\\", \\\"lower_limit_value\\\": \\\"0.0\\\", \\\"upper_limit_value\\\":
+      1.0, \\\"numeric_type\\\": \\\"CONTINUOUS\\\", \\\"unit_type\\\": \\\"Dimensionless\\\"}\"}}]},{\"content\":\"{\\\"success\\\":
+      true, \\\"message\\\": \\\"ScheduleTypeLimits 'Fraction' created successfully.\\\",
+      \\\"data\\\": {\\\"name\\\": \\\"Fraction\\\", \\\"lower_limit_value\\\": 0.0,
+      \\\"upper_limit_value\\\": 1.0, \\\"numeric_type\\\": \\\"Continuous\\\", \\\"unit_type\\\":
+      \\\"Dimensionless\\\"}}\",\"role\":\"tool\",\"tool_call_id\":\"call_e7e5\"}],\"model\":\"opencode/glm-5.2\",\"max_completion_tokens\":64000,\"parallel_tool_calls\":false,\"stream\":false,\"temperature\":0.7,\"tool_choice\":\"required\",\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"create_schedule_type_limits\",\"description\":\"Create
+      a ScheduleTypeLimits.\\n\\n        Args:\\n            name: Unique name (e.g.,
+      'Fraction', 'Temperature', 'OnOff').\\n            lower_limit_value: Minimum
+      allowed value (None = unbounded).\\n            upper_limit_value: Maximum allowed
+      value (None = unbounded).\\n            numeric_type: CONTINUOUS or DISCRETE.\\n
+      \           unit_type: EnergyPlus unit category (Dimensionless / Temperature
+      / Power / ...).\",\"parameters\":{\"properties\":{\"name\":{\"type\":\"string\"},\"lower_limit_value\":{\"anyOf\":[{\"type\":\"number\"},{\"type\":\"null\"}],\"default\":null},\"upper_limit_value\":{\"anyOf\":[{\"type\":\"number\"},{\"type\":\"null\"}],\"default\":null},\"numeric_type\":{\"default\":\"CONTINUOUS\",\"type\":\"string\"},\"unit_type\":{\"default\":\"Dimensionless\",\"type\":\"string\"}},\"required\":[\"name\"],\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"create_schedule_compact\",\"description\":\"Create
+      a Schedule:Compact.\\n\\n        Args:\\n            name: Unique schedule name.\\n
+      \           schedule_type_limits_name: Existing ScheduleTypeLimits name.\\n
+      \           data: Nested schedule structure. Each element is one \\\"Through\\\"-block:\\n\\n
+      \               {\\n                  \\\"Through\\\": \\\"MM/DD\\\",               #
+      last block must be \\\"12/31\\\"\\n                  \\\"Days\\\": [\\n                    {\\n
+      \                     \\\"For\\\": \\\"<DayType>\\\",           # Weekdays /
+      Weekends / Saturday /\\n                                                    #
+      Sunday / AllDays / AllOtherDays /\\n                                                    #
+      SummerDesignDay / WinterDesignDay /\\n                                                    #
+      Monday...Friday / Holidays /\\n                                                    #
+      CustomDay1 / CustomDay2\\n                      \\\"Times\\\": [\\n                        {\\\"Until\\\":
+      {\\\"Time\\\": \\\"HH:MM\\\", \\\"Value\\\": <float>}},\\n                        ...\\n
+      \                       {\\\"Until\\\": {\\\"Time\\\": \\\"24:00\\\", \\\"Value\\\":
+      <float>}},  # last must be 24:00\\n                      ],\\n                    },\\n
+      \                   ...  # additional day-type blocks under the same Through\\n
+      \                 ],\\n                }\\n\\n                Example (office
+      fraction schedule, weekdays 8-18 at 1.0, else 0.0):\\n\\n                [\\n
+      \                 {\\n                    \\\"Through\\\": \\\"12/31\\\",\\n
+      \                   \\\"Days\\\": [\\n                      {\\\"For\\\": \\\"Weekdays\\\",
+      \\\"Times\\\": [\\n                        {\\\"Until\\\": {\\\"Time\\\": \\\"08:00\\\",
+      \\\"Value\\\": 0.0}},\\n                        {\\\"Until\\\": {\\\"Time\\\":
+      \\\"18:00\\\", \\\"Value\\\": 1.0}},\\n                        {\\\"Until\\\":
+      {\\\"Time\\\": \\\"24:00\\\", \\\"Value\\\": 0.0}},\\n                      ]},\\n
+      \                     {\\\"For\\\": \\\"AllOtherDays\\\", \\\"Times\\\": [\\n
+      \                       {\\\"Until\\\": {\\\"Time\\\": \\\"24:00\\\", \\\"Value\\\":
+      0.0}},\\n                      ]},\\n                    ],\\n                  },\\n
+      \               ]\",\"parameters\":{\"properties\":{\"name\":{\"type\":\"string\"},\"schedule_type_limits_name\":{\"type\":\"string\"},\"data\":{\"items\":{\"additionalProperties\":true,\"type\":\"object\"},\"type\":\"array\"}},\"required\":[\"name\",\"schedule_type_limits_name\",\"data\"],\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"list_schedules\",\"description\":\"List
+      all Schedule:Compact objects.\",\"parameters\":{\"properties\":{},\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"list_schedule_type_limits\",\"description\":\"List
+      all ScheduleTypeLimits objects.\",\"parameters\":{\"properties\":{},\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"get_schedule\",\"description\":\"Read
+      a Schedule:Compact by name.\",\"parameters\":{\"properties\":{\"name\":{\"type\":\"string\"}},\"required\":[\"name\"],\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"delete_schedule\",\"description\":\"Delete
+      a Schedule:Compact. Fails if referenced.\",\"parameters\":{\"properties\":{\"name\":{\"type\":\"string\"}},\"required\":[\"name\"],\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"ScheduleResponse\",\"description\":\"Structured
+      summary returned by the schedule phase agent.\",\"parameters\":{\"properties\":{\"schedule_names\":{\"description\":\"Names
+      of all Schedule:Compact objects created\",\"items\":{\"type\":\"string\"},\"type\":\"array\"},\"summary\":{\"description\":\"One-line
+      summary of the schedule creation result\",\"type\":\"string\"}},\"required\":[\"schedule_names\",\"summary\"],\"type\":\"object\"}}}],\"max_thinking_budget\":4096}"
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate, zstd
+      connection:
+      - keep-alive
+      content-length:
+      - '9942'
+      content-type:
+      - application/json
+      host:
+      - one.chat-yu.net
+      user-agent:
+      - OpenAI/Python 2.52.0
+      x-stainless-arch:
+      - x64
+      x-stainless-async:
+      - 'false'
+      x-stainless-lang:
+      - python
+      x-stainless-os:
+      - Linux
+      x-stainless-package-version:
+      - 2.52.0
+      x-stainless-raw-response:
+      - 'true'
+      x-stainless-retry-count:
+      - '0'
+      x-stainless-runtime:
+      - CPython
+      x-stainless-runtime-version:
+      - 3.12.3
+    method: POST
+    uri: https://one.chat-yu.net/v1/chat/completions
+  response:
+    body:
+      string: !!binary |
+        KLUv/QBY1RAAtiJqM3A3TQf8/////1eVT0goUBPZiuxuibrdSNJGog3RkohXGZf4igLut9f/1tqi
+        DfZSAVURAl4AWQBYAO5RTt2JgSaM0HljuDPYJsJbFO5zH5TQe7uCKCBE/Nydt5HRW+IQ4GBwKDgW
+        EvdmW3d6b48S9rIUyYf02wQW8u1KbHAiECyQaMBJCRRgUOKCbSkjCQSWotcKvbs38FYOGjxgy1Sz
+        0JvsUb2oEvVeBLMPOk7Egy3UjBnAAHYhIRjCZsMIMlupavaIEvbT6eFx947bUb63d9SecE69+7Kc
+        brnvo3Nu9MZMRfdpISfpkfz2yayPYSn7AV9Y+/KFuS+LdffZcSPqmfTt/VSK5GMYy7VHyrn7SlW/
+        fdVRhlnbEajhxYWEYJ4IN9L4dkTBk2zBHrNSB+aGB1t+IpxM2RPhpFibdKs2K20Ys7JJOoyBJCzX
+        GXfvKd/bdVnuk6H2NkxTFhIU1pb95mgkbwmNhuI+4yqQzbQUyUmi3iquq+K6XnFdDCRZivUAg+ES
+        FIu5Lww7GtgITkzyYVbqkDQCKAn0UHKCJr5YFMx90daGYVaqOisgMAJiEDR4AwRIbdHIWkCFudmc
+        RCi/gtXRoXMj8AMZFCoOqCuDQWNMyOmhfxkBHdYaCcx9G2nogqLghKUpd+wggk0GLc7YLX7ixuYI
+        vPkCRnDjQSBHMDyMAMh81N70ZgAmi4qV765yv7HOMmC2oA==
+    headers:
+      alt-svc:
+      - h3=":443"; ma=86400
+      cf-cache-status:
+      - DYNAMIC
+      cf-placement:
+      - remote-ORD
+      cf-ray:
+      - a26289280cac62d0-NRT
+      connection:
+      - keep-alive
+      content-encoding:
+      - zstd
+      content-type:
+      - application/json
+      date:
+      - Wed, 05 Aug 2026 02:58:01 GMT
+      nel:
+      - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
+      report-to:
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=t5TBNGLeTpwztsZgtrDjBvhGk1LpsnG05EWuJU1rnmaKjjUH1tfuUbyekPN8Lo6yidUtKNpYwvu5A1M1%2BAetfVK%2BKjyGT2TSTUHGQzEMcYilf2FXK8NflxNcZ%2BmmN2XKDzg%3D"}]}'
+      server:
+      - cloudflare
+      strict-transport-security:
+      - max-age=31536000
+      transfer-encoding:
+      - chunked
+      via:
+      - 1.1 Caddy
+      x-new-api-version:
+      - v1.0.0-rc.21
+      x-oneapi-request-id:
+      - 202608050257412574405708268d9d6TSoxUUYA
+    status:
+      code: 200
+      message: OK
+- request:
+    body: "{\"messages\":[{\"content\":\"You are a scheduling expert for EnergyPlus.\\nGiven
+      schedule specifications, create all ScheduleTypeLimits and\\nSchedule:Compact
+      objects required by later phases (HVAC, People, Lights).\\n\\nRequired type
+      limits to create first (if referenced):\\n- 'Fraction' (0.0 to 1.0, CONTINUOUS,
+      Dimensionless)\\n- 'Temperature' (-100 to 100, CONTINUOUS, Temperature)\\n-
+      'Activity Level' (0 to 1000, CONTINUOUS, Dimensionless)\\n- 'OnOff' (0 to 1,
+      DISCRETE, Dimensionless)\\n\\nThen create Schedule:Compact entries. The `data`
+      argument is a NESTED LIST\\nOF DICTS (not a flat string list). Shape:\\n\\n
+      \   [\\n      {\\n        \\\"Through\\\": \\\"MM/DD\\\",              // last
+      block MUST be \\\"12/31\\\"\\n        \\\"Days\\\": [\\n          {\\n            \\\"For\\\":
+      \\\"<DayType>\\\",           // Weekdays / Weekends / Saturday / Sunday /\\n
+      \                                         // AllDays / AllOtherDays / Holidays
+      /\\n                                          // SummerDesignDay / WinterDesignDay
+      /\\n                                          // Monday..Friday / CustomDay1
+      / CustomDay2\\n            \\\"Times\\\": [\\n              {\\\"Until\\\":
+      {\\\"Time\\\": \\\"HH:MM\\\", \\\"Value\\\": <float>}},\\n              ...\\n
+      \             {\\\"Until\\\": {\\\"Time\\\": \\\"24:00\\\", \\\"Value\\\": <float>}}
+      \  // last MUST be 24:00\\n            ]\\n          },\\n          ...   //
+      additional day-type blocks under the same Through\\n        ]\\n      },\\n
+      \     ...   // additional Through blocks for seasonal variation\\n    ]\\n\\nExample
+      (medium-office lighting fraction schedule):\\n\\n    [\\n      {\\n        \\\"Through\\\":
+      \\\"12/31\\\",\\n        \\\"Days\\\": [\\n          {\\\"For\\\": \\\"Weekdays\\\",
+      \\\"Times\\\": [\\n            {\\\"Until\\\": {\\\"Time\\\": \\\"05:00\\\",
+      \\\"Value\\\": 0.05}},\\n            {\\\"Until\\\": {\\\"Time\\\": \\\"07:00\\\",
+      \\\"Value\\\": 0.10}},\\n            {\\\"Until\\\": {\\\"Time\\\": \\\"08:00\\\",
+      \\\"Value\\\": 0.30}},\\n            {\\\"Until\\\": {\\\"Time\\\": \\\"17:00\\\",
+      \\\"Value\\\": 0.90}},\\n            {\\\"Until\\\": {\\\"Time\\\": \\\"18:00\\\",
+      \\\"Value\\\": 0.70}},\\n            {\\\"Until\\\": {\\\"Time\\\": \\\"20:00\\\",
+      \\\"Value\\\": 0.50}},\\n            {\\\"Until\\\": {\\\"Time\\\": \\\"22:00\\\",
+      \\\"Value\\\": 0.30}},\\n            {\\\"Until\\\": {\\\"Time\\\": \\\"23:00\\\",
+      \\\"Value\\\": 0.10}},\\n            {\\\"Until\\\": {\\\"Time\\\": \\\"24:00\\\",
+      \\\"Value\\\": 0.05}}\\n          ]},\\n          {\\\"For\\\": \\\"Saturday\\\",
+      \\\"Times\\\": [\\n            {\\\"Until\\\": {\\\"Time\\\": \\\"06:00\\\",
+      \\\"Value\\\": 0.05}},\\n            {\\\"Until\\\": {\\\"Time\\\": \\\"08:00\\\",
+      \\\"Value\\\": 0.10}},\\n            {\\\"Until\\\": {\\\"Time\\\": \\\"14:00\\\",
+      \\\"Value\\\": 0.50}},\\n            {\\\"Until\\\": {\\\"Time\\\": \\\"17:00\\\",
+      \\\"Value\\\": 0.15}},\\n            {\\\"Until\\\": {\\\"Time\\\": \\\"24:00\\\",
+      \\\"Value\\\": 0.05}}\\n          ]},\\n          {\\\"For\\\": \\\"AllOtherDays\\\",
+      \\\"Times\\\": [\\n            {\\\"Until\\\": {\\\"Time\\\": \\\"24:00\\\",
+      \\\"Value\\\": 0.05}}\\n          ]}\\n        ]\\n      }\\n    ]\\n\\nDownstream
+      completeness checklist \u2014 BEFORE finishing, re-read the spec\\nand ensure
+      every schedule the downstream phases will reference exists.\\nTypical required
+      schedules for a conditioned occupied zone:\\n\\n  Downstream field                              |
+      Type           | Typical values\\n  ----------------------------------------------|----------------|----------------\\n
+      \ thermostat.heating_setpoint_schedule_name     | Temperature    | 20 occupied
+      / 15 setback\\n  thermostat.cooling_setpoint_schedule_name     | Temperature
+      \   | 24 occupied / 28 setback\\n  ideal_loads.system_availability_schedule_name
+      | Fraction/OnOff | 1 during hours, else 0\\n  people.number_of_people_schedule_name
+      \        | Fraction       | occupancy pattern\\n  people.activity_level_schedule_name
+      \          | Activity Level | ~120 W/person seated\\n  lights.schedule_name
+      \                         | Fraction       | lighting pattern\\n\\nIf the spec
+      implies occupancy but does not explicitly name an activity-\\nlevel schedule,
+      CREATE ONE anyway (e.g. \\\"Office_Activity_Level\\\" at\\n120 W/person constant).
+      People objects cannot be built without it.\\n\\nRules:\\n- Create type limits
+      BEFORE the schedules that reference them.\\n- Use the EXACT schedule names the
+      spec states; otherwise downstream\\n  phases will reference non-existent schedules.\\n-
+      The LAST \\\"Through\\\" block must be \\\"12/31\\\" (full-year coverage).\\n-
+      Within each \\\"For\\\" block, the LAST \\\"Until.Time\\\" must be \\\"24:00\\\".\\n-
+      Cover every day type: either use \\\"AllDays\\\", or use specific day types\\n
+      \ followed by \\\"AllOtherDays\\\" to catch the rest.\\n- Call list_schedules
+      once at the end.\\n\",\"role\":\"system\"},{\"content\":\"Create the ScheduleTypeLimits
+      'Fraction' (0.0 to 1.0, CONTINUOUS, Dimensionless) and exactly one Schedule:Compact
+      named 'Office_Occupancy' using it: 1.0 for all days, all year.\",\"role\":\"user\"},{\"content\":\"I'll
+      create the `Fraction` ScheduleTypeLimits first, then the `Office_Occupancy`
+      schedule that references it.\",\"role\":\"assistant\",\"tool_calls\":[{\"type\":\"function\",\"id\":\"call_e7e5\",\"function\":{\"name\":\"create_schedule_type_limits\",\"arguments\":\"{\\\"name\\\":
+      \\\"Fraction\\\", \\\"lower_limit_value\\\": \\\"0.0\\\", \\\"upper_limit_value\\\":
+      1.0, \\\"numeric_type\\\": \\\"CONTINUOUS\\\", \\\"unit_type\\\": \\\"Dimensionless\\\"}\"}}]},{\"content\":\"{\\\"success\\\":
+      true, \\\"message\\\": \\\"ScheduleTypeLimits 'Fraction' created successfully.\\\",
+      \\\"data\\\": {\\\"name\\\": \\\"Fraction\\\", \\\"lower_limit_value\\\": 0.0,
+      \\\"upper_limit_value\\\": 1.0, \\\"numeric_type\\\": \\\"Continuous\\\", \\\"unit_type\\\":
+      \\\"Dimensionless\\\"}}\",\"role\":\"tool\",\"tool_call_id\":\"call_e7e5\"},{\"content\":\"`Fraction`
+      type limits created. Now I'll create the `Office_Occupancy` schedule \u2014
+      1.0 for all days, all year, using a single `AllDays` block.\",\"role\":\"assistant\",\"tool_calls\":[{\"type\":\"function\",\"id\":\"call_afae\",\"function\":{\"name\":\"create_schedule_compact\",\"arguments\":\"{\\\"name\\\":
+      \\\"Office_Occupancy\\\", \\\"schedule_type_limits_name\\\": \\\"Fraction\\\",
+      \\\"data\\\": [{\\\"Through\\\": \\\"12/31\\\", \\\"Days\\\": [{\\\"For\\\":
+      \\\"AllDays\\\", \\\"Times\\\": [{\\\"Until\\\": {\\\"Time\\\": \\\"24:00\\\",
+      \\\"Value\\\": 1.0}}]}]}]}\"}}]},{\"content\":\"{\\\"success\\\": true, \\\"message\\\":
+      \\\"Schedule:Compact 'Office_Occupancy' created successfully.\\\", \\\"data\\\":
+      {\\\"name\\\": \\\"Office_Occupancy\\\", \\\"schedule_type_limits_name\\\":
+      \\\"Fraction\\\", \\\"data\\\": [{\\\"field\\\": \\\"Through: 12/31\\\"}, {\\\"field\\\":
+      \\\"For: AllDays\\\"}, {\\\"field\\\": \\\"Until: 24:00, 1.0\\\"}]}}\",\"role\":\"tool\",\"tool_call_id\":\"call_afae\"}],\"model\":\"opencode/glm-5.2\",\"max_completion_tokens\":64000,\"parallel_tool_calls\":false,\"stream\":false,\"temperature\":0.7,\"tool_choice\":\"required\",\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"create_schedule_type_limits\",\"description\":\"Create
+      a ScheduleTypeLimits.\\n\\n        Args:\\n            name: Unique name (e.g.,
+      'Fraction', 'Temperature', 'OnOff').\\n            lower_limit_value: Minimum
+      allowed value (None = unbounded).\\n            upper_limit_value: Maximum allowed
+      value (None = unbounded).\\n            numeric_type: CONTINUOUS or DISCRETE.\\n
+      \           unit_type: EnergyPlus unit category (Dimensionless / Temperature
+      / Power / ...).\",\"parameters\":{\"properties\":{\"name\":{\"type\":\"string\"},\"lower_limit_value\":{\"anyOf\":[{\"type\":\"number\"},{\"type\":\"null\"}],\"default\":null},\"upper_limit_value\":{\"anyOf\":[{\"type\":\"number\"},{\"type\":\"null\"}],\"default\":null},\"numeric_type\":{\"default\":\"CONTINUOUS\",\"type\":\"string\"},\"unit_type\":{\"default\":\"Dimensionless\",\"type\":\"string\"}},\"required\":[\"name\"],\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"create_schedule_compact\",\"description\":\"Create
+      a Schedule:Compact.\\n\\n        Args:\\n            name: Unique schedule name.\\n
+      \           schedule_type_limits_name: Existing ScheduleTypeLimits name.\\n
+      \           data: Nested schedule structure. Each element is one \\\"Through\\\"-block:\\n\\n
+      \               {\\n                  \\\"Through\\\": \\\"MM/DD\\\",               #
+      last block must be \\\"12/31\\\"\\n                  \\\"Days\\\": [\\n                    {\\n
+      \                     \\\"For\\\": \\\"<DayType>\\\",           # Weekdays /
+      Weekends / Saturday /\\n                                                    #
+      Sunday / AllDays / AllOtherDays /\\n                                                    #
+      SummerDesignDay / WinterDesignDay /\\n                                                    #
+      Monday...Friday / Holidays /\\n                                                    #
+      CustomDay1 / CustomDay2\\n                      \\\"Times\\\": [\\n                        {\\\"Until\\\":
+      {\\\"Time\\\": \\\"HH:MM\\\", \\\"Value\\\": <float>}},\\n                        ...\\n
+      \                       {\\\"Until\\\": {\\\"Time\\\": \\\"24:00\\\", \\\"Value\\\":
+      <float>}},  # last must be 24:00\\n                      ],\\n                    },\\n
+      \                   ...  # additional day-type blocks under the same Through\\n
+      \                 ],\\n                }\\n\\n                Example (office
+      fraction schedule, weekdays 8-18 at 1.0, else 0.0):\\n\\n                [\\n
+      \                 {\\n                    \\\"Through\\\": \\\"12/31\\\",\\n
+      \                   \\\"Days\\\": [\\n                      {\\\"For\\\": \\\"Weekdays\\\",
+      \\\"Times\\\": [\\n                        {\\\"Until\\\": {\\\"Time\\\": \\\"08:00\\\",
+      \\\"Value\\\": 0.0}},\\n                        {\\\"Until\\\": {\\\"Time\\\":
+      \\\"18:00\\\", \\\"Value\\\": 1.0}},\\n                        {\\\"Until\\\":
+      {\\\"Time\\\": \\\"24:00\\\", \\\"Value\\\": 0.0}},\\n                      ]},\\n
+      \                     {\\\"For\\\": \\\"AllOtherDays\\\", \\\"Times\\\": [\\n
+      \                       {\\\"Until\\\": {\\\"Time\\\": \\\"24:00\\\", \\\"Value\\\":
+      0.0}},\\n                      ]},\\n                    ],\\n                  },\\n
+      \               ]\",\"parameters\":{\"properties\":{\"name\":{\"type\":\"string\"},\"schedule_type_limits_name\":{\"type\":\"string\"},\"data\":{\"items\":{\"additionalProperties\":true,\"type\":\"object\"},\"type\":\"array\"}},\"required\":[\"name\",\"schedule_type_limits_name\",\"data\"],\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"list_schedules\",\"description\":\"List
+      all Schedule:Compact objects.\",\"parameters\":{\"properties\":{},\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"list_schedule_type_limits\",\"description\":\"List
+      all ScheduleTypeLimits objects.\",\"parameters\":{\"properties\":{},\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"get_schedule\",\"description\":\"Read
+      a Schedule:Compact by name.\",\"parameters\":{\"properties\":{\"name\":{\"type\":\"string\"}},\"required\":[\"name\"],\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"delete_schedule\",\"description\":\"Delete
+      a Schedule:Compact. Fails if referenced.\",\"parameters\":{\"properties\":{\"name\":{\"type\":\"string\"}},\"required\":[\"name\"],\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"ScheduleResponse\",\"description\":\"Structured
+      summary returned by the schedule phase agent.\",\"parameters\":{\"properties\":{\"schedule_names\":{\"description\":\"Names
+      of all Schedule:Compact objects created\",\"items\":{\"type\":\"string\"},\"type\":\"array\"},\"summary\":{\"description\":\"One-line
+      summary of the schedule creation result\",\"type\":\"string\"}},\"required\":[\"schedule_names\",\"summary\"],\"type\":\"object\"}}}],\"max_thinking_budget\":4096}"
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate, zstd
+      connection:
+      - keep-alive
+      content-length:
+      - '10800'
+      content-type:
+      - application/json
+      host:
+      - one.chat-yu.net
+      user-agent:
+      - OpenAI/Python 2.52.0
+      x-stainless-arch:
+      - x64
+      x-stainless-async:
+      - 'false'
+      x-stainless-lang:
+      - python
+      x-stainless-os:
+      - Linux
+      x-stainless-package-version:
+      - 2.52.0
+      x-stainless-raw-response:
+      - 'true'
+      x-stainless-retry-count:
+      - '0'
+      x-stainless-runtime:
+      - CPython
+      x-stainless-runtime-version:
+      - 3.12.3
+    method: POST
+    uri: https://one.chat-yu.net/v1/chat/completions
+  response:
+    body:
+      string: !!binary |
+        KLUv/QBY/QsAFltPIyBPrAOAPR8mGCuZvtqHPPUeEkhUoFB3QR4WGw0IFdUBgAGASgBAAEQAdR+c
+        zvu6AAMBiNycnXeZ8StJHIlBgiQFAezLtlv6vi4n7OUnzsfotxPK/LpzYB4QyqMhskIEJQkQ8GIh
+        UQ6eBwB+4mvnvLMv8FLUqaqcnghnb7kt5/t6S9cV1urOvjzpJfZtXK0bv5ghyV6VSZ9m8tcrs3uN
+        5+yzy1nd0uZUKCHz1WB/7CLhpQj20tlry41QQ93X6zK0rPNq6wr5EnsSYs6+T9RfVwYMlsbs1lsj
+        4UYnv87Y5/hREqoKVSOh0xHdilURA+lWqI2ql0Ex1AbTG2fvOt/XNDFDchtSi7YIGgPLOs+9S+yV
+        oetd2nI4EHY9+8vx1SBABNirXIrZrZ846QN9SUyTRMMIue0TdUuQhVnT9CkXAEsoBecgYAtDkLkm
+        ZB4Y4hNkYfSaFH9ecBJ6wR8ZMrpKwLLZTdvAagJoGcdlbPrYAM6DFJNlWKqZgQJmag8=
+    headers:
+      alt-svc:
+      - h3=":443"; ma=86400
+      cf-cache-status:
+      - DYNAMIC
+      cf-placement:
+      - remote-ORD
+      cf-ray:
+      - a26289a85ca962d0-NRT
+      connection:
+      - keep-alive
+      content-encoding:
+      - zstd
+      content-type:
+      - application/json
+      date:
+      - Wed, 05 Aug 2026 02:58:08 GMT
+      nel:
+      - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
+      report-to:
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=fJamQxe78lVc%2BWd0IJV55er2VhPcrCafLacak5%2FPIxVCy5jTPfcznRq2Bz%2BzZoXc1vzUS9imHUha4Jp8pNv38LyjHHXAEbRDOpUEVYpkpqd9P7UroX1%2FgoZC8CDK3slDm0A%3D"}]}'
+      server:
+      - cloudflare
+      strict-transport-security:
+      - max-age=31536000
+      transfer-encoding:
+      - chunked
+      via:
+      - 1.1 Caddy
+      x-new-api-version:
+      - v1.0.0-rc.21
+      x-oneapi-request-id:
+      - 202608050258017829298038268d9d6f7SIAiPp
+    status:
+      code: 200
+      message: OK
+- request:
+    body: "{\"messages\":[{\"content\":\"You are a scheduling expert for EnergyPlus.\\nGiven
+      schedule specifications, create all ScheduleTypeLimits and\\nSchedule:Compact
+      objects required by later phases (HVAC, People, Lights).\\n\\nRequired type
+      limits to create first (if referenced):\\n- 'Fraction' (0.0 to 1.0, CONTINUOUS,
+      Dimensionless)\\n- 'Temperature' (-100 to 100, CONTINUOUS, Temperature)\\n-
+      'Activity Level' (0 to 1000, CONTINUOUS, Dimensionless)\\n- 'OnOff' (0 to 1,
+      DISCRETE, Dimensionless)\\n\\nThen create Schedule:Compact entries. The `data`
+      argument is a NESTED LIST\\nOF DICTS (not a flat string list). Shape:\\n\\n
+      \   [\\n      {\\n        \\\"Through\\\": \\\"MM/DD\\\",              // last
+      block MUST be \\\"12/31\\\"\\n        \\\"Days\\\": [\\n          {\\n            \\\"For\\\":
+      \\\"<DayType>\\\",           // Weekdays / Weekends / Saturday / Sunday /\\n
+      \                                         // AllDays / AllOtherDays / Holidays
+      /\\n                                          // SummerDesignDay / WinterDesignDay
+      /\\n                                          // Monday..Friday / CustomDay1
+      / CustomDay2\\n            \\\"Times\\\": [\\n              {\\\"Until\\\":
+      {\\\"Time\\\": \\\"HH:MM\\\", \\\"Value\\\": <float>}},\\n              ...\\n
+      \             {\\\"Until\\\": {\\\"Time\\\": \\\"24:00\\\", \\\"Value\\\": <float>}}
+      \  // last MUST be 24:00\\n            ]\\n          },\\n          ...   //
+      additional day-type blocks under the same Through\\n        ]\\n      },\\n
+      \     ...   // additional Through blocks for seasonal variation\\n    ]\\n\\nExample
+      (medium-office lighting fraction schedule):\\n\\n    [\\n      {\\n        \\\"Through\\\":
+      \\\"12/31\\\",\\n        \\\"Days\\\": [\\n          {\\\"For\\\": \\\"Weekdays\\\",
+      \\\"Times\\\": [\\n            {\\\"Until\\\": {\\\"Time\\\": \\\"05:00\\\",
+      \\\"Value\\\": 0.05}},\\n            {\\\"Until\\\": {\\\"Time\\\": \\\"07:00\\\",
+      \\\"Value\\\": 0.10}},\\n            {\\\"Until\\\": {\\\"Time\\\": \\\"08:00\\\",
+      \\\"Value\\\": 0.30}},\\n            {\\\"Until\\\": {\\\"Time\\\": \\\"17:00\\\",
+      \\\"Value\\\": 0.90}},\\n            {\\\"Until\\\": {\\\"Time\\\": \\\"18:00\\\",
+      \\\"Value\\\": 0.70}},\\n            {\\\"Until\\\": {\\\"Time\\\": \\\"20:00\\\",
+      \\\"Value\\\": 0.50}},\\n            {\\\"Until\\\": {\\\"Time\\\": \\\"22:00\\\",
+      \\\"Value\\\": 0.30}},\\n            {\\\"Until\\\": {\\\"Time\\\": \\\"23:00\\\",
+      \\\"Value\\\": 0.10}},\\n            {\\\"Until\\\": {\\\"Time\\\": \\\"24:00\\\",
+      \\\"Value\\\": 0.05}}\\n          ]},\\n          {\\\"For\\\": \\\"Saturday\\\",
+      \\\"Times\\\": [\\n            {\\\"Until\\\": {\\\"Time\\\": \\\"06:00\\\",
+      \\\"Value\\\": 0.05}},\\n            {\\\"Until\\\": {\\\"Time\\\": \\\"08:00\\\",
+      \\\"Value\\\": 0.10}},\\n            {\\\"Until\\\": {\\\"Time\\\": \\\"14:00\\\",
+      \\\"Value\\\": 0.50}},\\n            {\\\"Until\\\": {\\\"Time\\\": \\\"17:00\\\",
+      \\\"Value\\\": 0.15}},\\n            {\\\"Until\\\": {\\\"Time\\\": \\\"24:00\\\",
+      \\\"Value\\\": 0.05}}\\n          ]},\\n          {\\\"For\\\": \\\"AllOtherDays\\\",
+      \\\"Times\\\": [\\n            {\\\"Until\\\": {\\\"Time\\\": \\\"24:00\\\",
+      \\\"Value\\\": 0.05}}\\n          ]}\\n        ]\\n      }\\n    ]\\n\\nDownstream
+      completeness checklist \u2014 BEFORE finishing, re-read the spec\\nand ensure
+      every schedule the downstream phases will reference exists.\\nTypical required
+      schedules for a conditioned occupied zone:\\n\\n  Downstream field                              |
+      Type           | Typical values\\n  ----------------------------------------------|----------------|----------------\\n
+      \ thermostat.heating_setpoint_schedule_name     | Temperature    | 20 occupied
+      / 15 setback\\n  thermostat.cooling_setpoint_schedule_name     | Temperature
+      \   | 24 occupied / 28 setback\\n  ideal_loads.system_availability_schedule_name
+      | Fraction/OnOff | 1 during hours, else 0\\n  people.number_of_people_schedule_name
+      \        | Fraction       | occupancy pattern\\n  people.activity_level_schedule_name
+      \          | Activity Level | ~120 W/person seated\\n  lights.schedule_name
+      \                         | Fraction       | lighting pattern\\n\\nIf the spec
+      implies occupancy but does not explicitly name an activity-\\nlevel schedule,
+      CREATE ONE anyway (e.g. \\\"Office_Activity_Level\\\" at\\n120 W/person constant).
+      People objects cannot be built without it.\\n\\nRules:\\n- Create type limits
+      BEFORE the schedules that reference them.\\n- Use the EXACT schedule names the
+      spec states; otherwise downstream\\n  phases will reference non-existent schedules.\\n-
+      The LAST \\\"Through\\\" block must be \\\"12/31\\\" (full-year coverage).\\n-
+      Within each \\\"For\\\" block, the LAST \\\"Until.Time\\\" must be \\\"24:00\\\".\\n-
+      Cover every day type: either use \\\"AllDays\\\", or use specific day types\\n
+      \ followed by \\\"AllOtherDays\\\" to catch the rest.\\n- Call list_schedules
+      once at the end.\\n\",\"role\":\"system\"},{\"content\":\"Create the ScheduleTypeLimits
+      'Fraction' (0.0 to 1.0, CONTINUOUS, Dimensionless) and exactly one Schedule:Compact
+      named 'Office_Occupancy' using it: 1.0 for all days, all year.\",\"role\":\"user\"},{\"content\":\"I'll
+      create the `Fraction` ScheduleTypeLimits first, then the `Office_Occupancy`
+      schedule that references it.\",\"role\":\"assistant\",\"tool_calls\":[{\"type\":\"function\",\"id\":\"call_e7e5\",\"function\":{\"name\":\"create_schedule_type_limits\",\"arguments\":\"{\\\"name\\\":
+      \\\"Fraction\\\", \\\"lower_limit_value\\\": \\\"0.0\\\", \\\"upper_limit_value\\\":
+      1.0, \\\"numeric_type\\\": \\\"CONTINUOUS\\\", \\\"unit_type\\\": \\\"Dimensionless\\\"}\"}}]},{\"content\":\"{\\\"success\\\":
+      true, \\\"message\\\": \\\"ScheduleTypeLimits 'Fraction' created successfully.\\\",
+      \\\"data\\\": {\\\"name\\\": \\\"Fraction\\\", \\\"lower_limit_value\\\": 0.0,
+      \\\"upper_limit_value\\\": 1.0, \\\"numeric_type\\\": \\\"Continuous\\\", \\\"unit_type\\\":
+      \\\"Dimensionless\\\"}}\",\"role\":\"tool\",\"tool_call_id\":\"call_e7e5\"},{\"content\":\"`Fraction`
+      type limits created. Now I'll create the `Office_Occupancy` schedule \u2014
+      1.0 for all days, all year, using a single `AllDays` block.\",\"role\":\"assistant\",\"tool_calls\":[{\"type\":\"function\",\"id\":\"call_afae\",\"function\":{\"name\":\"create_schedule_compact\",\"arguments\":\"{\\\"name\\\":
+      \\\"Office_Occupancy\\\", \\\"schedule_type_limits_name\\\": \\\"Fraction\\\",
+      \\\"data\\\": [{\\\"Through\\\": \\\"12/31\\\", \\\"Days\\\": [{\\\"For\\\":
+      \\\"AllDays\\\", \\\"Times\\\": [{\\\"Until\\\": {\\\"Time\\\": \\\"24:00\\\",
+      \\\"Value\\\": 1.0}}]}]}]}\"}}]},{\"content\":\"{\\\"success\\\": true, \\\"message\\\":
+      \\\"Schedule:Compact 'Office_Occupancy' created successfully.\\\", \\\"data\\\":
+      {\\\"name\\\": \\\"Office_Occupancy\\\", \\\"schedule_type_limits_name\\\":
+      \\\"Fraction\\\", \\\"data\\\": [{\\\"field\\\": \\\"Through: 12/31\\\"}, {\\\"field\\\":
+      \\\"For: AllDays\\\"}, {\\\"field\\\": \\\"Until: 24:00, 1.0\\\"}]}}\",\"role\":\"tool\",\"tool_call_id\":\"call_afae\"},{\"content\":\"Both
+      objects are created. Let me verify everything is in place.\",\"role\":\"assistant\",\"tool_calls\":[{\"type\":\"function\",\"id\":\"call_d93b\",\"function\":{\"name\":\"list_schedules\",\"arguments\":\"{}\"}},{\"type\":\"function\",\"id\":\"call_fd58\",\"function\":{\"name\":\"list_schedule_type_limits\",\"arguments\":\"{}\"}}]},{\"content\":\"{\\\"success\\\":
+      true, \\\"message\\\": \\\"Listed 1 Schedule:Compact objects.\\\", \\\"data\\\":
+      [{\\\"name\\\": \\\"Office_Occupancy\\\", \\\"schedule_type_limits_name\\\":
+      \\\"Fraction\\\", \\\"data\\\": [{\\\"field\\\": \\\"Through: 12/31\\\"}, {\\\"field\\\":
+      \\\"For: AllDays\\\"}, {\\\"field\\\": \\\"Until: 24:00, 1.0\\\"}]}]}\",\"role\":\"tool\",\"tool_call_id\":\"call_d93b\"},{\"content\":\"{\\\"success\\\":
+      true, \\\"message\\\": \\\"Listed 1 ScheduleTypeLimits objects.\\\", \\\"data\\\":
+      [{\\\"name\\\": \\\"Fraction\\\", \\\"lower_limit_value\\\": 0.0, \\\"upper_limit_value\\\":
+      1.0, \\\"numeric_type\\\": \\\"Continuous\\\", \\\"unit_type\\\": \\\"Dimensionless\\\"}]}\",\"role\":\"tool\",\"tool_call_id\":\"call_fd58\"}],\"model\":\"opencode/glm-5.2\",\"max_completion_tokens\":64000,\"parallel_tool_calls\":false,\"stream\":false,\"temperature\":0.7,\"tool_choice\":\"required\",\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"create_schedule_type_limits\",\"description\":\"Create
+      a ScheduleTypeLimits.\\n\\n        Args:\\n            name: Unique name (e.g.,
+      'Fraction', 'Temperature', 'OnOff').\\n            lower_limit_value: Minimum
+      allowed value (None = unbounded).\\n            upper_limit_value: Maximum allowed
+      value (None = unbounded).\\n            numeric_type: CONTINUOUS or DISCRETE.\\n
+      \           unit_type: EnergyPlus unit category (Dimensionless / Temperature
+      / Power / ...).\",\"parameters\":{\"properties\":{\"name\":{\"type\":\"string\"},\"lower_limit_value\":{\"anyOf\":[{\"type\":\"number\"},{\"type\":\"null\"}],\"default\":null},\"upper_limit_value\":{\"anyOf\":[{\"type\":\"number\"},{\"type\":\"null\"}],\"default\":null},\"numeric_type\":{\"default\":\"CONTINUOUS\",\"type\":\"string\"},\"unit_type\":{\"default\":\"Dimensionless\",\"type\":\"string\"}},\"required\":[\"name\"],\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"create_schedule_compact\",\"description\":\"Create
+      a Schedule:Compact.\\n\\n        Args:\\n            name: Unique schedule name.\\n
+      \           schedule_type_limits_name: Existing ScheduleTypeLimits name.\\n
+      \           data: Nested schedule structure. Each element is one \\\"Through\\\"-block:\\n\\n
+      \               {\\n                  \\\"Through\\\": \\\"MM/DD\\\",               #
+      last block must be \\\"12/31\\\"\\n                  \\\"Days\\\": [\\n                    {\\n
+      \                     \\\"For\\\": \\\"<DayType>\\\",           # Weekdays /
+      Weekends / Saturday /\\n                                                    #
+      Sunday / AllDays / AllOtherDays /\\n                                                    #
+      SummerDesignDay / WinterDesignDay /\\n                                                    #
+      Monday...Friday / Holidays /\\n                                                    #
+      CustomDay1 / CustomDay2\\n                      \\\"Times\\\": [\\n                        {\\\"Until\\\":
+      {\\\"Time\\\": \\\"HH:MM\\\", \\\"Value\\\": <float>}},\\n                        ...\\n
+      \                       {\\\"Until\\\": {\\\"Time\\\": \\\"24:00\\\", \\\"Value\\\":
+      <float>}},  # last must be 24:00\\n                      ],\\n                    },\\n
+      \                   ...  # additional day-type blocks under the same Through\\n
+      \                 ],\\n                }\\n\\n                Example (office
+      fraction schedule, weekdays 8-18 at 1.0, else 0.0):\\n\\n                [\\n
+      \                 {\\n                    \\\"Through\\\": \\\"12/31\\\",\\n
+      \                   \\\"Days\\\": [\\n                      {\\\"For\\\": \\\"Weekdays\\\",
+      \\\"Times\\\": [\\n                        {\\\"Until\\\": {\\\"Time\\\": \\\"08:00\\\",
+      \\\"Value\\\": 0.0}},\\n                        {\\\"Until\\\": {\\\"Time\\\":
+      \\\"18:00\\\", \\\"Value\\\": 1.0}},\\n                        {\\\"Until\\\":
+      {\\\"Time\\\": \\\"24:00\\\", \\\"Value\\\": 0.0}},\\n                      ]},\\n
+      \                     {\\\"For\\\": \\\"AllOtherDays\\\", \\\"Times\\\": [\\n
+      \                       {\\\"Until\\\": {\\\"Time\\\": \\\"24:00\\\", \\\"Value\\\":
+      0.0}},\\n                      ]},\\n                    ],\\n                  },\\n
+      \               ]\",\"parameters\":{\"properties\":{\"name\":{\"type\":\"string\"},\"schedule_type_limits_name\":{\"type\":\"string\"},\"data\":{\"items\":{\"additionalProperties\":true,\"type\":\"object\"},\"type\":\"array\"}},\"required\":[\"name\",\"schedule_type_limits_name\",\"data\"],\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"list_schedules\",\"description\":\"List
+      all Schedule:Compact objects.\",\"parameters\":{\"properties\":{},\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"list_schedule_type_limits\",\"description\":\"List
+      all ScheduleTypeLimits objects.\",\"parameters\":{\"properties\":{},\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"get_schedule\",\"description\":\"Read
+      a Schedule:Compact by name.\",\"parameters\":{\"properties\":{\"name\":{\"type\":\"string\"}},\"required\":[\"name\"],\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"delete_schedule\",\"description\":\"Delete
+      a Schedule:Compact. Fails if referenced.\",\"parameters\":{\"properties\":{\"name\":{\"type\":\"string\"}},\"required\":[\"name\"],\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"ScheduleResponse\",\"description\":\"Structured
+      summary returned by the schedule phase agent.\",\"parameters\":{\"properties\":{\"schedule_names\":{\"description\":\"Names
+      of all Schedule:Compact objects created\",\"items\":{\"type\":\"string\"},\"type\":\"array\"},\"summary\":{\"description\":\"One-line
+      summary of the schedule creation result\",\"type\":\"string\"}},\"required\":[\"schedule_names\",\"summary\"],\"type\":\"object\"}}}],\"max_thinking_budget\":4096}"
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate, zstd
+      connection:
+      - keep-alive
+      content-length:
+      - '11728'
+      content-type:
+      - application/json
+      host:
+      - one.chat-yu.net
+      user-agent:
+      - OpenAI/Python 2.52.0
+      x-stainless-arch:
+      - x64
+      x-stainless-async:
+      - 'false'
+      x-stainless-lang:
+      - python
+      x-stainless-os:
+      - Linux
+      x-stainless-package-version:
+      - 2.52.0
+      x-stainless-raw-response:
+      - 'true'
+      x-stainless-retry-count:
+      - '0'
+      x-stainless-runtime:
+      - CPython
+      x-stainless-runtime-version:
+      - 3.12.3
+    method: POST
+    uri: https://one.chat-yu.net/v1/chat/completions
+  response:
+    body:
+      string: !!binary |
+        KLUv/QBYBQ4ARiBhJvBwqg6wPIiAQVaVRhZp1wBjvn2UJ9LuWVdVEAgWnDtxJrKJbPQFWQBOAFgA
+        LauU7pj3DY6qPGbx3hylpeLdncUxQOf098mRpXcGkUfEIOKIQJr3iC9kK969Wnl5VtTG5UbOwLB3
+        pzweEkVldrgQSkIDgnMwwVAhSVwQA7Oi8UIq/j2SxwK2aobgeUVMxYhjL9ZL+jtXlXv36IAMzQmh
+        qUqmsN7977fyrTbe/VZ4W3bDv/O01rF3nmA307s5r/reGNaqJjvv3nPCCE1r79+rbcgWRAXNs1rZ
+        lalEaC6CMqE8LEg8TCTNMUtT0DDO9TzMwgS0vpLK2biq3AYthSb5096figUpvfpPcxd/KrHC6opx
+        AnGUkjT5Y9Hen2YKK9R/sL/3rUyvyYJ3564B2Zm/37bxLsuw954SXo4g94hAnAmvvXcM5O7RQJz3
+        rqxhL3Qraq3qurvIsosse/ZnaQoInKZR02Ut6rauQIQ5D5plpcYsTbuwAQC0G2FFreQ1rrZFFTaB
+        DhQAQ5C6pj6eBTwhmwHkEjBhCAGXkSHYzbK1BmTR/MiQ0VWCtmU7bIOLCXCDAYweAsMAJ62IDJgp
+        KA==
+    headers:
+      alt-svc:
+      - h3=":443"; ma=86400
+      cf-cache-status:
+      - DYNAMIC
+      cf-placement:
+      - remote-ORD
+      cf-ray:
+      - a26289d2dbb262d0-NRT
+      connection:
+      - keep-alive
+      content-encoding:
+      - zstd
+      content-type:
+      - application/json
+      date:
+      - Wed, 05 Aug 2026 02:58:10 GMT
+      nel:
+      - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
+      report-to:
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=Sp5ddCXoeCiIeYxFBJLLGZTLaHvpQbNDA%2BlbLOCLNK788Et28z8dPNFBGlzejXuBcmaCpIFR8I0zyOn3XQrrcHu1OX4vNwjz3PmxHheRuYEE2bLMSfNz0yQBCrY9xcnAdg8%3D"}]}'
+      server:
+      - cloudflare
+      strict-transport-security:
+      - max-age=31536000
+      transfer-encoding:
+      - chunked
+      via:
+      - 1.1 Caddy
+      x-new-api-version:
+      - v1.0.0-rc.21
+      x-oneapi-request-id:
+      - 202608050258085899831968268d9d6shO8lCbq
+    status:
+      code: 200
+      message: OK
+version: 1

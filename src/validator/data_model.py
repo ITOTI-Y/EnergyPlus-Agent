@@ -1244,8 +1244,8 @@ class GeometrySchema(BaseSchema):
 
 class ScheduleTypeLimitsSchema(BaseSchema):
     name: str = Field(..., alias="Name")
-    lower_limit_value: float | None | str = Field(default="", alias="Lower Limit Value")
-    upper_limit_value: float | None | str = Field(default="", alias="Upper Limit Value")
+    lower_limit_value: float | str | None = Field(default="", alias="Lower Limit Value")
+    upper_limit_value: float | str | None = Field(default="", alias="Upper Limit Value")
     numeric_type: str | None = Field("CONTINUOUS", alias="Numeric Type")
     unit_type: str | None = Field("Dimensionless", alias="Unit Type")
 
@@ -1256,8 +1256,8 @@ class ScheduleTypeLimitsSchema(BaseSchema):
         return v
 
     @field_validator("lower_limit_value", "upper_limit_value")
-    def validate_limit_value(cls, v: float | None | str) -> float | None | str:
-        if v == "":
+    def validate_limit_value(cls, v: float | str | None) -> float | str:
+        if v is None or v == "":
             return ""
         if isinstance(v, (int, float)):
             return v

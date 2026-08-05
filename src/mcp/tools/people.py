@@ -14,7 +14,12 @@ class PeopleTool(BaseTool):
     def object_types(self) -> tuple[str, ...]:
         return ("People",)
 
-    def _create_model(self, data: dict[str, Any]) -> People:
+    def _create_model(
+        self,
+        data: dict[str, Any],
+        *,
+        existing_object_type: str | None = None,
+    ) -> People:
         return People(**normalize_payload(data))
 
     def _get_name(self, instance: People) -> str:

@@ -3,8 +3,9 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Annotated, Any, Final, Literal
+from typing import Annotated, Any, Final
 
+from idfpy import IDF
 from langchain_core.messages import AnyMessage
 from langgraph.graph.message import add_messages
 from pydantic import BaseModel, Field
@@ -234,10 +235,38 @@ _SINGLETON_FIELDS: Final = (
 )
 
 
-def merge_config_state(old: ConfigState, new: ConfigState) -> ConfigState:
-    """Field-level union merge for parallel-safe state updates.
+def _merge_idf(old_idf: IDF, new_idf: IDF) -> IDF:
+    """Union-merge two IDF containers into a fresh one; new wins on conflict.
 
-    Three strategies:
+    Both inputs are serialized through the epJSON round-trip, so the result
+    shares no object references with either side. Entries identical to the
+    same-keyed `old` entry are skipped: nameless multi-instance objects
+    (e.g. Output:Variable) get deterministic positional keys from
+    ``to_dict``, so without this both branches copied from the same parent
+    would duplicate them on every merge.
+    """
+    old_dict = old_idf.to_dict()
+    merged = IDF.from_dict(old_dict)
+
+    additions: dict[str, dict[str, dict[str, Any]]] = {}
+    for object_type, objects in new_idf.to_dict().items():
+        existing = old_dict.get(object_type, {})
+        for key, fields in objects.items():
+            if existing.get(key) == fields:
+                continue
+            additions.setdefault(object_type, {})[key] = fields
+
+    merged.merge_dict(additions, on_conflict="replace")
+    return merged
+
+
+def merge_config_state(old: ConfigState, new: ConfigState) -> ConfigState:
+    """Union merge for parallel-safe state updates; the IDF is authoritative.
+
+    The idfpy IDF containers are merged by (object type, identity) with new
+    winning on conflict. The legacy Pydantic fields are still merged
+    alongside because intake writes building/site_location into them and
+    `save_idf` injects their defaults via `sync_legacy_fields_to_idf`:
     1. Named list fields -> union by identity key; new wins on conflict
     2. Nested containers (schedules, hvac) -> recursive merge
     3. Singleton objects -> non-default wins, new preferred
@@ -266,45 +295,8 @@ def merge_config_state(old: ConfigState, new: ConfigState) -> ConfigState:
         data[field_name] = new_val if not _is_default(new_val, field_name) else old_val
 
     merged = ConfigState.model_validate(data)
-
-    # Install the unioned IDF as the source of truth. This MUST happen
-    # after model_validate (which would otherwise clobber _idf with a
-    # fresh empty IDF via model_post_init).
-    merged_idf = _merge_idf(old, new)
-    if merged_idf is not None:
-        # Assign via the PrivateAttr dict: BaseSchema's validate_assignment
-        # + class-level _idf annotation silently break a plain assignment,
-        # and object.__setattr__ would break pickling.
-        merged._set_idf_private(merged_idf)
-    elif not merged._has_idf_objects():
-        # Fallback: if neither side carried IDF objects (e.g. revision
-        # turn where START-coercion stripped _idf), rebuild from the
-        # seed_idf_text that survived as a declared field. This is the
-        # authoritative recovery path for revision-turn seed models.
-        seed_text = new.seed_idf_text or old.seed_idf_text
-        if seed_text:
-            merged._set_idf_private(_idf_from_text(seed_text))
-            # Propagate so downstream merges keep recovering until a
-            # phase node populates _idf with real objects.
-            merged.seed_idf_text = seed_text
-
+    merged.attach_idf(_merge_idf(old.idf, new.idf))
     return merged
-
-
-def _idf_from_text(idf_text: str) -> Any:
-    """Rebuild an idfpy IDF from saved IDF text (used by merge_config_state
-    to recover the seed model on revision turns)."""
-    from idfpy import IDF
-
-    import tempfile
-
-    with tempfile.NamedTemporaryFile(
-        mode="w", suffix=".idf", delete=False
-    ) as tf:
-        tf.write(idf_text)
-        loaded = IDF.load(Path(tf.name))
-        Path(tf.name).unlink()
-        return IDF.from_dict(loaded.to_dict())
 
 
 class AgentState(BaseModel):

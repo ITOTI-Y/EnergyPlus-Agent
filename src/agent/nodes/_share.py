@@ -15,25 +15,7 @@ from langgraph.types import Command
 from loguru import logger
 
 from src.agent._share import language_directive
-from src.agent.react import ReactState
-from src.agent.state import AgentState
-from src.mcp.state import ConfigState, _idf_values
-
-
-def clone_for_phase(state: AgentState) -> ConfigState:
-    """Clone the state's config_state for in-place phase mutation, ensuring
-    the seed model is present.
-
-    On revision turns, LangGraph's input coercion strips ConfigState's
-    PrivateAttr ``_idf`` at the graph START and at each checkpoint write.
-    The seed model survives as the declared ``seed_idf_text`` field, and
-    ``recover_idf_from_seed()`` rebuilds ``_idf`` from it. We clone AFTER
-    recovery so the clone carries the recovered IDF, and we also keep
-    seed_idf_text on the clone so subsequent recoveries work if the
-    clone's IDF is stripped again downstream.
-    """
-    state.config_state.recover_idf_from_seed()
-    return state.config_state.clone()
+from src.mcp.state import ConfigState
 
 MAX_SELF_REPAIR_ROUNDS: Final = 2
 """Max extra invokes per phase for cross-ref self-repair.
@@ -351,7 +333,7 @@ def invoke_with_self_repair(
     is_revision: bool = False,
     validation_errors: list[str] | None = None,
 ) -> dict[str, Any]:
-    """Run a phase ReAct agent and force cross-reference self-repair.
+    """Run a phase agent and force cross-reference self-repair.
 
     After each `agent.invoke`, call `local_config.validate_references()`
     in code (not tool — cannot be skipped by the LLM). If errors exist,
@@ -369,7 +351,7 @@ def invoke_with_self_repair(
       feedback message lists only this phase's errors.
 
     Args:
-        agent: Compiled ReAct subgraph from `build_react_agent`.
+        agent: Compiled agent graph from `build_agent`.
         local_config: The deep-copied ConfigState the phase mutates.
         specs: Natural-language task for the phase (from intake_output).
         phase: Name used in logs ("construction", "surface", ...).
@@ -381,7 +363,8 @@ def invoke_with_self_repair(
             AND scopes the self-repair convergence check to this phase.
 
     Returns:
-        The final ReAct result dict (shape {"messages": [...]}).
+        The final agent result dict (shape {"messages": [...]}, plus
+        "structured_response" when the agent declares a response_format).
     """
     full_specs = apply_revision_prefix(specs, is_revision)
     if validation_errors:
@@ -395,37 +378,10 @@ def invoke_with_self_repair(
         return _errors_owned_by_phase(errs, phase) if is_rollback else errs
 
     for attempt in range(MAX_SELF_REPAIR_ROUNDS + 1):
-        result = agent.invoke(ReactState(messages=messages))
+        result = agent.invoke({"messages": messages})
+        errors = local_config.validate_references()
 
-        # A missing upstream object is first fed back to the phase LLM so it
-        # can try to self-heal by using existing names from list_* tools. Only
-        # after the repair budget is exhausted do we surface hop_request to the
-        # caller and let the existing maybe_backhop() mechanism route upstream.
-        #
-        # NOTE: the gap is derived from the LIVE IDF (validate_references),
-        # NOT from the message history. A tool-reported missing_ref payload
-        # stays in add_messages' accumulated history forever, so scanning
-        # history would re-report a gap the LLM already fixed on an earlier
-        # round and produce a false back-hop. Asking the IDF is authoritative.
-        all_errors = local_config.validate_references()
-        scoped = _scoped_errors(all_errors)
-        # Reuse the already-computed errors for gap detection instead of
-        # re-running validate_references() (it scans the whole IDF).
-        gap = detect_upstream_gap_from_state(local_config, phase, all_errors)
-
-        # P4 surface 0-output guard: if the surface phase has produced ZERO
-        # BuildingSurface:Detailed objects and still has repair budget, force
-        # another self-repair round with a pointed "you've built nothing yet"
-        # nudge. This stops surface from back-hopping on the first missing
-        # zone/construction when it could simply build every surface whose
-        # upstream already exists. Without this, a transient missing ref can
-        # leave the model with 0 surfaces entering simulation.
-        surface_empty = (
-            phase == "surface"
-            and not _idf_values(local_config.idf, "BuildingSurface:Detailed")
-        )
-
-        if not scoped and not gap and not surface_empty:
+        if not errors:
             if attempt > 0:
                 logger.info(
                     "[{}] self-repair succeeded on round {}", phase, attempt

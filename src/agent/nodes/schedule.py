@@ -1,11 +1,11 @@
 from langchain_core.messages import AIMessage
+from pydantic import BaseModel, Field
 
-from src.agent.llm import create_llm
-from src.agent.nodes._share import clone_for_phase, invoke_with_self_repair
-from src.agent.react import build_react_agent
+from src.agent.llm import build_agent
+from src.agent.nodes._share import invoke_with_self_repair
 from src.agent.state import AgentState, AgentStateUpdate
 from src.agent.tools import make_schedule_tools
-from src.agent.trace import TraceCollector, record_phase_trace
+from src.agent.trace import TraceCollector, record_phase_trace, trace_middleware
 
 SCHEDULE_SYSTEM_PROMPT = """You are a scheduling expert for EnergyPlus.
 Given schedule specifications, create all ScheduleTypeLimits and
@@ -101,16 +101,25 @@ Rules:
 """
 
 
+class ScheduleResponse(BaseModel):
+    """Structured summary returned by the schedule phase agent."""
+
+    schedule_names: list[str] = Field(
+        description="Names of all Schedule:Compact objects created"
+    )
+    summary: str = Field(description="One-line summary of the schedule creation result")
+
+
 def schedule_agent(state: AgentState) -> AgentStateUpdate:
     local = clone_for_phase(state)
     tools = make_schedule_tools(local)
     collector = TraceCollector(phase="schedule")
 
-    agent = build_react_agent(
-        llm=create_llm(),
+    agent = build_agent(
         tools=tools,
         system_prompt=SCHEDULE_SYSTEM_PROMPT,
-        trace_collector=collector,
+        response_format=ScheduleResponse,
+        middleware=[trace_middleware(collector)],
     )
 
     if state.intake_output:
@@ -126,23 +135,10 @@ def schedule_agent(state: AgentState) -> AgentStateUpdate:
         )
     else:
         specs = state.user_input
-    # If reached via a back-hop (downstream needed a schedule), append.
-    upstream = state.upstream_request
-    if upstream and upstream.get("target") == "schedule":
-        specs = f"{specs}\n\n{upstream['specs']}"
-    result = invoke_with_self_repair(
-        agent,
-        local,
-        specs,
-        phase="schedule",
-        is_revision=state.is_revision,
-        validation_errors=state.validation_errors,
-    )
+    result = invoke_with_self_repair(agent, local, specs, phase="schedule")
 
-    final = [
-        m for m in result["messages"] if isinstance(m, AIMessage) and not m.tool_calls
-    ]
-    summary = final[-1].content if final else "schedule done"
+    response: ScheduleResponse | None = result.get("structured_response")
+    summary = response.summary if response else "schedule done"
 
     record_phase_trace("schedule", collector.export())
     return AgentStateUpdate(

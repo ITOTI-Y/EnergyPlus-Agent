@@ -1,20 +1,13 @@
 from typing import Literal
 
 from langchain_core.messages import AIMessage
-from langgraph.types import Command
+from pydantic import BaseModel, Field
 
-from src.agent.llm import create_llm
-from src.agent.nodes._share import clone_for_phase, invoke_with_self_repair, maybe_backhop
-from src.agent.react import build_react_agent
+from src.agent.llm import build_agent
+from src.agent.nodes._share import invoke_with_self_repair
 from src.agent.state import AgentState, AgentStateUpdate
 from src.agent.tools import make_fenestration_tools
-from src.agent.trace import TraceCollector, record_phase_trace
-
-
-# Legal back-hop targets for fenestration: a missing window construction
-# hops to construction; a missing parent surface hops to surface. Declared
-# as a Literal on the return type so LangGraph accepts Command(goto=...).
-_FenestrationRoute = Literal["construction", "surface"]
+from src.agent.trace import TraceCollector, record_phase_trace, trace_middleware
 
 FENESTRATION_SYSTEM_PROMPT = """You are a window/door geometry expert for EnergyPlus.
 Given fenestration specifications, create FenestrationSurface:Detailed
@@ -54,16 +47,27 @@ Rules:
 """
 
 
-def fenestration_agent(state: AgentState) -> Command[_FenestrationRoute] | AgentStateUpdate:
-    local = clone_for_phase(state)
+class FenestrationResponse(BaseModel):
+    """Structured summary returned by the fenestration phase agent."""
+
+    fenestration_names: list[str] = Field(
+        description="Names of all fenestration surfaces created"
+    )
+    summary: str = Field(
+        description="One-line summary of the fenestration creation result"
+    )
+
+
+def fenestration_agent(state: AgentState) -> AgentStateUpdate:
+    local = state.config_state.model_copy(deep=True)
     tools = make_fenestration_tools(local)
     collector = TraceCollector(phase="fenestration")
 
-    agent = build_react_agent(
-        llm=create_llm(),
+    agent = build_agent(
         tools=tools,
         system_prompt=FENESTRATION_SYSTEM_PROMPT,
-        trace_collector=collector,
+        response_format=FenestrationResponse,
+        middleware=[trace_middleware(collector)],
     )
 
     specs = (
@@ -89,10 +93,10 @@ def fenestration_agent(state: AgentState) -> Command[_FenestrationRoute] | Agent
     if hop is not None:
         return hop
 
-    final = [
-        m for m in result["messages"] if isinstance(m, AIMessage) and not m.tool_calls
-    ]
-    summary = final[-1].content if final else "fenestration done"
+    response: FenestrationResponse | None = result.get("structured_response")
+    summary = response.summary if response else "fenestration done"
+
+    record_phase_trace("fenestration", collector.export())
     return AgentStateUpdate(
         config_state=local,
         upstream_request=None,  # consume any stale back-hop request

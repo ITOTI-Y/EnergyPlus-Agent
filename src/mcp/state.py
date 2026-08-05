@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-from idfpy import IDF
+from idfpy import IDF, RefError
 from idfpy.models.constructions import (
     Construction,
     Material,
@@ -118,11 +118,16 @@ def _vertices(value: Any) -> list[dict[str, float]]:
     result: list[dict[str, float]] = []
     for vertex in value or []:
         if isinstance(vertex, dict):
+            x = _get(vertex, "X", "x", "vertex_x_coordinate")
+            y = _get(vertex, "Y", "y", "vertex_y_coordinate")
+            z = _get(vertex, "Z", "z", "vertex_z_coordinate")
+            if x is None or y is None or z is None:
+                continue
             result.append(
                 {
-                    "X": float(_get(vertex, "X", "x")),
-                    "Y": float(_get(vertex, "Y", "y")),
-                    "Z": float(_get(vertex, "Z", "z")),
+                    "X": float(x),
+                    "Y": float(y),
+                    "Z": float(z),
                 }
             )
         elif isinstance(vertex, (list, tuple)) and len(vertex) >= 3:
@@ -138,8 +143,8 @@ def _idf_values(idf: IDF, *object_types: str) -> list[Any]:
     for object_type in object_types:
         try:
             objs = idf.all_of_type(object_type)
-        except Exception:
-            continue
+        except Exception as e:
+            raise ValueError(f"Unknown object type: {object_type}") from e
         for obj in objs.values():
             marker = id(obj)
             if marker not in seen:
@@ -158,6 +163,19 @@ def _field_dict(obj: Any) -> dict[str, Any]:
     if hasattr(obj, "model_dump"):
         return obj.model_dump(exclude_none=True)
     return dict(getattr(obj, "__dict__", {}))
+
+
+def missing_references(idf: IDF, instance: Any, object_name: str) -> list[str]:
+    """Validate one instance's cross-references before it is added to the IDF.
+
+    Wraps idfpy's private per-object validation (``IDF.validate()`` only
+    covers objects already added); the instance itself need not be in the
+    IDF, only the referenced providers must already exist. Sole call site
+    of the private API — update here if idfpy changes it.
+    """
+    errors: list[RefError] = []
+    idf._validate_obj_refs(object_name, instance, errors)
+    return [f"{err.field_name}: {err.detail}" for err in errors]
 
 
 class ConfigState(BaseSchema):
@@ -365,6 +383,9 @@ class ConfigState(BaseSchema):
     def new_idf(self) -> None:
         self._set_idf_private(IDF())
 
+    def attach_idf(self, idf: IDF) -> None:
+        self._idf = idf
+
     def to_yaml_dict(self) -> dict[str, Any]:
         """Serialize the current IDF contents into a YAML-friendly dict."""
         data: dict[str, Any] = {}
@@ -400,7 +421,7 @@ class ConfigState(BaseSchema):
             "BuildingSurface:Detailed": ("BuildingSurface:Detailed",),
             "FenestrationSurface:Detailed": ("FenestrationSurface:Detailed",),
             "People": ("People",),
-            "Light": ("Lights", "Light"),
+            "Light": ("Lights",),
             "Output:Variable": ("Output:Variable",),
         }
         for yaml_key, object_types in grouped_map.items():
@@ -588,6 +609,17 @@ class ConfigState(BaseSchema):
             getattr(obj, "name", "")
             for obj in _idf_values(self.idf, "HVACTemplate:Thermostat")
         }
+        type_limits_names = {
+            getattr(obj, "name", "")
+            for obj in _idf_values(self.idf, "ScheduleTypeLimits")
+        }
+
+        for schedule in _idf_values(self.idf, "Schedule:Compact", "ScheduleCompact"):
+            limits = schedule.schedule_type_limits_name
+            if limits and limits not in type_limits_names:
+                errors.append(
+                    f"Schedule '{schedule.name}' references type limits '{limits}' which does not exist."
+                )
 
         layer_fields = [
             "outside_layer",
@@ -663,6 +695,11 @@ class ConfigState(BaseSchema):
             for field in (
                 "number_of_people_schedule_name",
                 "activity_level_schedule_name",
+                "work_efficiency_schedule_name",
+                "clothing_insulation_calculation_method_schedule_name",
+                "clothing_insulation_schedule_name",
+                "air_velocity_schedule_name",
+                "ankle_level_air_velocity_schedule_name",
             ):
                 sched = getattr(people, field, None)
                 if sched and sched not in schedule_names:
@@ -670,7 +707,7 @@ class ConfigState(BaseSchema):
                         f"People '{people.name}' references schedule '{sched}' which does not exist."
                     )
 
-        for light in _idf_values(self.idf, "Lights", "Light"):
+        for light in _idf_values(self.idf, "Lights"):
             zone = getattr(light, "zone_or_zonelist_or_space_or_spacelist_name", None)
             zone = zone or getattr(
                 light, "zone_or_zone_list_or_space_or_space_list_name", ""
@@ -1221,7 +1258,7 @@ class ConfigState(BaseSchema):
     def _add_lights(self, data: dict[str, Any]) -> None:
         for raw in _as_items(data.get("Light") or data.get("Lights")):
             name = _get(raw, "Name", "name")
-            if not name or _idf_has(self.idf, name, "Lights", "Light"):
+            if not name or _idf_has(self.idf, name, "Lights"):
                 continue
             self.idf.add(
                 Lights(
@@ -1257,11 +1294,20 @@ class ConfigState(BaseSchema):
 
         raw = data.get("Output:Diagnostics")
         if raw and not _idf_values(self.idf, "Output:Diagnostics"):
-            key = _get(raw, "Key 1", "Key", "key_1")
-            if key:
+            items = _as_items(_get(raw, "diagnostics", "Diagnostics"))
+            keys = [
+                k for item in items if (k := _get(item, "key", "Key", "Key 1", "key_1"))
+            ]
+            if not keys:
+                key = _get(raw, "Key 1", "Key", "key_1")
+                if key:
+                    keys = [key]
+            if keys:
                 self.idf.add(
                     OutputDiagnostics(
-                        diagnostics=[OutputDiagnosticsDiagnosticsItem(key=key)]
+                        diagnostics=[
+                            OutputDiagnosticsDiagnosticsItem(key=k) for k in keys
+                        ]
                     )
                 )
 

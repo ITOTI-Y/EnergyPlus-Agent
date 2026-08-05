@@ -43,7 +43,6 @@ def _material_exists(idf, name: str) -> bool:
 
 
 def make_construction_tools(config: ConfigState) -> list[BaseTool]:
-    idf = config.idf
 
     @tool
     def create_construction(name: str, layers: list[str]) -> str:
@@ -54,6 +53,7 @@ def make_construction_tools(config: ConfigState) -> list[BaseTool]:
             layers: Material names from outside to inside. All names must
                     already exist in the materials list. >= 1 layer.
         """
+        idf = config.idf
         if idf.has("Construction", name):
             return _err(f"Construction '{name}' already exists.")
         if not layers:
@@ -82,12 +82,14 @@ def make_construction_tools(config: ConfigState) -> list[BaseTool]:
     @tool
     def list_constructions() -> str:
         """List all constructions."""
+        idf = config.idf
         items = [c.model_dump() for c in idf.all_of_type(Construction).values()]
         return _ok(f"Listed {len(items)} constructions.", items)
 
     @tool
     def get_construction(name: str) -> str:
         """Read a construction by name."""
+        idf = config.idf
         obj = idf.get(Construction, name)
         if obj is None:
             return _err(f"Construction '{name}' not found.")
@@ -127,6 +129,7 @@ def make_construction_tools(config: ConfigState) -> list[BaseTool]:
     @tool
     def delete_construction(name: str) -> str:
         """Delete a construction. Fails if referenced by surfaces/fenestration."""
+        idf = config.idf
         if not idf.has("Construction", name):
             return _err(f"Construction '{name}' not found.")
         refs = []
@@ -147,6 +150,7 @@ def make_construction_tools(config: ConfigState) -> list[BaseTool]:
     @tool
     def list_materials() -> str:
         """Read-only: list all materials available for use as construction layers."""
+        idf = config.idf
         items = []
         for t in _ALL_MATERIAL_TYPES:
             for obj in idf.all_of_type(t).values():

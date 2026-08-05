@@ -1,0 +1,644 @@
+interactions:
+- request:
+    body: '{"messages":[{"content":"You are a lighting-load expert for EnergyPlus.\nFor
+      each specified zone, create a Lights object via create_light.\n\nWorkflow:\n1.
+      FIRST call `list_zones` to see the exact zone names.\n2. FIRST call `list_schedules`
+      to see the exact Schedule:Compact names\n   (you need a lighting fraction schedule).\n3.
+      Create a Lights object per zone via `create_light`.\n4. Call `list_lights` once
+      at the end to confirm.\n\nRules:\n- `zone_name` and `schedule_name` MUST appear
+      verbatim in the list_zones /\n  list_schedules results.\n- If a needed zone
+      or schedule is missing, STOP and report; do NOT invent names.\n- name convention:
+      ''{zone}_Lights''.\n- design_level_calculation_method:\n    * ''LightingLevel''
+      -> supply lighting_level (W, absolute)\n    * ''Watts/Area'' -> supply watts_per_floor_area
+      (W/m^2)\n    * ''Watts/Person'' -> supply watts_per_person (W/person)\n- Typical
+      office LPD: 8-12 W/m^2 (Watts/Area). Use 10 when unspecified.\n- fraction_radiant
+      ~ 0.7 for recessed fluorescent/LED, 0.42 for pendant.\n- fraction_visible ~
+      0.18 for LED.\n","role":"system"},{"content":"Create exactly one Lights object
+      named ''F1_Office_Lights'' for zone ''F1_Office'': method Watts/Area at 10 W/m2,
+      schedule ''Office_Lighting''.","role":"user"}],"model":"opencode/glm-5.2","max_completion_tokens":64000,"parallel_tool_calls":false,"stream":false,"temperature":0.7,"tool_choice":"required","tools":[{"type":"function","function":{"name":"create_light","description":"Create
+      a Lights (lighting load) object.\n\n        Args:\n            name: Unique
+      lights object name.\n            zone_name: Existing Zone name.\n            schedule_name:
+      Existing Schedule:Compact (Fraction).\n            design_level_calculation_method:
+      LightingLevel / Watts/Area / Watts/Person.\n            lighting_level: Absolute
+      watts (when method=LightingLevel).\n            watts_per_floor_area: W/m^2
+      (when method=Watts/Area).\n            watts_per_person: W/person (when method=Watts/Person).\n            fraction_radiant:
+      Radiant fraction (0-1).\n            fraction_visible: Visible light fraction
+      (0-1).","parameters":{"properties":{"name":{"type":"string"},"zone_name":{"type":"string"},"schedule_name":{"type":"string"},"design_level_calculation_method":{"default":"Watts/Area","enum":["LightingLevel","Watts/Area","Watts/Person"],"type":"string"},"lighting_level":{"default":0.0,"type":"number"},"watts_per_floor_area":{"default":0.0,"type":"number"},"watts_per_person":{"default":0.0,"type":"number"},"fraction_radiant":{"default":0.0,"type":"number"},"fraction_visible":{"default":0.0,"type":"number"}},"required":["name","zone_name","schedule_name"],"type":"object"}}},{"type":"function","function":{"name":"list_lights","description":"List
+      all Lights objects.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"delete_light","description":"Delete
+      a Lights object.","parameters":{"properties":{"name":{"type":"string"}},"required":["name"],"type":"object"}}},{"type":"function","function":{"name":"list_zones","description":"Read-only:
+      list zones a Lights load can be assigned to.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"list_schedules","description":"Read-only:
+      list Schedule:Compact (for schedule_name reference).","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"LightsResponse","description":"Structured
+      summary returned by the lights phase agent.","parameters":{"properties":{"lights_names":{"description":"Names
+      of all Lights objects created","items":{"type":"string"},"type":"array"},"summary":{"description":"One-line
+      summary of the lights creation result","type":"string"}},"required":["lights_names","summary"],"type":"object"}}}],"max_thinking_budget":4096}'
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate, zstd
+      connection:
+      - keep-alive
+      content-length:
+      - '3794'
+      content-type:
+      - application/json
+      host:
+      - one.chat-yu.net
+      user-agent:
+      - OpenAI/Python 2.52.0
+      x-stainless-arch:
+      - x64
+      x-stainless-async:
+      - 'false'
+      x-stainless-lang:
+      - python
+      x-stainless-os:
+      - Linux
+      x-stainless-package-version:
+      - 2.52.0
+      x-stainless-raw-response:
+      - 'true'
+      x-stainless-retry-count:
+      - '0'
+      x-stainless-runtime:
+      - CPython
+      x-stainless-runtime-version:
+      - 3.12.3
+    method: POST
+    uri: https://one.chat-yu.net/v1/chat/completions
+  response:
+    body:
+      string: !!binary |
+        KLUv/QBY/Q8A9mRpJECLmwPAuB9IrFqSjpUWTWyxUNZ94lHpjRXwjLvtVqRyDMPrAmMAWgBeAF9f
+        yEyjA2K37rla1hvUWffJwTprcxBqV0coioDoQb7+1IHRFbMwGkajaAaYdUebaWxXX+hanxTBpnRT
+        hQe8evN4PI/GqPMIKJrDYIgmkUAsDbEsmocKMIuAJ0WtGdS+7rhPAo1tLAl8z0KEklSoUwLfg09q
+        lK0FqXDU1ohFJmVzj2sqcULtJJncEMQVJMuEnRol9zJJRuVIKmTggKy7+td7tRe2q/eyZsfMvq4P
+        xk/WFcKYNbo6v8ea40HYAauSOutSI4CDQp3a1nE+fW9dMkPWNbuXAcmkpB1Z8za2oUTRPQvbE9iG
+        olCvQgapILahNLsGTdaIberCB4fHRWVI2JnA+iKOQo2dZZnAuvDB0exeQr7HWqrm6AhSYTbTl683
+        w3Y1TYzCUaix9sk6P8daHYdCNAvzWMO+apqrBIOxzqsLsB0tRTBKkSuEaUKYpk+Tr3OvRhFIZFf/
+        ukZsP1ltI8/XVXLoq7PHYkm0R9EkEAuGYsECHoStrvSqEyAgEBTF1PZiiiBYvqqWbVl+cd9zkOAx
+        tNsoYV6YvRzKkA4ZBLj8KGqJ8q5Jt9Yh2fnM1wYGcQPsYCQIjxx0eV3+wIoQjy9nNBuuo49hMP0m
+        E4JDJs4UFA==
+    headers:
+      alt-svc:
+      - h3=":443"; ma=86400
+      cf-cache-status:
+      - DYNAMIC
+      cf-placement:
+      - remote-ORD
+      cf-ray:
+      - a2628efc1f4262d0-NRT
+      connection:
+      - keep-alive
+      content-encoding:
+      - zstd
+      content-type:
+      - application/json
+      date:
+      - Wed, 05 Aug 2026 03:01:45 GMT
+      nel:
+      - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
+      report-to:
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=cUsqpClOXFGMwHJumcUHmdEacogdsuGFyjaXCp8aCTaYss7t8tZ0wSMU1mr%2B3ETYpj8cF%2FtO0SeU4jJMwMh298pq9c%2BpFA6B7W7%2Fe6HMbOShK%2BPbLuEkeHYq0iOR%2FYREkYo%3D"}]}'
+      server:
+      - cloudflare
+      strict-transport-security:
+      - max-age=31536000
+      transfer-encoding:
+      - chunked
+      via:
+      - 1.1 Caddy
+      x-new-api-version:
+      - v1.0.0-rc.21
+      x-oneapi-request-id:
+      - 202608050301399833729388268d9d6SdutGl4x
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"messages":[{"content":"You are a lighting-load expert for EnergyPlus.\nFor
+      each specified zone, create a Lights object via create_light.\n\nWorkflow:\n1.
+      FIRST call `list_zones` to see the exact zone names.\n2. FIRST call `list_schedules`
+      to see the exact Schedule:Compact names\n   (you need a lighting fraction schedule).\n3.
+      Create a Lights object per zone via `create_light`.\n4. Call `list_lights` once
+      at the end to confirm.\n\nRules:\n- `zone_name` and `schedule_name` MUST appear
+      verbatim in the list_zones /\n  list_schedules results.\n- If a needed zone
+      or schedule is missing, STOP and report; do NOT invent names.\n- name convention:
+      ''{zone}_Lights''.\n- design_level_calculation_method:\n    * ''LightingLevel''
+      -> supply lighting_level (W, absolute)\n    * ''Watts/Area'' -> supply watts_per_floor_area
+      (W/m^2)\n    * ''Watts/Person'' -> supply watts_per_person (W/person)\n- Typical
+      office LPD: 8-12 W/m^2 (Watts/Area). Use 10 when unspecified.\n- fraction_radiant
+      ~ 0.7 for recessed fluorescent/LED, 0.42 for pendant.\n- fraction_visible ~
+      0.18 for LED.\n","role":"system"},{"content":"Create exactly one Lights object
+      named ''F1_Office_Lights'' for zone ''F1_Office'': method Watts/Area at 10 W/m2,
+      schedule ''Office_Lighting''.","role":"user"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"chatcmpl-tool-a65962485fc406ba","function":{"name":"list_zones","arguments":"{}"}}]},{"content":"{\"success\":
+      true, \"message\": \"Listed 1 zones.\", \"data\": [{\"name\": \"F1_Office\",
+      \"direction_of_relative_north\": 0.0, \"x_origin\": 0.0, \"y_origin\": 0.0,
+      \"z_origin\": 0.0, \"type\": 1, \"multiplier\": 1, \"ceiling_height\": \"Autocalculate\",
+      \"volume\": \"Autocalculate\", \"floor_area\": \"Autocalculate\", \"zone_inside_convection_algorithm\":
+      null, \"zone_outside_convection_algorithm\": null, \"part_of_total_floor_area\":
+      \"Yes\"}]}","role":"tool","tool_call_id":"chatcmpl-tool-a65962485fc406ba"}],"model":"opencode/glm-5.2","max_completion_tokens":64000,"parallel_tool_calls":false,"stream":false,"temperature":0.7,"tool_choice":"required","tools":[{"type":"function","function":{"name":"create_light","description":"Create
+      a Lights (lighting load) object.\n\n        Args:\n            name: Unique
+      lights object name.\n            zone_name: Existing Zone name.\n            schedule_name:
+      Existing Schedule:Compact (Fraction).\n            design_level_calculation_method:
+      LightingLevel / Watts/Area / Watts/Person.\n            lighting_level: Absolute
+      watts (when method=LightingLevel).\n            watts_per_floor_area: W/m^2
+      (when method=Watts/Area).\n            watts_per_person: W/person (when method=Watts/Person).\n            fraction_radiant:
+      Radiant fraction (0-1).\n            fraction_visible: Visible light fraction
+      (0-1).","parameters":{"properties":{"name":{"type":"string"},"zone_name":{"type":"string"},"schedule_name":{"type":"string"},"design_level_calculation_method":{"default":"Watts/Area","enum":["LightingLevel","Watts/Area","Watts/Person"],"type":"string"},"lighting_level":{"default":0.0,"type":"number"},"watts_per_floor_area":{"default":0.0,"type":"number"},"watts_per_person":{"default":0.0,"type":"number"},"fraction_radiant":{"default":0.0,"type":"number"},"fraction_visible":{"default":0.0,"type":"number"}},"required":["name","zone_name","schedule_name"],"type":"object"}}},{"type":"function","function":{"name":"list_lights","description":"List
+      all Lights objects.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"delete_light","description":"Delete
+      a Lights object.","parameters":{"properties":{"name":{"type":"string"}},"required":["name"],"type":"object"}}},{"type":"function","function":{"name":"list_zones","description":"Read-only:
+      list zones a Lights load can be assigned to.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"list_schedules","description":"Read-only:
+      list Schedule:Compact (for schedule_name reference).","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"LightsResponse","description":"Structured
+      summary returned by the lights phase agent.","parameters":{"properties":{"lights_names":{"description":"Names
+      of all Lights objects created","items":{"type":"string"},"type":"array"},"summary":{"description":"One-line
+      summary of the lights creation result","type":"string"}},"required":["lights_names","summary"],"type":"object"}}}],"max_thinking_budget":4096}'
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate, zstd
+      connection:
+      - keep-alive
+      content-length:
+      - '4482'
+      content-type:
+      - application/json
+      host:
+      - one.chat-yu.net
+      user-agent:
+      - OpenAI/Python 2.52.0
+      x-stainless-arch:
+      - x64
+      x-stainless-async:
+      - 'false'
+      x-stainless-lang:
+      - python
+      x-stainless-os:
+      - Linux
+      x-stainless-package-version:
+      - 2.52.0
+      x-stainless-raw-response:
+      - 'true'
+      x-stainless-retry-count:
+      - '0'
+      x-stainless-runtime:
+      - CPython
+      x-stainless-runtime-version:
+      - 3.12.3
+    method: POST
+    uri: https://one.chat-yu.net/v1/chat/completions
+  response:
+    body:
+      string: !!binary |
+        KLUv/QBY7QsAxttRJDBrnQPAOB6hNlXrlfd/+WI/40ntk7KgC61W/TfdA5LAwMACAkkAQgBLAPp2
+        JcEgqCjdPS7E1FuDOAyHwTCaxB3aflvp2yXD3uigWBOtm9Dgt0cL0yzRItLdbSyU1yQNxVNH0aix
+        aETJIqKD0n6T3h2CtwIr+YHt1KxBzAGPJOHb795yW7K+veXrCed8d9/I1S33ld6cS719xvj0icx9
+        d8nzbfVME0oYvSHuDQtJeMvAfa5CngJO5SO6+zoc+u0LgyiyKM4iDETBKA8RmbtdkrAnCQ48P2AO
+        Eax2gXGzufEB7aRTQXdSxs2gXckEGAMTsMTsCRuW/WAVRlHBkwD8gAXXkbv3ZH27rsVxoJ306S33
+        GeHrhZ7GNEkSX3O/McsbokgS9ylXgftpB8WV4/GGcF0I1/XLuvtsudRDqt7bn54w3n2pJ28FEgCg
+        CEOQr6YWnrIK077vEME9r5SrrHFtRnAr29nk4DOOl9iHEKahVRfqbDIh8JCJMwUF
+    headers:
+      alt-svc:
+      - h3=":443"; ma=86400
+      cf-cache-status:
+      - DYNAMIC
+      cf-placement:
+      - remote-ORD
+      cf-ray:
+      - a2628f1f3c0262d0-NRT
+      connection:
+      - keep-alive
+      content-encoding:
+      - zstd
+      content-type:
+      - application/json
+      date:
+      - Wed, 05 Aug 2026 03:01:50 GMT
+      nel:
+      - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
+      report-to:
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=PfbcxVp7OqGFePPrMaE4bihKS3arzO2D2jR%2BSjCP7gNzUdd0C%2Frbv3YQpGSzXOUhkPJm75rxi4w2d6TJlza1GIVtYb34o4MwvR1ZCawwjXithQRf1W6WcJUj%2FHC37LlXZik%3D"}]}'
+      server:
+      - cloudflare
+      strict-transport-security:
+      - max-age=31536000
+      transfer-encoding:
+      - chunked
+      via:
+      - 1.1 Caddy
+      x-new-api-version:
+      - v1.0.0-rc.21
+      x-oneapi-request-id:
+      - 202608050301456072347348268d9d6Z29nTlFe
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"messages":[{"content":"You are a lighting-load expert for EnergyPlus.\nFor
+      each specified zone, create a Lights object via create_light.\n\nWorkflow:\n1.
+      FIRST call `list_zones` to see the exact zone names.\n2. FIRST call `list_schedules`
+      to see the exact Schedule:Compact names\n   (you need a lighting fraction schedule).\n3.
+      Create a Lights object per zone via `create_light`.\n4. Call `list_lights` once
+      at the end to confirm.\n\nRules:\n- `zone_name` and `schedule_name` MUST appear
+      verbatim in the list_zones /\n  list_schedules results.\n- If a needed zone
+      or schedule is missing, STOP and report; do NOT invent names.\n- name convention:
+      ''{zone}_Lights''.\n- design_level_calculation_method:\n    * ''LightingLevel''
+      -> supply lighting_level (W, absolute)\n    * ''Watts/Area'' -> supply watts_per_floor_area
+      (W/m^2)\n    * ''Watts/Person'' -> supply watts_per_person (W/person)\n- Typical
+      office LPD: 8-12 W/m^2 (Watts/Area). Use 10 when unspecified.\n- fraction_radiant
+      ~ 0.7 for recessed fluorescent/LED, 0.42 for pendant.\n- fraction_visible ~
+      0.18 for LED.\n","role":"system"},{"content":"Create exactly one Lights object
+      named ''F1_Office_Lights'' for zone ''F1_Office'': method Watts/Area at 10 W/m2,
+      schedule ''Office_Lighting''.","role":"user"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"chatcmpl-tool-a65962485fc406ba","function":{"name":"list_zones","arguments":"{}"}}]},{"content":"{\"success\":
+      true, \"message\": \"Listed 1 zones.\", \"data\": [{\"name\": \"F1_Office\",
+      \"direction_of_relative_north\": 0.0, \"x_origin\": 0.0, \"y_origin\": 0.0,
+      \"z_origin\": 0.0, \"type\": 1, \"multiplier\": 1, \"ceiling_height\": \"Autocalculate\",
+      \"volume\": \"Autocalculate\", \"floor_area\": \"Autocalculate\", \"zone_inside_convection_algorithm\":
+      null, \"zone_outside_convection_algorithm\": null, \"part_of_total_floor_area\":
+      \"Yes\"}]}","role":"tool","tool_call_id":"chatcmpl-tool-a65962485fc406ba"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"chatcmpl-tool-a254080e9230c053","function":{"name":"list_schedules","arguments":"{}"}}]},{"content":"{\"success\":
+      true, \"message\": \"Listed 1 schedules.\", \"data\": [{\"name\": \"Office_Lighting\",
+      \"schedule_type_limits_name\": \"Fraction\", \"data\": [{\"field\": \"Through:
+      12/31\"}, {\"field\": \"For: AllDays\"}, {\"field\": \"Until: 24:00, 1.0\"}]}]}","role":"tool","tool_call_id":"chatcmpl-tool-a254080e9230c053"}],"model":"opencode/glm-5.2","max_completion_tokens":64000,"parallel_tool_calls":false,"stream":false,"temperature":0.7,"tool_choice":"required","tools":[{"type":"function","function":{"name":"create_light","description":"Create
+      a Lights (lighting load) object.\n\n        Args:\n            name: Unique
+      lights object name.\n            zone_name: Existing Zone name.\n            schedule_name:
+      Existing Schedule:Compact (Fraction).\n            design_level_calculation_method:
+      LightingLevel / Watts/Area / Watts/Person.\n            lighting_level: Absolute
+      watts (when method=LightingLevel).\n            watts_per_floor_area: W/m^2
+      (when method=Watts/Area).\n            watts_per_person: W/person (when method=Watts/Person).\n            fraction_radiant:
+      Radiant fraction (0-1).\n            fraction_visible: Visible light fraction
+      (0-1).","parameters":{"properties":{"name":{"type":"string"},"zone_name":{"type":"string"},"schedule_name":{"type":"string"},"design_level_calculation_method":{"default":"Watts/Area","enum":["LightingLevel","Watts/Area","Watts/Person"],"type":"string"},"lighting_level":{"default":0.0,"type":"number"},"watts_per_floor_area":{"default":0.0,"type":"number"},"watts_per_person":{"default":0.0,"type":"number"},"fraction_radiant":{"default":0.0,"type":"number"},"fraction_visible":{"default":0.0,"type":"number"}},"required":["name","zone_name","schedule_name"],"type":"object"}}},{"type":"function","function":{"name":"list_lights","description":"List
+      all Lights objects.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"delete_light","description":"Delete
+      a Lights object.","parameters":{"properties":{"name":{"type":"string"}},"required":["name"],"type":"object"}}},{"type":"function","function":{"name":"list_zones","description":"Read-only:
+      list zones a Lights load can be assigned to.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"list_schedules","description":"Read-only:
+      list Schedule:Compact (for schedule_name reference).","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"LightsResponse","description":"Structured
+      summary returned by the lights phase agent.","parameters":{"properties":{"lights_names":{"description":"Names
+      of all Lights objects created","items":{"type":"string"},"type":"array"},"summary":{"description":"One-line
+      summary of the lights creation result","type":"string"}},"required":["lights_names","summary"],"type":"object"}}}],"max_thinking_budget":4096}'
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate, zstd
+      connection:
+      - keep-alive
+      content-length:
+      - '4981'
+      content-type:
+      - application/json
+      host:
+      - one.chat-yu.net
+      user-agent:
+      - OpenAI/Python 2.52.0
+      x-stainless-arch:
+      - x64
+      x-stainless-async:
+      - 'false'
+      x-stainless-lang:
+      - python
+      x-stainless-os:
+      - Linux
+      x-stainless-package-version:
+      - 2.52.0
+      x-stainless-raw-response:
+      - 'true'
+      x-stainless-retry-count:
+      - '0'
+      x-stainless-runtime:
+      - CPython
+      x-stainless-runtime-version:
+      - 3.12.3
+    method: POST
+    uri: https://one.chat-yu.net/v1/chat/completions
+  response:
+    body:
+      string: !!binary |
+        KLUv/QBY1Q8AtiJlJRCNWAfckkcF9OULp1nICIndK2LAtORwGIZpbDbupUoUAAAAHA5dAFgAWQAu
+        qnHG50xpj2A44ycK7ZVfpNE7O2PxAJAk9HbJkEpnjCXSRJpHwyztkHuZemefNDbLSaJv0Y8bGOjZ
+        X+QRgTgYvA/zQBrPMgtxPPgBm0eDHwhZAOQkvd7ovR3GTwJr1SWlomBB0IO16BojeCmgGTuCooFT
+        LJYSyNGrC85dCn7xeRDcQqBYPOnE4qhX1HTAQTOe/e09uSd9Z++5XWOt+3aWlPqknaGtlaWzVyn3
+        OUlpv33SukwF3ZsAadQsuUljr5Q8fmDpJhQrw0kn3J3F7tQ7q91xJm+vPVmSQNSevSMoStfO0s5P
+        2puS5+08SfTZnwYuDaNAyCgOZR8GAElpsy8qxc3SUjstyPGJj6caIQLVlbd3pe+sqiKNBXL09n3S
+        XmXcZuiYo9GQ27TPGOWMYTCW9jrZgbbrSaLUJDlbqKqFqnrVLCwZYo0PzEJZ7U7PjXApt9RzZzFl
+        WW0dRal8HMWTq90LsUwJBNQmICBCwqCyHrAFQplt8FghKCwhsyO9D2b4ruJ5c9cAHu4ITxXmTvhY
+        6MKe+awHmLAD674KEGt7gAGqRN82GPP5Agb37AmRYW8ZlJa3kjwkNohy4djAZeGB9NDanSeEQybO
+        DBQ=
+    headers:
+      alt-svc:
+      - h3=":443"; ma=86400
+      cf-cache-status:
+      - DYNAMIC
+      cf-placement:
+      - remote-ORD
+      cf-ray:
+      - a2628f3fbb4d62d0-NRT
+      connection:
+      - keep-alive
+      content-encoding:
+      - zstd
+      content-type:
+      - application/json
+      date:
+      - Wed, 05 Aug 2026 03:01:57 GMT
+      nel:
+      - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
+      report-to:
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=eGigOt8wfzR0Zy%2BHt5xgGT55JAWMP5BRPmMdcEtCUeVrxkWm1BrEDuJO%2F3u5fVHWhoHgncAy8AWI45%2BqGVAEJs7hSF%2BeYO2u5n4KuQMGXR5hUTIHtHS9B47%2B466tj7mR760%3D"}]}'
+      server:
+      - cloudflare
+      strict-transport-security:
+      - max-age=31536000
+      transfer-encoding:
+      - chunked
+      via:
+      - 1.1 Caddy
+      x-new-api-version:
+      - v1.0.0-rc.21
+      x-oneapi-request-id:
+      - 202608050301508037956378268d9d6MvFs1jxr
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"messages":[{"content":"You are a lighting-load expert for EnergyPlus.\nFor
+      each specified zone, create a Lights object via create_light.\n\nWorkflow:\n1.
+      FIRST call `list_zones` to see the exact zone names.\n2. FIRST call `list_schedules`
+      to see the exact Schedule:Compact names\n   (you need a lighting fraction schedule).\n3.
+      Create a Lights object per zone via `create_light`.\n4. Call `list_lights` once
+      at the end to confirm.\n\nRules:\n- `zone_name` and `schedule_name` MUST appear
+      verbatim in the list_zones /\n  list_schedules results.\n- If a needed zone
+      or schedule is missing, STOP and report; do NOT invent names.\n- name convention:
+      ''{zone}_Lights''.\n- design_level_calculation_method:\n    * ''LightingLevel''
+      -> supply lighting_level (W, absolute)\n    * ''Watts/Area'' -> supply watts_per_floor_area
+      (W/m^2)\n    * ''Watts/Person'' -> supply watts_per_person (W/person)\n- Typical
+      office LPD: 8-12 W/m^2 (Watts/Area). Use 10 when unspecified.\n- fraction_radiant
+      ~ 0.7 for recessed fluorescent/LED, 0.42 for pendant.\n- fraction_visible ~
+      0.18 for LED.\n","role":"system"},{"content":"Create exactly one Lights object
+      named ''F1_Office_Lights'' for zone ''F1_Office'': method Watts/Area at 10 W/m2,
+      schedule ''Office_Lighting''.","role":"user"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"chatcmpl-tool-a65962485fc406ba","function":{"name":"list_zones","arguments":"{}"}}]},{"content":"{\"success\":
+      true, \"message\": \"Listed 1 zones.\", \"data\": [{\"name\": \"F1_Office\",
+      \"direction_of_relative_north\": 0.0, \"x_origin\": 0.0, \"y_origin\": 0.0,
+      \"z_origin\": 0.0, \"type\": 1, \"multiplier\": 1, \"ceiling_height\": \"Autocalculate\",
+      \"volume\": \"Autocalculate\", \"floor_area\": \"Autocalculate\", \"zone_inside_convection_algorithm\":
+      null, \"zone_outside_convection_algorithm\": null, \"part_of_total_floor_area\":
+      \"Yes\"}]}","role":"tool","tool_call_id":"chatcmpl-tool-a65962485fc406ba"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"chatcmpl-tool-a254080e9230c053","function":{"name":"list_schedules","arguments":"{}"}}]},{"content":"{\"success\":
+      true, \"message\": \"Listed 1 schedules.\", \"data\": [{\"name\": \"Office_Lighting\",
+      \"schedule_type_limits_name\": \"Fraction\", \"data\": [{\"field\": \"Through:
+      12/31\"}, {\"field\": \"For: AllDays\"}, {\"field\": \"Until: 24:00, 1.0\"}]}]}","role":"tool","tool_call_id":"chatcmpl-tool-a254080e9230c053"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"chatcmpl-tool-bfa0407dd0781d8f","function":{"name":"create_light","arguments":"{\"name\":
+      \"F1_Office_Lights\", \"schedule_name\": \"Office_Lighting\", \"zone_name\":
+      \"F1_Office\", \"design_level_calculation_method\": \"Watts/Area\", \"watts_per_floor_area\":
+      10, \"fraction_radiant\": 0.7, \"fraction_visible\": 0.18}"}}]},{"content":"{\"success\":
+      true, \"message\": \"Lights ''F1_Office_Lights'' created successfully.\", \"data\":
+      {\"name\": \"F1_Office_Lights\", \"zone_or_zonelist_or_space_or_spacelist_name\":
+      \"F1_Office\", \"schedule_name\": \"Office_Lighting\", \"design_level_calculation_method\":
+      \"Watts/Area\", \"lighting_level\": 0.0, \"watts_per_floor_area\": 10.0, \"watts_per_person\":
+      0.0, \"return_air_fraction\": 0.0, \"fraction_radiant\": 0.7, \"fraction_visible\":
+      0.18, \"fraction_replaceable\": 1.0, \"end_use_subcategory\": \"General\", \"return_air_fraction_calculated_from_plenum_temperature\":
+      \"No\", \"return_air_fraction_function_of_plenum_temperature_coefficient_1\":
+      0.0, \"return_air_fraction_function_of_plenum_temperature_coefficient_2\": 0.0,
+      \"return_air_heat_gain_node_name\": null, \"exhaust_air_heat_gain_node_name\":
+      null}}","role":"tool","tool_call_id":"chatcmpl-tool-bfa0407dd0781d8f"}],"model":"opencode/glm-5.2","max_completion_tokens":64000,"parallel_tool_calls":false,"stream":false,"temperature":0.7,"tool_choice":"required","tools":[{"type":"function","function":{"name":"create_light","description":"Create
+      a Lights (lighting load) object.\n\n        Args:\n            name: Unique
+      lights object name.\n            zone_name: Existing Zone name.\n            schedule_name:
+      Existing Schedule:Compact (Fraction).\n            design_level_calculation_method:
+      LightingLevel / Watts/Area / Watts/Person.\n            lighting_level: Absolute
+      watts (when method=LightingLevel).\n            watts_per_floor_area: W/m^2
+      (when method=Watts/Area).\n            watts_per_person: W/person (when method=Watts/Person).\n            fraction_radiant:
+      Radiant fraction (0-1).\n            fraction_visible: Visible light fraction
+      (0-1).","parameters":{"properties":{"name":{"type":"string"},"zone_name":{"type":"string"},"schedule_name":{"type":"string"},"design_level_calculation_method":{"default":"Watts/Area","enum":["LightingLevel","Watts/Area","Watts/Person"],"type":"string"},"lighting_level":{"default":0.0,"type":"number"},"watts_per_floor_area":{"default":0.0,"type":"number"},"watts_per_person":{"default":0.0,"type":"number"},"fraction_radiant":{"default":0.0,"type":"number"},"fraction_visible":{"default":0.0,"type":"number"}},"required":["name","zone_name","schedule_name"],"type":"object"}}},{"type":"function","function":{"name":"list_lights","description":"List
+      all Lights objects.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"delete_light","description":"Delete
+      a Lights object.","parameters":{"properties":{"name":{"type":"string"}},"required":["name"],"type":"object"}}},{"type":"function","function":{"name":"list_zones","description":"Read-only:
+      list zones a Lights load can be assigned to.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"list_schedules","description":"Read-only:
+      list Schedule:Compact (for schedule_name reference).","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"LightsResponse","description":"Structured
+      summary returned by the lights phase agent.","parameters":{"properties":{"lights_names":{"description":"Names
+      of all Lights objects created","items":{"type":"string"},"type":"array"},"summary":{"description":"One-line
+      summary of the lights creation result","type":"string"}},"required":["lights_names","summary"],"type":"object"}}}],"max_thinking_budget":4096}'
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate, zstd
+      connection:
+      - keep-alive
+      content-length:
+      - '6284'
+      content-type:
+      - application/json
+      host:
+      - one.chat-yu.net
+      user-agent:
+      - OpenAI/Python 2.52.0
+      x-stainless-arch:
+      - x64
+      x-stainless-async:
+      - 'false'
+      x-stainless-lang:
+      - python
+      x-stainless-os:
+      - Linux
+      x-stainless-package-version:
+      - 2.52.0
+      x-stainless-raw-response:
+      - 'true'
+      x-stainless-retry-count:
+      - '0'
+      x-stainless-runtime:
+      - CPython
+      x-stainless-runtime-version:
+      - 3.12.3
+    method: POST
+    uri: https://one.chat-yu.net/v1/chat/completions
+  response:
+    body:
+      string: !!binary |
+        KLUv/QBYLQsA5hlMIkBpnQO4Gh5qaFrbGYFaaFdbAH2O9r7+yK5/UvmVjmMYBgRFAD0ARQCFKD5v
+        j/s4OmMOZmEWZUkc7W9bd3Jnlwx7oxSxM7TbAgWffUmYgyLxDgpEEwbDLHvQJIFQZGEQxXH2FaIU
+        uVbIvf3BUwHNI+HZ395yW7I7e0vtCefUt2/k6VT7PjrnRmefMaprInO/XfLUnRpoQgmdM6MdYZ+E
+        pwba5zrIkDs7YlACkcpTzcmF8/aVEvrsyksMJFkSZ1HcoYYWInOzG6IJOpJn0xPGFaO6xb3erlwA
+        64ADliEhxoUz5zq3mGtNPVgNPTCuhQQC1Y2392R3VlUIBDneQk7dqfYZofa+hiEI5Yja3GcJcrYc
+        lKN9yjXgblqKeJIWZwRVRVBVr6i3z5YbLZ5Jz/72DRIAoAhDkK+mFp6yhtK+axDBgWfaVcJ8Nnup
+        lSFpMgAZvpvtfqt4VCYrnU0mBB4ycaag
+    headers:
+      alt-svc:
+      - h3=":443"; ma=86400
+      cf-cache-status:
+      - DYNAMIC
+      cf-placement:
+      - remote-ORD
+      cf-ray:
+      - a2628f68fa9562d0-NRT
+      connection:
+      - keep-alive
+      content-encoding:
+      - zstd
+      content-type:
+      - application/json
+      date:
+      - Wed, 05 Aug 2026 03:02:02 GMT
+      nel:
+      - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
+      report-to:
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=7CNyweC1FUpRjqn25vGM2bcw6bxmcsauABmQJGhH%2F4wAgdvvZDttQswnM%2F1Cp%2BrcThu6fLC42cspMlcQeZhEiGvkRh3FhZ0c2dasuRjljtE6wCfOpSr1kx722M58f83mBEM%3D"}]}'
+      server:
+      - cloudflare
+      strict-transport-security:
+      - max-age=31536000
+      transfer-encoding:
+      - chunked
+      via:
+      - 1.1 Caddy
+      x-new-api-version:
+      - v1.0.0-rc.21
+      x-oneapi-request-id:
+      - 202608050301574040210088268d9d6pugghLlY
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"messages":[{"content":"You are a lighting-load expert for EnergyPlus.\nFor
+      each specified zone, create a Lights object via create_light.\n\nWorkflow:\n1.
+      FIRST call `list_zones` to see the exact zone names.\n2. FIRST call `list_schedules`
+      to see the exact Schedule:Compact names\n   (you need a lighting fraction schedule).\n3.
+      Create a Lights object per zone via `create_light`.\n4. Call `list_lights` once
+      at the end to confirm.\n\nRules:\n- `zone_name` and `schedule_name` MUST appear
+      verbatim in the list_zones /\n  list_schedules results.\n- If a needed zone
+      or schedule is missing, STOP and report; do NOT invent names.\n- name convention:
+      ''{zone}_Lights''.\n- design_level_calculation_method:\n    * ''LightingLevel''
+      -> supply lighting_level (W, absolute)\n    * ''Watts/Area'' -> supply watts_per_floor_area
+      (W/m^2)\n    * ''Watts/Person'' -> supply watts_per_person (W/person)\n- Typical
+      office LPD: 8-12 W/m^2 (Watts/Area). Use 10 when unspecified.\n- fraction_radiant
+      ~ 0.7 for recessed fluorescent/LED, 0.42 for pendant.\n- fraction_visible ~
+      0.18 for LED.\n","role":"system"},{"content":"Create exactly one Lights object
+      named ''F1_Office_Lights'' for zone ''F1_Office'': method Watts/Area at 10 W/m2,
+      schedule ''Office_Lighting''.","role":"user"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"chatcmpl-tool-a65962485fc406ba","function":{"name":"list_zones","arguments":"{}"}}]},{"content":"{\"success\":
+      true, \"message\": \"Listed 1 zones.\", \"data\": [{\"name\": \"F1_Office\",
+      \"direction_of_relative_north\": 0.0, \"x_origin\": 0.0, \"y_origin\": 0.0,
+      \"z_origin\": 0.0, \"type\": 1, \"multiplier\": 1, \"ceiling_height\": \"Autocalculate\",
+      \"volume\": \"Autocalculate\", \"floor_area\": \"Autocalculate\", \"zone_inside_convection_algorithm\":
+      null, \"zone_outside_convection_algorithm\": null, \"part_of_total_floor_area\":
+      \"Yes\"}]}","role":"tool","tool_call_id":"chatcmpl-tool-a65962485fc406ba"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"chatcmpl-tool-a254080e9230c053","function":{"name":"list_schedules","arguments":"{}"}}]},{"content":"{\"success\":
+      true, \"message\": \"Listed 1 schedules.\", \"data\": [{\"name\": \"Office_Lighting\",
+      \"schedule_type_limits_name\": \"Fraction\", \"data\": [{\"field\": \"Through:
+      12/31\"}, {\"field\": \"For: AllDays\"}, {\"field\": \"Until: 24:00, 1.0\"}]}]}","role":"tool","tool_call_id":"chatcmpl-tool-a254080e9230c053"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"chatcmpl-tool-bfa0407dd0781d8f","function":{"name":"create_light","arguments":"{\"name\":
+      \"F1_Office_Lights\", \"schedule_name\": \"Office_Lighting\", \"zone_name\":
+      \"F1_Office\", \"design_level_calculation_method\": \"Watts/Area\", \"watts_per_floor_area\":
+      10, \"fraction_radiant\": 0.7, \"fraction_visible\": 0.18}"}}]},{"content":"{\"success\":
+      true, \"message\": \"Lights ''F1_Office_Lights'' created successfully.\", \"data\":
+      {\"name\": \"F1_Office_Lights\", \"zone_or_zonelist_or_space_or_spacelist_name\":
+      \"F1_Office\", \"schedule_name\": \"Office_Lighting\", \"design_level_calculation_method\":
+      \"Watts/Area\", \"lighting_level\": 0.0, \"watts_per_floor_area\": 10.0, \"watts_per_person\":
+      0.0, \"return_air_fraction\": 0.0, \"fraction_radiant\": 0.7, \"fraction_visible\":
+      0.18, \"fraction_replaceable\": 1.0, \"end_use_subcategory\": \"General\", \"return_air_fraction_calculated_from_plenum_temperature\":
+      \"No\", \"return_air_fraction_function_of_plenum_temperature_coefficient_1\":
+      0.0, \"return_air_fraction_function_of_plenum_temperature_coefficient_2\": 0.0,
+      \"return_air_heat_gain_node_name\": null, \"exhaust_air_heat_gain_node_name\":
+      null}}","role":"tool","tool_call_id":"chatcmpl-tool-bfa0407dd0781d8f"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"chatcmpl-tool-a0a1c58f484204d5","function":{"name":"list_lights","arguments":"{}"}}]},{"content":"{\"success\":
+      true, \"message\": \"Listed 1 Lights objects.\", \"data\": [{\"name\": \"F1_Office_Lights\",
+      \"zone_or_zonelist_or_space_or_spacelist_name\": \"F1_Office\", \"schedule_name\":
+      \"Office_Lighting\", \"design_level_calculation_method\": \"Watts/Area\", \"lighting_level\":
+      0.0, \"watts_per_floor_area\": 10.0, \"watts_per_person\": 0.0, \"return_air_fraction\":
+      0.0, \"fraction_radiant\": 0.7, \"fraction_visible\": 0.18, \"fraction_replaceable\":
+      1.0, \"end_use_subcategory\": \"General\", \"return_air_fraction_calculated_from_plenum_temperature\":
+      \"No\", \"return_air_fraction_function_of_plenum_temperature_coefficient_1\":
+      0.0, \"return_air_fraction_function_of_plenum_temperature_coefficient_2\": 0.0,
+      \"return_air_heat_gain_node_name\": null, \"exhaust_air_heat_gain_node_name\":
+      null}]}","role":"tool","tool_call_id":"chatcmpl-tool-a0a1c58f484204d5"}],"model":"opencode/glm-5.2","max_completion_tokens":64000,"parallel_tool_calls":false,"stream":false,"temperature":0.7,"tool_choice":"required","tools":[{"type":"function","function":{"name":"create_light","description":"Create
+      a Lights (lighting load) object.\n\n        Args:\n            name: Unique
+      lights object name.\n            zone_name: Existing Zone name.\n            schedule_name:
+      Existing Schedule:Compact (Fraction).\n            design_level_calculation_method:
+      LightingLevel / Watts/Area / Watts/Person.\n            lighting_level: Absolute
+      watts (when method=LightingLevel).\n            watts_per_floor_area: W/m^2
+      (when method=Watts/Area).\n            watts_per_person: W/person (when method=Watts/Person).\n            fraction_radiant:
+      Radiant fraction (0-1).\n            fraction_visible: Visible light fraction
+      (0-1).","parameters":{"properties":{"name":{"type":"string"},"zone_name":{"type":"string"},"schedule_name":{"type":"string"},"design_level_calculation_method":{"default":"Watts/Area","enum":["LightingLevel","Watts/Area","Watts/Person"],"type":"string"},"lighting_level":{"default":0.0,"type":"number"},"watts_per_floor_area":{"default":0.0,"type":"number"},"watts_per_person":{"default":0.0,"type":"number"},"fraction_radiant":{"default":0.0,"type":"number"},"fraction_visible":{"default":0.0,"type":"number"}},"required":["name","zone_name","schedule_name"],"type":"object"}}},{"type":"function","function":{"name":"list_lights","description":"List
+      all Lights objects.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"delete_light","description":"Delete
+      a Lights object.","parameters":{"properties":{"name":{"type":"string"}},"required":["name"],"type":"object"}}},{"type":"function","function":{"name":"list_zones","description":"Read-only:
+      list zones a Lights load can be assigned to.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"list_schedules","description":"Read-only:
+      list Schedule:Compact (for schedule_name reference).","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"LightsResponse","description":"Structured
+      summary returned by the lights phase agent.","parameters":{"properties":{"lights_names":{"description":"Names
+      of all Lights objects created","items":{"type":"string"},"type":"array"},"summary":{"description":"One-line
+      summary of the lights creation result","type":"string"}},"required":["lights_names","summary"],"type":"object"}}}],"max_thinking_budget":4096}'
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate, zstd
+      connection:
+      - keep-alive
+      content-length:
+      - '7327'
+      content-type:
+      - application/json
+      host:
+      - one.chat-yu.net
+      user-agent:
+      - OpenAI/Python 2.52.0
+      x-stainless-arch:
+      - x64
+      x-stainless-async:
+      - 'false'
+      x-stainless-lang:
+      - python
+      x-stainless-os:
+      - Linux
+      x-stainless-package-version:
+      - 2.52.0
+      x-stainless-raw-response:
+      - 'true'
+      x-stainless-retry-count:
+      - '0'
+      x-stainless-runtime:
+      - CPython
+      x-stainless-runtime-version:
+      - 3.12.3
+    method: POST
+    uri: https://one.chat-yu.net/v1/chat/completions
+  response:
+    body:
+      string: !!binary |
+        KLUv/QBYLQ8AdiJnLmBn2hwwwBqGYWALP6egl8ZG2ztK1kz2Lk3iOhEx9zkSpmhD9hFmYRfPJRQE
+        OSVcAFYAWwDRfPE9Xwg7AnbxvQHBPrk9GbWvKxwKggShs0N2UvpSKDQwDYzCLAm7416m2tejfM1w
+        kmQ7urGBhfy6YpllYaEkj3sSZhkYRFkFsgviksWj4JQFBDhJrTdqZ3fvjbtocI0bEKCUvX5MUCtJ
+        jKlw43t0ld2TkNSkLGmzgx7NkDoPNI6aQvFFPUGxhAAHiu/rZ+/IHWX7esft+ebcszOU1BvsDO2c
+        LH19QrjNgVL22aOcy5QTABJm9z4YqIIFUsKDIon2KkeZQONTZaqJBnij7M0bXRFvHG7veQg4yYA3
+        EMreTJY2OvBN4+yzI0sMiNqv84xymlxgdgQ9h7OztPEN1iLjOTtPE/31hjDiFoqEA9WRs/eU7auq
+        lgUlcRy1bW+wT/i22TkrYWASuC37i4H5UpYlYZ+RD8h2epIkNTG+IqoqoqpevTkOmORAlOHizSeh
+        azkQ7bjPLeUs9RgoFJ8yZDiO2tQo9WCZChkAoAhDkK+mFp5lNSP7/r0InlNK/Rd3wfDHs3EAEfLS
+        wY4OB7lj8yybQJi2oW65ip3JZq+zMsRMBogwHOpsMiHwkIkzBQU=
+    headers:
+      alt-svc:
+      - h3=":443"; ma=86400
+      cf-cache-status:
+      - DYNAMIC
+      cf-placement:
+      - remote-ORD
+      cf-ray:
+      - a2628f8a7fe662d0-NRT
+      connection:
+      - keep-alive
+      content-encoding:
+      - zstd
+      content-type:
+      - application/json
+      date:
+      - Wed, 05 Aug 2026 03:02:07 GMT
+      nel:
+      - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
+      report-to:
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=v6d8c%2BySW5m7E%2Bnd3j%2B%2ByjSeWSuZnmreJikJXIf4Gv8npJpQa8Fz1%2FcFyi5pC5c5IZB7KolHQInpxZ3mqrmZg5DtFZOoVETC98Z3IjCI7uZOpgLMnh7%2F2uMN3n0MsJ4MXyM%3D"}]}'
+      server:
+      - cloudflare
+      strict-transport-security:
+      - max-age=31536000
+      transfer-encoding:
+      - chunked
+      via:
+      - 1.1 Caddy
+      x-new-api-version:
+      - v1.0.0-rc.21
+      x-oneapi-request-id:
+      - 202608050302027625299438268d9d6LUF2hWys
+    status:
+      code: 200
+      message: OK
+version: 1

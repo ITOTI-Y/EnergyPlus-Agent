@@ -20,7 +20,6 @@ def _err(msg: str, data=None) -> str:
 
 
 def make_hvac_tools(config: ConfigState) -> list[BaseTool]:
-    idf = config.idf
 
     @tool
     def create_thermostat(
@@ -35,6 +34,7 @@ def make_hvac_tools(config: ConfigState) -> list[BaseTool]:
             heating_setpoint_schedule_name: Existing Schedule:Compact for heating setpoints (C).
             cooling_setpoint_schedule_name: Existing Schedule:Compact for cooling setpoints (C).
         """
+        idf = config.idf
         if idf.has("HVACTemplate:Thermostat", name):
             return _err(f"Thermostat '{name}' already exists.")
         try:
@@ -64,6 +64,7 @@ def make_hvac_tools(config: ConfigState) -> list[BaseTool]:
             template_thermostat_name: Existing HVACTemplate:Thermostat name.
             system_availability_schedule_name: Optional availability Schedule:Compact.
         """
+        idf = config.idf
         existing = idf.all_of_type(HVACTemplateZoneIdealLoadsAirSystem)
         if any(obj.zone_name == zone_name for obj in existing.values()):
             return _err(f"IdealLoadsAirSystem for zone '{zone_name}' already exists.")
@@ -91,6 +92,7 @@ def make_hvac_tools(config: ConfigState) -> list[BaseTool]:
     @tool
     def list_thermostats() -> str:
         """List all thermostats."""
+        idf = config.idf
         items = [
             t.model_dump() for t in idf.all_of_type(HVACTemplateThermostat).values()
         ]
@@ -99,6 +101,7 @@ def make_hvac_tools(config: ConfigState) -> list[BaseTool]:
     @tool
     def list_ideal_loads_systems() -> str:
         """List all IdealLoadsAirSystem entries (keyed by zone_name)."""
+        idf = config.idf
         items = [
             obj.model_dump()
             for obj in idf.all_of_type(HVACTemplateZoneIdealLoadsAirSystem).values()
@@ -162,6 +165,7 @@ def make_hvac_tools(config: ConfigState) -> list[BaseTool]:
     @tool
     def delete_thermostat(name: str) -> str:
         """Delete a thermostat. Fails if referenced by an IdealLoadsSystem."""
+        idf = config.idf
         if not idf.has("HVACTemplate:Thermostat", name):
             return _err(f"Thermostat '{name}' not found.")
         refs = []
@@ -179,6 +183,7 @@ def make_hvac_tools(config: ConfigState) -> list[BaseTool]:
     @tool
     def delete_ideal_loads_system(zone_name: str) -> str:
         """Delete an IdealLoadsSystem by its zone_name."""
+        idf = config.idf
         items = idf.all_of_type(HVACTemplateZoneIdealLoadsAirSystem)
         key = next((k for k, v in items.items() if v.zone_name == zone_name), None)
         if key is None:
@@ -189,12 +194,14 @@ def make_hvac_tools(config: ConfigState) -> list[BaseTool]:
     @tool
     def list_zones() -> str:
         """Read-only: list zones an IdealLoadsAirSystem can be attached to."""
+        idf = config.idf
         items = [z.model_dump() for z in idf.all_of_type(Zone).values()]
         return _ok(f"Listed {len(items)} zones.", items)
 
     @tool
     def list_schedules() -> str:
         """Read-only: list Schedule:Compact objects (setpoint / availability references)."""
+        idf = config.idf
         items = [s.model_dump() for s in idf.all_of_type(ScheduleCompact).values()]
         return _ok(f"Listed {len(items)} schedules.", items)
 

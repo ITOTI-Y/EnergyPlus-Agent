@@ -26,7 +26,6 @@ def _err(msg: str, data=None) -> str:
 
 
 def make_schedule_tools(config: ConfigState) -> list[BaseTool]:
-    idf = config.idf
 
     @tool
     def create_schedule_type_limits(
@@ -45,6 +44,7 @@ def make_schedule_tools(config: ConfigState) -> list[BaseTool]:
             numeric_type: CONTINUOUS or DISCRETE.
             unit_type: EnergyPlus unit category (Dimensionless / Temperature / Power / ...).
         """
+        idf = config.idf
         if idf.has("ScheduleTypeLimits", name):
             return _err(f"ScheduleTypeLimits '{name}' already exists.")
         try:
@@ -115,6 +115,7 @@ def make_schedule_tools(config: ConfigState) -> list[BaseTool]:
                   },
                 ]
         """
+        idf = config.idf
         if idf.has("Schedule:Compact", name):
             return _err(f"Schedule:Compact '{name}' already exists.")
         try:
@@ -144,18 +145,21 @@ def make_schedule_tools(config: ConfigState) -> list[BaseTool]:
     @tool
     def list_schedules() -> str:
         """List all Schedule:Compact objects."""
+        idf = config.idf
         items = [s.model_dump() for s in idf.all_of_type(ScheduleCompact).values()]
         return _ok(f"Listed {len(items)} Schedule:Compact objects.", items)
 
     @tool
     def list_schedule_type_limits() -> str:
         """List all ScheduleTypeLimits objects."""
+        idf = config.idf
         items = [s.model_dump() for s in idf.all_of_type(ScheduleTypeLimits).values()]
         return _ok(f"Listed {len(items)} ScheduleTypeLimits objects.", items)
 
     @tool
     def get_schedule(name: str) -> str:
         """Read a Schedule:Compact by name."""
+        idf = config.idf
         obj = idf.get("Schedule:Compact", name)
         if obj is None:
             return _err(f"Schedule:Compact '{name}' not found.")
@@ -202,6 +206,7 @@ def make_schedule_tools(config: ConfigState) -> list[BaseTool]:
     @tool
     def delete_schedule(name: str) -> str:
         """Delete a Schedule:Compact. Fails if referenced."""
+        idf = config.idf
         if not idf.has("Schedule:Compact", name):
             return _err(f"Schedule:Compact '{name}' not found.")
         refs = []

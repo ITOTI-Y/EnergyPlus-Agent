@@ -15,7 +15,12 @@ class ZoneTool(BaseTool):
     def object_types(self) -> tuple[str, ...]:
         return ("Zone",)
 
-    def _create_model(self, data: dict[str, Any]) -> Zone:
+    def _create_model(
+        self,
+        data: dict[str, Any],
+        *,
+        existing_object_type: str | None = None,
+    ) -> Zone:
         payload = normalize_payload(data)
         payload.setdefault("direction_of_relative_north", 0.0)
         payload.setdefault("x_origin", 0.0)
