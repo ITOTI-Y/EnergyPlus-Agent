@@ -1,48 +1,96 @@
 from typing import Any
 
+from idfpy.models.constructions import (
+    Construction,
+    Material,
+    MaterialAirGap,
+    MaterialNoMass,
+    WindowMaterialSimpleGlazingSystem,
+)
+
 from src.mcp.state import ConfigState
-from src.mcp.tools.base import BaseTool
-from src.validator.data_model import MaterialSchema
+from src.mcp.tools.base import BaseTool, normalize_payload
+
+_OBJECT_TYPE_TO_MATERIAL_TYPE = {
+    "Material": "Standard",
+    "Material:NoMass": "NoMass",
+    "MaterialNoMass": "NoMass",
+    "Material:AirGap": "AirGap",
+    "MaterialAirGap": "AirGap",
+    "WindowMaterial:SimpleGlazingSystem": "Glazing",
+}
 
 
 class MaterialTool(BaseTool):
-    """Tool for managing EnergyPlus Material objects.
-
-    Handles CRUD operations for all material types (Standard, NoMass,
-    AirGap, Glazing). Materials are referenced by constructions, so
-    deletion checks for construction dependencies.
-    """
-
     def __init__(self, state: ConfigState):
         super().__init__(state, "Material")
 
     @property
-    def storage(self) -> dict[str, MaterialSchema]:
-        return {material.name: material for material in self.state.materials}
+    def object_types(self) -> tuple[str, ...]:
+        return (
+            "Material",
+            "Material:NoMass",
+            "MaterialNoMass",
+            "Material:AirGap",
+            "MaterialAirGap",
+            "WindowMaterial:SimpleGlazingSystem",
+        )
 
-    def _add_to_storage(self, instance: MaterialSchema) -> None:
-        self.state.materials.append(instance)
+    def _create_model(
+        self,
+        data: dict[str, Any],
+        *,
+        existing_object_type: str | None = None,
+    ) -> Material | MaterialNoMass | MaterialAirGap | WindowMaterialSimpleGlazingSystem:
+        payload = normalize_payload(data)
+        material_type = payload.pop("type", None)
+        if material_type is None:
+            material_type = payload.pop("material_type", None)
+        else:
+            payload.pop("material_type", None)
 
-    def _remove_from_storage(self, name: str) -> None:
-        self.state.materials = [
-            material for material in self.state.materials if material.name != name
-        ]
+        if material_type is None and existing_object_type is not None:
+            material_type = _OBJECT_TYPE_TO_MATERIAL_TYPE.get(existing_object_type)
 
-    def _update_storage(self, name: str, instance: MaterialSchema) -> None:
-        self.state.materials = [
-            material for material in self.state.materials if material.name != name
-        ]
-        self.state.materials.append(instance)
+        if material_type is None:
+            if "u_factor" in payload:
+                material_type = "Glazing"
+            elif "thermal_resistance" in payload and "roughness" in payload:
+                material_type = "NoMass"
+            elif "thermal_resistance" in payload:
+                material_type = "AirGap"
+            else:
+                material_type = "Standard"
+        if material_type == "Standard":
+            return Material(**payload)
+        if material_type == "NoMass":
+            return MaterialNoMass(**payload)
+        if material_type == "AirGap":
+            return MaterialAirGap(**payload)
+        if material_type == "Glazing":
+            return WindowMaterialSimpleGlazingSystem(**payload)
+        raise ValueError(f"Unknown material type: {material_type}")
 
-    def _validate_and_create(self, data: dict[str, Any]) -> MaterialSchema:
-        return MaterialSchema.model_validate(data)
-
-    def _get_name(self, instance: MaterialSchema) -> str:
+    def _get_name(self, instance: Any) -> str:
         return instance.name
 
     def _check_references(self, name: str) -> list[str]:
         refs = []
-        for construction in self.state.constructions:
-            if name in construction.layers:
+        layer_fields = [
+            "outside_layer",
+            "layer_2",
+            "layer_3",
+            "layer_4",
+            "layer_5",
+            "layer_6",
+            "layer_7",
+            "layer_8",
+            "layer_9",
+            "layer_10",
+        ]
+        for construction in self.state.idf.all_of_type(Construction).values():
+            if any(
+                getattr(construction, field, None) == name for field in layer_fields
+            ):
                 refs.append(f"Construction:{construction.name}")
         return refs

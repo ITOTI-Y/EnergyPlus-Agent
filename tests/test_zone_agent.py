@@ -1,3 +1,5 @@
+from idfpy.models.thermal_zones import Zone
+
 from src.agent.nodes.zone import zone_agent
 from src.agent.state import AgentState, IntakeOutput
 
@@ -25,6 +27,6 @@ def test_zone_agent_creates_two_zones():
         }
     )
     out = zone_agent(AgentState(intake_output=intake))
-    zones = out["config_state"].zones
+    zones = out["config_state"].idf.all_of_type(Zone)
     assert len(zones) == 2
-    assert {z.name for z in zones} == {"F1_Office", "F1_Corridor"}
+    assert set(zones) == {"F1_Office", "F1_Corridor"}

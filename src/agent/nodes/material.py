@@ -1,10 +1,10 @@
 from langchain_core.messages import AIMessage, HumanMessage
+from pydantic import BaseModel, Field
 
-from src.agent.llm import create_llm
-from src.agent.react import ReactState, build_react_agent
+from src.agent.llm import build_agent
 from src.agent.state import AgentState, AgentStateUpdate
 from src.agent.tools import make_material_tools
-from src.agent.trace import TraceCollector, record_phase_trace
+from src.agent.trace import TraceCollector, record_phase_trace, trace_middleware
 
 MATERIAL_SYSTEM_PROMPT = """You are a building material expert for EnergyPlus.
 Given material specifications, create all required materials.
@@ -27,27 +27,32 @@ Rules:
 """
 
 
+class MaterialResponse(BaseModel):
+    """Structured summary returned by the material phase agent."""
+
+    material_names: list[str] = Field(description="Names of all materials created")
+    summary: str = Field(description="One-line summary of the material creation result")
+
+
 def material_agent(state: AgentState) -> AgentStateUpdate:
     local = state.config_state.model_copy(deep=True)
     tools = make_material_tools(local)
     collector = TraceCollector(phase="material")
 
-    agent = build_react_agent(
-        llm=create_llm(),
+    agent = build_agent(
         tools=tools,
         system_prompt=MATERIAL_SYSTEM_PROMPT,
-        trace_collector=collector,
+        response_format=MaterialResponse,
+        middleware=[trace_middleware(collector)],
     )
 
     specs = (
         state.intake_output.material_specs if state.intake_output else state.user_input
     )
-    result = agent.invoke(ReactState(messages=[HumanMessage(content=specs)]))
+    result = agent.invoke({"messages": [HumanMessage(content=specs)]})
 
-    final = [
-        m for m in result["messages"] if isinstance(m, AIMessage) and not m.tool_calls
-    ]
-    summary = final[-1].content if final else "material done"
+    response: MaterialResponse | None = result.get("structured_response")
+    summary = response.summary if response else "material done"
 
     record_phase_trace("material", collector.export())
     return AgentStateUpdate(

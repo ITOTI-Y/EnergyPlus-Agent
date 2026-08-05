@@ -1,7 +1,8 @@
 import sqlite3
 from datetime import datetime
 
-from src.database.datatools._share import TIMESTAMP, UNSET, _UnsetType
+from src._share import UNSET, _UnsetType
+from src.database.datatools._share import TIMESTAMP
 from src.database.datatools.datadescription import (
     update_description_sizingperiod_designday,
 )
@@ -145,32 +146,32 @@ def update_sizingperiod_designday(
     day_type: str | _UnsetType = UNSET,
     wind_speed: float | _UnsetType = UNSET,
     wind_direction: float | _UnsetType = UNSET,
-    max_dry_bulb_temp: float | None | _UnsetType = UNSET,
-    daily_dry_bulb_range: float | None | _UnsetType = UNSET,
-    dry_bulb_temp_range_modifier_type: str | None | _UnsetType = UNSET,
-    dry_bulb_temp_range_modifier_day_schedule_name: str | None | _UnsetType = UNSET,
-    humidity_condition_type: str | None | _UnsetType = UNSET,
-    wetbulb_or_dewpoint_at_maximum_drybulb: float | None | _UnsetType = UNSET,
-    humidity_condition_day_schedule_name: str | None | _UnsetType = UNSET,
-    humidity_ratio_at_maximum_drybulb: float | None | _UnsetType = UNSET,
-    enthalpy_at_maximum_drybulb: float | None | _UnsetType = UNSET,
-    daily_wetbulb_temperature_range: float | None | _UnsetType = UNSET,
-    barometric_pressure: float | None | _UnsetType = UNSET,
-    rain_indicator: str | None | _UnsetType = UNSET,
-    snow_indicator: str | None | _UnsetType = UNSET,
-    daylight_saving_time_indicator: str | None | _UnsetType = UNSET,
-    solar_model_indicator: str | None | _UnsetType = UNSET,
-    beam_solar_day_schedule_name: str | None | _UnsetType = UNSET,
-    diffuse_solar_day_schedule_name: str | None | _UnsetType = UNSET,
+    max_dry_bulb_temp: float | _UnsetType | None = UNSET,
+    daily_dry_bulb_range: float | _UnsetType | None = UNSET,
+    dry_bulb_temp_range_modifier_type: str | _UnsetType | None = UNSET,
+    dry_bulb_temp_range_modifier_day_schedule_name: str | _UnsetType | None = UNSET,
+    humidity_condition_type: str | _UnsetType | None = UNSET,
+    wetbulb_or_dewpoint_at_maximum_drybulb: float | _UnsetType | None = UNSET,
+    humidity_condition_day_schedule_name: str | _UnsetType | None = UNSET,
+    humidity_ratio_at_maximum_drybulb: float | _UnsetType | None = UNSET,
+    enthalpy_at_maximum_drybulb: float | _UnsetType | None = UNSET,
+    daily_wetbulb_temperature_range: float | _UnsetType | None = UNSET,
+    barometric_pressure: float | _UnsetType | None = UNSET,
+    rain_indicator: str | _UnsetType | None = UNSET,
+    snow_indicator: str | _UnsetType | None = UNSET,
+    daylight_saving_time_indicator: str | _UnsetType | None = UNSET,
+    solar_model_indicator: str | _UnsetType | None = UNSET,
+    beam_solar_day_schedule_name: str | _UnsetType | None = UNSET,
+    diffuse_solar_day_schedule_name: str | _UnsetType | None = UNSET,
     ashrae_clear_sky_optical_depth_for_beam_irradiance_taub: float
-    | None
-    | _UnsetType = UNSET,
+    | _UnsetType
+    | None = UNSET,
     ashrae_clear_sky_optical_depth_for_diffuse_irradiance_taud: float
-    | None
-    | _UnsetType = UNSET,
-    sky_clearness: float | None | _UnsetType = UNSET,
-    maximum_number_warmup_days: int | None | _UnsetType = UNSET,
-    begin_environment_reset_mode: str | None | _UnsetType = UNSET,
+    | _UnsetType
+    | None = UNSET,
+    sky_clearness: float | _UnsetType | None = UNSET,
+    maximum_number_warmup_days: int | _UnsetType | None = UNSET,
+    begin_environment_reset_mode: str | _UnsetType | None = UNSET,
 ) -> None:
     with sqlite3.connect(db_path) as conn:
         conn.row_factory = sqlite3.Row

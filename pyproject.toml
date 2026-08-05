@@ -5,7 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "eppy>=0.5.63",
+    "idfpy>=26.1.0",
     "fastmcp>=2.14.1",
     "google-genai>=1.68.0",
     "langchain>=1.2.13",
@@ -71,4 +71,6 @@ dev = [
     "grandalf>=0.8",
     "langsmith>=0.7.23",
     "pytest>=9.0.2",
+    "pytest-cov>=7.1.0",
+    "pytest-recording>=0.13.4",
 ]

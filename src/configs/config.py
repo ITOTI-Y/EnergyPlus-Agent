@@ -52,3 +52,6 @@ class LLMConfig(BaseModel):
     api_key: str | None = Field(
         default=None, description="The API key of the LLM model"
     )
+    max_thinking_budget: int | None = Field(
+        default=None, description="The maximum number of thinking budget to use"
+    )
