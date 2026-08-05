@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from collections.abc import Callable
 from typing import Any
 
@@ -8,6 +9,24 @@ from langchain_core.messages import ToolMessage
 from langgraph.prebuilt.tool_node import ToolCallRequest
 from langgraph.types import Command
 from loguru import logger
+
+
+def _tool_success(message: ToolMessage) -> bool:
+    """Judge tool success from message status and the tools' JSON envelope.
+
+    Phase tools return `{"success": bool, "message": ..., "data": ...}`;
+    failures like duplicate creation carry `success: false` without the
+    word "error", so substring matching would misreport them.
+    """
+    if message.status == "error":
+        return False
+    try:
+        payload = json.loads(str(message.content))
+    except (TypeError, ValueError):
+        return True
+    if isinstance(payload, dict) and isinstance(payload.get("success"), bool):
+        return payload["success"]
+    return True
 
 
 class TraceCollector:
@@ -40,9 +59,8 @@ class TraceCollector:
         result = execute(request)
 
         if isinstance(result, ToolMessage):
-            content = str(result.content)
-            entry["result"] = content
-            entry["success"] = "error" not in content.lower()
+            entry["result"] = str(result.content)
+            entry["success"] = _tool_success(result)
         else:
             entry["result"] = str(result)
             entry["success"] = True

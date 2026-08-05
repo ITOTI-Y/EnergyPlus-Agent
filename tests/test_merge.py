@@ -136,6 +136,32 @@ def test_merge_idf_nameless_objects_not_duplicated():
     assert len(merged.idf.all_of_type(OutputVariable)) == 2
 
 
+def test_merge_idf_nameless_objects_from_parallel_branches_both_retained():
+    parent = ConfigState()
+    parent.idf.add(OutputVariable(key_value="*", variable_name="Zone Air Temperature"))
+    branch_a = parent.model_copy(deep=True)
+    branch_a.idf.add(
+        OutputVariable(key_value="*", variable_name="Zone Mean Radiant Temperature")
+    )
+    branch_b = parent.model_copy(deep=True)
+    branch_b.idf.add(
+        OutputVariable(
+            key_value="*", variable_name="Site Outdoor Air Drybulb Temperature"
+        )
+    )
+
+    merged = merge_config_state(merge_config_state(parent, branch_a), branch_b)
+
+    variable_names = {
+        v.variable_name for v in merged.idf.all_of_type(OutputVariable).values()
+    }
+    assert variable_names == {
+        "Zone Air Temperature",
+        "Zone Mean Radiant Temperature",
+        "Site Outdoor Air Drybulb Temperature",
+    }
+
+
 def test_merge_does_not_mutate_inputs():
     old = ConfigState()
     old.idf.add(Zone(name="Z_OLD"))

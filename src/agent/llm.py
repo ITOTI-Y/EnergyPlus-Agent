@@ -1,6 +1,7 @@
+import threading
 from collections.abc import Callable, Sequence
 from pathlib import Path
-from typing import Any
+from typing import Any, Final
 
 from dotenv import load_dotenv
 from langchain.agents import create_agent
@@ -9,10 +10,14 @@ from langchain.agents.middleware import (
     ModelRequest,
     ModelResponse,
     wrap_model_call,
+    wrap_tool_call,
 )
 from langchain.chat_models import init_chat_model
 from langchain.tools import BaseTool
 from langchain_core.language_models import BaseChatModel
+from langchain_core.messages import ToolMessage
+from langgraph.prebuilt.tool_node import ToolCallRequest
+from langgraph.types import Command
 from omegaconf import OmegaConf
 from pydantic import BaseModel
 
@@ -71,6 +76,34 @@ def _sequential_tool_calls(
     return handler(request)
 
 
+WRITE_TOOL_PREFIXES: Final = ("create_", "update_", "delete_")
+
+
+def serial_write_tools_middleware() -> AgentMiddleware:
+    """Serialize write-tool execution within one agent instance.
+
+    `_sequential_tool_calls` asks the provider for at most one tool call
+    per round, but `parallel_tool_calls` is a hint that OpenAI-compatible
+    endpoints may ignore. When a round still returns several tool calls,
+    the ToolNode executes them concurrently, so create_/update_/delete_
+    tools could race on the shared local ConfigState (e.g. the
+    check-then-add in every create tool). Read tools pass through.
+    """
+    lock = threading.Lock()
+
+    def _serialize(
+        request: ToolCallRequest,
+        handler: Callable[[ToolCallRequest], ToolMessage | Command],
+    ) -> ToolMessage | Command:
+        name = str(request.tool_call.get("name", ""))
+        if name.startswith(WRITE_TOOL_PREFIXES):
+            with lock:
+                return handler(request)
+        return handler(request)
+
+    return wrap_tool_call(name="SerialWriteTools")(_serialize)
+
+
 def build_agent(
     config: LLMConfig | None = None,
     system_prompt: str | None = None,
@@ -97,5 +130,9 @@ def build_agent(
         tools=tools or [],
         system_prompt=(system_prompt or "") + language_directive(),
         response_format=response_format,
-        middleware=[_sequential_tool_calls, *middleware],
+        middleware=[
+            _sequential_tool_calls,
+            serial_write_tools_middleware(),
+            *middleware,
+        ],
     )

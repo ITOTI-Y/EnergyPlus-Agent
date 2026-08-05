@@ -1,6 +1,11 @@
 from typing import Any, cast
 
 from idfpy.models.constructions import Construction
+from idfpy.models.schedules import (
+    ScheduleCompact,
+    ScheduleCompactDataItem,
+    ScheduleTypeLimits,
+)
 from langchain_core.messages import AIMessage, HumanMessage
 
 from src.agent.nodes._share import MAX_SELF_REPAIR_ROUNDS, invoke_with_self_repair
@@ -37,6 +42,45 @@ def test_self_repair_invokes_with_message_dict():
     assert isinstance(payload, dict)
     assert isinstance(payload["messages"][0], HumanMessage)
     assert payload["messages"][0].content == "specs"
+
+
+def test_self_repair_fixes_missing_schedule_type_limits():
+    config = ConfigState()
+    config.idf.add(
+        ScheduleCompact(
+            name="Office_Occupancy",
+            schedule_type_limits_name="Fraction",
+            data=[
+                ScheduleCompactDataItem(field="Through: 12/31"),
+                ScheduleCompactDataItem(field="For: AllDays"),
+                ScheduleCompactDataItem(field="Until: 24:00, 1.0"),
+            ],
+        )
+    )
+
+    class _RepairingAgent(_StubAgent):
+        """Creates the missing ScheduleTypeLimits when re-invoked."""
+
+        def invoke(self, payload: Any) -> dict[str, Any]:
+            if self.payloads:
+                config.idf.add(
+                    ScheduleTypeLimits(
+                        name="Fraction",
+                        lower_limit_value=0.0,
+                        upper_limit_value=1.0,
+                        numeric_type="Continuous",
+                    )
+                )
+            return super().invoke(payload)
+
+    stub = _RepairingAgent()
+
+    invoke_with_self_repair(cast(Any, stub), config, "specs", phase="schedule")
+
+    assert len(stub.payloads) == 2
+    feedback = stub.payloads[1]["messages"][-1]
+    assert isinstance(feedback, HumanMessage)
+    assert "Fraction" in feedback.content
 
 
 def test_self_repair_exhausts_rounds_on_persistent_errors():
