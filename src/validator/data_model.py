@@ -1316,9 +1316,7 @@ class ScheduleCompactSchema(BaseSchema):
             try:
                 parsed_date = parse(date)
             except Exception as e:
-                raise ValueError(
-                    f"Invalid schedule Through date '{date}': {e}"
-                ) from e
+                raise ValueError(f"Invalid schedule Through date '{date}': {e}") from e
             date_str = parsed_date.strftime("%m/%d")
             # Day-of-year for monotonicity (non-leap reference year; we only
             # compare order, so a fixed year is fine). EnergyPlus requires
@@ -1368,10 +1366,18 @@ class ScheduleCompactSchema(BaseSchema):
         # duplicate. Map each group to the concrete types it owns.
         GROUP_MEMBERS = {
             "alldays": {
-                "monday", "tuesday", "wednesday", "thursday", "friday",
-                "saturday", "sunday", "holidays",
-                "summerdesignday", "winterdesignday",
-                "customday1", "customday2",
+                "monday",
+                "tuesday",
+                "wednesday",
+                "thursday",
+                "friday",
+                "saturday",
+                "sunday",
+                "holidays",
+                "summerdesignday",
+                "winterdesignday",
+                "customday1",
+                "customday2",
             },
             "weekdays": {"monday", "tuesday", "wednesday", "thursday", "friday"},
             "weekends": {"saturday", "sunday", "holidays"},

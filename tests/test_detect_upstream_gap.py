@@ -43,7 +43,7 @@ def _material(state: ConfigState, name="M1"):
     state.idf.add(
         Material(
             name=name,
-            roughness="rough",
+            roughness="Rough",
             thickness=0.1,
             conductivity=1.0,
             density=1000.0,

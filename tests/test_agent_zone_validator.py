@@ -66,7 +66,7 @@ def test_zone_validator_rejects_zero_zones(monkeypatch):
     )
 
     assert decision == "rejected"
-    assert any("0 zones" in r for r in reasons)
+    assert any("0 zones" in r for r in reasons or [])
 
 
 def test_zone_validator_rejects_missing_named_zone(monkeypatch):
@@ -78,7 +78,7 @@ def test_zone_validator_rejects_missing_named_zone(monkeypatch):
     )
 
     assert decision == "rejected"
-    assert any("F1_Corridor" in r for r in reasons)
+    assert any("F1_Corridor" in r for r in reasons or [])
 
 
 def test_zone_validator_approves_matching_zones(monkeypatch):
@@ -102,4 +102,4 @@ def test_zone_validator_fails_closed_without_verdict(monkeypatch):
     )
 
     assert decision == "rejected"
-    assert "Validator did not issue" in reasons[0]
+    assert "Validator did not issue" in reasons[0] if reasons else False

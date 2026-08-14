@@ -8,7 +8,9 @@ zone/construction when it could simply build every surface whose upstream
 already exists.
 """
 
-from idfpy.models.thermal_zones import Zone
+from typing import Any, cast
+
+from idfpy.models import BuildingSurfaceDetailed, Zone
 from langchain_core.messages import AIMessage
 
 from src.agent.nodes._share import MAX_SELF_REPAIR_ROUNDS, invoke_with_self_repair
@@ -53,7 +55,7 @@ class _BuildsOnSecondCallAgent:
         self.local.idf.add(
             Material(
                 name="M1",
-                roughness="rough",
+                roughness="Rough",
                 thickness=0.1,
                 conductivity=1.0,
                 density=1000.0,
@@ -92,7 +94,10 @@ def test_zero_surface_output_keeps_repairing_until_budget_exhausted():
     agent = _NeverBuildsAgent()
 
     result = invoke_with_self_repair(
-        agent, local, "Create surfaces for the zones", phase="surface",
+        cast(Any, agent),
+        local,
+        "Create surfaces for the zones",
+        phase="surface",
     )
 
     assert agent.calls == MAX_SELF_REPAIR_ROUNDS + 1
@@ -108,12 +113,15 @@ def test_zero_surface_output_gets_second_chance_to_build():
     agent = _BuildsOnSecondCallAgent(local)
 
     result = invoke_with_self_repair(
-        agent, local, "Create surfaces for the zones", phase="surface",
+        cast(Any, agent),
+        local,
+        "Create surfaces for the zones",
+        phase="surface",
     )
 
     assert agent.calls == 2
     assert "hop_request" not in result
-    surfaces = local.idf.all_of_type("BuildingSurface:Detailed")
+    surfaces = local.idf.all_of_type(BuildingSurfaceDetailed)
     assert len(surfaces) == 1
 
 
@@ -125,7 +133,10 @@ def test_non_surface_phase_is_unaffected_by_zero_output_guard():
     agent = _NeverBuildsAgent()
 
     result = invoke_with_self_repair(
-        agent, local, "Create constructions", phase="construction",
+        cast(Any, agent),
+        local,
+        "Create constructions",
+        phase="construction",
     )
 
     # No errors, no gap, and the guard does not apply to construction ->
@@ -143,8 +154,11 @@ def test_zero_surface_feedback_does_not_claim_cross_ref_failure():
 
     body = _build_repair_feedback(scoped=[], gap=None, surface_empty=True)
 
-    assert "zero output" in body or "produced zero" in body.lower() or \
-        "not created ANY BuildingSurface" in body
+    assert (
+        "zero output" in body
+        or "produced zero" in body.lower()
+        or "not created ANY BuildingSurface" in body
+    )
     # Must NOT falsely claim a cross-ref or upstream failure.
     assert "Cross-reference validation failed" not in body
     assert "missing upstream reference" not in body

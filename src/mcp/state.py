@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Any
+from typing import Any, SupportsIndex
 
 import yaml
 from idfpy import IDF, RefError
@@ -256,7 +256,7 @@ class ConfigState(BaseSchema):
         if self._idf is None:
             self._set_idf_private(IDF())
 
-    def _set_idf_private(self, idf: "IDF") -> None:
+    def _set_idf_private(self, idf: IDF) -> None:
         """Assign ``_idf`` into ``__pydantic_private__`` directly.
 
         BaseSchema enables ``validate_assignment=True`` AND declares
@@ -280,14 +280,25 @@ class ConfigState(BaseSchema):
         if idf is None:
             return False
         try:
-            return any(idf.all_of_type(t) for t in (
-                "Zone", "Material", "Material:NoMass", "Material:AirGap",
-                "WindowMaterial:SimpleGlazingSystem", "Construction",
-                "BuildingSurface:Detailed", "FenestrationSurface:Detailed",
-                "Schedule:Compact", "ScheduleTypeLimits",
-                "HVACTemplate:Thermostat", "HVACTemplate:Zone:IdealLoadsAirSystem",
-                "People", "Lights",
-            ))
+            return any(
+                idf.all_of_type(t)
+                for t in (
+                    "Zone",
+                    "Material",
+                    "Material:NoMass",
+                    "Material:AirGap",
+                    "WindowMaterial:SimpleGlazingSystem",
+                    "Construction",
+                    "BuildingSurface:Detailed",
+                    "FenestrationSurface:Detailed",
+                    "Schedule:Compact",
+                    "ScheduleTypeLimits",
+                    "HVACTemplate:Thermostat",
+                    "HVACTemplate:Zone:IdealLoadsAirSystem",
+                    "People",
+                    "Lights",
+                )
+            )
         except Exception:
             return False
 
@@ -329,7 +340,7 @@ class ConfigState(BaseSchema):
         except Exception:
             return False
 
-    def __reduce_ex__(self, protocol: int = 2):
+    def __reduce_ex__(self, protocol: SupportsIndex = 2):
         """Pickle protocol: serialize IDF as text to avoid weakref.
 
         idfpy's IDF holds weakref internals that break pickle. We intercept
@@ -347,7 +358,7 @@ class ConfigState(BaseSchema):
                 os.unlink(tf.name)
         return (_reconstruct_config_state, (idf_text, self.model_dump(by_alias=True)))
 
-    def clone(self) -> "ConfigState":
+    def clone(self) -> ConfigState:
         """Deep copy that produces a pickle-safe ConfigState.
 
         idfpy IDF objects loaded via ``IDF.load`` hold weakref internals that
@@ -361,9 +372,7 @@ class ConfigState(BaseSchema):
         instead of ``model_copy(deep=True)`` wherever a ConfigState is mutated
         in-place (phase agents, simulate, revise).
         """
-        new = self.__class__(
-            **self.model_dump(by_alias=True, exclude_defaults=False)
-        )
+        new = self.__class__(**self.model_dump(by_alias=True, exclude_defaults=False))
         # seed_idf_text is excluded=True so model_dump drops it; carry it
         # manually so phase-node clones can still recover _idf from it.
         new.seed_idf_text = self.seed_idf_text
@@ -373,11 +382,11 @@ class ConfigState(BaseSchema):
             new._set_idf_private(IDF())
         return new
 
-
     @property
     def idf(self) -> IDF:
         if self._idf is None:
             self._set_idf_private(IDF())
+        assert self._idf is not None
         return self._idf
 
     def new_idf(self) -> None:
@@ -1392,11 +1401,12 @@ def _flatten_schedule_data(data: Any) -> list[str]:
     return result
 
 
-def _reconstruct_config_state(idf_text: str, fields: dict) -> "ConfigState":
+def _reconstruct_config_state(idf_text: str, fields: dict) -> ConfigState:
     """Rebuild a ConfigState from pickled IDF text + field dict."""
     cs = ConfigState(**fields)
     if idf_text:
         import tempfile
+
         with tempfile.NamedTemporaryFile(mode="w", suffix=".idf", delete=False) as tf:
             tf.write(idf_text)
             loaded = IDF.load(Path(tf.name))

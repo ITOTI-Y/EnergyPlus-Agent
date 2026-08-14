@@ -1,3 +1,4 @@
+import contextlib
 import shutil
 import subprocess
 import tempfile
@@ -8,13 +9,6 @@ from idfpy import IDF
 
 from src.utils.logging import get_logger
 
-# Wall-clock cap on a single EnergyPlus run. EnergyPlus normally finishes a
-# year-long run in seconds-to-minutes, but a diverging/ill-conditioned IDF
-# can hang the solver indefinitely. Without a timeout the process.wait()
-# blocks forever, freezing the whole simulate->revise retry loop (up to 11
-# rounds) and leaving a zombie process. 1800s (30 min) is generous enough
-# for large buildings yet still bounds the worst-case hang. Override per
-# call via run_idf(timeout=...).
 DEFAULT_SIMULATION_TIMEOUT_S: int = 1800
 
 
@@ -119,18 +113,10 @@ class EnergyPlusRunner:
             try:
                 output_lines = []
 
-                # Block until the process exits, bounded by `timeout` so a
-                # hung solver can't freeze the retry loop forever. Raises
-                # TimeoutExpired (caught below) if it overruns.
-                if timeout is not None:
-                    process.wait(timeout=timeout)
-                else:
-                    process.wait()
+                stdout, _ = process.communicate(timeout=timeout)
 
-                # Process has exited — drain all buffered stdout (the pipe
-                # yields until EOF, reached now that the child is gone).
-                if process.stdout is not None:
-                    for line in process.stdout:
+                if stdout:
+                    for line in stdout.splitlines():
                         line = line.rstrip()
                         self.logger.info("[EnergyPlus] {}", line)
                         output_lines.append(line)
@@ -178,14 +164,8 @@ class EnergyPlusRunner:
         """
         if process.poll() is None:
             process.kill()
-            try:
+            with contextlib.suppress(subprocess.TimeoutExpired):
                 process.wait(timeout=10)
-            except subprocess.TimeoutExpired:
-                # SIGKILL didn't reap within 10s — nothing more we can do;
-                # log and leave it to the OS reaper.
-                pass
         if process.stdout is not None:
-            try:
+            with contextlib.suppress(Exception):
                 process.stdout.close()
-            except Exception:
-                pass

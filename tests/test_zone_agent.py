@@ -2,7 +2,6 @@ from idfpy.models.thermal_zones import Zone
 
 from src.agent.nodes.zone import zone_agent
 from src.agent.state import AgentState, IntakeOutput
-from src.mcp.state import _idf_values
 
 
 def test_zone_agent_creates_two_zones():

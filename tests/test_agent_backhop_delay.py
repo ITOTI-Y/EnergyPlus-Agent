@@ -18,12 +18,14 @@ the LLM had already fixed the reference. The fix re-derives the gap from
 the LIVE IDF via detect_upstream_gap_from_state.
 """
 
+from typing import Any, cast
+
+from idfpy.models.constructions import Construction, Material
 from idfpy.models.thermal_zones import (
     BuildingSurfaceDetailed,
     BuildingSurfaceDetailedVerticesItem,
     Zone,
 )
-from idfpy.models.constructions import Construction, Material
 from langchain_core.messages import AIMessage, ToolMessage
 
 from src.agent.nodes._share import MAX_SELF_REPAIR_ROUNDS, invoke_with_self_repair
@@ -66,7 +68,7 @@ class _PersistentGapAgent:
     def __init__(self):
         self.calls = 0
 
-    def invoke(self, state):
+    def invoke(self, state, config=None):
         self.calls += 1
         return _missing_zone_tool_result()
 
@@ -86,20 +88,14 @@ class _SelfHealingAgent:
         self.calls = 0
         self.local = local
 
-    def invoke(self, state):
+    def invoke(self, state, config=None):
         self.calls += 1
         if self.calls == 1:
             return _missing_zone_tool_result()
-        # Round 2: the LLM "heals" by switching to an existing zone name.
-        # Seed that existing zone (idempotent — invoke may be called again
-        # on later repair rounds) and rewrite the surface's reference so
-        # validate_references() no longer reports a dangling zone.
-        existing = {
-            getattr(z, "name", "") for z in self.local.idf.all_of_type("Zone").values()
-        }
+        existing = {z.name for z in self.local.idf.all_of_type(Zone).values()}
         if "Real_Zone" not in existing:
             self.local.idf.add(Zone(name="Real_Zone"))
-        for surf in self.local.idf.all_of_type("BuildingSurface:Detailed").values():
+        for surf in self.local.idf.all_of_type(BuildingSurfaceDetailed).values():
             surf.zone_name = "Real_Zone"
         return {"messages": [AIMessage(content="switched to existing zone name")]}
 
@@ -111,7 +107,7 @@ def _surface_with_dangling_zone(local: ConfigState, zone_name: str = "Missing_Zo
     local.idf.add(
         Material(
             name="M1",
-            roughness="rough",
+            roughness="Rough",
             thickness=0.1,
             conductivity=1.0,
             density=1000.0,
@@ -141,7 +137,10 @@ def test_persistent_gap_surfaces_backhop_after_repair_budget():
     agent = _PersistentGapAgent()
 
     result = invoke_with_self_repair(
-        agent, local, "Create surfaces for Missing_Zone", phase="surface",
+        cast(Any, agent),
+        local,
+        "Create surfaces for Missing_Zone",
+        phase="surface",
     )
 
     # MAX_SELF_REPAIR_ROUNDS + 1 invokes, then hop_request.
@@ -159,7 +158,10 @@ def test_self_healed_gap_does_not_backhop():
     agent = _SelfHealingAgent(local)
 
     result = invoke_with_self_repair(
-        agent, local, "Create surfaces for Missing_Zone", phase="surface",
+        cast(Any, agent),
+        local,
+        "Create surfaces for Missing_Zone",
+        phase="surface",
     )
 
     assert agent.calls == 2  # one failed, one healed

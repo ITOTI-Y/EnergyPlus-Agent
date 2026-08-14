@@ -159,58 +159,6 @@ def _merge_hvac(old: HVACSchema, new: HVACSchema) -> HVACSchema:
     )
 
 
-def _idf_has_objects(cs: ConfigState) -> bool:
-    """True if the ConfigState's backing IDF contains any typed objects.
-
-    The Pydantic legacy fields can be empty even when ``_idf`` holds the
-    real model (e.g. after ``load_idf``), so this is the reliable way to
-    tell whether *cs* actually carries a model.
-    """
-    idf = cs._idf
-    if idf is None:
-        return False
-    try:
-        return any(idf.all_of_type(t) for t in (
-            "Zone", "Material", "Material:NoMass", "Material:AirGap",
-            "WindowMaterial:SimpleGlazingSystem", "Construction",
-            "BuildingSurface:Detailed", "FenestrationSurface:Detailed",
-            "Schedule:Compact", "ScheduleTypeLimits",
-            "HVACTemplate:Thermostat", "HVACTemplate:Zone:IdealLoadsAirSystem",
-            "People", "Lights",
-        ))
-    except Exception:
-        return False
-
-
-def _merge_idf(old: ConfigState, new: ConfigState) -> Any:
-    """Merge two ConfigStates' backing IDFs by object name (new wins).
-
-    Returns a fresh idfpy IDF whose objects are the name-keyed union of
-    ``old._idf`` and ``new._idf``. Used by :func:`merge_config_state` so
-    that the IDF — the real source of truth, especially on revision
-    turns where the model was loaded from a saved file — survives the
-    parallel-node merge instead of being reset to an empty IDF by
-    ``model_post_init``.
-
-    Returns ``None`` if neither side has an IDF (falls back to the
-    default empty IDF created by ConfigState's constructor).
-    """
-    from idfpy import IDF
-
-    old_d = old._idf.to_dict() if _idf_has_objects(old) else {}
-    new_d = new._idf.to_dict() if _idf_has_objects(new) else {}
-    if not old_d and not new_d:
-        return None
-
-    merged: dict[str, dict] = {}
-    for obj_type in set(old_d) | set(new_d):
-        # Each value is {name: fields}; new wins on name conflict.
-        bucket = dict(old_d.get(obj_type, {}))
-        bucket.update(new_d.get(obj_type, {}))
-        merged[obj_type] = bucket
-    return IDF.from_dict(merged)
-
-
 _NAMED_LIST_FIELDS: Final = (
     "zones",
     "materials",

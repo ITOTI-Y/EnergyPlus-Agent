@@ -153,16 +153,9 @@ def intake_node(state: AgentState) -> AgentStateUpdate:
         HumanMessage(content=cast("list[str | dict[str, Any]]", content_parts)),
     ]
 
-    # Retry on empty LLM replies. Some gateways transiently return an
-    # AIMessage with no content and no tool_calls (parsed=None,
-    # parsing_error=None); a short backoff retry usually recovers.
-    result: dict[str, Any] = {}
     parsed: IntakeOutput | None = None
     for attempt in range(INTAKE_MAX_EMPTY_RETRIES + 1):
-        result = cast(
-            dict[str, Any],
-            llm.invoke(messages),
-        )
+        result = cast(dict[str, Any], llm.invoke(messages))
         parsed = result.get("parsed")
         if parsed is not None:
             break
@@ -194,6 +187,7 @@ def intake_node(state: AgentState) -> AgentStateUpdate:
         )
         time.sleep(sleep_s)
 
+    assert isinstance(parsed, IntakeOutput)
     config = state.config_state.clone()
     config.building = parsed.building
     config.site_location = parsed.site_location
