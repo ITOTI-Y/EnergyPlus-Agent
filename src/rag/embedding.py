@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from enum import Enum
+from typing import cast
 
 from src.configs.config import EmbeddingConfig
 from src.utils.logging import get_logger
@@ -53,7 +54,7 @@ class GeminiEmbeddingModel(IEmbeddingModel):
         try:
             result = self.client.models.embed_content(
                 model=model_name,
-                contents=texts,
+                contents=cast(types.ContentListUnion, texts),
                 config=types.EmbedContentConfig(
                     task_type=task_type_str,
                     output_dimensionality=dimension,
@@ -100,7 +101,7 @@ class GeminiEmbeddingModel(IEmbeddingModel):
         try:
             result = await self.client.aio.models.embed_content(
                 model=model_name,
-                contents=texts,
+                contents=cast(types.ContentListUnion, texts),
                 config=types.EmbedContentConfig(
                     task_type=task_type_str,
                     output_dimensionality=dimension,

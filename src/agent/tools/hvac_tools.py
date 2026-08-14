@@ -109,6 +109,64 @@ def make_hvac_tools(config: ConfigState) -> list[BaseTool]:
         return _ok(f"Listed {len(items)} IdealLoadsAirSystem entries.", items)
 
     @tool
+    def update_thermostat(
+        name: str,
+        heating_setpoint_schedule_name: str | None = None,
+        cooling_setpoint_schedule_name: str | None = None,
+    ) -> str:
+        """Update an existing thermostat's setpoint schedules.
+
+        Args:
+            name: Existing thermostat name.
+            heating_setpoint_schedule_name: New heating Schedule:Compact name.
+            cooling_setpoint_schedule_name: New cooling Schedule:Compact name.
+        """
+        idf = config.idf
+        obj = idf.get("HVACTemplate:Thermostat", name)
+        if obj is None:
+            return _err(f"Thermostat '{name}' not found.")
+        try:
+            if heating_setpoint_schedule_name is not None:
+                obj.heating_setpoint_schedule_name = heating_setpoint_schedule_name
+            if cooling_setpoint_schedule_name is not None:
+                obj.cooling_setpoint_schedule_name = cooling_setpoint_schedule_name
+            return _ok(f"Thermostat '{name}' updated successfully.", obj.model_dump())
+        except Exception as e:
+            return _err(f"Error updating thermostat '{name}': {e}")
+
+    @tool
+    def update_ideal_loads_system(
+        zone_name: str,
+        template_thermostat_name: str | None = None,
+        system_availability_schedule_name: str | None = None,
+    ) -> str:
+        """Update an existing IdealLoadsAirSystem by its zone_name.
+
+        Args:
+            zone_name: Zone whose IdealLoadsAirSystem to update (identity key).
+            template_thermostat_name: New thermostat name.
+            system_availability_schedule_name: New availability schedule.
+        """
+        idf = config.idf
+        items = idf.all_of_type(HVACTemplateZoneIdealLoadsAirSystem)
+        obj = next((v for v in items.values() if v.zone_name == zone_name), None)
+        if obj is None:
+            return _err(f"IdealLoadsAirSystem for zone '{zone_name}' not found.")
+        try:
+            if template_thermostat_name is not None:
+                obj.template_thermostat_name = template_thermostat_name
+            if system_availability_schedule_name is not None:
+                obj.system_availability_schedule_name = (
+                    system_availability_schedule_name
+                )
+            return _ok(
+                f"IdealLoadsAirSystem for zone '{zone_name}' updated successfully.",
+                obj.model_dump(),
+            )
+        except Exception as e:
+            return _err(f"Error updating IdealLoadsSystem '{zone_name}': {e}")
+
+    @tool
     def delete_thermostat(name: str) -> str:
         """Delete a thermostat. Fails if referenced by an IdealLoadsSystem."""
         idf = config.idf
@@ -156,6 +214,8 @@ def make_hvac_tools(config: ConfigState) -> list[BaseTool]:
         create_ideal_loads_system,
         list_thermostats,
         list_ideal_loads_systems,
+        update_thermostat,
+        update_ideal_loads_system,
         delete_thermostat,
         delete_ideal_loads_system,
         list_zones,

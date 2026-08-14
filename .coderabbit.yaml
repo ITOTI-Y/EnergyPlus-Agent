@@ -1,0 +1,8 @@
+reviews:
+  path_filters:
+    - "!**/*.lock"
+    - "!uv.lock"
+    - "!**/*.idf"
+    - "!**/*.epw"
+    - "!tests/fixtures/**"
+    - "!docs/**"

@@ -138,6 +138,7 @@ def test_construction_agent_creates_construction():
     assert "ExtWall_Simple" in constructions
     assert constructions["ExtWall_Simple"].outside_layer == "Brick_100mm"
     assert str(out["messages"][0].content).startswith("[construction]")
+    assert out["upstream_request"] == {}
 
 
 @pytest.mark.vcr
@@ -179,6 +180,7 @@ def test_surface_agent_creates_surface():
     assert "F1_Office_Floor" in surfaces
     assert surfaces["F1_Office_Floor"].zone_name == "F1_Office"
     assert str(out["messages"][0].content).startswith("[surface]")
+    assert out["upstream_request"] == {}
 
 
 @pytest.mark.vcr
@@ -209,6 +211,7 @@ def test_fenestration_agent_creates_window():
         "F1_Office_South_Wall"
     )
     assert str(out["messages"][0].content).startswith("[fenestration]")
+    assert out["upstream_request"] == {}
 
 
 @pytest.mark.vcr

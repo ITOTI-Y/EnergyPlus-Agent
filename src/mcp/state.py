@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
-from typing import Any
+from typing import Any, SupportsIndex
 
 import yaml
 from idfpy import IDF, RefError
@@ -234,20 +235,162 @@ class ConfigState(BaseSchema):
         default_factory=OutputControlTableStyleSchema, alias="OutputControl:Table:Style"
     )
 
+    seed_idf_text: str = Field(default="", repr=False)
+    """Serialized IDF text carried inside ConfigState for revision turns.
+
+    LangGraph's START-boundary input coercion strips ConfigState's
+    PrivateAttr ``_idf`` (the loaded seed model) before any node runs.
+    This declared field survives that coercion, and
+    :func:`merge_config_state` rebuilds ``_idf`` from it when the merged
+    state's ``_idf`` is otherwise empty. This is the authoritative
+    recovery path for revision-turn seed models.
+
+    Note: must NOT use ``exclude=True`` — that would make model_dump drop
+    it, and LangGraph's Pydantic-based checkpoint serialization would
+    then strip it just like _idf.
+    """
+
     _idf: IDF | None = PrivateAttr(default=None)
 
     def model_post_init(self, __context: Any) -> None:
         if self._idf is None:
-            self._idf = IDF()
+            self._set_idf_private(IDF())
+
+    def _set_idf_private(self, idf: IDF) -> None:
+        """Assign ``_idf`` into ``__pydantic_private__`` directly.
+
+        BaseSchema enables ``validate_assignment=True`` AND declares
+        ``_idf`` as a class-level annotation, so a plain ``self._idf = ...``
+        goes through Pydantic's assignment handler and silently fails to
+        store the value. ``object.__setattr__`` would store it in
+        ``__dict__`` instead of ``__pydantic_private__``, breaking
+        pickling (Pydantic's ``__reduce_ex__`` only serializes
+        ``__pydantic_private__``). Writing the PrivateAttr dict directly
+        satisfies both constraints.
+        """
+        priv = self.__pydantic_private__
+        if priv is None:
+            priv = {}
+            object.__setattr__(self, "__pydantic_private__", priv)
+        priv["_idf"] = idf
+
+    def _has_idf_objects(self) -> bool:
+        """True if the backing IDF contains any typed model objects."""
+        idf = self._idf
+        if idf is None:
+            return False
+        try:
+            return any(
+                idf.all_of_type(t)
+                for t in (
+                    "Zone",
+                    "Material",
+                    "Material:NoMass",
+                    "Material:AirGap",
+                    "WindowMaterial:SimpleGlazingSystem",
+                    "Construction",
+                    "BuildingSurface:Detailed",
+                    "FenestrationSurface:Detailed",
+                    "Schedule:Compact",
+                    "ScheduleTypeLimits",
+                    "HVACTemplate:Thermostat",
+                    "HVACTemplate:Zone:IdealLoadsAirSystem",
+                    "People",
+                    "Lights",
+                )
+            )
+        except Exception:
+            return False
+
+    def recover_idf_from_seed(self) -> bool:
+        """Rebuild ``_idf`` from ``seed_idf_text`` if it's been stripped.
+
+        LangGraph's input coercion at the graph START (and at each
+        checkpoint write) strips the PrivateAttr ``_idf`` from
+        ConfigState. On revision turns the seed model is carried as the
+        declared ``seed_idf_text`` field (which survives coercion), and
+        this method rebuilds ``_idf`` from it. Returns True if recovery
+        happened. Safe to call at the top of every phase node — no-op
+        when ``_idf`` already has objects or no seed text is present.
+
+        Note: we assign via ``__pydantic_private__`` directly because
+        ``BaseSchema`` enables ``validate_assignment=True`` AND declares
+        ``_idf`` as a class-level annotation. A plain ``self._idf = ...``
+        goes through Pydantic's assignment handler and silently fails to
+        store the value, while ``object.__setattr__`` stores it in
+        ``__dict__`` (not ``__pydantic_private__``), which breaks
+        pickling because Pydantic's ``__reduce_ex__`` only knows about
+        ``__pydantic_private__``. Writing the PrivateAttr dict directly
+        satisfies both constraints.
+        """
+        if self._has_idf_objects() or not self.seed_idf_text:
+            return False
+        import tempfile
+
+        try:
+            with tempfile.NamedTemporaryFile(
+                mode="w", suffix=".idf", delete=False
+            ) as tf:
+                tf.write(self.seed_idf_text)
+                loaded = IDF.load(Path(tf.name))
+                Path(tf.name).unlink()
+                new_idf = IDF.from_dict(loaded.to_dict())
+            self._set_idf_private(new_idf)
+            return True
+        except Exception:
+            return False
+
+    def __reduce_ex__(self, protocol: SupportsIndex = 2):
+        """Pickle protocol: serialize IDF as text to avoid weakref.
+
+        idfpy's IDF holds weakref internals that break pickle. We intercept
+        pickling: capture IDF as text + model_dump, rebuild via IDF.from_dict
+        on unpickle. This makes ConfigState embeddable in AgentState/dict for
+        the LangGraph checkpointer.
+        """
+        import tempfile
+
+        idf_text = ""
+        if self._idf is not None:
+            with tempfile.NamedTemporaryFile(suffix=".idf", delete=False) as tf:
+                self._idf.save(Path(tf.name))
+                idf_text = Path(tf.name).read_text(encoding="utf-8")
+                os.unlink(tf.name)
+        return (_reconstruct_config_state, (idf_text, self.model_dump(by_alias=True)))
+
+    def clone(self) -> ConfigState:
+        """Deep copy that produces a pickle-safe ConfigState.
+
+        idfpy IDF objects loaded via ``IDF.load`` hold weakref internals that
+        break ``pickle`` / ``model_copy(deep=True)`` / ``copy.deepcopy`` —
+        which crashes LangGraph's InMemorySaver checkpointer on revision turns
+        (where config_state is rebuilt from a saved IDF).
+
+        This method copies all Pydantic fields normally (nested schemas keep
+        their types) and rebuilds the IDF via ``IDF().from_dict(...)``, which
+        produces a fresh, weakref-free IDF that pickles cleanly. Use ``clone()``
+        instead of ``model_copy(deep=True)`` wherever a ConfigState is mutated
+        in-place (phase agents, simulate, revise).
+        """
+        new = self.__class__(**self.model_dump(by_alias=True, exclude_defaults=False))
+        # seed_idf_text is excluded=True so model_dump drops it; carry it
+        # manually so phase-node clones can still recover _idf from it.
+        new.seed_idf_text = self.seed_idf_text
+        if self._idf is not None:
+            new._set_idf_private(IDF.from_dict(self._idf.to_dict()))
+        else:
+            new._set_idf_private(IDF())
+        return new
 
     @property
     def idf(self) -> IDF:
         if self._idf is None:
-            self._idf = IDF()
+            self._set_idf_private(IDF())
+        assert self._idf is not None
         return self._idf
 
     def new_idf(self) -> None:
-        self._idf = IDF()
+        self._set_idf_private(IDF())
 
     def attach_idf(self, idf: IDF) -> None:
         self._idf = idf
@@ -346,7 +489,11 @@ class ConfigState(BaseSchema):
         return path
 
     def load_idf(self, input_path: str | Path) -> None:
-        self._idf = IDF.load(Path(input_path))
+        # Rebuild via IDF().from_dict to avoid weakref internals that
+        # IDF.load introduces — those break pickle / deepcopy and crash the
+        # LangGraph checkpointer on revision turns.
+        loaded = IDF.load(Path(input_path))
+        self._set_idf_private(IDF.from_dict(loaded.to_dict()))
 
     @classmethod
     def load_yaml(cls, input_path: str | Path) -> ConfigState:
@@ -402,7 +549,7 @@ class ConfigState(BaseSchema):
         self.output_variable = []
 
     def update_from(self, other: ConfigState) -> None:
-        self._idf = other.idf
+        self._set_idf_private(other.idf)
         for field_name in self.model_fields:
             setattr(self, field_name, getattr(other, field_name))
 
@@ -1252,3 +1399,19 @@ def _flatten_schedule_data(data: Any) -> list[str]:
                 if time is not None and value is not None:
                     result.append(f"Until: {time}, {value}")
     return result
+
+
+def _reconstruct_config_state(idf_text: str, fields: dict) -> ConfigState:
+    """Rebuild a ConfigState from pickled IDF text + field dict."""
+    cs = ConfigState(**fields)
+    if idf_text:
+        import tempfile
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".idf", delete=False) as tf:
+            tf.write(idf_text)
+            loaded = IDF.load(Path(tf.name))
+            cs._set_idf_private(IDF.from_dict(loaded.to_dict()))
+            os.unlink(tf.name)
+    else:
+        cs._set_idf_private(IDF())
+    return cs

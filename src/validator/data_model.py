@@ -35,14 +35,18 @@ class BaseSchema(BaseModel):
         extra="allow",  # 允许额外字段
     )
 
-    _idf: IDF | None = None
+    _global_idf: IDF | None = None
+    """Class-level global IDF used for IDD/schema lookups (set via
+    set_idf). Kept distinct from ConfigState's instance-level ``_idf``
+    PrivateAttr to avoid a name clash that breaks attribute resolution
+    under validate_assignment."""
 
     @classmethod
     def set_idf(cls, idf_path: Path | None = None) -> None:
         if idf_path:
-            cls._idf = IDF.load(idf_path)
+            cls._global_idf = IDF.load(idf_path)
         else:
-            cls._idf = IDF()
+            cls._global_idf = IDF()
 
     @staticmethod
     def _create_blank_idf() -> IDF:
@@ -76,11 +80,11 @@ class BaseSchema(BaseModel):
 
     @classmethod
     def get_idf(cls) -> IDF:
-        if cls._idf is None:
+        if cls._global_idf is None:
             raise ValueError(
                 "IDF is not set. Please set the IDF using BaseSchema.set_idf."
             )
-        return cls._idf
+        return cls._global_idf
 
 
 class BuildingSchema(BaseSchema):
@@ -1306,13 +1310,30 @@ class ScheduleCompactSchema(BaseSchema):
     @classmethod
     def _validate_through(cls, data: list) -> list[str]:
         result = []
+        prev_doy = -1
         for i, item in enumerate(data):
             date = item["Through"]
-            date = parse(date).strftime("%m/%d")
+            try:
+                parsed_date = parse(date)
+            except Exception as e:
+                raise ValueError(f"Invalid schedule Through date '{date}': {e}") from e
+            date_str = parsed_date.strftime("%m/%d")
+            # Day-of-year for monotonicity (non-leap reference year; we only
+            # compare order, so a fixed year is fine). EnergyPlus requires
+            # Through dates to advance strictly; equal/regressing dates make
+            # the period boundaries ambiguous.
+            doy = parsed_date.timetuple().tm_yday
+            if doy <= prev_doy:
+                raise ValueError(
+                    f"Schedule Through dates must be strictly increasing, but "
+                    f"'Through: {date_str}' (block {i}) is not later than the "
+                    f"previous block ({doy} <= {prev_doy})."
+                )
+            prev_doy = doy
             day_data = cls._validate_for(item["Days"])
-            if i == len(data) - 1 and date != "12/31":
+            if i == len(data) - 1 and date_str != "12/31":
                 raise ValueError("Schedule data must end with Through: 12/31")
-            result.append(f"Through: {date}")
+            result.append(f"Through: {date_str}")
             result.extend(day_data)
         return result
 
@@ -1336,27 +1357,107 @@ class ScheduleCompactSchema(BaseSchema):
             "customday2",
             "allotherdays",
         }
+        # Group day-types that imply their members. EnergyPlus raises a
+        # Fatal "Duplicate assignment attempted in for days field" when the
+        # SAME day-type is assigned twice within one Through: block — and
+        # the group types (AllDays / Weekdays / Weekends / Holidays) each
+        # imply their members, so listing a group AND one of its members
+        # (e.g. "For: AllDays" followed by "For: SummerDesignDay") is a
+        # duplicate. Map each group to the concrete types it owns.
+        GROUP_MEMBERS = {
+            "alldays": {
+                "monday",
+                "tuesday",
+                "wednesday",
+                "thursday",
+                "friday",
+                "saturday",
+                "sunday",
+                "holidays",
+                "summerdesignday",
+                "winterdesignday",
+                "customday1",
+                "customday2",
+            },
+            "weekdays": {"monday", "tuesday", "wednesday", "thursday", "friday"},
+            "weekends": {"saturday", "sunday", "holidays"},
+        }
         result = []
+        seen: set[str] = set()  # concrete day-types already claimed
         for _, item in enumerate(data):
             day_type = item["For"]
-            if day_type.lower() not in VALID_DAY_TYPES:
+            dt = day_type.lower()
+            if dt not in VALID_DAY_TYPES:
                 raise ValueError(f"Invalid day type: {day_type}")
+            # Resolve this declaration to the concrete types it claims.
+            claimed = GROUP_MEMBERS.get(dt, {dt})
+            overlap = seen & claimed
+            if overlap:
+                overlap_str = ", ".join(sorted(overlap))
+                raise ValueError(
+                    f"Duplicate schedule day-type assignment in one "
+                    f"Through: block: 'For: {day_type}' re-assigns "
+                    f"{overlap_str}. EnergyPlus rejects this with a Fatal "
+                    f"'Duplicate assignment attempted in for days field'. "
+                    f"Use mutually-exclusive day-types (e.g. 'AllDays' alone, "
+                    f"or 'Weekdays'/'Weekends'/'AllOtherDays')."
+                )
+            seen |= claimed
             time_data = cls._validate_until(item["Times"])
             result.append(f"For: {day_type}")
             result.extend(time_data)
         return result
 
     @classmethod
+    def _time_to_minutes(cls, time: str) -> int:
+        """Convert an "HH:MM" schedule time to minutes-of-day (0..1440).
+
+        EnergyPlus allows "24:00" as the day-end marker (== 1440), which
+        dateutil's parser rejects, so we handle it explicitly. Raises
+        ValueError on anything that isn't a valid HH:MM in 00:00..24:00.
+        """
+        s = str(time).strip()
+        # Accept "24:00" (and "24:00:00") as the canonical day-end.
+        if s.startswith("24:") or s == "24":
+            return 1440
+        try:
+            dt = parse(s)
+        except Exception as e:  # dateutil raises ParserError for bad input
+            raise ValueError(f"Invalid schedule time '{time}': {e}") from e
+        minutes = dt.hour * 60 + dt.minute
+        if dt.second or dt.microsecond:
+            raise ValueError(
+                f"Schedule time '{time}' must be in whole minutes (HH:MM), "
+                f"seconds are not allowed in a Schedule:Compact."
+            )
+        return minutes
+
+    @classmethod
     def _validate_until(cls, data: list) -> list[str]:
         result = []
+        prev_minutes = -1
         for i, item in enumerate(data):
             time = item["Until"]["Time"]
             value = float(item["Until"]["Value"])
-            if i == len(data) - 1:
-                if time != "24:00":
-                    raise ValueError(f"Last time entry must be 24:00, but got {time}")
+            minutes = cls._time_to_minutes(time)
+            is_last = i == len(data) - 1
+            # Each "Until" must be strictly later than the previous one —
+            # EnergyPlus rejects non-increasing/flat time series, and a
+            # duplicate time would make the profile ambiguous.
+            if minutes <= prev_minutes:
+                raise ValueError(
+                    f"Schedule times must be strictly increasing, but "
+                    f"'Until: {time}' (at index {i}) is not later than the "
+                    f"previous entry ({minutes} <= {prev_minutes} minutes)."
+                )
+            if is_last and minutes != 1440:
+                raise ValueError(f"Last time entry must be 24:00, but got {time}")
+            prev_minutes = minutes
+            # Normalize the displayed time to HH:MM (24:00 stays 24:00).
+            if minutes == 1440:
+                time = "24:00"
             else:
-                time = parse(time).strftime("%H:%M")
+                time = f"{minutes // 60:02d}:{minutes % 60:02d}"
             result.append(f"Until: {time}, {value}")
         return result
 

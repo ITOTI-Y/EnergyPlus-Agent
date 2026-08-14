@@ -1,3 +1,4 @@
+import contextlib
 import shutil
 import subprocess
 import tempfile
@@ -7,6 +8,8 @@ from pathlib import Path
 from idfpy import IDF
 
 from src.utils.logging import get_logger
+
+DEFAULT_SIMULATION_TIMEOUT_S: int = 1800
 
 
 class EnergyPlusRunner:
@@ -28,6 +31,7 @@ class EnergyPlusRunner:
         epw_file_path: Path | str,
         idf_file_path: Path | str | None = None,
         output_directory: Path | None = None,
+        timeout: int | None = DEFAULT_SIMULATION_TIMEOUT_S,
     ) -> bool:
         """
         Run EnergyPlus IDF file
@@ -36,6 +40,10 @@ class EnergyPlusRunner:
             idf_file_path: IDF file path
             epw_file_path: EPW weather file path
             output_directory: Output directory, if None, a default directory will be created
+            timeout: Max wall-clock seconds to wait for EnergyPlus before
+                killing it. Defaults to DEFAULT_SIMULATION_TIMEOUT_S. Pass
+                None to disable (not recommended — a hung solver would
+                block forever).
 
         Returns:
             bool: True if the simulation ran successfully, False otherwise
@@ -102,20 +110,37 @@ class EnergyPlusRunner:
                 bufsize=1,
             )
 
-            output_lines = []
-            for line in process.stdout or []:
-                line = line.rstrip()
-                self.logger.info("[EnergyPlus] {}", line)
-                output_lines.append(line)
+            try:
+                output_lines = []
 
-            return_code = process.wait()
+                stdout, _ = process.communicate(timeout=timeout)
 
-            if return_code != 0:
-                self.logger.error("EnergyPlus exited with code {}", return_code)
+                if stdout:
+                    for line in stdout.splitlines():
+                        line = line.rstrip()
+                        self.logger.info("[EnergyPlus] {}", line)
+                        output_lines.append(line)
+
+                return_code = process.returncode
+
+                if return_code != 0:
+                    self.logger.error("EnergyPlus exited with code {}", return_code)
+                    return False
+
+                self.logger.info("EnergyPlus simulation completed successfully.")
+                return True
+
+            except subprocess.TimeoutExpired:
+                self.logger.error(
+                    "EnergyPlus simulation timed out after {}s; terminating process.",
+                    timeout,
+                )
+                self._terminate(process)
                 return False
-
-            self.logger.info("EnergyPlus simulation completed successfully.")
-            return True
+            finally:
+                # Make sure no child is left running and pipes are closed on
+                # any exit path (success, non-zero exit, timeout, exception).
+                self._terminate(process)
 
         except FileNotFoundError:
             self.logger.error("EnergyPlus executable not found.")
@@ -128,3 +153,19 @@ class EnergyPlusRunner:
             if temporary_idf_path is not None:
                 temporary_idf_path.unlink(missing_ok=True)
                 self.idf_path = None
+
+    @staticmethod
+    def _terminate(process: subprocess.Popen) -> None:
+        """Best-effort cleanup: kill the process if still alive and close its
+        stdout pipe so it can't leak as a zombie / dangling file descriptor.
+
+        Safe to call multiple times (idempotent): once the process has exited
+        ``poll()`` returns its code and the kill/close calls are no-ops.
+        """
+        if process.poll() is None:
+            process.kill()
+            with contextlib.suppress(subprocess.TimeoutExpired):
+                process.wait(timeout=10)
+        if process.stdout is not None:
+            with contextlib.suppress(Exception):
+                process.stdout.close()

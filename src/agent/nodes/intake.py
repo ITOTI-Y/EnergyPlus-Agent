@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import base64
+import time
 from pathlib import Path
-from typing import Any, Literal, TypedDict, cast
+from typing import Any, Final, Literal, TypedDict, cast
 
 from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 from loguru import logger
@@ -10,6 +11,18 @@ from loguru import logger
 from src.agent._share import language_directive
 from src.agent.llm import create_llm
 from src.agent.state import AgentState, AgentStateUpdate, IntakeOutput
+
+INTAKE_MAX_EMPTY_RETRIES: Final[int] = 3
+"""Max retries when the LLM returns an empty reply (no content, no tool call).
+
+Some OpenAI-compatible gateways occasionally return a completely empty
+AIMessage (content='' and no tool_calls) — most often on transient
+gateway hiccups (rate-limit, timeout, upstream blip). The structured-output
+wrapper then yields ``parsed=None, parsing_error=None``. Retrying with
+backoff almost always recovers, so we don't let a single empty reply
+crash the whole case. We deliberately keep this budget small: if the
+empty reply is caused by the prompt itself, retrying won't help and the
+outer harness will record the failure."""
 
 
 class TextContentPart(TypedDict):
@@ -135,34 +148,47 @@ def intake_node(state: AgentState) -> AgentStateUpdate:
     for path in state.image_paths:
         content_parts.append(_load_image_part(path))
 
-    result = cast(
-        dict[str, Any],
-        llm.invoke(
-            [
-                SystemMessage(content=INTAKE_SYSTEM_PROMPT + language_directive()),
-                HumanMessage(content=cast("list[str | dict[str, Any]]", content_parts)),
-            ]
-        ),
-    )
+    messages = [
+        SystemMessage(content=INTAKE_SYSTEM_PROMPT + language_directive()),
+        HumanMessage(content=cast("list[str | dict[str, Any]]", content_parts)),
+    ]
 
-    parsed: IntakeOutput | None = result.get("parsed")
-    if parsed is None:
+    parsed: IntakeOutput | None = None
+    for attempt in range(INTAKE_MAX_EMPTY_RETRIES + 1):
+        result = cast(dict[str, Any], llm.invoke(messages))
+        parsed = result.get("parsed")
+        if parsed is not None:
+            break
+        # Empty or malformed reply — inspect to decide retry vs. fail.
         raw: BaseMessage | None = result.get("raw")
         parsing_error = result.get("parsing_error")
         raw_preview = repr(raw.content if raw is not None else raw)[:500]
-        logger.error(
-            "intake_node: structured output parse failed. "
-            "parsing_error={} raw preview={}",
-            parsing_error,
-            raw_preview,
+        is_empty = parsing_error is None and raw_preview in ("''", "None")
+        if not is_empty or attempt == INTAKE_MAX_EMPTY_RETRIES:
+            logger.error(
+                "intake_node: structured output parse failed. "
+                "parsing_error={} raw preview={}",
+                parsing_error,
+                raw_preview,
+            )
+            raise RuntimeError(
+                "IntakeOutput parsing returned None. The LLM likely replied "
+                "with text instead of a tool call, or returned an empty "
+                "reply. parsing_error="
+                f"{parsing_error!r}; raw preview: {raw_preview}"
+            )
+        # Back off (2s, 4s) and retry — transient gateway empty-reply.
+        sleep_s = 2 ** (attempt + 1)
+        logger.warning(
+            "intake_node: empty LLM reply (attempt {}/{}), retrying in {}s",
+            attempt + 1,
+            INTAKE_MAX_EMPTY_RETRIES + 1,
+            sleep_s,
         )
-        raise RuntimeError(
-            "IntakeOutput parsing returned None. The LLM likely replied with "
-            "text instead of a tool call — common on retry turns. "
-            f"parsing_error={parsing_error!r}; raw preview: {raw_preview}"
-        )
+        time.sleep(sleep_s)
 
-    config = state.config_state.model_copy(deep=True)
+    assert isinstance(parsed, IntakeOutput)
+    config = state.config_state.clone()
     config.building = parsed.building
     config.site_location = parsed.site_location
 

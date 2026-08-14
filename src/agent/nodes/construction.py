@@ -1,11 +1,20 @@
+from typing import Literal
+
 from langchain_core.messages import AIMessage
+from langgraph.types import Command
 from pydantic import BaseModel, Field
 
 from src.agent.llm import build_agent
-from src.agent.nodes._share import invoke_with_self_repair
+from src.agent.nodes._share import (
+    clone_for_phase,
+    invoke_with_self_repair,
+    maybe_backhop,
+)
 from src.agent.state import AgentState, AgentStateUpdate
 from src.agent.tools import make_construction_tools
 from src.agent.trace import TraceCollector, record_phase_trace, trace_middleware
+
+_ConstructionRoute = Literal["material"]
 
 CONSTRUCTION_SYSTEM_PROMPT = """You are a construction-assembly expert for EnergyPlus.
 Given construction specifications, create all required Construction objects.
@@ -44,8 +53,10 @@ class ConstructionResponse(BaseModel):
     )
 
 
-def construction_agent(state: AgentState) -> AgentStateUpdate:
-    local = state.config_state.model_copy(deep=True)
+def construction_agent(
+    state: AgentState,
+) -> Command[_ConstructionRoute] | AgentStateUpdate:
+    local = clone_for_phase(state)
     tools = make_construction_tools(local)
     collector = TraceCollector(phase="construction")
 
@@ -61,13 +72,33 @@ def construction_agent(state: AgentState) -> AgentStateUpdate:
         if state.intake_output
         else state.user_input
     )
-    result = invoke_with_self_repair(agent, local, specs, phase="construction")
+    # If reached via a back-hop from a downstream phase (surface/fenestration
+    # needed a construction that did not exist), append the request.
+    upstream = state.upstream_request
+    if upstream and upstream.get("target") == "construction":
+        specs = f"{specs}\n\n{upstream['specs']}"
+
+    result = invoke_with_self_repair(
+        agent,
+        local,
+        specs,
+        phase="construction",
+        is_revision=state.is_revision,
+        validation_errors=state.validation_errors,
+    )
+
+    record_phase_trace("construction", collector.export())
+
+    # Back-hop: a missing material layer routes to the material phase.
+    hop = maybe_backhop(result, state, local, "construction")
+    if hop is not None:
+        return hop
 
     response: ConstructionResponse | None = result.get("structured_response")
     summary = response.summary if response else "construction done"
 
-    record_phase_trace("construction", collector.export())
     return AgentStateUpdate(
         config_state=local,
+        upstream_request={},  # consume the back-hop request
         messages=[AIMessage(content=f"[construction] {summary}")],
     )

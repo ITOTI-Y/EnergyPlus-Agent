@@ -11,7 +11,7 @@ from langgraph.graph.message import add_messages
 from pydantic import BaseModel, Field
 from typing_extensions import TypedDict
 
-from src.agent._share import DEFAULT_OUTPUT_DIR, MAX_RETRIES
+from src.agent._share import DEFAULT_OUTPUT_DIR, MAX_RETRIES, MAX_SIM_RETRIES
 from src.mcp.state import ConfigState
 from src.validator import (
     BuildingSchema,
@@ -73,6 +73,33 @@ class SimContext:
 
     epw_path: Path
     output_dir: Path = DEFAULT_OUTPUT_DIR
+
+
+def _merge_upstream_request(old: dict | None, new: dict | None) -> dict | None:
+    """Reducer for ``upstream_request``: an explicit update wins.
+
+    Parallel branches (zone/material/schedule in phase 1, hvac/people/lights
+    in phase 3) all return state updates simultaneously, so LangGraph needs a
+    reducer to merge them. A real back-hop request takes precedence when only
+    one branch carries one. Target phases use an empty dict as the explicit
+    clear sentinel because ``None`` means that a sibling omitted the field.
+    """
+    return new if new is not None else old
+
+
+def _overwrite_list(old: list[str] | None, new: list[str] | None) -> list[str]:
+    """Last-write-wins reducer for full-snapshot list fields.
+
+    ``validation_errors`` and ``simulation_errors`` are always written as a
+    COMPLETE freshly-recomputed snapshot (e.g. ``validate_references()`` reruns
+    the whole cross-ref check every time), never as an incremental delta. So
+    any new value — even an empty list, which legitimately means "no errors" —
+    supersedes the previous snapshot. Without this reducer, LangGraph's
+    default ``last_value`` channel raises ``InvalidUpdateError`` when parallel
+    branches (phase-3 hvac/people/lights, or simulate+revise) each return one
+    of these fields in the same superstep, crashing the graph.
+    """
+    return new if new is not None else (old or [])
 
 
 def _get_identity(item: Any) -> str:
@@ -189,6 +216,14 @@ def merge_config_state(old: ConfigState, new: ConfigState) -> ConfigState:
     1. Named list fields -> union by identity key; new wins on conflict
     2. Nested containers (schedules, hvac) -> recursive merge
     3. Singleton objects -> non-default wins, new preferred
+
+    IDF merge: the backing idfpy IDF is the authoritative store,
+    especially on revision turns where the model was loaded from a
+    previously-saved IDF (the Pydantic legacy fields stay empty in that
+    case). We union the two IDFs by object name (new wins) and install
+    the result as the merged ConfigState's ``_idf`` — otherwise
+    ``model_validate`` would reset it to an empty IDF via
+    ``model_post_init``, silently dropping the entire model.
     """
     data: dict[str, Any] = {}
 
@@ -227,9 +262,45 @@ class AgentState(BaseModel):
     )
     intake_output: IntakeOutput | None = None
 
-    validation_errors: list[str] = Field(default_factory=list)
+    validation_errors: Annotated[list[str], _overwrite_list] = Field(
+        default_factory=list
+    )
     retry_count: int = 0
     max_retries: int = MAX_RETRIES
+
+    # --- EnergyPlus simulation failure -> revise rollback loop ---
+    # Independent from retry_count (which gates validate's cross-ref
+    # rollback) so the two loops don't starve each other's budget.
+    simulation_errors: Annotated[list[str], _overwrite_list] = Field(
+        default_factory=list
+    )
+    """Fatal/Severe error lines from eplusout.err of the last simulate run.
+    Populated by simulate_node on failure; consumed (and cleared) by
+    revise_node so the LLM gets concrete error text to fix."""
+    sim_retry_count: int = 0
+    """How many times simulate has rolled back to revise for a sim failure."""
+    max_sim_retries: int = MAX_SIM_RETRIES
+    """Cap on simulate->revise rollback rounds. Once exhausted, simulate
+    lets the run fall through to analyze (the test harness records failure)."""
+
+    is_revision: bool = False
+    """True for multi-turn model edits: the agent should modify the existing
+    config_state (loaded from a previous IDF) rather than rebuild from
+    scratch. Drives the revise_node entry and phase-agent prompt prefixes."""
+
+    upstream_request: Annotated[dict | None, _merge_upstream_request] = None
+    """Back-hop request set by a phase node when it detects that a needed
+    upstream object does not exist (e.g. fenestration needs a window
+    construction that was never created). Shape:
+    ``{"target": <phase name>, "specs": <instruction string>}``. The target
+    phase reads it and clears it with ``{}``; ``None`` means no update from a
+    branch. Uses a custom reducer so parallel branches can return it safely.
+    """
+
+    hop_count: Annotated[int, lambda o, n: max(o, n)] = 0
+    """Back-hop counter to prevent infinite A->B->A loops. Incremented on
+    each ``Command(goto=<earlier phase>)`` back-hop; phase nodes refuse to
+    hop once it reaches HOP_LIMIT."""
 
 
 class AgentStateUpdate(TypedDict, total=False):
@@ -242,3 +313,8 @@ class AgentStateUpdate(TypedDict, total=False):
     intake_output: IntakeOutput | None
     validation_errors: list[str]
     retry_count: int
+    simulation_errors: list[str]
+    sim_retry_count: int
+    is_revision: bool
+    upstream_request: dict | None
+    hop_count: int

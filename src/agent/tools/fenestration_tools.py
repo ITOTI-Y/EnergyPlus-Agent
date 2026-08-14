@@ -1,4 +1,5 @@
 import json
+import math
 from typing import Literal
 
 from idfpy.models.constructions import Construction
@@ -52,6 +53,19 @@ def make_fenestration_tools(config: ConfigState) -> list[BaseTool]:
         idf = config.idf
         if idf.has("FenestrationSurface:Detailed", name):
             return _err(f"Fenestration '{name}' already exists.")
+        if not idf.has("Construction", construction_name):
+            return _err(
+                f"Construction '{construction_name}' not found. Create it in the construction phase first.",
+                {"missing_ref": "Construction", "missing_name": construction_name},
+            )
+        if not idf.has("BuildingSurface:Detailed", building_surface_name):
+            return _err(
+                f"Parent surface '{building_surface_name}' not found.",
+                {
+                    "missing_ref": "BuildingSurface:Detailed",
+                    "missing_name": building_surface_name,
+                },
+            )
         try:
             assert 3 <= len(vertices) <= 4, (
                 "At least 3 vertices are required, and at most 4 vertices are allowed."
@@ -110,6 +124,93 @@ def make_fenestration_tools(config: ConfigState) -> list[BaseTool]:
         return _ok(f"Fenestration '{name}' read successfully.", obj.model_dump())
 
     @tool
+    def update_fenestration(
+        name: str,
+        construction_name: str | None = None,
+        building_surface_name: str | None = None,
+        surface_type: str | None = None,
+        multiplier: int | None = None,
+        vertices: list[dict[str, float]] | None = None,
+    ) -> str:
+        """Update fields of an existing fenestration by name.
+
+        Only non-None fields are written. To change geometry, pass a full
+        new ``vertices`` list (replaces all existing vertices).
+
+        Args:
+            name: Existing fenestration name.
+            construction_name: New glazing Construction name (must exist).
+            building_surface_name: New parent Surface name (must exist).
+            surface_type: Window / Door / GlassDoor.
+            multiplier: Number of identical copies (>= 1).
+            vertices: New full vertex list ({"X","Y","Z"} dicts), >= 3 points,
+                      coplanar with the parent surface.
+        """
+        idf = config.idf
+        obj = idf.get("FenestrationSurface:Detailed", name)
+        if obj is None:
+            return _err(f"Fenestration '{name}' not found.")
+        if construction_name is not None and not idf.has(
+            "Construction", construction_name
+        ):
+            return _err(
+                f"Construction '{construction_name}' not found.",
+                {"missing_ref": "Construction", "missing_name": construction_name},
+            )
+        if building_surface_name is not None and not idf.has(
+            "BuildingSurface:Detailed", building_surface_name
+        ):
+            return _err(
+                f"Parent surface '{building_surface_name}' not found.",
+                {
+                    "missing_ref": "BuildingSurface:Detailed",
+                    "missing_name": building_surface_name,
+                },
+            )
+        try:
+            updates = {}
+            if construction_name is not None:
+                updates["construction_name"] = construction_name
+            if building_surface_name is not None:
+                updates["building_surface_name"] = building_surface_name
+            if surface_type is not None:
+                updates["surface_type"] = surface_type
+            if multiplier is not None:
+                updates["multiplier"] = float(multiplier)
+            if vertices is not None:
+                if not 3 <= len(vertices) <= 4:
+                    raise ValueError("Fenestration needs 3 or 4 vertices.")
+                coordinates: list[dict[str, float]] = []
+                for index, vertex in enumerate(vertices, start=1):
+                    missing_axes = {"X", "Y", "Z"} - vertex.keys()
+                    if missing_axes:
+                        missing = ", ".join(sorted(missing_axes))
+                        raise ValueError(f"Vertex {index} is missing {missing}.")
+                    coordinate = {axis: float(vertex[axis]) for axis in ("X", "Y", "Z")}
+                    if not all(math.isfinite(value) for value in coordinate.values()):
+                        raise ValueError(f"Vertex {index} coordinates must be finite.")
+                    coordinates.append(coordinate)
+
+                updates["number_of_vertices"] = len(coordinates)
+                for index in range(1, 5):
+                    coordinate = (
+                        coordinates[index - 1] if index <= len(coordinates) else None
+                    )
+                    for axis in ("x", "y", "z"):
+                        updates[f"vertex_{index}_{axis}_coordinate"] = (
+                            coordinate[axis.upper()] if coordinate is not None else None
+                        )
+
+            prospective = obj.model_dump()
+            prospective.update(updates)
+            validated = FenestrationSurfaceDetailed.model_validate(prospective)
+            for field_name in updates:
+                setattr(obj, field_name, getattr(validated, field_name))
+            return _ok(f"Fenestration '{name}' updated successfully.", obj.model_dump())
+        except Exception as e:
+            return _err(f"Error updating fenestration '{name}': {e}")
+
+    @tool
     def delete_fenestration(name: str) -> str:
         """Delete a fenestration."""
         idf = config.idf
@@ -138,6 +239,7 @@ def make_fenestration_tools(config: ConfigState) -> list[BaseTool]:
         create_fenestration,
         list_fenestrations,
         get_fenestration,
+        update_fenestration,
         delete_fenestration,
         list_surfaces,
         list_constructions,
