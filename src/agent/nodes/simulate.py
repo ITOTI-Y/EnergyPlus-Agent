@@ -74,6 +74,9 @@ def simulate_node(
     config = clone_for_phase(state)
     _ensure_default_output_variables(config)
 
+    err_path = ctx.output_dir / "eplusout.err"
+    err_path.unlink(missing_ok=True)
+
     workflow = WorkflowTool(config)
     response = workflow.run_simulation(
         epw_path=str(ctx.epw_path.resolve().absolute()),
@@ -81,7 +84,6 @@ def simulate_node(
     )
 
     # --- failure detection ---
-    err_path = ctx.output_dir / "eplusout.err"
     err_info = extract_errors(err_path)
     has_error_level = err_info["has_error_level"]
     sim_failed = (not response.success) or has_error_level

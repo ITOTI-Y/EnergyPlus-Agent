@@ -3,6 +3,7 @@ from langchain_core.messages import AIMessage
 
 from src.agent.nodes import zone as zone_module
 from src.agent.state import AgentState, IntakeOutput
+from src.mcp.state import ConfigState
 
 
 def _intake() -> IntakeOutput:
@@ -81,6 +82,7 @@ def test_zone_agent_reinvokes_main_agent_after_validator_reject(monkeypatch):
     assert len(fake_agents[0].calls) == 1
     feedback = fake_agents[0].calls[0]["messages"][-1].content
     assert "F1_Corridor" in feedback
+    assert out["validation_errors"] == []
 
 
 def test_zone_agent_stops_after_validator_retry_budget(monkeypatch):
@@ -107,11 +109,20 @@ def test_zone_agent_stops_after_validator_retry_budget(monkeypatch):
         ),
     )
 
+    monkeypatch.setattr(
+        ConfigState,
+        "validate_references",
+        lambda self: ["Current cross-reference error."],
+    )
+
     out = zone_module.zone_agent(AgentState(intake_output=_intake()))
 
     assert len(repair_calls) == zone_module.MAX_ZONE_VALIDATION_ROUNDS
-    assert "validation_errors" in out
-    assert "Zone validation failed after" in out["validation_errors"][0]
+    assert out["validation_errors"] == [
+        "Current cross-reference error.",
+        f"Zone validation failed after {zone_module.MAX_ZONE_VALIDATION_ROUNDS} rounds: "
+        "0 zones created but specs require zones.",
+    ]
 
 
 def test_zone_agent_clears_consumed_upstream_request(monkeypatch):

@@ -18,6 +18,7 @@ requested change.
 from __future__ import annotations
 
 import json
+import math
 import sys
 import time
 from pathlib import Path
@@ -126,6 +127,136 @@ def _find_results(d: Path) -> list[Path]:
     return [p for p in d.glob("*") if p.suffix in {".csv", ".htm", ".eso"}]
 
 
+def _polygon_area(vertices: list[tuple[float, float, float]]) -> float:
+    """Return the area of a planar 3D polygon."""
+    cross_x = cross_y = cross_z = 0.0
+    for current, following in zip(vertices, vertices[1:] + vertices[:1], strict=True):
+        x1, y1, z1 = current
+        x2, y2, z2 = following
+        cross_x += y1 * z2 - z1 * y2
+        cross_y += z1 * x2 - x1 * z2
+        cross_z += x1 * y2 - y1 * x2
+    return 0.5 * math.sqrt(cross_x**2 + cross_y**2 + cross_z**2)
+
+
+def _revision_properties(idf_path: Path) -> dict:
+    """Snapshot revision-sensitive values and objects that must be preserved."""
+    from src.mcp.state import _idf_values
+
+    cs = ConfigState()
+    cs.load_idf(idf_path)
+    idf = cs.idf
+
+    def _records(*object_types: str) -> list[dict]:
+        records = [
+            {
+                "type": type(obj).__name__,
+                "name": str(getattr(obj, "name", "")),
+                "fields": obj.model_dump(mode="json"),
+            }
+            for obj in _idf_values(idf, *object_types)
+        ]
+        return sorted(records, key=lambda record: (record["type"], record["name"]))
+
+    surfaces = _idf_values(idf, "BuildingSurface:Detailed")
+    south_walls = {
+        surface.name: surface
+        for surface in surfaces
+        if "south" in surface.name.casefold()
+        and str(surface.surface_type).casefold() == "wall"
+        and str(surface.outside_boundary_condition).casefold() == "outdoors"
+    }
+    south_wall_area = sum(
+        _polygon_area(
+            [
+                (
+                    float(vertex.vertex_x_coordinate),
+                    float(vertex.vertex_y_coordinate),
+                    float(vertex.vertex_z_coordinate),
+                )
+                for vertex in surface.vertices
+            ]
+        )
+        for surface in south_walls.values()
+    )
+
+    south_window_area = 0.0
+    for fenestration in _idf_values(idf, "FenestrationSurface:Detailed"):
+        if fenestration.building_surface_name not in south_walls:
+            continue
+        vertex_count = int(fenestration.number_of_vertices)
+        vertices = [
+            (
+                float(getattr(fenestration, f"vertex_{index}_x_coordinate")),
+                float(getattr(fenestration, f"vertex_{index}_y_coordinate")),
+                float(getattr(fenestration, f"vertex_{index}_z_coordinate")),
+            )
+            for index in range(1, vertex_count + 1)
+        ]
+        south_window_area += _polygon_area(vertices)
+
+    office_lights = {}
+    for light in _idf_values(idf, "Lights"):
+        zone_name = str(light.zone_or_zonelist_or_space_or_spacelist_name)
+        if "office" not in f"{light.name} {zone_name}".casefold():
+            continue
+        office_lights[light.name] = {
+            "zone_name": zone_name,
+            "watts_per_floor_area": light.watts_per_floor_area,
+        }
+
+    return {
+        "south_wwr": (
+            south_window_area / south_wall_area if south_wall_area > 0.0 else None
+        ),
+        "office_lights": office_lights,
+        "preserved_objects": {
+            "zones": _records("Zone"),
+            "materials": _records(
+                "Material",
+                "Material:NoMass",
+                "Material:AirGap",
+                "WindowMaterial:SimpleGlazingSystem",
+            ),
+            "constructions": _records("Construction"),
+            "thermostats": _records("HVACTemplate:Thermostat"),
+            "ideal_loads": _records("HVACTemplate:Zone:IdealLoadsAirSystem"),
+        },
+    }
+
+
+def _assert_revision_outcome(turn1: dict, turn2: dict) -> None:
+    """Assert requested changes and unchanged object groups."""
+    failures: list[str] = []
+
+    for key in ("zones", "materials", "constructions", "thermostats", "ideal_loads"):
+        if turn1["preserved_objects"][key] != turn2["preserved_objects"][key]:
+            failures.append(f"{key} changed during revision")
+
+    office_lights1 = turn1["office_lights"]
+    office_lights2 = turn2["office_lights"]
+    if not office_lights1 or set(office_lights1) != set(office_lights2):
+        failures.append("office Lights objects were not preserved")
+    else:
+        for name in office_lights1:
+            lpd1 = office_lights1[name]["watts_per_floor_area"]
+            lpd2 = office_lights2[name]["watts_per_floor_area"]
+            if lpd1 is None or not math.isclose(float(lpd1), 10.0, abs_tol=0.01):
+                failures.append(f"{name} turn-1 LPD is {lpd1!r}, expected 10 W/m^2")
+            if lpd2 is None or not math.isclose(float(lpd2), 12.0, abs_tol=0.01):
+                failures.append(f"{name} turn-2 LPD is {lpd2!r}, expected 12 W/m^2")
+
+    for label, actual, expected in (
+        ("turn-1 south WWR", turn1["south_wwr"], 0.30),
+        ("turn-2 south WWR", turn2["south_wwr"], 0.20),
+    ):
+        if actual is None or not math.isclose(float(actual), expected, abs_tol=0.01):
+            failures.append(f"{label} is {actual!r}, expected {expected:.0%}")
+
+    if failures:
+        raise AssertionError("; ".join(failures))
+
+
 # ── Turns ────────────────────────────────────────────────────────────────────
 
 
@@ -195,6 +326,7 @@ def main() -> int:
         return 1
     print(f"\nTurn 1 IDF: {idf1}")
     inv1 = _object_inventory(idf1)
+    revision1 = _revision_properties(idf1)
     print("Turn 1 inventory:")
     for k, v in inv1.items():
         print(f"  {k:14s} count={v['count']:3d}  samples={v['sample_names']}")
@@ -215,6 +347,7 @@ def main() -> int:
     print(f"\nTurn 2 IDF: {idf2}")
     inv2 = _object_inventory(idf2)
     print("Turn 2 inventory:")
+    revision2 = _revision_properties(idf2)
     for k, v in inv2.items():
         print(f"  {k:14s} count={v['count']:3d}  samples={v['sample_names']}")
 
@@ -229,14 +362,32 @@ def main() -> int:
         marker = "  " if c1 == c2 else "!!"
         print(f"  {marker} {k:14s} {c1:3d} -> {c2:3d}  (delta {c2 - c1:+d})")
 
+    assertion_error: str | None = None
+    try:
+        _assert_revision_outcome(revision1, revision2)
+    except AssertionError as exc:
+        assertion_error = str(exc)
     # ─── Save artifact for inspection ────────────────────────────────────────
     artifact = {
-        "turn1": {"idf": str(idf1), "inventory": inv1},
-        "turn2": {"idf": str(idf2), "inventory": inv2},
+        "turn1": {
+            "idf": str(idf1),
+            "inventory": inv1,
+            "revision_properties": revision1,
+        },
+        "turn2": {
+            "idf": str(idf2),
+            "inventory": inv2,
+            "revision_properties": revision2,
+        },
         "deltas": deltas,
+        "assertions": {"passed": assertion_error is None, "error": assertion_error},
     }
-    (OUT / "e2e_report.json").write_text(json.dumps(artifact, indent=2))
-    print(f"\nReport saved: {OUT / 'e2e_report.json'}")
+    report_path = OUT / "e2e_report.json"
+    report_path.write_text(json.dumps(artifact, indent=2), encoding="utf-8")
+    print(f"\nReport saved: {report_path}")
+    if assertion_error is not None:
+        print(f"FAIL: {assertion_error}")
+        return 1
     print("DONE")
     return 0
 

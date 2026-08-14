@@ -1,4 +1,5 @@
 import json
+import math
 from typing import Literal
 
 from idfpy.models.constructions import Construction
@@ -167,26 +168,44 @@ def make_fenestration_tools(config: ConfigState) -> list[BaseTool]:
                 },
             )
         try:
+            updates = {}
             if construction_name is not None:
-                obj.construction_name = construction_name
+                updates["construction_name"] = construction_name
             if building_surface_name is not None:
-                obj.building_surface_name = building_surface_name
+                updates["building_surface_name"] = building_surface_name
             if surface_type is not None:
-                obj.surface_type = surface_type
+                updates["surface_type"] = surface_type
             if multiplier is not None:
-                obj.multiplier = float(multiplier)
+                updates["multiplier"] = float(multiplier)
             if vertices is not None:
-                if len(vertices) < 3:
-                    return _err("Fenestration needs >= 3 vertices.")
-                # Clear any existing vertex fields (up to 4), then set new ones
-                for i in range(1, 5):
+                if not 3 <= len(vertices) <= 4:
+                    raise ValueError("Fenestration needs 3 or 4 vertices.")
+                coordinates: list[dict[str, float]] = []
+                for index, vertex in enumerate(vertices, start=1):
+                    missing_axes = {"X", "Y", "Z"} - vertex.keys()
+                    if missing_axes:
+                        missing = ", ".join(sorted(missing_axes))
+                        raise ValueError(f"Vertex {index} is missing {missing}.")
+                    coordinate = {axis: float(vertex[axis]) for axis in ("X", "Y", "Z")}
+                    if not all(math.isfinite(value) for value in coordinate.values()):
+                        raise ValueError(f"Vertex {index} coordinates must be finite.")
+                    coordinates.append(coordinate)
+
+                updates["number_of_vertices"] = len(coordinates)
+                for index in range(1, 5):
+                    coordinate = (
+                        coordinates[index - 1] if index <= len(coordinates) else None
+                    )
                     for axis in ("x", "y", "z"):
-                        setattr(obj, f"vertex_{i}_{axis}_coordinate", None)
-                for i, v in enumerate(vertices, start=1):
-                    setattr(obj, f"vertex_{i}_x_coordinate", float(v["X"]))
-                    setattr(obj, f"vertex_{i}_y_coordinate", float(v["Y"]))
-                    setattr(obj, f"vertex_{i}_z_coordinate", float(v["Z"]))
-                obj.number_of_vertices = len(vertices)
+                        updates[f"vertex_{index}_{axis}_coordinate"] = (
+                            coordinate[axis.upper()] if coordinate is not None else None
+                        )
+
+            prospective = obj.model_dump()
+            prospective.update(updates)
+            validated = FenestrationSurfaceDetailed.model_validate(prospective)
+            for field_name in updates:
+                setattr(obj, field_name, getattr(validated, field_name))
             return _ok(f"Fenestration '{name}' updated successfully.", obj.model_dump())
         except Exception as e:
             return _err(f"Error updating fenestration '{name}': {e}")

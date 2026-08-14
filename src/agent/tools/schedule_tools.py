@@ -187,18 +187,28 @@ def make_schedule_tools(config: ConfigState) -> list[BaseTool]:
         if obj is None:
             return _err(f"Schedule:Compact '{name}' not found.")
         try:
+            prospective_type_limits_name = (
+                schedule_type_limits_name
+                if schedule_type_limits_name is not None
+                else obj.schedule_type_limits_name
+            )
+            prospective_data = (
+                data if data is not None else [item.field for item in (obj.data or [])]
+            )
+            validated = ScheduleCompactSchema.model_validate(
+                {
+                    "Name": name,
+                    "Schedule Type Limits Name": prospective_type_limits_name,
+                    "Data": prospective_data,
+                }
+            )
+            replacement_data = [
+                ScheduleCompactDataItem(field=value) for value in validated.data
+            ]
             if schedule_type_limits_name is not None:
-                obj.schedule_type_limits_name = schedule_type_limits_name
+                obj.schedule_type_limits_name = validated.schedule_type_limits_name
             if data is not None:
-                # Validate the new data via the schema, then rebuild items
-                validated = ScheduleCompactSchema.model_validate(
-                    {
-                        "Name": name,
-                        "Schedule Type Limits Name": obj.schedule_type_limits_name,
-                        "Data": data,
-                    }
-                )
-                obj.data = [ScheduleCompactDataItem(field=v) for v in validated.data]
+                obj.data = replacement_data
             return _ok(
                 f"Schedule:Compact '{name}' updated successfully.", obj.model_dump()
             )

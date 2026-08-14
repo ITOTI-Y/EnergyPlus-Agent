@@ -71,6 +71,7 @@ def zone_agent(state: AgentState) -> AgentStateUpdate:
     for v_round in range(MAX_ZONE_VALIDATION_ROUNDS):
         decision, reasons = run_zone_validator(specs, local)
         if decision == "approved":
+            final_validation_errors = []
             if v_round > 0:
                 logger.info(
                     "[zone] validator approved on round {}/{}",
@@ -113,12 +114,16 @@ def zone_agent(state: AgentState) -> AgentStateUpdate:
 
     record_phase_trace("zone", collector.export())
 
+    validation_errors = [
+        *local.validate_references(),
+        *final_validation_errors,
+    ]
     update = AgentStateUpdate(
         config_state=local,
+        validation_errors=validation_errors,
         messages=[AIMessage(content=f"[zone] {summary}")],
     )
     if final_validation_errors:
-        update["validation_errors"] = final_validation_errors
         update["messages"] = [
             *update["messages"],
             AIMessage(content="[zone-validator] " + " ".join(final_validation_errors)),

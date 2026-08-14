@@ -99,6 +99,6 @@ def construction_agent(
 
     return AgentStateUpdate(
         config_state=local,
-        upstream_request=None,  # consume the back-hop request
+        upstream_request={},  # consume the back-hop request
         messages=[AIMessage(content=f"[construction] {summary}")],
     )

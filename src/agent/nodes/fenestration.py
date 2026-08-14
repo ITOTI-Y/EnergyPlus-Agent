@@ -107,6 +107,6 @@ def fenestration_agent(
 
     return AgentStateUpdate(
         config_state=local,
-        upstream_request=None,  # consume any stale back-hop request
+        upstream_request={},  # consume any stale back-hop request
         messages=[AIMessage(content=f"[fenestration] {summary}")],
     )
