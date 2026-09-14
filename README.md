@@ -3,237 +3,223 @@
 
 # EnergyPlus Agent System
 
-## 项目概述
+## Overview
 
-EnergyPlus Agent 是一个基于 Python 和 MCP（Model Context Protocol）协议的智能建筑能耗模拟系统。该系统通过 LLM 驱动的交互式配置流程，将建筑设计从 YAML 配置无缝转换为 EnergyPlus IDF 文件，并集成 RAG 知识库提供能耗分析和优化建议。未来计划通过 LangGraph 实现多模态（图片+文本）输入，结合 MCP 工具自动构建 IDF 文件。
+EnergyPlus Agent turns a natural-language building brief, optionally accompanied by architectural drawings, into a validated EnergyPlus model and runs the simulation. The system is built in Python around three layers:
 
-## 核心特性
+- **Multi-phase LangGraph agent**: an LLM-driven graph that reads the brief, splits it into per-domain tasks, builds zones, materials, schedules, constructions, surfaces, fenestration, HVAC and internal loads through tool calls, cross-checks references, pauses for human approval, and finally runs EnergyPlus.
+- **MCP server**: a FastMCP server exposing the same building-configuration CRUD tools and workflow tools over stdio, HTTP, SSE or streamable-HTTP, so any MCP client (for example Claude Desktop) can assemble a model interactively.
+- **YAML to IDF conversion and validation**: Pydantic schemas validate every EnergyPlus object, 11 converters map the YAML configuration to an IDF file via `eppy`, and a runner executes EnergyPlus.
 
-### 智能转换
-- **YAML 配置解析**：自动解析 YAML 建筑配置，提取几何、材料、HVAC、负荷等信息
-- **LLM 驱动转换**：通过大语言模型理解建筑意图，生成标准化 YAML 配置
-- **IDF 自动生成**：13 个专用转换器将 YAML 配置映射为符合 EnergyPlus 标准的 IDF 文件
-- **严格数据验证**：基于 Pydantic Schema 的完整数据验证，覆盖所有 EnergyPlus 对象
+A RAG knowledge base (Gemini Embedding + Qdrant) and SQLite data tools for standard materials, constructions, schedules and design days complete the toolset.
 
-### MCP 服务器
-- **FastMCP 框架**：基于 FastMCP 实现的高性能 MCP 服务器
-- **多传输协议**：支持 stdio、HTTP、SSE、streamable-http 多种传输方式
-- **完整 CRUD 工具集**：覆盖 Building、Zone、Surface、Material、Construction、Fenestration、Schedule、HVAC、People、Light 等所有组件
-- **工作流工具**：配置导出、加载、验证和模拟运行
+## Key Features
 
-### RAG 知识库
-- **异步向量化管道**：基于 Gemini Embedding 和 Qdrant 向量数据库的异步 RAG 系统
-- **速率限制与重试**：内置速率限制、并发控制和 429/RESOURCE_EXHAUSTED 自动重试
-- **增量同步**：支持增量同步和过期数据自动清理
-- **类型化结果**：使用 dataclass 类型化的搜索结果（QdrantData、RowRecord、VectorizedResult）
+### Multi-phase agent (LangGraph)
+- **Intake**: one structured LLM call parses text and images into `IntakeOutput`, which carries the `Building` and `Site:Location` objects, natural-language task specs for each downstream phase, and per-zone axis-aligned box geometry hints (`ZoneGeometry`).
+- **Phased construction with parallelism**: independent object types are built by separate ReAct sub-agents. Zone, material and schedule run in parallel; construction, surface and fenestration run sequentially because of their dependencies; HVAC, people and lights run in parallel again.
+- **Parallel-safe state**: a field-level reducer (`merge_config_state`) unions the `ConfigState` written by concurrent phases, keyed by object identity.
+- **Cross-reference self-repair**: after each phase group, `ConfigState.validate_references()` checks that every referenced zone, material, construction, surface and schedule exists. Each phase agent also receives read-only `list_*` tools so it can inspect what earlier phases created.
+- **Human-in-the-loop approval**: the validate node raises a LangGraph `interrupt()` with a configuration summary and any errors. Approval continues to simulation; free-text feedback loops back to intake.
+- **Multimodal input**: PNG, JPEG, WebP and GIF drawings are passed to the intake LLM as base64 image parts alongside the text brief.
+- **Tool-call tracing**: `TraceCollector` wraps every tool call in the ReAct subgraphs and records name, arguments, result and success flag per phase, intended as fine-tuning data. A script also exports full LangSmith run trees to local JSON.
+- **Provider-agnostic LLM**: `src/configs/llm.yaml` selects provider, model, temperature and token budget; Anthropic and OpenAI integrations are bundled. `AGENT_LANGUAGE` switches the narrative language of all agent output while EnergyPlus identifiers stay ASCII.
 
-### 数据库工具
-- **EnergyPlus 数据管理**：标准材料、无质量材料、构造、日程、设计日等数据管理
-- **SQLite 索引**：基于 SQLite 的数据索引和检索
+### MCP server
+- **FastMCP framework** with `stdio`, `http`, `sse` and `streamable-http` transports.
+- **Full CRUD tool set** for Building, Location, Zone, Surface, Material, Construction, Fenestration, Schedule, HVAC, People and Lights.
+- **Workflow tools** for YAML export and load, cross-reference validation, simulation and summary.
+- **Resource endpoints** exposing the current configuration and its summary.
 
-### 仿真与优化
-- **自动验证**：IDF 文件完整性和跨引用合规性自动检查
-- **能耗模拟**：集成 EnergyPlus 引擎进行精确能耗计算
+### YAML to IDF conversion
+- **Strict validation**: 31 Pydantic schema classes cover every supported EnergyPlus object, including geometry closure and vertex-order checks.
+- **11 converters** map validated YAML sections to IDF objects with `eppy`; the runner invokes EnergyPlus with `-x` (ExpandObjects, so `HVACTemplate` objects are expanded) and `-r` (ReadVarsESO, so CSV output is produced).
+- **Default output variables**: when no `Output:Variable` is configured, the simulate step adds an hourly monitoring set (zone temperature and humidity, ideal-loads heating and cooling energy, lighting and people energy, facility HVAC electricity) so results are actually recorded.
 
-## 项目结构
+### RAG knowledge base
+- **Async embedding pipeline** built on Gemini Embedding and Qdrant.
+- **Rate limiting, concurrency control and retry** on 429 / `RESOURCE_EXHAUSTED`.
+- **Incremental sync** with deletion of stale vectors.
+- **Typed results** using dataclasses (`QdrantData`, `RowRecord`, `VectorizedResult`).
+
+### Data tools
+- SQLite-backed management of standard materials, no-mass materials, constructions, compact schedules, schedule type limits and design days.
+- Partial updates via an `UNSET` sentinel so only provided columns are written.
+
+## Project Structure
 
 ```
 EnergyPlus-Agent/
-├── src/                              # 源代码目录
-│   ├── converters/                   # IDF 转换器模块（13个转换器）
-│   │   ├── base_converter.py         # 转换器基类
-│   │   ├── building_converter.py     # 建筑信息转换器
-│   │   ├── construction_converter.py # 构造层转换器
-│   │   ├── fenestration_converter.py # 窗户/开口转换器
-│   │   ├── hvac_converter.py         # HVAC 系统转换器
-│   │   ├── light_converter.py        # 照明负荷转换器
-│   │   ├── material_converter.py     # 材料转换器
-│   │   ├── people_converter.py       # 人员负荷转换器
-│   │   ├── schedule_converter.py     # 时间表转换器
-│   │   ├── setting_converter.py      # 模拟设置转换器
-│   │   ├── surface_converter.py      # 表面转换器
-│   │   └── zone_converter.py         # 热区转换器
-│   ├── mcp/                          # MCP 服务器模块
-│   │   ├── server.py                 # FastMCP 服务器入口
-│   │   ├── state.py                  # 配置状态管理（ConfigState）
-│   │   ├── interface.py              # 接口和数据模型定义
-│   │   ├── api/                      # MCP 工具注册（按功能分组）
-│   │   │   ├── core.py               # 核心工具（Building, Location, Zone, Surface）
-│   │   │   ├── envelope.py           # 围护工具（Material, Construction, Fenestration）
-│   │   │   ├── schedule.py           # 日程工具（ScheduleTypeLimits, ScheduleCompact）
-│   │   │   ├── hvac.py               # HVAC 工具（Thermostat, IdealLoadsSystem）
-│   │   │   ├── loads.py              # 负荷工具（People, Light）
-│   │   │   ├── workflow.py           # 工作流工具（export, load, validate, simulate）
-│   │   │   ├── resources.py          # 资源端点
-│   │   │   └── common.py             # 通用工具函数
-│   │   └── tools/                    # MCP 工具实现（14个工具类）
-│   │       ├── base.py               # CRUD 工具基类
-│   │       ├── zone.py               # 热区工具
-│   │       ├── building.py           # 建筑工具
-│   │       ├── location.py           # 位置工具
-│   │       ├── material.py           # 材料工具
-│   │       ├── construction.py       # 构造工具
-│   │       ├── surface.py            # 表面工具
-│   │       ├── fenestration.py       # 窗户/开口工具
-│   │       ├── schedule_type_limits.py  # 日程类型限制工具
-│   │       ├── schedule_compact.py   # 紧凑日程工具
-│   │       ├── thermostat.py         # 恒温器工具
-│   │       ├── ideal_loads_system.py # 理想负荷系统工具
-│   │       ├── people.py             # 人员工具
-│   │       ├── light.py              # 照明工具
-│   │       └── workflow.py           # 工作流工具
-│   ├── rag/                          # RAG 检索增强生成模块
-│   │   ├── rag.py                    # RAG 系统主类（异步同步管道）
-│   │   ├── embedding.py             # Gemini 嵌入模型
-│   │   ├── vector.py                # Qdrant 向量存储（同步/异步）
-│   │   └── chunk.py                 # 文本块处理和 SQLite 处理器
-│   ├── database/                    # 数据库模块
-│   │   └── datatools/               # 数据工具集
-│   │       ├── standard_materials.py # 标准材料数据
-│   │       ├── nomass_materials.py   # 无质量材料数据
-│   │       ├── constructions.py      # 构造数据
-│   │       ├── schedulecompact.py    # 紧凑日程数据
-│   │       ├── scheduletypelimits.py # 日程类型限制数据
-│   │       ├── designday.py          # 设计日数据
-│   │       └── datadescription.py    # 数据描述
-│   ├── validator/                   # 数据验证模块
-│   │   └── data_model.py           # Pydantic 数据模型和 Schema（33+ 类）
-│   ├── runner/                      # EnergyPlus 运行器
-│   │   └── runner.py               # EnergyPlus 执行模块
-│   ├── configs/                     # 配置管理
-│   │   ├── config.py               # EmbeddingConfig（Pydantic + YAML）
-│   │   └── embedding.yaml          # 嵌入模型配置
-│   ├── utils/                       # 工具模块
-│   │   └── logging.py              # Loguru 日志配置
-│   └── converter_manager.py         # 转换器管理器
-├── data/                            # 数据目录
-│   ├── schemas/                     # YAML 配置文件
-│   │   ├── building_schema.yaml     # 建筑配置示例
-│   │   └── example/                 # 更多示例文件
-│   ├── dependencies/                # 依赖文件
-│   │   └── Energy+.idd             # EnergyPlus IDD 数据字典
-│   ├── weather/                     # 天气数据
-│   │   └── Shenzhen.epw            # 深圳天气文件
-│   └── examples/                    # 示例数据库
-│       └── EP_Agent_data.db        # SQLite 示例数据
-├── docker/                          # Docker 配置
-│   ├── Dockerfile                   # 基于 nrel/energyplus:25.1.0
-│   └── docker-compose.yml          # Docker Compose 配置
-├── output/                          # 输出目录（IDF、日志、YAML）
-├── main.py                          # 程序入口（CLI）
-└── pyproject.toml                   # 项目配置
+├── src/
+│   ├── agent/                        # LangGraph multi-phase agent
+│   │   ├── graph.py                  # build_graph(): topology + in-memory checkpointer
+│   │   ├── state.py                  # AgentState, IntakeOutput, ZoneGeometry, SimContext, merge_config_state
+│   │   ├── react.py                  # 3-node ReAct subgraph (llm -> tools -> llm)
+│   │   ├── runner.py                 # run_session(), interactive_approval(), auto_approval()
+│   │   ├── llm.py                    # create_llm() from src/configs/llm.yaml
+│   │   ├── trace.py                  # TraceCollector and per-phase trace registry
+│   │   ├── _share.py                 # IDD path, AGENT_LANGUAGE directive, constants
+│   │   ├── nodes/                    # intake, zone, material, schedule, construction,
+│   │   │                             # surface, fenestration, hvac, people, lights,
+│   │   │                             # cross_ref, validate, simulate
+│   │   └── tools/                    # make_*_tools() closures wrapping the MCP Tool classes
+│   ├── mcp/                          # MCP server
+│   │   ├── server.py                 # FastMCP entry point
+│   │   ├── state.py                  # ConfigState (in-memory configuration + cross-ref validation)
+│   │   ├── interface.py              # Tool interfaces and response models
+│   │   ├── api/                      # Tool registration grouped by domain
+│   │   │   ├── core.py               # Building, Location, Zone
+│   │   │   ├── envelope.py           # Material, Construction, Surface, Fenestration
+│   │   │   ├── schedule.py           # ScheduleTypeLimits, Schedule:Compact
+│   │   │   ├── hvac.py               # Thermostat, IdealLoadsAirSystem
+│   │   │   ├── loads.py              # People, Lights
+│   │   │   ├── workflow.py           # export, load, validate, simulate, summary, clear
+│   │   │   ├── resources.py          # config://current, config://summary
+│   │   │   └── common.py             # Shared helpers
+│   │   └── tools/                    # Tool implementations (one class per object type)
+│   ├── converters/                   # YAML -> IDF converters (11 + base class)
+│   ├── validator/
+│   │   └── data_model.py             # 31 Pydantic schema classes
+│   ├── runner/
+│   │   └── runner.py                 # EnergyPlusRunner
+│   ├── rag/                          # RAG pipeline (rag.py, embedding.py, vector.py, chunk.py)
+│   ├── database/datatools/           # SQLite data tools
+│   ├── configs/
+│   │   ├── config.py                 # EmbeddingConfig, LLMConfig
+│   │   ├── llm.yaml                  # Agent LLM settings
+│   │   └── embedding.yaml            # Embedding model settings
+│   ├── utils/logging.py              # Loguru setup
+│   └── converter_manager.py          # ConverterManager
+├── scripts/
+│   ├── run_demo.py                   # End-to-end agent demo with auto-approval
+│   ├── export_trace.py               # Run demo and dump LangSmith run trees to output/traces/
+│   └── _share.py                     # Demo building briefs
+├── tests/
+│   ├── test_merge.py                 # ConfigState reducer tests
+│   └── test_zone_agent.py            # Zone phase agent test (requires an LLM)
+├── data/
+│   ├── dependencies/Energy+.idd      # EnergyPlus IDD
+│   ├── weather/Shenzhen.epw          # Example weather file
+│   ├── schemas/                      # Example YAML configurations
+│   └── examples/EP_Agent_data.db     # Example SQLite database
+├── docker/                           # Dockerfile (nrel/energyplus:25.1.0) + docker-compose.yml
+├── docs/_dev/                        # Design documents
+├── output/                           # IDF, YAML, logs, traces, simulation results
+├── main.py                           # Typer CLI
+└── pyproject.toml
 ```
 
-## 技术栈
+## Technology Stack
 
-### 核心依赖
-- **Python 3.12+**：项目运行环境
-- **EnergyPlus 25.1.0+**：建筑能耗模拟引擎
-- **uv**：Python 包管理工具
+### Runtime requirements
+- **Python 3.12+**
+- **EnergyPlus 25.1.0+** on `PATH`
+- **uv** for dependency management
 
-### 主要库
-| 库 | 版本 | 用途 |
+### Main dependencies
+| Library | Version | Purpose |
 |---|---|---|
-| **fastmcp** | >=2.14.1 | MCP 协议服务器框架 |
-| **eppy** | >=0.5.63 | EnergyPlus IDF 文件操作 |
-| **pydantic** | >=2.11.7 | 数据验证和 Schema 定义 |
+| **langgraph** | >=1.1.3 | Agent graph, checkpointing, interrupts |
+| **langchain** | >=1.2.13 | Chat model factory, tools, messages |
+| **langchain-anthropic** / **langchain-openai** | >=1.4.0 / >=1.1.12 | Bundled LLM providers |
+| **fastmcp** | >=2.14.1 | MCP server framework |
+| **eppy** | >=0.5.63 | IDF manipulation |
+| **pydantic** | >=2.11.7 | Schema validation |
 | **google-genai** | >=1.68.0 | Gemini Embedding API |
-| **qdrant-client** | >=1.17.1 | Qdrant 向量数据库客户端 |
-| **omegaconf** | >=2.3.0 | 配置管理 |
-| **typer** | >=0.20.1 | CLI 框架 |
-| **numpy** | >=2.3.4 | 数值计算 |
-| **scipy** | >=1.16.2 | 科学计算（几何验证） |
-| **trimesh** | >=4.9.0 | 三维几何处理 |
-| **loguru** | >=0.7.3 | 日志管理 |
-| **tqdm** | >=4.67.3 | 进度条显示 |
-| **pyyaml** | >=6.0.2 | YAML 文件解析 |
+| **qdrant-client** | >=1.17.1 | Vector database client |
+| **omegaconf** | >=2.3.0 | YAML configuration with env interpolation |
+| **typer** | >=0.20.1 | CLI |
+| **numpy** / **scipy** / **trimesh** | — | Geometry validation |
+| **loguru** | >=0.7.3 | Logging |
+| **pyyaml** | >=6.0.2 | YAML parsing |
 
-## 快速开始
+Development extras: `pytest`, `langsmith`, `grandalf`.
 
-### 环境要求
+## Quick Start
 
-- Python 3.12+
-- EnergyPlus 25.1.0+
-- uv 包管理器
+### Installation
 
-### 安装步骤
-
-1. **克隆项目**
 ```bash
 git clone https://github.com/ITOTI-Y/EnergyPlus-Agent.git
 cd EnergyPlus-Agent
-```
-
-2. **安装依赖**
-```bash
 uv sync
 ```
 
-3. **准备依赖文件**
-- 确保 `data/dependencies/` 目录下有 `Energy+.idd` 文件
-- 准备天气数据文件（如 `data/weather/Shenzhen.epw`）
+Make sure `data/dependencies/Energy+.idd` exists and that an EPW weather file is available (the repository ships `data/weather/Shenzhen.epw`).
 
-4. **配置环境变量**
+### Environment variables
 
-复制 `.env.example` 为 `.env` 并填写：
-```bash
-cp .env.example .env
-```
+Copy `.env.example` to `.env` and fill in what you need:
 
 ```env
-# Qdrant 向量数据库配置
-QDRANT_ENDPOINT=http://localhost:6333
-QDRANT_API_KEY=                        # 本地 Docker 部署可留空
+# Agent LLM (used with src/configs/llm.yaml)
+LLM_API_KEY=
+LLM_BASE_URL=            # optional, for OpenAI-compatible gateways
 
-# Gemini API 配置（RAG 嵌入所需）
-GEMINI_API_KEY=your_gemini_api_key
+# RAG embedding pipeline
+QDRANT_ENDPOINT=
+QDRANT_API_KEY=
+GEMINI_API_KEY=
+
+# Optional LangSmith tracing
+LANGSMITH_API_KEY=
+LANGSMITH_ENDPOINT=
+LANGSMITH_PROJECT=
+LANGSMITH_TRACING=
 ```
 
-### 运行方式
+`AGENT_LANGUAGE` (default `English`) controls the language of agent narrative text. The `embedding` command requires all three of `QDRANT_ENDPOINT`, `QDRANT_API_KEY` and `GEMINI_API_KEY` to be set.
 
-#### 1. IDF 转换和模拟
+### LLM configuration
+
+`src/configs/llm.yaml` selects the model used by every agent phase:
+
+```yaml
+provider: "anthropic"          # any provider supported by LangChain init_chat_model
+base_url: ${oc.env:LLM_BASE_URL,null}
+api_key: ${oc.env:LLM_API_KEY,null}
+model_name: "gpt-5.4"
+temperature: 0.7
+max_tokens: 64000
+```
+
+### Run the agent
 
 ```bash
-# 将 YAML 配置转换为 IDF 并运行模拟
-uv run main.py convert-idf
+# Text brief only
+uv run main.py run-agent "Design a 5-zone office in Shenzhen, 10m x 8m x 3m, ..." \
+  --epw data/weather/Shenzhen.epw
+
+# With drawings (repeat --image for several files)
+uv run main.py run-agent "Office building described in the drawings" \
+  --epw data/weather/Shenzhen.epw \
+  --image floorplan.png --image elevation.png \
+  --output-dir output/run1 --thread-id run1
 ```
 
-#### 2. MCP 服务器
+The command stops at the validate step, prints a configuration summary and any cross-reference errors, and waits for input. Type `y` to approve and simulate, or type feedback text to send the graph back to intake with your correction. Results, the exported YAML and the generated IDF are written under `--output-dir`.
+
+Two scripts cover non-interactive use:
 
 ```bash
-# 启动 MCP 服务器（stdio 模式，用于 Claude Desktop 等）
-uv run main.py mcp-server
-
-# 启动 HTTP 模式服务器
-uv run main.py mcp-server --transport http --host 0.0.0.0 --port 8000
-
-# 支持的传输协议：stdio, http, sse, streamable-http
+uv run python scripts/run_demo.py       # auto-approves when there are no errors
+uv run python scripts/export_trace.py   # interactive approval, dumps run trees to output/traces/
 ```
 
-#### 3. RAG 数据库构建
+### Convert a YAML configuration directly
 
 ```bash
-# 启动 Qdrant 向量数据库（Docker）
-docker run -p 6333:6333 -p 6334:6334 \
-  -v $(pwd)/qdrant_storage:/qdrant/storage:z \
-  qdrant/qdrant
-
-# 构建 RAG 嵌入索引
-uv run main.py embedding --collection energyplus_database --db-path data/examples/EP_Agent_data.db
+uv run main.py convert-idf   # data/schemas/building_schema.yaml -> output/idf/*.idf + simulation
 ```
 
-#### 4. Docker 部署
+### MCP server
 
 ```bash
-cd docker
-
-# 使用 docker-compose 构建并启动 MCP HTTP 服务
-docker-compose up -d
+uv run main.py mcp-server                                                # stdio
+uv run main.py mcp-server --transport http --host 0.0.0.0 --port 8000    # HTTP
 ```
 
-### 配置 Claude Desktop
-
-在 Claude Desktop 的配置文件中添加：
+Claude Desktop configuration:
 
 ```json
 {
@@ -246,186 +232,177 @@ docker-compose up -d
 }
 ```
 
-## MCP 服务器
+### RAG index
 
-### 可用工具
+```bash
+docker run -p 6333:6333 -p 6334:6334 \
+  -v $(pwd)/qdrant_storage:/qdrant/storage:z \
+  qdrant/qdrant
 
-#### Core 核心工具
-| 工具 | 描述 |
-|------|------|
-| `create_building` / `get_building` / `update_building` / `delete_building` / `list_buildings` | 建筑信息 CRUD |
-| `create_location` / `get_location` / `update_location` / `delete_location` / `list_locations` | 站点位置 CRUD |
-| `create_zone` / `get_zone` / `update_zone` / `delete_zone` / `list_zones` | 热区 CRUD |
+uv run main.py embedding --collection energyplus_database --db-path data/examples/EP_Agent_data.db
+```
 
-#### Envelope 围护工具
-| 工具 | 描述 |
-|------|------|
-| `create_standard_material` / `create_no_mass_material` / `create_air_gap_material` / `create_glazing_material` | 创建不同类型材料 |
-| `get_material` / `update_*_material` / `delete_material` / `list_materials` | 材料查询/更新/删除 |
-| `create_construction` / `get_construction` / `update_construction` / `delete_construction` / `list_constructions` | 构造层 CRUD |
-| `create_surface` / `get_surface` / `update_surface` / `delete_surface` / `list_surfaces` | 建筑表面 CRUD |
-| `create_fenestration_surface` / `get_fenestration_surface` / `update_fenestration_surface` / `delete_fenestration_surface` / `list_fenestration_surfaces` | 窗户/开口 CRUD |
+### Docker
 
-#### Schedule 日程工具
-| 工具 | 描述 |
-|------|------|
-| `create_schedule_type_limits` / `get_schedule_type_limits` / `update_schedule_type_limits` / `delete_schedule_type_limits` / `list_schedule_type_limits` | 日程类型限制 CRUD |
-| `create_schedule_compact` / `get_schedule_compact` / `update_schedule_compact` / `delete_schedule_compact` / `list_schedule_compacts` | 紧凑日程 CRUD |
+```bash
+cd docker
+docker compose up -d    # builds on nrel/energyplus:25.1.0 and serves the MCP server on port 8000
+```
 
-#### HVAC 暖通工具
-| 工具 | 描述 |
-|------|------|
-| `create_hvac_thermostat` / `get_hvac_thermostat` / `update_hvac_thermostat` / `delete_hvac_thermostat` / `list_hvac_thermostats` | 恒温器 CRUD |
-| `create_hvac_ideal_loads_system` / `get_hvac_ideal_loads_system` / `update_hvac_ideal_loads_system` / `delete_hvac_ideal_loads_system` / `list_hvac_ideal_loads_systems` | 理想负荷系统 CRUD |
+## Agent Architecture
 
-#### Loads 负荷工具
-| 工具 | 描述 |
-|------|------|
-| `create_people` / `get_people` / `update_people` / `delete_people` / `list_people` | 人员负荷 CRUD |
-| `create_light` / `get_light` / `update_light` / `delete_light` / `list_lights` | 照明负荷 CRUD |
+```
+START -> intake
+           |
+     +-----+-----+          phase 1, parallel
+     v     v     v
+   zone material schedule
+     |     |     |
+     +-----+-----+
+           v
+  cross_ref_foundations --[errors]--> validate
+           | (clean)
+      construction -> surface -> fenestration
+                                     |
+                               +-----+-----+   phase 3, parallel
+                               v     v     v
+                             hvac  people lights
+                               |     |     |
+                               +-----+-----+
+                                     v
+                             cross_ref_complete
+                                     v
+                                 validate --[interrupt]--> approved -> simulate -> END
+                                     |
+                                     +-- rejected / feedback -> intake
+```
 
-#### Workflow 工作流
-| 工具 | 描述 |
-|------|------|
-| `export_yaml` | 导出当前配置为 YAML 文件 |
-| `load_yaml` | 加载 YAML 配置文件 |
-| `validate_config` | 验证所有跨引用配置 |
-| `run_simulation` | 运行 EnergyPlus 模拟 |
-| `get_summary` | 获取配置摘要 |
-| `clear_all` | 清空所有配置 |
+- **State**: `AgentState` holds the message list (intake conversation and phase summaries only), the user brief, image paths, `ConfigState`, `IntakeOutput`, validation errors and a retry counter.
+- **Phase agents**: each phase is a compiled ReAct subgraph with `parallel_tool_calls=False`, working on a local copy of `ConfigState` and returning only its delta. Tool-call history stays inside the subgraph and is captured by `TraceCollector`.
+- **Geometry**: the surface phase builds a canonical six-surface box for each zone from `ZoneGeometry` (origin, width, depth, height, exterior wall faces, floor and roof boundary conditions).
+- **Checkpointing**: `InMemorySaver` with a pickle serializer, so nested Pydantic subclasses survive the interrupt round-trip.
+- **Runtime context**: `SimContext` carries the EPW path and output directory; `RunnableConfig` carries the `thread_id`.
 
-### 资源端点
-| 资源 | 描述 |
-|------|------|
-| `config://current` | 获取当前完整配置（YAML 格式） |
-| `config://summary` | 获取配置摘要 |
+## MCP Server Tools
 
-## 配置文件说明
+### Core
+| Tool | Description |
+|------|-------------|
+| `create_building` / `get_building` / `update_building` / `delete_building` / `list_buildings` | Building CRUD |
+| `create_location` / `get_location` / `update_location` / `delete_location` / `list_locations` | Site location CRUD |
+| `create_zone` / `get_zone` / `update_zone` / `delete_zone` / `list_zones` | Zone CRUD |
 
-### YAML 配置结构
+### Envelope
+| Tool | Description |
+|------|-------------|
+| `create_standard_material` / `create_no_mass_material` / `create_air_gap_material` / `create_glazing_material` | Create materials by type |
+| `get_material` / `update_*_material` / `delete_material` / `list_materials` | Material read, update, delete, list |
+| `create_construction` / `get_construction` / `update_construction` / `delete_construction` / `list_constructions` | Construction CRUD |
+| `create_surface` / `get_surface` / `update_surface` / `delete_surface` / `list_surfaces` | Building surface CRUD |
+| `create_fenestration_surface` / `get_fenestration_surface` / `update_fenestration_surface` / `delete_fenestration_surface` / `list_fenestration_surfaces` | Window and door CRUD |
 
-配置文件采用 YAML 格式，主要包含以下部分：
+### Schedule
+| Tool | Description |
+|------|-------------|
+| `create_schedule_type_limits` / `get_schedule_type_limits` / `update_schedule_type_limits` / `delete_schedule_type_limits` / `list_schedule_type_limits` | ScheduleTypeLimits CRUD |
+| `create_schedule_compact` / `get_schedule_compact` / `update_schedule_compact` / `delete_schedule_compact` / `list_schedule_compacts` | Schedule:Compact CRUD |
 
-- **SimulationControl**：模拟控制参数
-- **Building**：建筑基本信息（名称、北轴、地形）
-- **Timestep**：时间步长设置
-- **Site:Location**：地理位置信息
-- **RunPeriod**：模拟运行周期
-- **GlobalGeometryRules**：全局几何规则
-- **Material**：材料定义（标准、无质量、玻璃、空气间隙）
-- **Construction**：构造层定义
-- **Zone**：热区定义
-- **BuildingSurface:Detailed**：建筑表面详细信息
-- **FenestrationSurface:Detailed**：窗户/开口详细信息
-- **ScheduleTypeLimits / Schedule:Compact**：日程定义
-- **HVACTemplate:Thermostat / HVACTemplate:Zone:IdealLoadsAirSystem**：HVAC 系统
-- **People / Lights**：人员和照明负荷
-- **Output:Variable / Output:Meter**：输出设置
+### HVAC
+| Tool | Description |
+|------|-------------|
+| `create_hvac_thermostat` / `get_hvac_thermostat` / `update_hvac_thermostat` / `delete_hvac_thermostat` / `list_hvac_thermostats` | Thermostat CRUD |
+| `create_hvac_ideal_loads_system` / `get_hvac_ideal_loads_system` / `update_hvac_ideal_loads_system` / `delete_hvac_ideal_loads_system` / `list_hvac_ideal_loads_systems` | Ideal loads air system CRUD |
 
-### 数据验证
+### Loads
+| Tool | Description |
+|------|-------------|
+| `create_people` / `get_people` / `update_people` / `delete_people` / `list_people` | People CRUD |
+| `create_light` / `get_light` / `update_light` / `delete_light` / `list_lights` | Lights CRUD |
 
-项目使用 Pydantic Schema 进行数据验证（33+ Schema 类），包括：
+### Workflow
+| Tool | Description |
+|------|-------------|
+| `export_yaml` | Export the current configuration as YAML |
+| `load_yaml` | Load a YAML configuration |
+| `validate_config` | Run all cross-reference checks |
+| `run_simulation` | Validate, export YAML, convert to IDF and run EnergyPlus |
+| `get_summary` | Return object counts |
+| `clear_all` | Reset the configuration |
 
-- **建筑组件**：`BuildingSchema`、`SiteLocationSchema`、`ZoneSchema`
-- **材料**：`StandardMaterialSchema`、`NoMassMaterialSchema`、`GlazingMaterialSchema`、`AirGapMaterialSchema`
-- **构造**：`ConstructionSchema`
-- **表面**：`SurfaceSchema`、`FenestrationSurfaceSchema`
-- **几何**：`GeometrySchema`（验证顶点闭合性和排序）
-- **日程**：`ScheduleTypeLimitsSchema`、`ScheduleCompactSchema`
-- **HVAC**：`HVACTemplateThermostatSchema`、`HVACTemplateZoneIdealLoadsAirSystemSchema`
-- **负荷**：`PeopleSchema`、`LightSchema`
-- **模拟控制**：`SimulationControlSchema`、`RunPeriodSchema`、`GlobalGeometryRulesSchema`
+### Resources
+| Resource | Description |
+|----------|-------------|
+| `config://current` | Full current configuration as YAML |
+| `config://summary` | Configuration summary |
 
-所有数据在转换前都会经过严格验证，确保生成的 IDF 文件符合 EnergyPlus 规范。
+## YAML Configuration
 
-## CLI 命令
+The YAML file mirrors EnergyPlus objects section by section:
 
-| 命令 | 描述 |
-|------|------|
-| `uv run main.py convert-idf` | 将 YAML 配置转换为 IDF 并运行模拟 |
-| `uv run main.py mcp-server [--transport] [--host] [--port]` | 启动 MCP 服务器 |
-| `uv run main.py embedding --collection <name> --db-path <path>` | 构建 RAG 嵌入索引 |
-| `energyplus-mcp` | 直接运行 MCP 服务器（通过 pyproject.toml scripts） |
+- **SimulationControl**, **Timestep**, **RunPeriod**, **GlobalGeometryRules**
+- **Building**, **Site:Location**
+- **Material** (standard, no-mass, air gap, glazing), **Construction**
+- **Zone**, **BuildingSurface:Detailed**, **FenestrationSurface:Detailed**
+- **ScheduleTypeLimits**, **Schedule:Compact**
+- **HVACTemplate:Thermostat**, **HVACTemplate:Zone:IdealLoadsAirSystem**
+- **People**, **Lights**
+- **Output:Variable**, **Output:VariableDictionary**, **Output:Diagnostics**, **Output:Table:SummaryReports**, **OutputControl:Table:Style**
 
-## 开发进度（TODO List）
+Every section is validated by a matching Pydantic schema before conversion. Examples live in `data/schemas/`.
 
-### 已完成
+## CLI Reference
 
-#### 1. EP 配置文件与转换器
-- [x] IDF 最小化配置文件
-- [x] YAML 最小配置文件
-- [x] 13 个转换器（Building、Zone、Surface、Setting、Material、Construction、HVAC、Schedule、Fenestration、Light、People）
+| Command | Description |
+|---------|-------------|
+| `uv run main.py run-agent "<brief>" --epw <file> [--image <file>]... [--output-dir <dir>] [--thread-id <id>]` | Run the multi-phase agent end to end with interactive approval |
+| `uv run main.py convert-idf` | Convert `data/schemas/building_schema.yaml` to IDF and simulate |
+| `uv run main.py mcp-server [--transport] [--host] [--port]` | Start the MCP server |
+| `uv run main.py embedding --collection <name> --db-path <path>` | Build the RAG index |
+| `energyplus-mcp` | MCP server entry point installed by `pyproject.toml` |
 
-#### 2. Pydantic 数据验证
-- [x] 33+ Schema 类覆盖所有 EnergyPlus 对象
-- [x] 几何闭合性和顶点排序验证
-- [x] 跨引用验证
+## Testing
 
-#### 3. EP 执行模块
-- [x] 构建 runner 用于 IDF 运行
-- [x] 测试最小化和完整配置文件运行
+```bash
+uv run pytest
+```
 
-#### 4. MCP 服务器
-- [x] FastMCP 服务器框架搭建
-- [x] 配置状态管理（ConfigState）
-- [x] 完整 CRUD 工具集（Building、Location、Zone、Surface、Material、Construction、Fenestration、Schedule、HVAC、People、Light）
-- [x] 工作流工具（load/export/validate/run/summary/clear）
-- [x] 资源端点（config://current、config://summary）
-- [x] 多传输协议支持（stdio/http/sse/streamable-http）
-- [x] CLI 入口（Typer）
-- [x] Docker 支持
+`tests/test_merge.py` exercises the state reducer without network access. `tests/test_zone_agent.py` drives the zone phase agent and needs a configured LLM.
 
-#### 5. RAG 知识库
-- [x] 异步嵌入管道（Gemini Embedding + Qdrant）
-- [x] 速率限制、并发控制和重试机制
-- [x] 增量同步和过期数据清理
-- [x] 类型化搜索结果
+## Roadmap
 
-#### 6. 数据库工具
-- [x] 标准材料、无质量材料、构造、日程、设计日数据管理
-- [x] SQLite 索引和数据描述
+### Done
+- YAML schema and IDF converters with Pydantic validation, geometry checks and cross-reference validation
+- EnergyPlus runner with ExpandObjects and ReadVarsESO enabled; sizing periods on by default
+- FastMCP server with full CRUD, workflow tools, resources, multi-transport support, CLI and Docker
+- Async RAG pipeline with rate limiting, retry, incremental sync and typed results
+- SQLite data tools for materials, constructions, schedules and design days
+- LangGraph multi-phase agent: structured intake, parallel phase sub-agents, parallel-safe state merge, cross-reference self-repair, human-in-the-loop approval, simulation
+- Multimodal intake (text + drawings) and box-recipe zone geometry
+- Tool-call trace collection and LangSmith trace export
 
-### 待开发
+### Planned
+- Simulation result parsing and visualization
+- Broader HVAC coverage beyond `HVACTemplate` ideal loads
+- Agent-side use of the RAG knowledge base and data tools during construction
+- Persistent checkpointing and resumable sessions
+- Fine-tuning pipeline built on the collected traces
 
-#### 7. 结果解析与可视化
-- [ ] 模拟结果解析
-- [ ] 结果可视化
+## Contributing
 
-#### 8. 多模态 IDF 构建（LangGraph）
-- [ ] 通过 LLM 读取图片+文本输入，理解建筑设计意图
-- [ ] 结合 MCP 工具自动构建 IDF 文件
-- [ ] 基于 LangGraph 实现多步骤 Agent 编排
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'feat: add AmazingFeature'`)
+4. Push the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
 
-#### 9. MCP 工具扩展
-- [ ] 数据上传 LLM 的 MCP tools
-- [ ] 将构建代码解释的 LLM 的 MCP tools
-- [ ] 将构建的代码格式化的 LLM 的 MCP tools
-- [ ] 修改 IDF 文件的 MCP tools
+### Code style
+- Python 3.12+ features
+- Ruff for linting and formatting (configuration in `pyproject.toml`)
+- Add or extend Pydantic schemas for any new EnergyPlus object
+- Keep docstrings and comments focused on non-obvious behavior
+- Make sure `uv run pytest` passes
 
-#### 10. 系统设置 Agent 构建
-- [ ] 构建 MCP 用于 LLM 调用去实际 idf 系统设置
-- [ ] 实现交互式 Agent 的建议
-- [ ] 网络搜索 MCP tools
+## Contact
 
-## 贡献指南
-
-欢迎贡献代码和建议！请遵循以下步骤：
-
-1. Fork 本仓库
-2. 创建特性分支 (`git checkout -b feature/AmazingFeature`)
-3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
-4. 推送到分支 (`git push origin feature/AmazingFeature`)
-5. 创建 Pull Request
-
-### 代码规范
-
-- 使用 Python 3.12+ 特性
-- 使用 Ruff 进行代码检查和格式化（配置见 `pyproject.toml`）
-- 为新功能添加相应的 Pydantic 数据验证 Schema
-- 编写清晰的注释和文档字符串
-- 确保所有测试通过
-
-## 联系方式
-
-- 项目主页：[https://github.com/ITOTI-Y/EnergyPlus-Agent](https://github.com/ITOTI-Y/EnergyPlus-Agent)
-- 问题反馈：[Issues](https://github.com/ITOTI-Y/EnergyPlus-Agent/issues)
+- Project home: [https://github.com/ITOTI-Y/EnergyPlus-Agent](https://github.com/ITOTI-Y/EnergyPlus-Agent)
+- Issues: [https://github.com/ITOTI-Y/EnergyPlus-Agent/issues](https://github.com/ITOTI-Y/EnergyPlus-Agent/issues)
