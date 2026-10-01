@@ -33,6 +33,12 @@ def test_create_llm_respects_configured_thinking_budget():
     assert llm.extra_body == {"max_thinking_budget": 8192}
 
 
+def test_create_llm_passes_configured_retries():
+    llm = create_llm(_config(max_retries=5))
+    assert isinstance(llm, ChatOpenAI)
+    assert llm.max_retries == 5
+
+
 def _request(tool_name: str) -> ToolCallRequest:
     return ToolCallRequest(
         tool_call={"name": tool_name, "args": {}, "id": "tc1"},

@@ -37,6 +37,9 @@ packages = ["src"]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
+# tests/ mirrors src/, so basenames such as test_state.py repeat across
+# directories; importlib mode keeps them as distinct modules.
+addopts = ["--import-mode=importlib"]
 
 [tool.ruff]
 line-length = 88
@@ -70,7 +73,10 @@ docstring-code-format = true
 dev = [
     "grandalf>=0.8",
     "langsmith>=0.7.23",
+    "pre-commit>=4.6.2",
     "pytest>=9.0.2",
     "pytest-cov>=7.1.0",
     "pytest-recording>=0.13.4",
+    "ruff>=0.16.10",
+    "ty>=0.0.84",
 ]

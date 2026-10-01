@@ -49,6 +49,7 @@ def create_llm(config: LLMConfig | None = None) -> BaseChatModel:
     kwargs: dict[str, Any] = {
         "temperature": config.temperature,
         "max_tokens": config.max_tokens,
+        "max_retries": config.max_retries,
         "extra_body": {"max_thinking_budget": config.max_thinking_budget or 4096},
     }
     if config.base_url:

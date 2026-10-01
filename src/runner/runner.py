@@ -1,130 +1,161 @@
+"""Run EnergyPlus as a subprocess and collect its eplusout.err diagnostics."""
+
 import shutil
 import subprocess
-import tempfile
-from datetime import datetime
+import threading
+from collections import Counter
+from dataclasses import dataclass
 from pathlib import Path
-
-from idfpy import IDF
+from typing import IO, Final, Literal, cast
 
 from src.utils.logging import get_logger
 
+logger = get_logger(__name__)
 
-class EnergyPlusRunner:
-    def __init__(self, idf: IDF | None = None, idd_file_path: Path | None = None):
-        """
-        Initialize the EnergyPlusRunner.
+SIMULATION_TIMEOUT_S: Final = 3600.0
 
-        Args:
-            idf: An instance of idfpy.IDF
-            idd_file_path: Unused; kept for backwards-compatible call signatures.
-        """
-        self.logger = get_logger(__name__)
-        self.idf_path: Path | None = None
-        self.idf = idf
-        self.logger.info("EnergyPlusRunner initialized.")
+type Severity = Literal["Warning", "Severe", "Fatal"]
 
-    def run_idf(
-        self,
-        epw_file_path: Path | str,
-        idf_file_path: Path | str | None = None,
-        output_directory: Path | None = None,
-    ) -> bool:
-        """
-        Run EnergyPlus IDF file
+_SEVERITY_PREFIXES: Final[dict[str, Severity]] = {
+    "** Warning **": "Warning",
+    "** Severe  **": "Severe",
+    "**  Fatal  **": "Fatal",
+}
+_CONTINUATION_PREFIX: Final = "**   ~~~   **"
 
-        Args:
-            idf_file_path: IDF file path
-            epw_file_path: EPW weather file path
-            output_directory: Output directory, if None, a default directory will be created
 
-        Returns:
-            bool: True if the simulation ran successfully, False otherwise
-        """
-        temporary_idf_path: Path | None = None
-        if idf_file_path:
-            self.idf_path = Path(idf_file_path)
-            self.idf = IDF.load(self.idf_path)
-        elif self.idf_path:
-            idf_file_path = self.idf_path
-        elif self.idf is not None:
-            with tempfile.NamedTemporaryFile(suffix=".idf", delete=False) as temp_file:
-                temporary_idf_path = Path(temp_file.name)
-            self.idf.save(temporary_idf_path)
-            self.idf_path = temporary_idf_path
-        else:
-            raise ValueError("IDF file path or IDF instance is required.")
-        self.epw_path = Path(epw_file_path)
+@dataclass(frozen=True, slots=True)
+class EnergyPlusMessage:
+    """One eplusout.err message with its ``~~~`` continuation lines.
 
-        if not self.idf_path.exists():
-            raise FileNotFoundError(f"IDF file not found: {self.idf_path}")
-        if not self.epw_path.exists():
-            raise FileNotFoundError(f"EPW file not found: {self.epw_path}")
+    Identical messages are merged; ``count`` records how often they occurred.
+    """
 
-        if output_directory is None:
-            output_directory = (
-                Path(__file__).parent.parent.parent
-                / "output"
-                / "results"
-                / f"energyplus_runs_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-            )
-        else:
-            output_directory = Path(output_directory)
-        output_directory.mkdir(parents=True, exist_ok=True)
+    severity: Severity
+    text: str
+    count: int = 1
 
-        self.logger.info("Starting EnergyPlus simulation...")
-        self.logger.info("IDF file: {}", self.idf_path)
-        self.logger.info("EPW file: {}", self.epw_path)
-        self.logger.info("Output directory: {}", output_directory)
 
-        try:
-            energyplus_exe = shutil.which("energyplus")
-            if not energyplus_exe:
-                raise FileNotFoundError("EnergyPlus executable not found in PATH")
+@dataclass(frozen=True, slots=True)
+class SimulationResult:
+    output_dir: Path
+    return_code: int
+    messages: tuple[EnergyPlusMessage, ...]
 
-            cmd = [
-                energyplus_exe,
-                "-x",
-                "-w",
-                str(self.epw_path),
-                "-d",
-                str(output_directory),
-                "-r",
-                str(self.idf_path),
-            ]
+    @property
+    def errors(self) -> tuple[EnergyPlusMessage, ...]:
+        return tuple(m for m in self.messages if m.severity != "Warning")
 
-            self.logger.info("Running command: {}", " ".join(cmd))
+    @property
+    def succeeded(self) -> bool:
+        # EnergyPlus can exit 0 while reporting Severe errors that invalidate
+        # the results, so both signals are required.
+        return self.return_code == 0 and not self.errors
 
-            process = subprocess.Popen(
-                cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                text=True,
-                bufsize=1,
-            )
 
-            output_lines = []
-            for line in process.stdout or []:
-                line = line.rstrip()
-                self.logger.info("[EnergyPlus] {}", line)
-                output_lines.append(line)
+def parse_err_file(err_path: Path) -> tuple[EnergyPlusMessage, ...]:
+    """Parse eplusout.err into messages, merging identical repeats."""
+    blocks: list[tuple[Severity, list[str]]] = []
+    for raw_line in err_path.read_text(encoding="utf-8", errors="replace").splitlines():
+        line = raw_line.strip()
+        match = next(
+            (item for item in _SEVERITY_PREFIXES.items() if line.startswith(item[0])),
+            None,
+        )
+        if match is not None:
+            prefix, severity = match
+            blocks.append((severity, [line.removeprefix(prefix).strip()]))
+        elif line.startswith(_CONTINUATION_PREFIX) and blocks:
+            blocks[-1][1].append(line.removeprefix(_CONTINUATION_PREFIX).strip())
 
-            return_code = process.wait()
+    counts = Counter((severity, "\n".join(lines)) for severity, lines in blocks)
+    return tuple(
+        EnergyPlusMessage(severity, text, count)
+        for (severity, text), count in counts.items()
+    )
 
-            if return_code != 0:
-                self.logger.error("EnergyPlus exited with code {}", return_code)
-                return False
 
-            self.logger.info("EnergyPlus simulation completed successfully.")
-            return True
+def _log_output(stream: IO[str]) -> None:
+    for line in stream:
+        logger.info("[EnergyPlus] {}", line.rstrip())
 
-        except FileNotFoundError:
-            self.logger.error("EnergyPlus executable not found.")
-            return False
 
-        except Exception:
-            self.logger.exception("Running EnergyPlus simulation failed")
-            raise
-        finally:
-            if temporary_idf_path is not None:
-                temporary_idf_path.unlink(missing_ok=True)
-                self.idf_path = None
+def run_energyplus(
+    idf_path: Path,
+    epw_path: Path,
+    output_dir: Path,
+    *,
+    timeout_s: float = SIMULATION_TIMEOUT_S,
+) -> SimulationResult:
+    """Run one EnergyPlus simulation with ExpandObjects and ReadVarsESO.
+
+    Args:
+        idf_path: Input IDF file.
+        epw_path: Weather file.
+        output_dir: Directory dedicated to this run; it is also the working
+            directory of the process.
+        timeout_s: Wall-clock limit before the process is killed.
+
+    Returns:
+        Exit code and the parsed eplusout.err messages.
+
+    Raises:
+        FileNotFoundError: If EnergyPlus is not on PATH, an input file is
+            missing, or the run produced no eplusout.err.
+        TimeoutError: If the run exceeds ``timeout_s``.
+    """
+    executable = shutil.which("energyplus")
+    if executable is None:
+        raise FileNotFoundError("EnergyPlus executable not found on PATH")
+    idf_path = idf_path.resolve(strict=True)
+    epw_path = epw_path.resolve(strict=True)
+    output_dir = output_dir.resolve()
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    cmd = [
+        executable,
+        "-x",
+        "-r",
+        "-w",
+        str(epw_path),
+        "-d",
+        str(output_dir),
+        str(idf_path),
+    ]
+    logger.info("Running EnergyPlus: {}", " ".join(cmd))
+    # ExpandObjects writes intermediate files into the working directory;
+    # concurrent runs sharing one cwd abort, so each run uses its own output dir.
+    process = subprocess.Popen(
+        cmd,
+        cwd=output_dir,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+    )
+    # stdout=PIPE guarantees a stream; Popen types it as optional.
+    stdout = cast(IO[str], process.stdout)
+    reader = threading.Thread(target=_log_output, args=(stdout,), daemon=True)
+    reader.start()
+    try:
+        return_code = process.wait(timeout=timeout_s)
+    except subprocess.TimeoutExpired as exc:
+        process.kill()
+        process.wait()
+        raise TimeoutError(
+            f"EnergyPlus exceeded {timeout_s:g} s for {idf_path}"
+        ) from exc
+    finally:
+        reader.join()
+
+    err_path = output_dir / "eplusout.err"
+    if not err_path.exists():
+        raise FileNotFoundError(
+            f"EnergyPlus exited with code {return_code} without writing {err_path}"
+        )
+    result = SimulationResult(output_dir, return_code, parse_err_file(err_path))
+    logger.info(
+        "EnergyPlus finished: exit code {}, {} error message(s)",
+        return_code,
+        len(result.errors),
+    )
+    return result

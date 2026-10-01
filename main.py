@@ -11,9 +11,8 @@ from typer import Argument, Option
 from src.agent import AgentState, SimContext, build_graph
 from src.agent.runner import interactive_approval, print_final_messages, run_session
 from src.converter_manager import ConverterManager
-from src.runner.runner import EnergyPlusRunner
+from src.runner.runner import run_energyplus
 from src.utils.logging import get_logger, setup_logger
-from src.validator.data_model import BaseSchema
 
 load_dotenv()
 
@@ -27,9 +26,6 @@ logger = get_logger(__name__)
 
 app = typer.Typer()
 
-idd_file = Path("./data/dependencies/Energy+.idd")
-BaseSchema.set_idf(idd_file)
-
 
 @app.command()
 def convert_idf():
@@ -39,8 +35,9 @@ def convert_idf():
     manager = ConverterManager(yaml_file)
     manager.convert_all()
     manager.save_idf(idf_file_output)
-    ep_runner = EnergyPlusRunner(manager.idf)
-    ep_runner.run_idf(epw_file_path=epw_file)
+    run_energyplus(
+        idf_file_output, epw_file, Path(f"./output/results/run_{logger_time}")
+    )
 
 
 @app.command()
