@@ -55,3 +55,8 @@ class LLMConfig(BaseModel):
     max_thinking_budget: int | None = Field(
         default=None, description="The maximum number of thinking budget to use"
     )
+    max_retries: int = Field(
+        default=2,
+        ge=0,
+        description="Retries the provider performs on transient API errors",
+    )

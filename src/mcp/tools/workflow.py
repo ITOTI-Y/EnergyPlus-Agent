@@ -1,9 +1,11 @@
 import time
+from dataclasses import asdict
 from pathlib import Path
+from uuid import uuid4
 
 from src.mcp.interface import ToolResponse
 from src.mcp.state import ConfigState
-from src.runner.runner import EnergyPlusRunner
+from src.runner.runner import run_energyplus
 from src.utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -75,61 +77,51 @@ class WorkflowTool:
     ) -> ToolResponse:
         """Run an EnergyPlus simulation with the current configuration.
 
-        Validates references, exports to YAML, converts to IDF, and
-        executes the EnergyPlus simulation.
+        Validates references, writes the IDF into a fresh run directory under
+        ``output_dir`` and runs EnergyPlus there.
 
         Args:
             epw_path: Path to the EPW weather data file.
-            output_dir: Directory for simulation output files.
+            output_dir: Parent directory for per-run output directories.
 
         Returns:
-            ToolResponse with IDF path and output directory on success.
+            ToolResponse with the IDF path, the run directory and the
+            EnergyPlus Severe/Fatal messages.
         """
-        from uuid import uuid4
+        validation = self.validate_config()
+        if not validation.success:
+            return ToolResponse(
+                success=False,
+                message="Validation reference errors, cannot run simulation.",
+                data=validation.data,
+            )
 
+        run_dir = (
+            Path(output_dir) / f"run_{time.strftime('%Y%m%d_%H%M%S')}_{uuid4().hex[:8]}"
+        )
+        run_dir.mkdir(parents=True)
+        idf_path = self.state.save_idf(run_dir / "in.idf")
         try:
-            validation = self.validate_config()
-            if not validation.success:
-                return ToolResponse(
-                    success=False,
-                    message="Validation reference errors, cannot run simulation.",
-                    data=validation.data,
-                )
+            result = run_energyplus(idf_path, Path(epw_path), run_dir)
+        except (FileNotFoundError, TimeoutError) as e:
+            logger.exception("EnergyPlus run failed")
+            return ToolResponse(success=False, message=f"EnergyPlus run failed: {e!s}")
 
-            run_dir = (
-                Path(output_dir)
-                / f"run_{time.strftime('%Y%m%d_%H%M%S')}_{uuid4().hex[:8]}"
-            )
-            run_dir.mkdir(parents=True, exist_ok=True)
-            temp_idf = run_dir / "temp.idf"
-            self.state.save_idf(temp_idf)
-
-            runner = EnergyPlusRunner()
-            ok = runner.run_idf(
-                epw_path,
-                idf_file_path=temp_idf,
-                output_directory=Path(output_dir),
-            )
-            if not ok:
-                return ToolResponse(
-                    success=False,
-                    message="EnergyPlus simulation failed.",
-                    data={
-                        "idf_path": str(temp_idf.absolute()),
-                        "output_dir": output_dir,
-                    },
-                )
-
+        data = {
+            "idf_path": str(idf_path),
+            "output_dir": str(result.output_dir),
+            "return_code": result.return_code,
+            "errors": [asdict(message) for message in result.errors],
+        }
+        if not result.succeeded:
             return ToolResponse(
-                success=True,
-                message="Simulation run successfully.",
-                data={"idf_path": str(temp_idf.absolute()), "output_dir": output_dir},
+                success=False,
+                message=f"EnergyPlus reported {len(result.errors)} error message(s).",
+                data=data,
             )
-        except Exception as e:
-            logger.exception("Error running simulation")
-            return ToolResponse(
-                success=False, message=f"Error running simulation: {e!s}"
-            )
+        return ToolResponse(
+            success=True, message="Simulation run successfully.", data=data
+        )
 
     def get_summary(self) -> ToolResponse:
         return ToolResponse(
