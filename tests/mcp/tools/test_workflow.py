@@ -15,7 +15,10 @@ def test_run_simulation_requires_ddy_beside_epw(tmp_path):
     epw = tmp_path / "weather.epw"
     shutil.copy(DATA_DIR / "weather" / "Shenzhen.epw", epw)
 
-    response = WorkflowTool(ConfigState()).run_simulation(str(epw), str(tmp_path))
+    state = ConfigState()
+    state.load_model(DATA_DIR / "schemas" / "building_schema.epJSON")
+
+    response = WorkflowTool(state).run_simulation(str(epw), str(tmp_path))
 
     assert not response.success
     assert "weather.ddy" in response.message

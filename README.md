@@ -21,7 +21,7 @@ A RAG knowledge base (Gemini Embedding + Qdrant) and SQLite data tools for stand
 - **Parallel-safe state**: a reducer (`merge_config_state`) unions the idfpy models written by concurrent phases; on a name conflict the later branch wins.
 - **Shared model operations**: agent tools and MCP tools are thin adapters over `src/modeling`, which rejects missing references and duplicate names at the call, applies updates atomically, renames references along with an object, and refuses to delete an object that others still reference. Tool arguments are typed models with declared fields, so a rejected call names the exact field (for example `vertices.0.X: Field required`).
 - **Failure-loop guard**: every phase agent stops when the same tool call fails three times or ten calls fail in a row, logs each failure, and reports the last error as the phase summary instead of retrying until the LLM budget runs out.
-- **Cross-reference self-repair**: after each phase group, `ConfigState.validate_references()` checks that every referenced zone, material, construction, surface and schedule exists. Each phase agent also receives read-only `list_*` tools so it can inspect what earlier phases created.
+- **Structured validation**: `src/modeling/validation.py` reports each problem as a `ModelIssue` tied to an object type, name and field. Sources are idfpy's reference check, geometric checks (fenestration reversed, off its parent surface's plane or outside its outline, which EnergyPlus would only warn about), empty models, phases that created nothing, and EnergyPlus Severe and Fatal messages, which are tied to the first object they quote. `src/agent/phases.py` maps object types to the phase that owns them; after its run each phase repairs the problems in its own objects, and every phase agent also receives read-only `list_*` tools to inspect what earlier phases created.
 - **Human-in-the-loop approval**: the validate node raises a LangGraph `interrupt()` with a configuration summary and any errors. Approval continues to simulation; free-text feedback loops back to intake.
 - **Multimodal input**: PNG, JPEG, WebP and GIF drawings are passed to the intake LLM as base64 image parts alongside the text brief.
 - **Tool-call tracing**: `TraceCollector` wraps every tool call in the ReAct subgraphs and records name, arguments, result and success flag per phase, intended as fine-tuning data. A script also exports full LangSmith run trees to local JSON.
@@ -58,6 +58,7 @@ EnergyPlus-Agent/
 │   ├── agent/                        # LangGraph multi-phase agent
 │   │   ├── graph.py                  # build_graph(): topology + in-memory checkpointer
 │   │   ├── state.py                  # AgentState, IntakeOutput, SimContext, merge_config_state
+│   │   ├── phases.py                 # Phase -> owned object types, issue routing
 │   │   ├── react.py                  # 3-node ReAct subgraph (llm -> tools -> llm)
 │   │   ├── runner.py                 # run_session(), interactive_approval(), auto_approval()
 │   │   ├── llm.py                    # create_llm() from src/configs/llm.yaml
@@ -81,13 +82,14 @@ EnergyPlus-Agent/
 │   │   │   └── common.py             # model_tool(): (message, data) -> MCP response
 │   │   └── tools/workflow.py         # WorkflowTool: model I/O, validation, simulation
 │   ├── state/
-│   │   ├── config_state.py           # ConfigState (idfpy model, save/load, summary, cross-ref validation)
+│   │   ├── config_state.py           # ConfigState (idfpy model, save/load, summary)
 │   │   └── defaults.py               # Default objects and design-day import
 │   ├── modeling/                     # Model operations shared by agent and MCP tools
 │   │   ├── objects.py                # create / get / update / delete with reference checks
 │   │   ├── envelope.py               # Materials, layers, vertex input
 │   │   ├── schedules.py              # Nested Through/For/Until input -> Schedule:Compact
 │   │   ├── hvac.py                   # Ideal loads systems keyed by zone
+│   │   ├── validation.py             # ModelIssue from references, geometry and EnergyPlus
 │   │   ├── ground.py                 # Kiva slab foundations and exposed perimeters
 │   │   └── errors.py                 # Rejections reported to tool callers
 │   ├── runner/
@@ -202,7 +204,7 @@ uv run main.py run-agent "Office building described in the drawings" \
   --output-dir output/run1 --thread-id run1
 ```
 
-The command stops at the validate step, prints a configuration summary and any cross-reference errors, and waits for input. Type `y` to approve and simulate, or type feedback text to send the graph back to intake with your correction. The generated IDF and the EnergyPlus results are written to a new `run_*` directory under `--output-dir`.
+The command stops at the validate step, prints a configuration summary and any validation problems, and waits for input. Type `y` to approve and simulate, or type feedback text to send the graph back to intake with your correction. The generated IDF and the EnergyPlus results are written to a new `run_*` directory under `--output-dir`.
 
 Two scripts cover non-interactive use:
 
@@ -322,7 +324,7 @@ START -> intake
 |------|-------------|
 | `export_model` | Save the current model; the suffix `.idf` or `.epJSON` selects the format |
 | `load_model` | Replace the current model with an IDF or epJSON file |
-| `validate_config` | Run all cross-reference checks |
+| `validate_config` | Check references, fenestration placement and completeness |
 | `run_simulation` | Validate, add design days and Kiva foundations, write the IDF and run EnergyPlus |
 | `get_summary` | Return object counts |
 | `clear_all` | Reset the configuration |
@@ -362,7 +364,7 @@ uv run pytest
 - FastMCP server with full CRUD, workflow tools, resources, multi-transport support, CLI and Docker
 - Async RAG pipeline with rate limiting, retry, incremental sync and typed results
 - SQLite data tools for materials, constructions, schedules and design days
-- LangGraph multi-phase agent: structured intake, parallel phase sub-agents, parallel-safe state merge, cross-reference self-repair, human-in-the-loop approval, simulation
+- LangGraph multi-phase agent: structured intake, parallel phase sub-agents, parallel-safe state merge, phase-scoped self-repair, human-in-the-loop approval, simulation
 - Multimodal intake (text + drawings) and box-recipe zone geometry
 - Tool-call trace collection and LangSmith trace export
 

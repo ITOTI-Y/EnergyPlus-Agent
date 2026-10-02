@@ -13,6 +13,8 @@ from langgraph.graph.state import CompiledStateGraph
 from loguru import logger
 
 from src.agent._share import language_directive
+from src.agent.phases import Phase, owner
+from src.modeling.validation import model_issues
 from src.state.config_state import ConfigState
 
 MAX_SELF_REPAIR_ROUNDS: Final = 2
@@ -37,26 +39,24 @@ def invoke_with_self_repair(
     local_config: ConfigState,
     specs: str,
     *,
-    phase: str,
+    phase: Phase,
 ) -> dict[str, Any]:
-    """Run a phase agent and force cross-reference self-repair.
+    """Run a phase agent and make it repair problems in its own objects.
 
-    After each `agent.invoke`, call `local_config.validate_references()`
-    in code (not tool — cannot be skipped by the LLM). If errors exist,
-    push them back as a HumanMessage and invoke again. Loop up to
-    MAX_SELF_REPAIR_ROUNDS.
+    After each `agent.invoke`, check the model in code (the LLM cannot skip
+    it) and send back the problems blamed on object types this phase owns.
+    Loop up to MAX_SELF_REPAIR_ROUNDS.
 
-    Since phase agents only see objects they created + upstream phases'
-    outputs (no cross-phase bleed through LangGraph's deep-copy model),
-    any error surfaced here is either the LLM referencing a bad name
-    (self-repairable) or an upstream resource truly missing (LLM should
-    report in summary; outer validate loop handles the recovery).
+    Problems in other phases' objects are left to the cross-reference nodes:
+    this phase has no tools to fix them. A problem in its own object may
+    still name a missing upstream object, which the LLM should report rather
+    than fabricate.
 
     Args:
         agent: Compiled agent graph from `build_agent`.
         local_config: The deep-copied ConfigState the phase mutates.
         specs: Natural-language task for the phase (from intake_output).
-        phase: Name used in logs ("construction", "surface", ...).
+        phase: Phase whose objects are checked; also used in logs.
 
     Returns:
         The final agent result dict (shape {"messages": [...]}, plus
@@ -66,7 +66,7 @@ def invoke_with_self_repair(
 
     for attempt in range(MAX_SELF_REPAIR_ROUNDS + 1):
         result = agent.invoke({"messages": messages})
-        errors = local_config.validate_references()
+        errors = [i for i in model_issues(local_config.idf) if owner(i) == phase]
 
         if not errors:
             if attempt > 0:
@@ -91,7 +91,7 @@ def invoke_with_self_repair(
         )
         feedback = HumanMessage(
             content=(
-                "Cross-reference validation failed:\n"
+                "Validation found problems in the objects you created:\n"
                 + "\n".join(f"  - {e}" for e in errors)
                 + "\n\nFix the objects YOU just created: use `update_<x>` to "
                 "rename references, or `delete_<x>` + `create_<x>` to "
