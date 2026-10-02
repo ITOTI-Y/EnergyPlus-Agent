@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Any, Final
 
-from langchain_core.messages import AnyMessage, HumanMessage
+from langchain_core.messages import AIMessage, AnyMessage, HumanMessage
 from langgraph.graph.state import CompiledStateGraph
 from loguru import logger
 
@@ -22,6 +22,14 @@ Two rounds is enough for the LLM to see its own error feedback and
 react; repeated failures beyond that point usually mean the intake
 specs are broken, which the outer validate loop handles better.
 """
+
+
+def last_message_text(result: dict[str, Any]) -> str:
+    """Final AI message of an agent run, used when it gave no structured answer."""
+    message = next(
+        (m for m in reversed(result["messages"]) if isinstance(m, AIMessage)), None
+    )
+    return message.text if message is not None else "no response"
 
 
 def invoke_with_self_repair(
