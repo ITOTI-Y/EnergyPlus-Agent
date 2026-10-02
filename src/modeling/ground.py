@@ -26,13 +26,6 @@ type Point = tuple[float, float, float]
 type Segment = tuple[Point, Point]
 
 
-def _points(surface: BuildingSurfaceDetailed) -> list[Point]:
-    return [
-        (v.vertex_x_coordinate, v.vertex_y_coordinate, v.vertex_z_coordinate)
-        for v in surface.vertices or []
-    ]
-
-
 def _edges(points: list[Point]) -> Iterator[Segment]:
     yield from zip(points, points[1:] + points[:1], strict=True)
 
@@ -64,7 +57,7 @@ def _covered_fraction(intervals: list[tuple[float, float]]) -> float:
 
 def exposed_perimeter(idf: IDF, floor: BuildingSurfaceDetailed) -> float:
     """Length of floor edges lying under outdoor walls of the same zone, in m."""
-    floor_points = _points(floor)
+    floor_points = floor.vertices_as_tuples
     level = min(z for *_, z in floor_points)
     wall_bottoms = [
         edge
@@ -72,7 +65,7 @@ def exposed_perimeter(idf: IDF, floor: BuildingSurfaceDetailed) -> float:
         if wall.surface_type == "Wall"
         and wall.zone_name == floor.zone_name
         and wall.outside_boundary_condition == "Outdoors"
-        for edge in _edges(_points(wall))
+        for edge in _edges(wall.vertices_as_tuples)
         if all(abs(z - level) <= TOLERANCE_M for *_, z in edge)
     ]
     total = 0.0
