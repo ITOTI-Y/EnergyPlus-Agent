@@ -6,6 +6,7 @@ from uuid import uuid4
 from idfpy.models import OutputVariable, SizingPeriodDesignDay
 
 from src.mcp.interface import ToolResponse
+from src.modeling.ground import use_kiva_foundations
 from src.runner.runner import run_energyplus
 from src.state.config_state import ConfigState
 from src.state.defaults import add_design_days, add_output_variables
@@ -65,11 +66,12 @@ class WorkflowTool:
 
         Validates references, then prepares a copy of the model for the run:
         adds the annual design days from the ``.ddy`` file next to the EPW
-        when the model has none and hourly default output variables when it
-        has no ``Output:Variable``. The copy is written into a fresh run
-        directory under ``output_dir`` and EnergyPlus runs there; the model
-        being edited is left as it was, so a later run with another EPW gets
-        that file's design days.
+        when the model has none, hourly default output variables when it has
+        no ``Output:Variable``, and moves ground-contact floors onto a Kiva
+        foundation unless the model fixes its own ground temperature. The
+        copy is written into a fresh run directory under ``output_dir`` and
+        EnergyPlus runs there; the model being edited is left as it was, so a
+        later run uses that run's EPW and current geometry.
 
         Args:
             epw_path: Path to the EPW weather data file; ``<stem>.ddy`` must
@@ -99,6 +101,9 @@ class WorkflowTool:
                 )
         if not model.idf.all_of_type(OutputVariable):
             add_output_variables(model.idf)
+
+        if floors := use_kiva_foundations(model.idf):
+            logger.info("Ground floors simulated with Kiva: {}", ", ".join(floors))
 
         run_dir = (
             Path(output_dir) / f"run_{time.strftime('%Y%m%d_%H%M%S')}_{uuid4().hex[:8]}"
