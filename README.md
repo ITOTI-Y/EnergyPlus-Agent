@@ -36,6 +36,7 @@ A RAG knowledge base (Gemini Embedding + Qdrant) and SQLite data tools for stand
 ### Model and simulation
 - **Default objects**: a new model starts with `Version`, `SimulationControl`, `Timestep`, `GlobalGeometryRules`, an annual `RunPeriod` and the summary-report outputs.
 - **Design days**: before a run, the annual heating 99.6% and cooling 0.4% design days are imported from the `.ddy` file next to the EPW (`Shenzhen.epw` → `Shenzhen.ddy`) unless the model already has design days; a missing `.ddy` stops the run with an error.
+- **Ground contact**: floors with a `Ground` boundary are simulated on an uninsulated `Foundation:Kiva` slab, with each floor's exposed perimeter measured from the outdoor walls above its edges; Kiva derives the soil temperatures from the weather file. A model that defines `Site:GroundTemperature:BuildingSurface` keeps the fixed-temperature boundary.
 - **Runner**: each run gets its own directory; EnergyPlus runs with `-x` (ExpandObjects, so `HVACTemplate` objects are expanded) and `-r` (ReadVarsESO), and `eplusout.err` is parsed into structured Warning, Severe and Fatal messages.
 - **Default output variables**: when no `Output:Variable` is configured, the simulate step adds an hourly monitoring set (zone temperature and humidity, ideal-loads heating and cooling energy, lighting and people energy, facility HVAC electricity) so results are actually recorded.
 
@@ -87,6 +88,7 @@ EnergyPlus-Agent/
 │   │   ├── envelope.py               # Materials, layers, vertex input
 │   │   ├── schedules.py              # Nested Through/For/Until input -> Schedule:Compact
 │   │   ├── hvac.py                   # Ideal loads systems keyed by zone
+│   │   ├── ground.py                 # Kiva slab foundations and exposed perimeters
 │   │   └── errors.py                 # Rejections reported to tool callers
 │   ├── runner/
 │   │   └── runner.py                 # run_energyplus and eplusout.err parsing
@@ -321,7 +323,7 @@ START -> intake
 | `export_model` | Save the current model; the suffix `.idf` or `.epJSON` selects the format |
 | `load_model` | Replace the current model with an IDF or epJSON file |
 | `validate_config` | Run all cross-reference checks |
-| `run_simulation` | Validate, add design days, write the IDF and run EnergyPlus |
+| `run_simulation` | Validate, add design days and Kiva foundations, write the IDF and run EnergyPlus |
 | `get_summary` | Return object counts |
 | `clear_all` | Reset the configuration |
 
