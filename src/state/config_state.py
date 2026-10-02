@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 from typing import Any, Final
 
-from idfpy import IDF, IDFBaseModel, RefError
+from idfpy import IDF, IDFBaseModel
 from idfpy.models.constructions import (
     Construction,
     Material,
@@ -48,19 +48,6 @@ class ConfigSummary(BaseModel):
     simulation_control: dict[str, Any] | None = None
     run_period: dict[str, Any] | None = None
     global_geometry_rules: dict[str, Any] | None = None
-
-
-def missing_references(idf: IDF, instance: Any, object_name: str) -> list[str]:
-    """Validate one instance's cross-references before it is added to the IDF.
-
-    Wraps idfpy's private per-object validation (``IDF.validate()`` only
-    covers objects already added); the instance itself need not be in the
-    IDF, only the referenced providers must already exist. Sole call site
-    of the private API — update here if idfpy changes it.
-    """
-    errors: list[RefError] = []
-    idf._validate_obj_refs(object_name, instance, errors)
-    return [f"{err.field_name}: {err.detail}" for err in errors]
 
 
 def _first_dump(idf: IDF, object_type: type[IDFBaseModel]) -> dict[str, Any] | None:

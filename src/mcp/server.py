@@ -9,89 +9,25 @@ from src.mcp.api import (
     register_schedule_tools,
     register_workflow_tools,
 )
-from src.mcp.tools import (
-    BuildingTool,
-    ConstructionTool,
-    FenestrationTool,
-    IdealLoadsSystemTool,
-    LightTool,
-    LocationTool,
-    MaterialTool,
-    PeopleTool,
-    ScheduleCompactTool,
-    ScheduleTypeLimitsTool,
-    SurfaceTool,
-    ThermostatTool,
-    WorkflowTool,
-    ZoneTool,
-)
+from src.mcp.tools import WorkflowTool
 from src.state.config_state import ConfigState
 
 
 def create_mcp_server() -> FastMCP:
-    """Create and configure the MCP server with all EnergyPlus tools.
-
-    Creates a shared IDF-backed ConfigState, instantiates all tool classes,
-    and registers them with the FastMCP server.
-
-    Returns:
-        Configured FastMCP server instance ready to run.
-    """
+    """Create the MCP server; every tool edits one shared IDF-backed state."""
     mcp = FastMCP(
         name="EnergyPlus Agent",
         version="0.1.0",
         instructions="EnergyPlus Agent is a tool for building energy simulation.",
     )
-
     state = ConfigState()
-
-    zone_tool = ZoneTool(state)
-    building_tool = BuildingTool(state)
-    location_tool = LocationTool(state)
-    workflow_tool = WorkflowTool(state)
-    material_tool = MaterialTool(state)
-    construction_tool = ConstructionTool(state)
-    surface_tool = SurfaceTool(state)
-    fenestration_tool = FenestrationTool(state)
-    schedule_type_limits_tool = ScheduleTypeLimitsTool(state)
-    schedule_compact_tool = ScheduleCompactTool(state)
-    thermostat_tool = ThermostatTool(state)
-    ideal_loads_system_tool = IdealLoadsSystemTool(state)
-    people_tool = PeopleTool(state)
-    light_tool = LightTool(state)
-
-    register_core_tools(
-        mcp=mcp,
-        building_tool=building_tool,
-        location_tool=location_tool,
-        zone_tool=zone_tool,
-        surface_tool=surface_tool,
-    )
-    register_schedule_tools(
-        mcp=mcp,
-        schedule_type_limits_tool=schedule_type_limits_tool,
-        schedule_compact_tool=schedule_compact_tool,
-    )
-    register_envelope_tools(
-        mcp=mcp,
-        material_tool=material_tool,
-        construction_tool=construction_tool,
-        surface_tool=surface_tool,
-        fenestration_tool=fenestration_tool,
-    )
-    register_hvac_tools(
-        mcp=mcp,
-        thermostat_tool=thermostat_tool,
-        ideal_loads_system_tool=ideal_loads_system_tool,
-    )
-    register_load_tools(
-        mcp=mcp,
-        people_tool=people_tool,
-        light_tool=light_tool,
-    )
-    register_workflow_tools(mcp=mcp, workflow_tool=workflow_tool)
+    register_core_tools(mcp, state)
+    register_schedule_tools(mcp, state)
+    register_envelope_tools(mcp, state)
+    register_hvac_tools(mcp, state)
+    register_load_tools(mcp, state)
+    register_workflow_tools(mcp=mcp, workflow_tool=WorkflowTool(state))
     register_resources(mcp=mcp, state=state)
-
     return mcp
 
 

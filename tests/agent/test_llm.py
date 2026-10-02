@@ -1,13 +1,25 @@
 import threading
 import time
+from collections.abc import Callable, Iterator
+from itertools import count
 from typing import Any, cast
 
-from langchain_core.messages import ToolMessage
+from langchain.agents import create_agent
+from langchain_core.language_models.fake_chat_models import GenericFakeChatModel
+from langchain_core.messages import AIMessage, ToolMessage
 from langchain_openai import ChatOpenAI
 from langgraph.prebuilt.tool_node import ToolCallRequest
 
-from src.agent.llm import create_llm, serial_write_tools_middleware
+from src.agent.llm import (
+    MAX_CONSECUTIVE_FAILURES,
+    MAX_REPEATED_FAILURES,
+    FailureLoopGuard,
+    create_llm,
+    serial_write_tools_middleware,
+)
+from src.agent.tools import make_surface_tools
 from src.configs.config import LLMConfig
+from src.state.config_state import ConfigState
 
 
 def _config(**overrides) -> LLMConfig:
@@ -89,3 +101,63 @@ def test_write_tools_serialized_within_one_agent():
 def test_read_tools_not_serialized():
     middleware = serial_write_tools_middleware()
     assert _run_concurrently(middleware, "list_zones") == 2
+
+
+class _ScriptedModel(GenericFakeChatModel):
+    """Fake chat model that accepts tools, as create_agent requires."""
+
+    def bind_tools(self, tools: Any, **kwargs: Any) -> "_ScriptedModel":
+        return self
+
+
+def _repeating_call(name: str, args_for: Callable[[int], dict]) -> Iterator[AIMessage]:
+    for i in count():
+        yield AIMessage(
+            content="",
+            tool_calls=[{"name": name, "id": f"call_{i}", "args": args_for(i)}],
+        )
+
+
+def _run_guarded(calls: Iterator[AIMessage]) -> tuple[FailureLoopGuard, list]:
+    guard = FailureLoopGuard()
+    agent = create_agent(
+        model=_ScriptedModel(messages=calls),
+        tools=make_surface_tools(ConfigState()),
+        middleware=[guard],
+    )
+    return guard, agent.invoke({"messages": [("user", "build")]})["messages"]
+
+
+def _empty_vertex_surface(i: int) -> dict:
+    return {
+        "name": f"S{i}",
+        "surface_type": "Wall",
+        "construction_name": "C",
+        "zone_name": "Z",
+        "outside_boundary_condition": "Outdoors",
+        "vertices": [{}, {}, {}],
+    }
+
+
+def test_guard_stops_identical_failing_calls():
+    # The reported loop: the same surface with empty vertices, resent forever.
+    guard, messages = _run_guarded(
+        _repeating_call("create_surface", lambda i: _empty_vertex_surface(0))
+    )
+
+    tool_messages = [m for m in messages if isinstance(m, ToolMessage)]
+    assert len(tool_messages) == MAX_REPEATED_FAILURES
+    assert all(m.status == "error" for m in tool_messages)
+    assert "vertices.0.X" in str(tool_messages[0].content)
+    assert guard.reason is not None
+    assert messages[-1].content.startswith("Stopped: create_surface failed")
+
+
+def test_guard_stops_consecutive_failures_with_varying_arguments():
+    guard, messages = _run_guarded(
+        _repeating_call("create_surface", _empty_vertex_surface)
+    )
+
+    assert sum(isinstance(m, ToolMessage) for m in messages) == MAX_CONSECUTIVE_FAILURES
+    assert guard.reason is not None
+    assert "in a row" in guard.reason

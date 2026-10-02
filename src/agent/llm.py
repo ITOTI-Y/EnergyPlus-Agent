@@ -1,4 +1,6 @@
+import json
 import threading
+from collections import Counter
 from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import Any, Final
@@ -7,17 +9,21 @@ from dotenv import load_dotenv
 from langchain.agents import create_agent
 from langchain.agents.middleware import (
     AgentMiddleware,
+    AgentState,
     ModelRequest,
     ModelResponse,
+    hook_config,
     wrap_model_call,
     wrap_tool_call,
 )
 from langchain.chat_models import init_chat_model
 from langchain.tools import BaseTool
 from langchain_core.language_models import BaseChatModel
-from langchain_core.messages import ToolMessage
+from langchain_core.messages import AIMessage, ToolMessage
 from langgraph.prebuilt.tool_node import ToolCallRequest
+from langgraph.runtime import Runtime
 from langgraph.types import Command
+from loguru import logger
 from omegaconf import OmegaConf
 from pydantic import BaseModel
 
@@ -108,6 +114,76 @@ def serial_write_tools_middleware() -> AgentMiddleware:
     return wrap_tool_call(name="SerialWriteTools")(_serialize)
 
 
+MAX_REPEATED_FAILURES: Final = 3
+"""Identical failing calls (same tool, same arguments) before the run stops."""
+
+MAX_CONSECUTIVE_FAILURES: Final = 10
+"""Failing calls in a row, of any kind, before the run stops."""
+
+
+class FailureLoopGuard(AgentMiddleware):
+    """Stop the agent run once tool calls keep failing.
+
+    A model that cannot produce valid arguments tends to resend the same call
+    indefinitely; LangGraph's default step limit is about ten thousand, so
+    without this guard the loop only ends when the LLM budget does. Every
+    failure is logged, and once tripped the guard ends this and any later run
+    of the same agent with a message naming the failing call.
+    """
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._failures: Counter[str] = Counter()
+        self._consecutive = 0
+        self.reason: str | None = None
+
+    def wrap_tool_call(
+        self,
+        request: ToolCallRequest,
+        handler: Callable[[ToolCallRequest], ToolMessage | Command],
+    ) -> ToolMessage | Command:
+        result = handler(request)
+        if not isinstance(result, ToolMessage):
+            return result
+        if result.status != "error":
+            self._consecutive = 0
+            return result
+        call = request.tool_call
+        key = f"{call['name']}({json.dumps(call['args'], sort_keys=True)})"
+        self._failures[key] += 1
+        self._consecutive += 1
+        logger.warning(
+            "Tool {} failed ({} identical, {} in a row): {}",
+            call["name"],
+            self._failures[key],
+            self._consecutive,
+            str(result.content)[:300],
+        )
+        if self._failures[key] >= MAX_REPEATED_FAILURES:
+            self.reason = (
+                f"{call['name']} failed {self._failures[key]} times with the "
+                f"same arguments; last error: {result.content}"
+            )
+        elif self._consecutive >= MAX_CONSECUTIVE_FAILURES:
+            self.reason = (
+                f"{self._consecutive} tool calls failed in a row; "
+                f"last error from {call['name']}: {result.content}"
+            )
+        return result
+
+    @hook_config(can_jump_to=["end"])
+    def before_model(
+        self, state: AgentState, runtime: Runtime[Any]
+    ) -> dict[str, Any] | None:
+        if self.reason is None:
+            return None
+        logger.error("Agent run stopped: {}", self.reason)
+        return {
+            "jump_to": "end",
+            "messages": [AIMessage(content=f"Stopped: {self.reason}")],
+        }
+
+
 def build_agent(
     config: LLMConfig | None = None,
     system_prompt: str | None = None,
@@ -135,6 +211,7 @@ def build_agent(
         system_prompt=(system_prompt or "") + language_directive(),
         response_format=response_format,
         middleware=[
+            FailureLoopGuard(),
             _sequential_tool_calls,
             serial_write_tools_middleware(),
             *middleware,

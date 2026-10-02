@@ -53,7 +53,8 @@ def test_self_repair_fixes_missing_schedule_type_limits():
             data=[
                 ScheduleCompactDataItem(field="Through: 12/31"),
                 ScheduleCompactDataItem(field="For: AllDays"),
-                ScheduleCompactDataItem(field="Until: 24:00, 1.0"),
+                ScheduleCompactDataItem(field="Until: 24:00"),
+                ScheduleCompactDataItem(field="1.0"),
             ],
         )
     )
