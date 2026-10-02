@@ -10,8 +10,6 @@ from typer import Argument, Option
 
 from src.agent import AgentState, SimContext, build_graph
 from src.agent.runner import interactive_approval, print_final_messages, run_session
-from src.converter_manager import ConverterManager
-from src.runner.runner import run_energyplus
 from src.utils.logging import get_logger, setup_logger
 
 load_dotenv()
@@ -25,19 +23,6 @@ setup_logger(
 logger = get_logger(__name__)
 
 app = typer.Typer()
-
-
-@app.command()
-def convert_idf():
-    yaml_file = Path("./data/schemas/building_schema.yaml")
-    idf_file_output = Path(f"./output/idf/output_{logger_time}.idf")
-    epw_file = Path("./data/weather/Shenzhen.epw")
-    manager = ConverterManager(yaml_file)
-    manager.convert_all()
-    manager.save_idf(idf_file_output)
-    run_energyplus(
-        idf_file_output, epw_file, Path(f"./output/results/run_{logger_time}")
-    )
 
 
 @app.command()

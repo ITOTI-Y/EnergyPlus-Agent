@@ -3,7 +3,7 @@ import json
 from langchain_core.tools import BaseTool
 
 from src.agent.tools import make_material_tools
-from src.mcp.state import ConfigState
+from src.state.config_state import ConfigState
 
 
 def _tools() -> tuple[ConfigState, dict[str, BaseTool]]:

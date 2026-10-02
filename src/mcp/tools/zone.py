@@ -3,8 +3,8 @@ from typing import Any
 from idfpy.models.hvac_templates import HVACTemplateZoneIdealLoadsAirSystem
 from idfpy.models.thermal_zones import BuildingSurfaceDetailed, Zone
 
-from src.mcp.state import ConfigState
 from src.mcp.tools.base import BaseTool, normalize_payload
+from src.state.config_state import ConfigState
 
 
 class ZoneTool(BaseTool):

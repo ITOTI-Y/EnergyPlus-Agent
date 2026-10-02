@@ -6,13 +6,6 @@ MAX_RETRIES: Final[int] = 0
 
 DEFAULT_OUTPUT_DIR: Final[Path] = Path("output")
 
-IDD_PATH: Final[Path] = (
-    Path(__file__).resolve().parent.parent.parent
-    / "data"
-    / "dependencies"
-    / "Energy+.idd"
-)
-
 AGENT_LANGUAGE: Final[str] = os.getenv("AGENT_LANGUAGE", "English")
 """Language every agent uses for narrative / summary / explanation text.
 
