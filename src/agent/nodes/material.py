@@ -2,6 +2,7 @@ from langchain_core.messages import AIMessage, HumanMessage
 from pydantic import BaseModel, Field
 
 from src.agent.llm import build_agent
+from src.agent.nodes._share import last_message_text
 from src.agent.state import AgentState, AgentStateUpdate
 from src.agent.tools import make_material_tools
 from src.agent.trace import TraceCollector, record_phase_trace, trace_middleware
@@ -52,7 +53,7 @@ def material_agent(state: AgentState) -> AgentStateUpdate:
     result = agent.invoke({"messages": [HumanMessage(content=specs)]})
 
     response: MaterialResponse | None = result.get("structured_response")
-    summary = response.summary if response else "material done"
+    summary = response.summary if response else last_message_text(result)
 
     record_phase_trace("material", collector.export())
     return AgentStateUpdate(
