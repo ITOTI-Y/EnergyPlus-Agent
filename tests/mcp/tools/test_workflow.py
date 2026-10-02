@@ -26,8 +26,16 @@ def written_models(monkeypatch) -> list[IDF]:
     return models
 
 
+def _example_without_output_variables() -> ConfigState:
+    state = ConfigState()
+    state.load_model(DATA_DIR / "schemas" / "building_schema.epJSON")
+    for key in list(state.idf.all_of_type(OutputVariable)):
+        state.idf.remove(OutputVariable, key)
+    return state
+
+
 def test_run_simulation_adds_default_output_variables(tmp_path, written_models):
-    response = WorkflowTool(ConfigState()).run_simulation(
+    response = WorkflowTool(_example_without_output_variables()).run_simulation(
         str(SHENZHEN_EPW), str(tmp_path)
     )
 
@@ -36,7 +44,7 @@ def test_run_simulation_adds_default_output_variables(tmp_path, written_models):
 
 
 def test_run_simulation_leaves_the_edited_model_unchanged(tmp_path, written_models):
-    state = ConfigState()
+    state = _example_without_output_variables()
 
     response = WorkflowTool(state).run_simulation(str(SHENZHEN_EPW), str(tmp_path))
 
@@ -47,7 +55,7 @@ def test_run_simulation_leaves_the_edited_model_unchanged(tmp_path, written_mode
 
 
 def test_run_simulation_keeps_existing_output_variables(tmp_path, written_models):
-    state = ConfigState()
+    state = _example_without_output_variables()
     state.idf.add(
         OutputVariable(
             key_value="*",
@@ -69,7 +77,10 @@ def test_run_simulation_requires_ddy_beside_epw(tmp_path):
     epw = tmp_path / "weather.epw"
     shutil.copy(DATA_DIR / "weather" / "Shenzhen.epw", epw)
 
-    response = WorkflowTool(ConfigState()).run_simulation(str(epw), str(tmp_path))
+    state = ConfigState()
+    state.load_model(DATA_DIR / "schemas" / "building_schema.epJSON")
+
+    response = WorkflowTool(state).run_simulation(str(epw), str(tmp_path))
 
     assert not response.success
     assert "weather.ddy" in response.message
