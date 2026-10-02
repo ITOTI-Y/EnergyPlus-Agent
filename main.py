@@ -76,39 +76,34 @@ def embedding(
 
 @app.command()
 def run_agent(
-    user_input: Annotated[
-        str, Argument(..., help="Natural language building description")
-    ],
-    epw: Annotated[
-        Path, Option(..., "--epw", "-w", help="Path to the EPW weather file")
-    ],
+    user_input: Annotated[str, Argument(help="Natural language building description")],
+    epw: Annotated[Path, Option("--epw", "-w", help="Path to the EPW weather file")],
     images: Annotated[
         list[Path],
         Option(
-            [],
             "--image",
             "-i",
+            default_factory=list,
+            show_default=False,
             help="Architectural drawing(s); repeat flag for multiple (floorplan + elevation + perspective...)",
         ),
     ],
     output_dir: Annotated[
         Path,
         Option(
-            Path("output"),
             "--output-dir",
             "-o",
             help="Output directory for EnergyPlus simulation results",
         ),
-    ],
+    ] = Path("output"),
     thread_id: Annotated[
         str,
         Option(
-            "demo",
             "--thread-id",
             "-t",
             help="Unique identifier for this conversation thread",
         ),
-    ],
+    ] = "demo",
 ) -> None:
     """Run the multi-phase agent end-to-end.
 
