@@ -19,6 +19,7 @@ from langchain.agents.middleware import (
     wrap_model_call,
     wrap_tool_call,
 )
+from langchain.agents.structured_output import ToolStrategy
 from langchain.chat_models import init_chat_model
 from langchain.tools import BaseTool
 from langchain_core.language_models import BaseChatModel
@@ -56,11 +57,12 @@ def create_llm(config: LLMConfig | None = None) -> BaseChatModel:
         config = _load_config()
 
     kwargs: dict[str, Any] = {
-        "temperature": config.temperature,
         "max_tokens": config.max_tokens,
         "max_retries": config.max_retries,
         "timeout": config.timeout,
     }
+    if config.temperature is not None:
+        kwargs["temperature"] = config.temperature
     if config.reasoning_max_tokens is not None:
         kwargs["extra_body"] = {
             "reasoning": {"max_tokens": config.reasoning_max_tokens}
@@ -239,7 +241,10 @@ def build_agent(
         model=create_llm(config),
         tools=tools or [],
         system_prompt=(system_prompt or "") + language_directive(),
-        response_format=response_format,
+        # The final answer as a validated tool call, not free text. ToolStrategy
+        # over the provider's JSON-schema mode: Claude's structured outputs
+        # reject the idfpy schema keywords (note, units) that gateways pass on.
+        response_format=ToolStrategy(response_format) if response_format else None,
         middleware=[
             FailureLoopGuard(),
             # Phase agents resend their whole history on every call; this caps

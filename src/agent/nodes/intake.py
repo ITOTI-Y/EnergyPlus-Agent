@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any, Final, Literal, TypedDict, cast
 
 from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
+from langchain_core.utils.function_calling import convert_to_openai_tool
 from langgraph.runtime import Runtime
 from loguru import logger
 from pydantic import BaseModel
@@ -161,35 +162,65 @@ MAX_STRUCTURED_ATTEMPTS: Final = 2
 """Calls per intake reply: the first, and one that sends its problem back."""
 
 
+def _without_empty_choices(node: Any) -> Any:
+    """The schema with "" removed from enums.
+
+    idfpy allows "" (leave blank) in many choices; Gemini rejects empty enum
+    values in tool declarations. Replies are still validated by the model.
+    """
+    if isinstance(node, dict):
+        return {
+            key: [v for v in value if v != ""]
+            if key == "enum" and isinstance(value, list)
+            else _without_empty_choices(value)
+            for key, value in node.items()
+        }
+    if isinstance(node, list):
+        return [_without_empty_choices(v) for v in node]
+    return node
+
+
+def _tool(schema: type[BaseModel]) -> dict[str, Any]:
+    """The schema as a strict tool: every field required, no extra keys.
+
+    Without strict mode a model can leave required specs out of the call
+    (e.g. construction_specs) and repeat the omission when told.
+    """
+    return _without_empty_choices(convert_to_openai_tool(schema, strict=True))
+
+
 def _structured[T: BaseModel, R](
     schema: type[T], messages: list[BaseMessage], check: Callable[[T], R]
 ) -> tuple[T, R]:
-    """Call the LLM for ``schema``, retrying once on an unusable reply.
+    """Call the LLM for ``schema`` as a forced tool call, retrying once.
 
-    ``check`` turns the parsed reply into the result the caller needs; a
-    ValueError from it, like a reply that is not a tool call, is sent back
-    to the LLM for one more attempt.
+    The tool is the schema without empty enum values (see
+    ``_without_empty_choices``); the arguments are validated with the full
+    model. ``check`` turns the parsed reply into the result the caller
+    needs; a ValueError from it, like invalid arguments, is sent back to the
+    LLM for one more attempt.
 
     Raises:
         RuntimeError: If no attempt gives a usable reply.
     """
-    llm = create_llm().with_structured_output(schema, include_raw=True)
+    llm = create_llm().with_structured_output(
+        _tool(schema), method="function_calling", include_raw=True, strict=True
+    )
     problem = ""
     for _ in range(MAX_STRUCTURED_ATTEMPTS):
         result = cast(dict[str, Any], llm.invoke(messages))
-        parsed: T | None = result.get("parsed")
-        if parsed is None:
-            raw: BaseMessage | None = result.get("raw")
-            problem = (
-                f"no {schema.__name__} tool call (parsing error "
-                f"{result.get('parsing_error')!r}; reply "
-                f"{repr(raw.content if raw is not None else raw)[:300]})"
-            )
-        else:
-            try:
-                return parsed, check(parsed)
-            except ValueError as e:
-                problem = str(e)
+        try:
+            if result.get("parsed") is None:
+                raw: BaseMessage | None = result.get("raw")
+                raise ValueError(
+                    f"no {schema.__name__} tool call (parsing error "
+                    f"{result.get('parsing_error')!r}; reply "
+                    f"{repr(raw.content if raw is not None else raw)[:300]})"
+                )
+            parsed = schema.model_validate(result["parsed"])
+            return parsed, check(parsed)
+        except ValueError as e:  # pydantic.ValidationError is a ValueError
+            problem = str(e)
         logger.warning("intake: unusable reply: {}", problem)
         messages = [
             *messages,
