@@ -26,7 +26,7 @@ Rules:
 - `zone_name` and `schedule_name` MUST appear verbatim in the list_zones /
   list_schedules results.
 - If a needed zone or schedule is missing, STOP and report; do NOT invent names.
-- name convention: '{zone}_Lights'.
+- Use the names the specification gives; otherwise '{zone}_Lights'.
 - design_level_calculation_method:
     * 'LightingLevel' -> supply lighting_level (W, absolute)
     * 'Watts/Area' -> supply watts_per_floor_area (W/m^2)

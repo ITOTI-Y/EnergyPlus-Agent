@@ -13,16 +13,20 @@ interactions:
       MUST appear verbatim in\\n  the list_materials result (exact case, underscores,
       dashes, numbers).\\n- If a needed material is missing from list_materials, STOP
       and report\\n  the gap; do NOT invent names or call create with a broken reference.\\n-
-      Each Construction is an ordered list of layers from OUTSIDE to INSIDE.\\n- Use
-      separate constructions per surface type when thermal properties differ\\n  (e.g.,
-      'ExtWall_Office', 'IntWall_Office', 'Roof_Office', 'Floor_Office',\\n  'Window_Office').\\n-
-      Opaque constructions (walls, roofs, floors, ceilings, doors) use only\\n  opaque
-      materials; Material:AirGap is allowed there.\\n- Window constructions are either
-      a single simplified glazing material, or\\n  glass panes with exactly one window
-      gas layer between each pair, starting\\n  and ending with glass (e.g., [Glass_6mm,
-      Air_13mm, Glass_6mm]). Never mix\\n  window and opaque materials; create_construction
-      rejects such layers.\\n\",\"role\":\"system\"},{\"content\":\"Create exactly
-      one construction named 'ExtWall_Simple' with a single layer 'Brick_100mm'.\",\"role\":\"user\"}],\"model\":\"google/gemini-3.8-flash\",\"max_completion_tokens\":16384,\"parallel_tool_calls\":false,\"stream\":false,\"temperature\":0.7,\"tool_choice\":\"required\",\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"create_construction\",\"description\":\"Create
+      Use the construction names the specification gives, verbatim: zones and\\n  openings
+      reference them. Only for constructions it does not name, use\\n  separate ones
+      per surface type when thermal properties differ (e.g.,\\n  'ExtWall_Office',
+      'IntWall_Office', 'Roof_Office', 'Window_Office').\\n- Each Construction is
+      an ordered list of layers from OUTSIDE to INSIDE. An\\n  interior floor lists
+      its layers from the ceiling below up to the floor\\n  above. Do NOT create reversed
+      copies of interior constructions; the face\\n  in the adjacent zone gets one
+      automatically.\\n- Opaque constructions (walls, roofs, floors, ceilings, doors)
+      use only\\n  opaque materials; Material:AirGap is allowed there.\\n- Window
+      constructions are either a single simplified glazing material, or\\n  glass
+      panes with exactly one window gas layer between each pair, starting\\n  and
+      ending with glass (e.g., [Glass_6mm, Air_13mm, Glass_6mm]). Never mix\\n  window
+      and opaque materials; create_construction rejects such layers.\\n\",\"role\":\"system\"},{\"content\":\"Create
+      exactly one construction named 'ExtWall_Simple' with a single layer 'Brick_100mm'.\",\"role\":\"user\"}],\"model\":\"google/gemini-3.8-flash\",\"max_completion_tokens\":16384,\"parallel_tool_calls\":false,\"stream\":false,\"temperature\":0.7,\"tool_choice\":\"required\",\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"create_construction\",\"description\":\"Create
       a Construction as an ordered list of material layers.\\n\\n        Opaque constructions
       use opaque materials only. Window constructions\\n        are either one SimpleGlazingSystem,
       or glazing layers with exactly one\\n        window gas layer between each pair,
@@ -44,7 +48,7 @@ interactions:
       connection:
       - keep-alive
       content-length:
-      - '3938'
+      - '4255'
       content-type:
       - application/json
       host:
@@ -76,27 +80,23 @@ interactions:
   response:
     body:
       string: !!binary |
-        KLUv/QBYzSMA+k/QDyjQZPI2+P09YU3Lp0SI13XUsN3d3d2W7KyNyMEm0oEHEljqYVQpo3oB3gD1
-        AP4A3N8y1P9AADdqrDevufJTvObtetufvuvaOea8Pvc3b/MPuL9j5fySP70kYqlwLop71T89z7la
-        Tt67P/d683pNTodjjUUObrMcd/6p4j69ocZ/IIB7fi3eHfvTpzeLuHOuxah5+U85n5r7rrFZmnfU
-        WOSQt/MQ/+k3Ds9eCbA4BFA89+YNMbrN8qfv8JpFAcMAJoA1Ju9I3TzuPT73+Yab/In78PZ6TfvT
-        6437zSW57UCvHfvcd3s94P7pTRu6nmgxp0HRnSm4eDgIncBVYVUhs7aCJaDv+NyH+A8ABAAQW8Sj
-        sCKxP7MAeyRAcpENE1ttVCWGFRSnh84mSXiXonn9YTvIA2H5NGJiy54aMsIkzSQ+nlo6LKMwngds
-        8TFIiiTak22QPAy+AR0YlU6rXLyEDS0alvZGXugOBYwOwrS0FJmlrVwfyHNpHXqpBUNj4sbkeJoE
-        gsYWXSY5gm40UcNDWRsEQ49hpbSlAVOwOOgNcUE/jUogDuoACRmMXOtCjy93JJOT/PQP47Kkh94l
-        5kERL5/MwfuUnQcqvee+9hr+9OHtZci0+g7g2m/IGTAa/ejgueddX/IczVqxeXslOZ3j/Nxfsuo/
-        4Ka3CldWGTg5V2v1KX4Q7JKC+arh1cDO7/LQiMWa6boH4zVMNPMmB0q53fMzSoSsktlS0FJ4RVEq
-        lUjhYTM2EAsICYyMGgqEwWTdBpEqQAwDjMjBQidNMpPaHJZD5LogH/ByeWBE2+2DQitNKiRdsFqj
-        qIEmHQwqkzweSjbkTDE69lUg0Ug0BWeU3QCxQCcFCTStxmhNxAxyGByepQutD0LSgB6VLWNoYMSw
-        a2h7k50mCim6xaIsNLij0izMupkk6iw+kBZKLBeW6bzRgIDIYES8pIrMX0aQ7MgHSjKhD4RqLA9B
-        9RjOTqkBZagHTXgSqvBFrtxF0A37OBAWrRG9TUZapC5qmAVh+RHPRKPRaKwk/mnbRloBy6qLX1ZW
-        YZxr9TWvqDGHrNfsvDxHN8ToxuFZb8cmiDNV4e3Yav/g8lxF7j87BHI4/kkzVFpVVQMV951v+1N1
-        bbn23X/aKusnyzJwz/X97M7pJbnN8hwwegsV6JU0t/jTS5zRYBB0EpdDLIS0MpFQFOOQdi6ZsCsT
-        IvAS+cCJKCV5blgRA089gtMELR5pJiUWi01WsPSSQxKK5tBYnokGMR2Zh6fjQCnCJ/lEHcEj1ApG
-        pI0avA08lmhjO6EHhogkCrKaYmdj2xhEEim/wyUnGiOEsgnxzYe4jOHVO+WGwBCuBREdD5OpMAEx
-        IECCxtSRB/4ZK1mClhVAOgeQkhgI/FCwBahSVxOvMzhNQNbn+OSW4GA3MsVpJS+lgaMV/u0dIyxg
-        S2nP0rhTgJKyeYKlK5UXMZcIe+0P8hUvFZUEFxZgWSiOAbRCXN8/fQvjIXAVVzviot4WQqPTcOFp
-        RAqR+LgNiG1LCcD4Aiw=
+        KLUv/QBYhRwAln3CJ+AKbQO8NLVo0JNW7/GUCphXZHGbFP+fVoo6uzUgqRZjGWKYYQjivawAsQDJ
+        AK6tpeBnMd7O+cWafv48ut4qagecyQ62PlWciz681UkMnOsHK/aAPrnorVj392A182ufrC0v5/vW
+        TObv3Cp+4299ap8c17DcmADIIsDhnOcPq4kz6ZN7NLWigGLgEqi3jt+h3nYw7jjn9kM8+sR5+Jt+
+        Bn3yi+t+S44YHNjUAzrnG/yPA/bJRyKbN/FDeg/LXjxsxXgthoB1VZmGJTYtIXC/45yH1UkBAAAB
+        AAEWRIPgAcQesqQkHSTbowflAElE6sLlgXWlI5xQIgqmolB8EMbRg8QuQqZAOPZH9HYjj43rRxrh
+        yGSCgqxcRA0oYcHAmcGocsM5p5uGPnn4mzwzeH+g0v3h11AqeYnknOt9fyw7mdKaf9Px27pa5/xH
+        ep3ETW5dm1Ztn7UUBG8pOudPnttJDFzn1os1tVSX4uffF4M++b5066o1dc7f4uwkzr9Dtf7RJ69Q
+        Mpjvzbrp9SmcMQJZIBBIMphnPBApcwICLRY6j0YR0SrV1NtPMtjnB6+7hKyOkjEhm0VB3GpjNbRF
+        TujK8IK6mBGFyt2GWshAmUSzbIJPh+BcNunZjQ0FomBFDk5nsJ0QxGR7NNiSGOcywEIP+nDwKBIR
+        ijhCiqBTEJkUDQVTfqzlsWF4tsxkKjqsbI/NxfKA8e6WcTzOinORnNhAQTQuPBYvjCrSsFAmosxy
+        L80rHWRpUgwSewMiEnACwzo4FxQPupG3mZ1mFWEMamKYBEHhiAGlUqlDx+rThZUy7dq2SmuadX0P
+        3s8v3vqN9PPWZFn6sJq4hiX9XXPom6rwPSAFnfTaUpFzED4dPl19yqyEZmFVVQ1UnG+NQZ80a7N0
+        4+3TlfmEaQrO9X0Q3t8mR5zJsqHkCVNg0zFj0ScvWHhiPejOyijEiDh4IXmcEgrMTx5sdkZWVgJ5
+        RSrh+cGnfcqraPDofT6dOLocUA0GoftcoMoDCDMNro6m4SEwuVtkjtBVsajQBKIDMyBAQqKYOnr/
+        GS9ZwjEFlIoDSkgsHD+Vb+FREdxAzBkkJqBrSXxyW3CwG5nGaR0vtYEnFMbUHeRaYAPSXknfqgD9
+        2bxudFXoIpwSYQr/OF/JgSkDWgTAslA0BtCFuHD/lBZGhcAVXO2Li/S2CI1OggsPIVKIxMdtQGw7
+        SiAcrgsmg7hY
     headers:
       access-control-allow-origin:
       - '*'
@@ -107,7 +107,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a475e387bcceac08-NRT
+      - a4765702dfb5a0ee-NRT
       connection:
       - keep-alive
       content-encoding:
@@ -115,7 +115,7 @@ interactions:
       content-type:
       - application/json
       date:
-      - Thu, 08 Oct 2026 14:38:24 GMT
+      - Thu, 08 Oct 2026 15:57:25 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       permissions-policy:
@@ -124,13 +124,13 @@ interactions:
       referrer-policy:
       - no-referrer, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=D%2BhlUlPlS%2F0LqKWA%2FKexfxfSlj8sdrreTY6EieGDkhdDPp7ulVZyo9jPD9eG0%2F1XEnVyAX4ybWxog7iGwczFFQvavHEAJ3C5g99INQSSFoAYlDJDEAuX7slC1%2Bp0agbpTYk%3D"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=Il8xrprdqdn25Jkn7weDlmC%2BxZxL9723r2qx8F7zxUDQdjxAt2dBFqDYu3GHk97GCiwdrk7UTarCmw9NRkXA5tI0SGZW7PA6U8SLqeDU%2F9SwK34YMukX8jHTWHlVjnFecnM%3D"}]}'
       server:
       - cloudflare
       set-cookie:
-      - __cf_bm=xI6xZC2IFhE3lF.gXYixd8W3c8tmTR7nvofg7ixl2pA-1791470302.3210332-1.0.1.1-xcx_hVfhPsMn4BNI0ZDs4e6RZ3MQ9BtdhnJjzgrn5ztKDSUw9UqfuwIVWTr0xoc_fsEjAaVNiQUUV5a96BYYI2Qyn1ZNum69qioa4Lh1pTE.hpRjWWF5dCcnc.tWBCxj;
+      - __cf_bm=UGo7VmeHSllXV2dchAm3CF39CQdN4va_gMJpB0NWauQ-1791475031.8940313-1.0.1.1-RcMsq5fQtyUDN8Ddg.aGBFvpr9ZsDXj4kg7eTqkRyQjbajFrGbMkpbASppz4pcyG6YQPmth0c2271KNQ0_k1sZKZ1Q.2WCHDYDBaFXF0HOpj0P17TSTUEl3dPPwF6.rJ;
         HttpOnly; SameSite=None; Secure; Path=/; Domain=openrouter.ai; Expires=Thu,
-        08 Oct 2026 15:08:24 GMT
+        08 Oct 2026 16:27:25 GMT
       strict-transport-security:
       - max-age=31536000
       transfer-encoding:
@@ -140,11 +140,11 @@ interactions:
       x-content-type-options:
       - nosniff
       x-generation-id:
-      - gen-1791470302-C6LMIbxuCG8uVcfEeycr
+      - gen-1791475032-C2nm8tqAtQHFpjf9rlxz
       x-new-api-version:
       - v1.0.0-rc.41
       x-oneapi-request-id:
-      - 202610081438223071850598268d9d6q5Vgau5z
+      - 202610081557116466207018268d9d6um6j3oqt
     status:
       code: 200
       message: OK
@@ -162,21 +162,25 @@ interactions:
       MUST appear verbatim in\\n  the list_materials result (exact case, underscores,
       dashes, numbers).\\n- If a needed material is missing from list_materials, STOP
       and report\\n  the gap; do NOT invent names or call create with a broken reference.\\n-
-      Each Construction is an ordered list of layers from OUTSIDE to INSIDE.\\n- Use
-      separate constructions per surface type when thermal properties differ\\n  (e.g.,
-      'ExtWall_Office', 'IntWall_Office', 'Roof_Office', 'Floor_Office',\\n  'Window_Office').\\n-
-      Opaque constructions (walls, roofs, floors, ceilings, doors) use only\\n  opaque
-      materials; Material:AirGap is allowed there.\\n- Window constructions are either
-      a single simplified glazing material, or\\n  glass panes with exactly one window
-      gas layer between each pair, starting\\n  and ending with glass (e.g., [Glass_6mm,
-      Air_13mm, Glass_6mm]). Never mix\\n  window and opaque materials; create_construction
-      rejects such layers.\\n\",\"role\":\"system\"},{\"content\":\"Create exactly
-      one construction named 'ExtWall_Simple' with a single layer 'Brick_100mm'.\",\"role\":\"user\"},{\"content\":null,\"role\":\"assistant\",\"tool_calls\":[{\"type\":\"function\",\"id\":\"call_804271\",\"function\":{\"name\":\"list_materials\",\"arguments\":\"{}\"}}]},{\"content\":\"{\\\"success\\\":
+      Use the construction names the specification gives, verbatim: zones and\\n  openings
+      reference them. Only for constructions it does not name, use\\n  separate ones
+      per surface type when thermal properties differ (e.g.,\\n  'ExtWall_Office',
+      'IntWall_Office', 'Roof_Office', 'Window_Office').\\n- Each Construction is
+      an ordered list of layers from OUTSIDE to INSIDE. An\\n  interior floor lists
+      its layers from the ceiling below up to the floor\\n  above. Do NOT create reversed
+      copies of interior constructions; the face\\n  in the adjacent zone gets one
+      automatically.\\n- Opaque constructions (walls, roofs, floors, ceilings, doors)
+      use only\\n  opaque materials; Material:AirGap is allowed there.\\n- Window
+      constructions are either a single simplified glazing material, or\\n  glass
+      panes with exactly one window gas layer between each pair, starting\\n  and
+      ending with glass (e.g., [Glass_6mm, Air_13mm, Glass_6mm]). Never mix\\n  window
+      and opaque materials; create_construction rejects such layers.\\n\",\"role\":\"system\"},{\"content\":\"Create
+      exactly one construction named 'ExtWall_Simple' with a single layer 'Brick_100mm'.\",\"role\":\"user\"},{\"content\":null,\"role\":\"assistant\",\"tool_calls\":[{\"type\":\"function\",\"id\":\"call_907932\",\"function\":{\"name\":\"list_materials\",\"arguments\":\"{}\"}}]},{\"content\":\"{\\\"success\\\":
       true, \\\"message\\\": \\\"Listed 1 materials.\\\", \\\"data\\\": [{\\\"type\\\":
       \\\"Material\\\", \\\"name\\\": \\\"Brick_100mm\\\", \\\"roughness\\\": \\\"MediumRough\\\",
       \\\"thickness\\\": 0.1, \\\"conductivity\\\": 0.89, \\\"density\\\": 1920.0,
       \\\"specific_heat\\\": 790.0, \\\"thermal_absorptance\\\": 0.9, \\\"solar_absorptance\\\":
-      0.7, \\\"visible_absorptance\\\": 0.7}]}\",\"role\":\"tool\",\"tool_call_id\":\"call_804271\"}],\"model\":\"google/gemini-3.8-flash\",\"max_completion_tokens\":16384,\"parallel_tool_calls\":false,\"stream\":false,\"temperature\":0.7,\"tool_choice\":\"required\",\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"create_construction\",\"description\":\"Create
+      0.7, \\\"visible_absorptance\\\": 0.7}]}\",\"role\":\"tool\",\"tool_call_id\":\"call_907932\"}],\"model\":\"google/gemini-3.8-flash\",\"max_completion_tokens\":16384,\"parallel_tool_calls\":false,\"stream\":false,\"temperature\":0.7,\"tool_choice\":\"required\",\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"create_construction\",\"description\":\"Create
       a Construction as an ordered list of material layers.\\n\\n        Opaque constructions
       use opaque materials only. Window constructions\\n        are either one SimpleGlazingSystem,
       or glazing layers with exactly one\\n        window gas layer between each pair,
@@ -198,7 +202,7 @@ interactions:
       connection:
       - keep-alive
       content-length:
-      - '4473'
+      - '4790'
       content-type:
       - application/json
       host:
@@ -230,24 +234,22 @@ interactions:
   response:
     body:
       string: !!binary |
-        KLUv/QBYlR4AWkIgDSrApO482GTEEpmIlGBiIiz768FQfzQfBV8Z/ImOx1oUi04yBEEQ5BIEpwK5
-        AMEA2gCUcys+9BPJxcLZ8naaH3qOMa0c1rr/9VlzajcH8puvxzl6j5/GD0XXm7bL9z0Crue2Xg3W
-        h9602Luds/WW2/KHMCbz9T3fPW775etxou385A+9vh3ZLQEcWIDsr9+2u6Xe40MPcoq9AQOCxMDN
-        V7QfwuJP6++vx7bT4kPXd7ZTu+tDn/XtFo+irgSdgvWv79U2cPRD79AoEhg9HEzSY3KWWkEmbt1A
-        QZSIKkqyKmkg2++v7+57AAQAECVFKSRIVFa6ZeFQPhySdRgdQP5wsVgJaLEJHjKsKqw8yyY5aJgW
-        kRqxYGNnxJCR6ToTE5MbYKTiaWEGW0T6YqHpCH897bR76Dvbx3PXbAku7bbjBnw+//mNxaN4LRzG
-        NNNNhN9cv9lAA34jilEkcWG9++A3Aq7f8G1Pin/j+et5z1Ykv03J3XnWlbveijS/54LeMrCsBMVh
-        TGvNpPfX2/Hs7xFwfflmzSmmnPTstj3r+tD3TDu/nNO/3mK933O9/QIepRPMQ2JK4TaxSNj7QLKh
-        kGi2rBdMSgaHWILAoQLbSZVbBmYsGIm4LAjkMaF5iFAOSwsTDSICqyAkcBYCeEGxKgpIxrgFjY6V
-        WUhAGiaEVHKiCTsgKbvhbGDCBgkDfYwKZWbIXBAmDW0rJkaC5nXOB7BLUBlEgtE6nzYBiCZaWDAr
-        2ci5QMRLJllm5MFBE3Y+hpRQ0SAV4mUKLDs2BoXMmHE09aBywDBQjYWy6zBglcxTyMYq0kCJYhHV
-        65msoEiKJFBNEMbtWMIs4WpEUsEpkJyY9nAoOq6ZVJ/P56PifaiiPgVVgqIknjCgEpyt2W7r5cuJ
-        1O7OR/Jju1vq25HU9rs7HBR1Fqy0vsdyTL3rQ31yOH4fKqgmi4qiiCC6vnNdH1JEkYRp1/2hqnrI
-        mqzrebah7lwfRb1HcsDnpXKgU3Fr76FHdAxiKyOM6dsojVEsLWkLjkJoXrJIcWwHG8Md5mITAUUF
-        ThhM3arK+ZBpe3KZXMZNcmRNK5QmWE6RMjeqvhcJE+KCOK3DwFRoVHZZTGNVkBj98fCwEJeYEjMg
-        QILFGNID/xkvX8I1BZTIAaUnFgI/FWwBVukhAmwXEBKwtRcf3BQ+GIxM5bSWl2rgKYVxbQcJF3iM
-        tFfSt6oAWmQz0tJV0ovNSgRY/fN8pXtXGWAResjisXGMmdCJSDx0lpf3T21hdAhcwdWuuKhvS9Do
-        RLjwBJGaSPxuA0LbUgIwvgAL
+        KLUv/QBYRRsAxjq4KODs6gGceAZOs/Hih9+0MtTYFp8+8sk3Axcomrb+f/ORRyLIMIMhBhyjAKAA
+        wAB+sZ6fNU/XWzn9wRnssPWJkj7+dquTJKTrpxV71Ccf33J1a0+rmF/7ZG14pe9bM5i/u5XTvt9a
+        pH1yXLdwbwIWHAESl55/qyLOoE/u6Wk5AYOBS6De+n1H8LbDuHPp9jf8+SR9+z0/U5/84rrfgh+m
+        A3t61KVv+hQf7JNvED5ZpFLZMiQSFkBcHPbVIAo0GFQDY1QZVgnc71z6Vp0EEAAAEAAQj2HQcBxQ
+        x/HAIsKDEiMufe65+eTbb1CU6f2BOvdv2kSp5KUJ93wfRVUaiNb8cI+EdI/OL5rWPZN73oJf3WjW
+        zs4eI+6R7vGQXLre97+wyzPMW19MNen/zeskObl1WZWFadZOSm/IufQHRdtJErK79WI97dQh9/n3
+        xdQn33duXbWeLv0tzk6S/t3U+j+fHMPQsNFerHten1xbO6lmMd4uA6BkgkSsEkV0eIGiaIhcIjhZ
+        VIsRbqhzQT9m1/E+GTNi9mE7MOEke2IDVjMHhaLAaMZjsCgZi9dZRCMQA4ZhGBXkkVPhLgmoYulQ
+        RKHyRpKKC2VkKCKqubBEH6aYA40wvXCQr5K5ocxi+R46l6ihuCT8pLJgHZOHW3EKVGZFMELY5ZFp
+        ALFKPSjFATJFEErnFUYChE5C94FAJKFbdZRIQrbgdTIKHPrQODIOrVyHT6dqCi4Rhrq/x6qvdavJ
+        xiEZBaVSqZtf9YlxlaxKY5f29H5+7lbtm5+3BsPSb1XEdQvn75pD2kRt79FJnfTaTk46CIs+mq4+
+        WRmDoqgBSvrWmPpU0KAqOzfePjEKfLKyTLq+D8Jb2+CHMxhOlLwSBfb8MuZ88oODjOX7uqccjsH+
+        jF40RoftyKwNdnnNAxcaKWu5NPVCoFBCqwEBKS5iUFlYJM+NCg2GAwK0eHAqICadEGhwwQm1MUQs
+        biMmZLHRDDQgUMJyyur2GQtV4mUL4IwDP0iGO78RbCGFjSZcZGCagKsi8YEbgoPVyBROa3ipDBxZ
+        WIh2iFjA9mmvpG9VAPNspja61r+YpUTgwT/kq06tygCL0LMsd2yEnoVKRPgh+VjYP30LYyFwZVc7
+        4qK9LYNGJ+DCU0R6IvG9DYhtSwlg9BtvwQI=
     headers:
       access-control-allow-origin:
       - '*'
@@ -258,7 +260,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a475e39dcc27ac08-NRT
+      - a4765758fcfaa0ee-NRT
       connection:
       - keep-alive
       content-encoding:
@@ -266,7 +268,7 @@ interactions:
       content-type:
       - application/json
       date:
-      - Thu, 08 Oct 2026 14:38:27 GMT
+      - Thu, 08 Oct 2026 15:57:30 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       permissions-policy:
@@ -275,13 +277,13 @@ interactions:
       referrer-policy:
       - no-referrer, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=sIy78q1jOwn7Zt6e7YDK3UyyZ3ciADfm%2BmUJwcEJ2iKxql5qyjpW3lrcHybyvayj%2FmcHdGcOhO8CXr%2BBcVcU0DNzljl3IbbArVbtcuuteBtP%2BR7vwCT6OLa6dca52ais3wM%3D"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=D%2FE2LC4Xe%2F4Fu5LNx9Nl52h1HImQpMmHNIzSI7V5f%2BGJWlUD%2BamaTek%2Fp3yD6bMG6T5OxZaMzsKE7Z8nnHGqfsHwi1GcoPPreoXYdLwEGHkRmfCnfn8jPHHlGsZqSAxngqM%3D"}]}'
       server:
       - cloudflare
       set-cookie:
-      - __cf_bm=q1cSiieH9UYM_zB052v7Jcumhi7R90ZZkg4bx19Ohfs-1791470305.0801437-1.0.1.1-VskJtY4ICGOMtp7azt_6zddCGfsWllnvPfnhOu2Aai9aWGemfxtRoemT9kYTm4fnrW_fEyR1SxOxU.nPw.HlJS7j7R9fx_ABiXmrBbpzNZhKSFQBFF.I5rmfehLr1Ca4;
+      - __cf_bm=rrr9r.XcC_JIEipC3g4gsqqjJkJ.YS.gucaL9JO6x9g-1791475045.4341228-1.0.1.1-0Dys_JZiw7s0.P1NIeEnP1iBX4ADMDKc2YCYH0zZjiqAfveX7XYv8btkyh5ks58AI3tzWZYFi5cRwIdgi3ZFoHpkbE7.AiR3sN.YgMyep4b7AsJQPAEFv0VYN85rqgNK;
         HttpOnly; SameSite=None; Secure; Path=/; Domain=openrouter.ai; Expires=Thu,
-        08 Oct 2026 15:08:27 GMT
+        08 Oct 2026 16:27:30 GMT
       strict-transport-security:
       - max-age=31536000
       transfer-encoding:
@@ -291,11 +293,11 @@ interactions:
       x-content-type-options:
       - nosniff
       x-generation-id:
-      - gen-1791470305-dXmG5UvyPK12Bz0h1QUI
+      - gen-1791475045-vT3tVNY6uEDrdLLE9bCS
       x-new-api-version:
       - v1.0.0-rc.41
       x-oneapi-request-id:
-      - 202610081438250606783098268d9d6foyET8f2
+      - 202610081557254200131088268d9d6yjz8CLVP
     status:
       code: 200
       message: OK
@@ -313,24 +315,28 @@ interactions:
       MUST appear verbatim in\\n  the list_materials result (exact case, underscores,
       dashes, numbers).\\n- If a needed material is missing from list_materials, STOP
       and report\\n  the gap; do NOT invent names or call create with a broken reference.\\n-
-      Each Construction is an ordered list of layers from OUTSIDE to INSIDE.\\n- Use
-      separate constructions per surface type when thermal properties differ\\n  (e.g.,
-      'ExtWall_Office', 'IntWall_Office', 'Roof_Office', 'Floor_Office',\\n  'Window_Office').\\n-
-      Opaque constructions (walls, roofs, floors, ceilings, doors) use only\\n  opaque
-      materials; Material:AirGap is allowed there.\\n- Window constructions are either
-      a single simplified glazing material, or\\n  glass panes with exactly one window
-      gas layer between each pair, starting\\n  and ending with glass (e.g., [Glass_6mm,
-      Air_13mm, Glass_6mm]). Never mix\\n  window and opaque materials; create_construction
-      rejects such layers.\\n\",\"role\":\"system\"},{\"content\":\"Create exactly
-      one construction named 'ExtWall_Simple' with a single layer 'Brick_100mm'.\",\"role\":\"user\"},{\"content\":null,\"role\":\"assistant\",\"tool_calls\":[{\"type\":\"function\",\"id\":\"call_804271\",\"function\":{\"name\":\"list_materials\",\"arguments\":\"{}\"}}]},{\"content\":\"{\\\"success\\\":
+      Use the construction names the specification gives, verbatim: zones and\\n  openings
+      reference them. Only for constructions it does not name, use\\n  separate ones
+      per surface type when thermal properties differ (e.g.,\\n  'ExtWall_Office',
+      'IntWall_Office', 'Roof_Office', 'Window_Office').\\n- Each Construction is
+      an ordered list of layers from OUTSIDE to INSIDE. An\\n  interior floor lists
+      its layers from the ceiling below up to the floor\\n  above. Do NOT create reversed
+      copies of interior constructions; the face\\n  in the adjacent zone gets one
+      automatically.\\n- Opaque constructions (walls, roofs, floors, ceilings, doors)
+      use only\\n  opaque materials; Material:AirGap is allowed there.\\n- Window
+      constructions are either a single simplified glazing material, or\\n  glass
+      panes with exactly one window gas layer between each pair, starting\\n  and
+      ending with glass (e.g., [Glass_6mm, Air_13mm, Glass_6mm]). Never mix\\n  window
+      and opaque materials; create_construction rejects such layers.\\n\",\"role\":\"system\"},{\"content\":\"Create
+      exactly one construction named 'ExtWall_Simple' with a single layer 'Brick_100mm'.\",\"role\":\"user\"},{\"content\":null,\"role\":\"assistant\",\"tool_calls\":[{\"type\":\"function\",\"id\":\"call_907932\",\"function\":{\"name\":\"list_materials\",\"arguments\":\"{}\"}}]},{\"content\":\"{\\\"success\\\":
       true, \\\"message\\\": \\\"Listed 1 materials.\\\", \\\"data\\\": [{\\\"type\\\":
       \\\"Material\\\", \\\"name\\\": \\\"Brick_100mm\\\", \\\"roughness\\\": \\\"MediumRough\\\",
       \\\"thickness\\\": 0.1, \\\"conductivity\\\": 0.89, \\\"density\\\": 1920.0,
       \\\"specific_heat\\\": 790.0, \\\"thermal_absorptance\\\": 0.9, \\\"solar_absorptance\\\":
-      0.7, \\\"visible_absorptance\\\": 0.7}]}\",\"role\":\"tool\",\"tool_call_id\":\"call_804271\"},{\"content\":null,\"role\":\"assistant\",\"tool_calls\":[{\"type\":\"function\",\"id\":\"call_439989\",\"function\":{\"name\":\"create_construction\",\"arguments\":\"{\\\"layers\\\":
-      [\\\"Brick_100mm\\\"], \\\"name\\\": \\\"ExtWall_Simple\\\"}\"}}]},{\"content\":\"{\\\"success\\\":
+      0.7, \\\"visible_absorptance\\\": 0.7}]}\",\"role\":\"tool\",\"tool_call_id\":\"call_907932\"},{\"content\":null,\"role\":\"assistant\",\"tool_calls\":[{\"type\":\"function\",\"id\":\"call_721232\",\"function\":{\"name\":\"create_construction\",\"arguments\":\"{\\\"name\\\":
+      \\\"ExtWall_Simple\\\", \\\"layers\\\": [\\\"Brick_100mm\\\"]}\"}}]},{\"content\":\"{\\\"success\\\":
       true, \\\"message\\\": \\\"Construction 'ExtWall_Simple' created.\\\", \\\"data\\\":
-      {\\\"name\\\": \\\"ExtWall_Simple\\\", \\\"outside_layer\\\": \\\"Brick_100mm\\\"}}\",\"role\":\"tool\",\"tool_call_id\":\"call_439989\"}],\"model\":\"google/gemini-3.8-flash\",\"max_completion_tokens\":16384,\"parallel_tool_calls\":false,\"stream\":false,\"temperature\":0.7,\"tool_choice\":\"required\",\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"create_construction\",\"description\":\"Create
+      {\\\"name\\\": \\\"ExtWall_Simple\\\", \\\"outside_layer\\\": \\\"Brick_100mm\\\"}}\",\"role\":\"tool\",\"tool_call_id\":\"call_721232\"}],\"model\":\"google/gemini-3.8-flash\",\"max_completion_tokens\":16384,\"parallel_tool_calls\":false,\"stream\":false,\"temperature\":0.7,\"tool_choice\":\"required\",\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"create_construction\",\"description\":\"Create
       a Construction as an ordered list of material layers.\\n\\n        Opaque constructions
       use opaque materials only. Window constructions\\n        are either one SimpleGlazingSystem,
       or glazing layers with exactly one\\n        window gas layer between each pair,
@@ -352,7 +358,7 @@ interactions:
       connection:
       - keep-alive
       content-length:
-      - '4893'
+      - '5210'
       content-type:
       - application/json
       host:
@@ -384,17 +390,17 @@ interactions:
   response:
     body:
       string: !!binary |
-        KLUv/QBYZRIANuZyJ+CyVgfMJcME2ZbXQ/CbTLuiqmQh5ypVQsfLXMupbeCNIcYYhRB+AWoAXgBu
-        ABJEbVdPPfvkyGqJAIaDAIW70424M2l19k19UYIURCYQlkztJLBxmnO6e9xoUmfu0fZbCs8uJ/fG
-        ipow0m8D795wORvz7AcTcEEz6VhwMCw8GGrJMGA0EGJpk2YhkFwsEojc6e4R/wMQABCzvviqJS3d
-        lhOeveXryrW+u2+c9B/3nV6tS509AkIjAW2H+8mz1xgfhOKcfXc561sKbSpLlurGpNU041lz99hI
-        8j8Z7nUhzw08u8dGiRtayB269SxGS7q3ZFrRnSQHkXPhgRoMyoMmEykqMLzRQFCaBAbVgJDpCwQM
-        DoUGM0lQePiYEDKeCYUGhwtOuPvrF5092q48FMqN8OuNII3r+vW5e225lDXRd/Zq0a5yQqgrx7sv
-        9eQ/jl1SUCGoVKAYH4TSku6+laf/yXCTZBnXdU2P4rOLMlBpA61SLJMCC7RQLl1JMkS9pV0r69qI
-        O5Mj620z7YBYi3YDH/xna3ySO8f0bECVzy6XSWst0ty7TnjWBlp8PftMcnZpTeJe5XLMhrqiJq0s
-        jeuSDqQfRad0dgODjgdOMSBAgsbY2QH8WSVjw4UKGIkDRk3sk5+JtwD/aZOHqxmYE3BlJL65IXQw
-        jEzjtMZLceBohUfYMeaCVUp7FWQeGDoK5D3etVUgAEQY6x/kqyKoHLiwBMvCwdgcimZh/7QWRkPg
-        qq5246K9LUGjU+HCc0R6IvF/G5BtS0nC+AIs
+        KLUv/QBYPRIANqZxJvCSVgdAlfELQiPaUkJrMu3Odu/JzGKKTvIEDGEyA0Q+F9lE6jDQaABdAG4A
+        EkRts4bPTmNk9UTAwkGAwt3rRjFDa3X2Cz8pQSqRCSTOSO0ksHKidLq73IhSZ+7R9tsKzz5p7JUV
+        RWGk3wXeveFiNujZZ2NQPiZLPzDcMEBZPBVnGdKe9hBQJAUEEsjc6e5R/AYgACCUn3xsSVu3J4Vn
+        7/maI/O7+0pav3Hf6TEvdXaJCMsEtJnYb56dpXwQkpT23SfltxW6cJxR4g1aq4nKs+busdGM32S4
+        88JIL/DsHiul2NDCmKnLZ1Ja071nrFXdacYSc6GBFoznwQIhKywc4sUS8bQJDIoBAaIvEDAwFRaH
+        SYLCw8eEAKGhUGBouIgJd3/9orNH25WmwrmR+HojSOO6fm3uzj2Xsqb6zs5WbZ4UQs1R3n2pN79x
+        7M/EqVAKICkfhNOS7r6Vpr/JcNOMM9d1TY+KZ9fjDDSnsdOghXPrSjNC1NvaXFnXRjFDY2S97Vg7
+        INaivcAHv1mWT3LnoJoNiOPZ4ww4DqW1FmnuzRSeTSpNvqZ9JjlzCJrEnedy0Ia6omitLI3rkgyk
+        H1WpdHYDg44HTDEgQILG2NkB/FklY4OGChiJA0lN7JNfirfQ/iGUR6wZpBPQ5SS+uS10MIxM47TG
+        S3FgaoVN2GHmAmNKexVkHhg6CuQ93rVVIABEGOsf5KsiqBy4sATLwsHYHIpmYf+0FkZD4KquduOi
+        vS1Bo1PhwnNEeiLxfxuQbUtJwvgCLA==
     headers:
       access-control-allow-origin:
       - '*'
@@ -405,7 +411,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a475e3abea20ac08-NRT
+      - a47657794fbca0ee-NRT
       connection:
       - keep-alive
       content-encoding:
@@ -413,7 +419,7 @@ interactions:
       content-type:
       - application/json
       date:
-      - Thu, 08 Oct 2026 14:38:30 GMT
+      - Thu, 08 Oct 2026 15:57:32 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       permissions-policy:
@@ -422,13 +428,13 @@ interactions:
       referrer-policy:
       - no-referrer, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=y58IYmL2tXz3sZKQJTQWhDJfB%2B0L%2BcwpnmbeenpZ%2FIGSVaN%2BQJgnJarqakxQ1S95Sz0DvP2fdWeXsXbjbo1QzsV98c3j9NmuIOz6eG7WhGq836GvmRKKQQ%2F33hSVI1%2BB6ts%3D"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=hKzn8ZMo1MWU1OQGC8K2No%2F1dDvaJcHge01RSjZeMYZ%2BsXSYlYLDwJ%2BH0tfLS3Mf6qcNS23koYiszgf6yAOP1xUp543NB%2FyQq%2FyNwzmxrEvzZsq63xT8hwlFcl91AH0tj9g%3D"}]}'
       server:
       - cloudflare
       set-cookie:
-      - __cf_bm=Nm2C.yZ8FbGWUkp0jRgTVdkzzjVaapCN7diASpZEU2I-1791470307.3348932-1.0.1.1-eCLaxE32gNXZyQwxO.Gdt2BaKax7Jeg_LRaPUcYfXjZCLHJkuSkqjYV4Q1FJOiegf7ZiESj4BLltqd0e09X1vPBUuCgtB9hKCNnt2WpCCfWGk2aUJMw6Yo4ORTuQA1Nd;
+      - __cf_bm=JVIJjhiXjy2m2mlK_qH06VGD0FQ0iIdSJ_Ca9MHQ9ec-1791475050.6018136-1.0.1.1-V2tLXvT1OYQY8ETMhBxb0IA1skYdF9QnNeSxh12MCoMEJ_ahlZSve02OOYs_QwmDX7cu3VIJy.yUqF_NBi_V.vmw25VhTQVZs8hDK8kHzzhDVtnwb3Voh9_HN3yVcRXZ;
         HttpOnly; SameSite=None; Secure; Path=/; Domain=openrouter.ai; Expires=Thu,
-        08 Oct 2026 15:08:30 GMT
+        08 Oct 2026 16:27:32 GMT
       strict-transport-security:
       - max-age=31536000
       transfer-encoding:
@@ -438,11 +444,11 @@ interactions:
       x-content-type-options:
       - nosniff
       x-generation-id:
-      - gen-1791470307-cTLIN7rLyXZjXv3THcUA
+      - gen-1791475050-se285Wm6Ksjzoe3z4Ztn
       x-new-api-version:
       - v1.0.0-rc.41
       x-oneapi-request-id:
-      - 202610081438273182617248268d9d6ZvLez4EX
+      - 202610081557305883603608268d9d61Yi5Jqrr
     status:
       code: 200
       message: OK
@@ -460,27 +466,31 @@ interactions:
       MUST appear verbatim in\\n  the list_materials result (exact case, underscores,
       dashes, numbers).\\n- If a needed material is missing from list_materials, STOP
       and report\\n  the gap; do NOT invent names or call create with a broken reference.\\n-
-      Each Construction is an ordered list of layers from OUTSIDE to INSIDE.\\n- Use
-      separate constructions per surface type when thermal properties differ\\n  (e.g.,
-      'ExtWall_Office', 'IntWall_Office', 'Roof_Office', 'Floor_Office',\\n  'Window_Office').\\n-
-      Opaque constructions (walls, roofs, floors, ceilings, doors) use only\\n  opaque
-      materials; Material:AirGap is allowed there.\\n- Window constructions are either
-      a single simplified glazing material, or\\n  glass panes with exactly one window
-      gas layer between each pair, starting\\n  and ending with glass (e.g., [Glass_6mm,
-      Air_13mm, Glass_6mm]). Never mix\\n  window and opaque materials; create_construction
-      rejects such layers.\\n\",\"role\":\"system\"},{\"content\":\"Create exactly
-      one construction named 'ExtWall_Simple' with a single layer 'Brick_100mm'.\",\"role\":\"user\"},{\"content\":null,\"role\":\"assistant\",\"tool_calls\":[{\"type\":\"function\",\"id\":\"call_804271\",\"function\":{\"name\":\"list_materials\",\"arguments\":\"{}\"}}]},{\"content\":\"{\\\"success\\\":
+      Use the construction names the specification gives, verbatim: zones and\\n  openings
+      reference them. Only for constructions it does not name, use\\n  separate ones
+      per surface type when thermal properties differ (e.g.,\\n  'ExtWall_Office',
+      'IntWall_Office', 'Roof_Office', 'Window_Office').\\n- Each Construction is
+      an ordered list of layers from OUTSIDE to INSIDE. An\\n  interior floor lists
+      its layers from the ceiling below up to the floor\\n  above. Do NOT create reversed
+      copies of interior constructions; the face\\n  in the adjacent zone gets one
+      automatically.\\n- Opaque constructions (walls, roofs, floors, ceilings, doors)
+      use only\\n  opaque materials; Material:AirGap is allowed there.\\n- Window
+      constructions are either a single simplified glazing material, or\\n  glass
+      panes with exactly one window gas layer between each pair, starting\\n  and
+      ending with glass (e.g., [Glass_6mm, Air_13mm, Glass_6mm]). Never mix\\n  window
+      and opaque materials; create_construction rejects such layers.\\n\",\"role\":\"system\"},{\"content\":\"Create
+      exactly one construction named 'ExtWall_Simple' with a single layer 'Brick_100mm'.\",\"role\":\"user\"},{\"content\":null,\"role\":\"assistant\",\"tool_calls\":[{\"type\":\"function\",\"id\":\"call_907932\",\"function\":{\"name\":\"list_materials\",\"arguments\":\"{}\"}}]},{\"content\":\"{\\\"success\\\":
       true, \\\"message\\\": \\\"Listed 1 materials.\\\", \\\"data\\\": [{\\\"type\\\":
       \\\"Material\\\", \\\"name\\\": \\\"Brick_100mm\\\", \\\"roughness\\\": \\\"MediumRough\\\",
       \\\"thickness\\\": 0.1, \\\"conductivity\\\": 0.89, \\\"density\\\": 1920.0,
       \\\"specific_heat\\\": 790.0, \\\"thermal_absorptance\\\": 0.9, \\\"solar_absorptance\\\":
-      0.7, \\\"visible_absorptance\\\": 0.7}]}\",\"role\":\"tool\",\"tool_call_id\":\"call_804271\"},{\"content\":null,\"role\":\"assistant\",\"tool_calls\":[{\"type\":\"function\",\"id\":\"call_439989\",\"function\":{\"name\":\"create_construction\",\"arguments\":\"{\\\"layers\\\":
-      [\\\"Brick_100mm\\\"], \\\"name\\\": \\\"ExtWall_Simple\\\"}\"}}]},{\"content\":\"{\\\"success\\\":
+      0.7, \\\"visible_absorptance\\\": 0.7}]}\",\"role\":\"tool\",\"tool_call_id\":\"call_907932\"},{\"content\":null,\"role\":\"assistant\",\"tool_calls\":[{\"type\":\"function\",\"id\":\"call_721232\",\"function\":{\"name\":\"create_construction\",\"arguments\":\"{\\\"name\\\":
+      \\\"ExtWall_Simple\\\", \\\"layers\\\": [\\\"Brick_100mm\\\"]}\"}}]},{\"content\":\"{\\\"success\\\":
       true, \\\"message\\\": \\\"Construction 'ExtWall_Simple' created.\\\", \\\"data\\\":
-      {\\\"name\\\": \\\"ExtWall_Simple\\\", \\\"outside_layer\\\": \\\"Brick_100mm\\\"}}\",\"role\":\"tool\",\"tool_call_id\":\"call_439989\"},{\"content\":null,\"role\":\"assistant\",\"tool_calls\":[{\"type\":\"function\",\"id\":\"call_664681\",\"function\":{\"name\":\"list_constructions\",\"arguments\":\"{}\"}}]},{\"content\":\"{\\\"success\\\":
+      {\\\"name\\\": \\\"ExtWall_Simple\\\", \\\"outside_layer\\\": \\\"Brick_100mm\\\"}}\",\"role\":\"tool\",\"tool_call_id\":\"call_721232\"},{\"content\":null,\"role\":\"assistant\",\"tool_calls\":[{\"type\":\"function\",\"id\":\"call_948235\",\"function\":{\"name\":\"list_constructions\",\"arguments\":\"{}\"}}]},{\"content\":\"{\\\"success\\\":
       true, \\\"message\\\": \\\"Listed 1 constructions.\\\", \\\"data\\\": [{\\\"kind\\\":
       \\\"opaque\\\", \\\"name\\\": \\\"ExtWall_Simple\\\", \\\"outside_layer\\\":
-      \\\"Brick_100mm\\\"}]}\",\"role\":\"tool\",\"tool_call_id\":\"call_664681\"}],\"model\":\"google/gemini-3.8-flash\",\"max_completion_tokens\":16384,\"parallel_tool_calls\":false,\"stream\":false,\"temperature\":0.7,\"tool_choice\":\"required\",\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"create_construction\",\"description\":\"Create
+      \\\"Brick_100mm\\\"}]}\",\"role\":\"tool\",\"tool_call_id\":\"call_948235\"}],\"model\":\"google/gemini-3.8-flash\",\"max_completion_tokens\":16384,\"parallel_tool_calls\":false,\"stream\":false,\"temperature\":0.7,\"tool_choice\":\"required\",\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"create_construction\",\"description\":\"Create
       a Construction as an ordered list of material layers.\\n\\n        Opaque constructions
       use opaque materials only. Window constructions\\n        are either one SimpleGlazingSystem,
       or glazing layers with exactly one\\n        window gas layer between each pair,
@@ -502,7 +512,7 @@ interactions:
       connection:
       - keep-alive
       content-length:
-      - '5262'
+      - '5579'
       content-type:
       - application/json
       host:
@@ -534,19 +544,19 @@ interactions:
   response:
     body:
       string: !!binary |
-        KLUv/QBYTRUA9myHKNDSVgeMFsNI38qVb/yXaXPR3Tq3oqoyKTYA+AQfbwsjV+CLh8zVNAF7AHMA
-        fwCZ6ihDt/HdnFl9z1Ve7PZVpUXRzljDd7eyyvJGYiiQFP5+u5Ihe7G7ezCcVkRAUonIKmlfAT0v
-        a6+/z64svXuvOsO+8e7VytwTozZKMvTEv+fYHw57943ExXPR0IfqolIhChUsfCroE5kmlSljmQxk
-        JpHa198r+RGABBAWwz2R3YyrPfh7U1g/eu4ZC6ZCwVBzwhhrZv29MS1/pPGuKqvFcEKcWX07Vxvv
-        nivMWGIM/97T3o/e+4IYN727RARnQ3VIZljvjueEkZrW5r9Xi2FfyoNllRbmsBe77Lyb3j26qvIj
-        jXfcUVpPvLtHT0sGGQMh41PBeagkKEB8XAgajUKhwQFDJvwdZljdveqMaTfWlkiYu6I2tu3bxjvv
-        aLx3cFNYqXfcOxIIpdM0oUBRXgOIdFuDU+p5VYklT5YiCdITo3JDzQktskcCRIpSZx0Qs5KkzZlZ
-        GHeM2ead9452IaUZfmf0d5xr0+y68O6Na9u2XZDKu+1CwQhM+JKhTFTH2retKikK+2aMZVtXMmRl
-        lcHO8oooN1XtiTB+1HhC6x1kNQ4Ky7sBAcs0TZLpPWMb7ybKZDJhtvkOY7mzZKbJO64NspnKGLUX
-        yza2T0KRDOm11t0JCEQQn/nB0CIn4wLB0cwKiwfp4URcpk0GbUDQBDUgMILFoN0B+lkddUOFFBCa
-        A0Ql5ZFfCVt4+KiJg+sMzBNwNRLf3BA+2I1M47SOl3rgKIVH2DHCArZMe2V97AKa3M0TQtf2RcyI
-        sPd/Ll+VKuVAheVIFpPHHFJOZ8xhtDljbMJC27KEf2oRRjZw9Vy7zKKSLW2jk7fCo4gUIvF/G1Bt
-        S8nB+AIs
+        KLUv/QBYVRUA1qyGJ9CyWAdMVUPfBDfCOGsCl+uswklVVbMb/UcjkDlM/4WRxyj1MFw4X3sAcwCA
+        AB2l5za+mzOr77nKi92+qrQo2hlr+O5WVlnGQAwG0MLfb1fSYy92dw6G05JcJhSJrJL2FdDzsvb6
+        ++zK0rv3qjPsG+9ercw9MWrjJENO/HuO3eGwd/dg+LDIQIAeA81Dp2ZNUZGxNBKBKZosFYnAIklq
+        X3+v5D8QAAAEELgrsptxtQh/bwrrP899ILJMFws1J4yxZtbfG9PyPxrvqrJaDCfEmdW3c7Xx7rnC
+        jCXG8O897f3nvS+IcdO7T0hkMFR7ZIb17nhOGKlpbf57tRj2pThYVmlhDnuxy8676B2kqyr/0XjH
+        HaXlxLuD9LRkpgIa2pAQkTMSNJ2LzANFYQEi5EqI0CwWGhwypMLfYYbV3avOmHZj7YmEuStqY9u+
+        fTOJUBpFEtUR5T2IQLc1OKGeV5UY4mT5AUUiEARpc2YWxh1jhvnmfaNdSGmGv3Eb3/TEqMRQc0KM
+        DKLwjcb7BjeFlYrffP6Oc22aXRfevXG1WNu2XZDKu22yUCqXCFMGBCpUx9q3rSopCvtmjGVbV9Jj
+        ZZXBzvJ+UC6qmhNh/KfxhNZ7h9U4KCzvJkskTVEUTaL3jG28E7hI0oTZ5rupcmehSNI7rt1hM5Ux
+        ai+WbWyXPJIM6bXW3QsKPiA6s5OhxYxmgshEzAuMB8nJSEwRJjcgQEKiGLM7/lktdcOGFFCaA0pN
+        LJSfSrcArfQaAVYX0BOwtRcfuCk42I1M47SOl9rA04VLsqP8AqNUezV9PAX8mM0MRtfWi5EQgS7+
+        IF8lSuXAha24LPlAXAzlBoGLlCfDU20UdsHl/mlaGIHA1V3ti4v0tgganYYLDyJSiMTHbUBsO0oO
+        HG4NfuO9WA==
     headers:
       access-control-allow-origin:
       - '*'
@@ -557,7 +567,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a475e3c10db6ac08-NRT
+      - a4765785f9a7a0ee-NRT
       connection:
       - keep-alive
       content-encoding:
@@ -565,7 +575,7 @@ interactions:
       content-type:
       - application/json
       date:
-      - Thu, 08 Oct 2026 14:38:32 GMT
+      - Thu, 08 Oct 2026 15:57:44 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       permissions-policy:
@@ -574,13 +584,13 @@ interactions:
       referrer-policy:
       - no-referrer, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=SYv9Ye9qoHZ5Sn%2Fu4yy3iisb3AEQL3kiDy9KkMlFk8kkLlfwQwWX3fJNyx0qpjMKStdzKdVCABMb5OS4WnFNIWa11gTQeLlqGsCNxjtyT4XWP%2FVX77hg5sBSrZjAKNtx3iI%3D"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=RaQA7nOov3IskMAukgAvLBx3UZoPfmR5XV%2Bc8k9xkc4Ej2L8z2rq5Lb4wQvT0KIjM1uKHXPqjGx0oFH8eu9DY2fQF1vFRsG1OcF5szN35lonk9%2BfJfErPGeKHmHB3HCBv8E%3D"}]}'
       server:
       - cloudflare
       set-cookie:
-      - __cf_bm=ahQu4Ruil.FG4xzVP7jl9G.MAtQe121FW69sr5ZQ4SQ-1791470310.7134411-1.0.1.1-9UvR4EA2INOJ.w8fVDCauxDTqZoX6W5vcREUQXUvXxhxuimC3T8YJuPfmWGW9j3z6KybRFuNVYJ28RCSiBDSyMhBirfgwzZDy50VRujOW6QAqv58MGve5bboLFq7X8yO;
+      - __cf_bm=uG85O.hL5Vv3q5632XnYI.CEcM3IombCrPSRznYSYSY-1791475052.632662-1.0.1.1-eXPHsP20fgIEPPnzGLVAHgZQUmU2WZ0u0ID8rrhBegD7Ir7_kvQN3gAzRaY9D28JcNQ0B2G6nwwDEh1T84rTC5YP6QogEYn.Xd_8RNjE5uWTCGoWAb62lYxk4qp.Lj0q;
         HttpOnly; SameSite=None; Secure; Path=/; Domain=openrouter.ai; Expires=Thu,
-        08 Oct 2026 15:08:32 GMT
+        08 Oct 2026 16:27:44 GMT
       strict-transport-security:
       - max-age=31536000
       transfer-encoding:
@@ -590,11 +600,11 @@ interactions:
       x-content-type-options:
       - nosniff
       x-generation-id:
-      - gen-1791470310-jknjHAvwV3XdLmN5h5PS
+      - gen-1791475052-ZfTRQeunjLZAvaCYUwIq
       x-new-api-version:
       - v1.0.0-rc.41
       x-oneapi-request-id:
-      - 202610081438306968639378268d9d6rwy44rjs
+      - 202610081557326202874238268d9d69sqRwDkB
     status:
       code: 200
       message: OK

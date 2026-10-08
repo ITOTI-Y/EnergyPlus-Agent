@@ -26,7 +26,7 @@ Rules:
 - `zone_name`, `number_of_people_schedule_name`, `activity_level_schedule_name`
   MUST all appear verbatim in the list_zones / list_schedules results.
 - If a needed zone or schedule is missing, STOP and report; do NOT invent names.
-- name convention: '{zone}_People'.
+- Use the names the specification gives; otherwise '{zone}_People'.
 - Choose number_of_people_calculation_method based on input:
     * 'People' -> supply number_of_people (absolute count)
     * 'People/Area' -> supply people_per_floor_area (people/m^2)
