@@ -16,9 +16,7 @@ prototype buildings, by meaning. Describe what you need in words, e.g.
 "exterior wall insulation for a medium office" or "office occupancy on
 weekdays". Results come from the building site's climate zones
 ({zones}, from the weather file) unless climate_specific is False.
-- Search before inventing properties the specification does not give, and
-  take the values of a fitting result.
-- Values the specification gives always take precedence, and so do the
+{steps}- Values the specification gives always take precedence, and so do the
   names it gives. A result's name is only a fallback, rewritten with
   letters, digits and '_' only (e.g. 'Window_U_0.504' -> 'Window_U_0p504').
 - Prototypes follow US energy codes; they are reference values, not proof
@@ -84,7 +82,29 @@ def make_reference_tools(
     ]
 
 
+# What each kind of search is required for: a phase left to decide whether
+# to search mostly did not, and invented values instead.
+_STEPS: dict[Kind, str] = {
+    "construction": """- REQUIRED for every envelope construction the specification gives no
+  layer values for (exterior walls, roofs, ground floors, windows): call
+  `find_reference_constructions` with the element and building type,
+  keeping climate_specific True, BEFORE creating anything for it. Use the
+  best result's layers in its order, with exactly its material values.
+""",
+    "material": """- Any other material without values in the specification: call
+  `find_reference_materials` and take the values of a fitting result
+  exactly, rather than typical values from memory.
+""",
+    "schedule": """- REQUIRED for every schedule the specification gives no profile for:
+  call `find_reference_schedules` (climate_specific False) with what it
+  controls and the building type, and use the best result's periods and
+  type limits.
+""",
+}
+
+
 def reference_prompt(search: ReferenceSearch, kinds: tuple[Kind, ...]) -> str:
     tools = " and ".join(f"`find_reference_{kind}s`" for kind in kinds)
     zones = ", ".join(search.climate.candidates)
-    return REFERENCE_PROMPT.format(tools=tools, zones=zones)
+    steps = "".join(_STEPS[kind] for kind in sorted(kinds))
+    return REFERENCE_PROMPT.format(tools=tools, zones=zones, steps=steps)
