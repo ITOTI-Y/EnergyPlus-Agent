@@ -21,7 +21,7 @@ A RAG knowledge base (Gemini Embedding + Qdrant) and SQLite data tools for stand
 - **Phased construction with parallelism**: independent object types are built by separate ReAct sub-agents. Zone, material and schedule run in parallel; construction, surface and fenestration run sequentially because of their dependencies; HVAC, people and lights run in parallel again.
 - **Parallel-safe state**: a reducer (`merge_config_state`) unions the idfpy models written by concurrent phases; on a name conflict the later branch wins.
 - **Shared model operations**: agent tools and MCP tools are thin adapters over `src/modeling`, which rejects missing references and duplicate names at the call, applies updates atomically, renames references along with an object, and refuses to delete an object that others still reference. Tool arguments are typed models with declared fields, so a rejected call names the exact field (for example `vertices.0.X: Field required`).
-- **Failure-loop guard**: every phase agent stops when the same tool call fails three times or ten calls fail in a row, logs each failure, and reports the last error as the phase summary instead of retrying until the LLM budget runs out.
+- **Failure-loop guard**: every phase agent stops when the same tool call fails three times, ten calls fail in a row or twenty fail in total, logs each failure, and reports the last error as the phase summary instead of retrying until the LLM budget runs out.
 - **Structured validation**: `src/modeling/validation.py` reports each problem as a `ModelIssue` tied to an object type, name and field. Sources are idfpy's reference check, geometric checks (fenestration reversed, off its parent surface's plane or outside its outline, which EnergyPlus would only warn about), empty models, phases that created nothing, and EnergyPlus Severe and Fatal messages, which are tied to the first object they quote. `src/agent/phases.py` maps object types to the phase that owns them; after its run each phase repairs the problems in its own objects, and every phase agent also receives read-only `list_*` tools to inspect what earlier phases created.
 - **Human-in-the-loop approval**: the validate node raises a LangGraph `interrupt()` with a configuration summary and any errors. Approval continues to simulation; free-text feedback loops back to intake.
 - **Multimodal input**: PNG, JPEG, WebP and GIF drawings are passed to the intake LLM as base64 image parts alongside the text brief.
@@ -193,7 +193,8 @@ base_url: ${oc.env:LLM_BASE_URL,null}
 api_key: ${oc.env:LLM_API_KEY,null}
 model_name: "gpt-5.4"
 temperature: 0.7
-max_tokens: 64000
+max_tokens: 16384
+timeout: 120                   # seconds per request
 ```
 
 ### Run the agent
