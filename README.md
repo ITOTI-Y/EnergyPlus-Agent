@@ -143,7 +143,6 @@ EnergyPlus-Agent/
 | **omegaconf** | >=2.3.0 | LLM and embedding settings with env interpolation |
 | **typer** | >=0.20.1 | CLI |
 | **shapely** | >=2.2.0 | Polygon overlap and splitting for zone geometry |
-| **trimesh** | — | Unused, candidate for removal |
 | **loguru** | >=0.7.3 | Logging |
 
 Development extras: `pytest`, `pytest-recording`, `ruff`, `ty`, `pre-commit`, `langsmith`, `grandalf`.
