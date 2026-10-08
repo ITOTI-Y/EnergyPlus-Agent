@@ -2,13 +2,16 @@
 
 EnergyPlus reports compact-schedule syntax errors poorly: a day that does not
 reach 24:00 yields hundreds of identical Severe lines, and a schedule whose
-last period stops before 12/31 crashes the run. Checking the structure here
-gives the caller one precise message instead.
+last period stops before 12/31 crashes the run. A period that leaves day
+types without values only draws a warning, and those days, weekends or the
+design days used for sizing among them, then run with whatever EnergyPlus
+fills in. Checking the structure here gives the caller one precise message
+instead.
 """
 
 import re
 from datetime import date
-from typing import Literal
+from typing import Final, Literal
 
 from idfpy.models.schedules import ScheduleCompact, ScheduleCompactDataItem
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -33,6 +36,26 @@ type DayType = Literal[
 ]
 
 _TIME = re.compile(r"(\d{1,2}):(\d{2})")
+
+_WEEKDAYS: Final = ("Monday", "Tuesday", "Wednesday", "Thursday", "Friday")
+ALL_DAY_TYPES: Final = (
+    "Sunday",
+    *_WEEKDAYS,
+    "Saturday",
+    "Holiday",
+    "SummerDesignDay",
+    "WinterDesignDay",
+    "CustomDay1",
+    "CustomDay2",
+)
+"""The day types every period of a schedule must give values for."""
+
+_COVERS: Final[dict[str, tuple[str, ...]]] = {
+    "Weekdays": _WEEKDAYS,
+    "Weekends": ("Saturday", "Sunday"),
+    "Holidays": ("Holiday",),
+    "AllDays": ALL_DAY_TYPES,
+}
 
 
 class _ScheduleInputSchema(BaseModel):
@@ -89,6 +112,25 @@ class ThroughSchema(_ScheduleInputSchema):
         except ValueError as e:
             raise ValueError(f"date {value!r} is not a valid MM/DD") from e
         return parsed.strftime("%m/%d")
+
+    @model_validator(mode="after")
+    def _days_cover_every_day_type(self) -> "ThroughSchema":
+        if self.days[0].day_type == "AllOtherDays":
+            raise ValueError(
+                f"Through {self.through}: AllOtherDays may only follow other For blocks"
+            )
+        covered: set[str] = set()
+        for day in self.days:
+            if day.day_type == "AllOtherDays":
+                covered.update(ALL_DAY_TYPES)
+            else:
+                covered.update(_COVERS.get(day.day_type, (day.day_type,)))
+        if missing := [d for d in ALL_DAY_TYPES if d not in covered]:
+            raise ValueError(
+                f"Through {self.through}: no values for {', '.join(missing)}; "
+                "add For blocks for them or end with For AllOtherDays"
+            )
+        return self
 
 
 def schedule_fields(periods: list[ThroughSchema]) -> list[str]:
