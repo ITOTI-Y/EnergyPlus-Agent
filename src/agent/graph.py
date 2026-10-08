@@ -2,7 +2,7 @@ import pickle
 from typing import Any
 
 from langgraph.checkpoint.memory import InMemorySaver
-from langgraph.graph import END, START, StateGraph
+from langgraph.graph import START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 
 from src.agent.nodes import (
@@ -16,11 +16,12 @@ from src.agent.nodes import (
     lights_agent,
     material_agent,
     people_agent,
+    plan_rerun_node,
     schedule_agent,
     simulate_node,
     surface_agent,
     validate_node,
-    zone_agent,
+    zone_node,
 )
 from src.agent.state import AgentState, SimContext
 
@@ -53,19 +54,25 @@ def build_graph() -> CompiledStateGraph[AgentState, SimContext, AgentState, Agen
     """Build and compile the multi-phase agent graph.
 
     Topology:
-        intake
+        intake -> plan_rerun
           -> phase 1 [zone, material, schedule] (parallel)
           -> cross_ref_foundations -> construction -> surface -> fenestration
           -> phase 3 [hvac, people, lights, equipment] (parallel)
           -> cross_ref_complete -> validate
-          -> (approved) simulate -> END
-          -> (rejected) intake (loop)
+        validate -> plan_rerun      phases fix their own problems
+                 -> intake          intake revises its output
+                 -> (approved) simulate -> END, or validate on Severe errors
+                 -> (feedback) intake
+
+    Every pass runs only ``pending_phases``; the others return at once
+    and keep their objects, so the static joins still fire.
     """
     builder = StateGraph(AgentState, context_schema=SimContext)
 
     builder.add_node("intake", intake_node)
 
-    builder.add_node("zone", zone_agent)
+    builder.add_node("plan_rerun", plan_rerun_node)
+    builder.add_node("zone", zone_node)
     builder.add_node("material", material_agent)
     builder.add_node("schedule", schedule_agent)
     builder.add_node("cross_ref_foundations", cross_ref_foundations_node)
@@ -85,9 +92,10 @@ def build_graph() -> CompiledStateGraph[AgentState, SimContext, AgentState, Agen
 
     builder.add_edge(START, "intake")
 
-    builder.add_edge("intake", "zone")
-    builder.add_edge("intake", "material")
-    builder.add_edge("intake", "schedule")
+    builder.add_edge("intake", "plan_rerun")
+    builder.add_edge("plan_rerun", "zone")
+    builder.add_edge("plan_rerun", "material")
+    builder.add_edge("plan_rerun", "schedule")
     builder.add_edge(["zone", "material", "schedule"], "cross_ref_foundations")
 
     builder.add_conditional_edges(
@@ -108,7 +116,6 @@ def build_graph() -> CompiledStateGraph[AgentState, SimContext, AgentState, Agen
 
     builder.add_edge("cross_ref_complete", "validate")
 
-    # validate routes will dynamically route via Command -> simulate or intake
-    builder.add_edge("simulate", END)
+    # validate and simulate route by Command.
 
     return builder.compile(checkpointer=InMemorySaver(serde=_PickleSerde()))

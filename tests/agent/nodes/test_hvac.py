@@ -37,6 +37,7 @@ def test_hvac_agent_creates_thermostat_and_ideal_loads(
     seeded.idf.add(constant_schedule("Heating_Setpoint", "Temperature", 20.0))
     seeded.idf.add(constant_schedule("Cooling_Setpoint", "Temperature", 24.0))
     state = AgentState(
+        pending_phases=["hvac"],
         config_state=seeded,
         user_input=(
             "Create exactly one thermostat named 'Office_Thermostat' using "

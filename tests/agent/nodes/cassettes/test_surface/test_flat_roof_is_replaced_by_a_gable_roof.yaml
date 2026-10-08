@@ -1,0 +1,1496 @@
+interactions:
+- request:
+    body: '{"messages":[{"content":"You are a building geometry expert for EnergyPlus.\nEvery
+      zone already has vertical walls, a floor and a flat roof, extruded\nfrom its
+      floor plan; faces shared by two zones are interzone pairs. Your\ntask is only
+      the geometry an extrusion cannot express: sloped or pitched\nroofs and sloped
+      walls.\n\nWorkflow:\n1. Call `list_surfaces` to see the extruded faces, `list_constructions`\n   for
+      the opaque constructions you may use.\n2. `delete_surface` each flat face the
+      sloped geometry replaces, e.g. the\n   flat roof under a pitched roof.\n3. Call
+      `create_surfaces` once with all new surfaces (roof planes, gable\n   walls);
+      resend only entries reported as failed.\n4. Call `list_surfaces` once at the
+      end to confirm.\n\nRules:\n- `zone_name` and construction names MUST appear
+      verbatim in the\n  list results. If one is missing, STOP and report; do NOT
+      invent names.\n- A zone must stay closed: the new surfaces must cover exactly
+      the\n  opening left by the deleted faces.\n- Vertices are dicts with X / Y /
+      Z keys in meters, counter-clockwise\n  seen from OUTSIDE the zone.\n","role":"system"},{"content":"Replace
+      the flat roof of zone ''Hall'' (6 m by 8 m, walls 3 m high) with a gable roof
+      whose ridge runs along Y at x=3, z=4.5: two roof planes ''Hall_Roof_West'' and
+      ''Hall_Roof_East'' with construction ''Wall'', and triangular gable walls ''Hall_Gable_South''
+      at y=0 and ''Hall_Gable_North'' at y=8 with construction ''Wall'', all outdoors.","role":"user"}],"model":"google/gemini-3.8-flash","max_completion_tokens":16384,"parallel_tool_calls":false,"stream":false,"temperature":0.7,"tool_choice":"required","tools":[{"type":"function","function":{"name":"create_surfaces","description":"Create
+      several surfaces at once, e.g. sloped roofs and gable walls.\n\n        Each
+      surface succeeds or fails on its own; resend only the failed\n        entries.
+      Interzone partners may be later entries of the same list.","parameters":{"properties":{"surfaces":{"items":{"description":"One
+      base surface as tool callers describe it.","properties":{"name":{"type":"string"},"surface_type":{"enum":["Wall","Floor","Roof","Ceiling"],"type":"string"},"construction_name":{"type":"string"},"zone_name":{"type":"string"},"outside_boundary_condition":{"enum":["Outdoors","Ground","Surface","Zone","Adiabatic"],"type":"string"},"vertices":{"description":">=
+      3 vertices in meters, counter-clockwise seen from outside","items":{"description":"One
+      polygon vertex in metres, world coordinates.","properties":{"X":{"type":"number"},"Y":{"type":"number"},"Z":{"type":"number"}},"required":["X","Y","Z"],"type":"object"},"type":"array"},"sun_exposure":{"default":"NoSun","enum":["SunExposed","NoSun"],"type":"string"},"wind_exposure":{"default":"NoWind","enum":["WindExposed","NoWind"],"type":"string"},"outside_boundary_condition_object":{"anyOf":[{"type":"string"},{"type":"null"}],"default":null,"description":"Partner
+      surface for a Surface boundary (may be created later), adjacent zone for a Zone
+      boundary"}},"required":["name","surface_type","construction_name","zone_name","outside_boundary_condition","vertices"],"type":"object"},"type":"array"}},"required":["surfaces"],"type":"object"}}},{"type":"function","function":{"name":"create_surface","description":"Create
+      a BuildingSurface:Detailed (wall/floor/roof/ceiling).\n\n        Args:\n            name:
+      Unique surface name.\n            surface_type: Wall / Floor / Roof / Ceiling.\n            construction_name:
+      Existing opaque construction name.\n            zone_name: Existing Zone name
+      the surface belongs to.\n            outside_boundary_condition: Outdoors /
+      Ground / Zone / Adiabatic / Surface.\n            vertices: >= 3 vertices in
+      meters, counter-clockwise when viewed\n                from OUTSIDE. Example
+      4-vertex south wall (2m tall, 5m wide,\n                at y=0):\n                  [{\"X\":
+      0.0, \"Y\": 0.0, \"Z\": 0.0},\n                   {\"X\": 5.0, \"Y\": 0.0, \"Z\":
+      0.0},\n                   {\"X\": 5.0, \"Y\": 0.0, \"Z\": 2.0},\n                   {\"X\":
+      0.0, \"Y\": 0.0, \"Z\": 2.0}]\n            sun_exposure: SunExposed for outdoor-facing
+      walls and roofs.\n            wind_exposure: WindExposed for outdoor-facing
+      walls and roofs.\n            outside_boundary_condition_object: Name of the
+      partner surface\n                when outside_boundary_condition is Surface,
+      or of the\n                adjacent zone when it is Zone. The partner may be
+      created\n                after this surface; when it already exists it is linked
+      back\n                automatically.","parameters":{"properties":{"name":{"type":"string"},"surface_type":{"enum":["Ceiling","Floor","Roof","Wall"],"type":"string"},"construction_name":{"type":"string"},"zone_name":{"type":"string"},"outside_boundary_condition":{"enum":["Outdoors","Ground","Zone","Adiabatic","Surface"],"type":"string"},"vertices":{"items":{"description":"One
+      polygon vertex in metres, world coordinates.","properties":{"X":{"type":"number"},"Y":{"type":"number"},"Z":{"type":"number"}},"required":["X","Y","Z"],"type":"object"},"type":"array"},"sun_exposure":{"default":"NoSun","enum":["SunExposed","NoSun"],"type":"string"},"wind_exposure":{"default":"NoWind","enum":["WindExposed","NoWind"],"type":"string"},"outside_boundary_condition_object":{"anyOf":[{"type":"string"},{"type":"null"}],"default":null}},"required":["name","surface_type","construction_name","zone_name","outside_boundary_condition","vertices"],"type":"object"}}},{"type":"function","function":{"name":"list_surfaces","description":"List
+      all building surfaces.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"get_surface","description":"Read
+      a surface by name.","parameters":{"properties":{"name":{"type":"string"}},"required":["name"],"type":"object"}}},{"type":"function","function":{"name":"delete_surface","description":"Delete
+      a surface; refused while fenestration or a partner uses it.","parameters":{"properties":{"name":{"type":"string"}},"required":["name"],"type":"object"}}},{"type":"function","function":{"name":"list_zones","description":"List
+      zones a surface can belong to.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"list_constructions","description":"List
+      the opaque constructions a surface can use.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"SurfaceResponse","description":"Structured
+      summary returned by the surface phase agent.","parameters":{"properties":{"surface_names":{"description":"Names
+      of all surfaces created","items":{"type":"string"},"type":"array"},"summary":{"description":"One-line
+      summary of the surface creation result","type":"string"}},"required":["surface_names","summary"],"type":"object"}}}],"max_thinking_budget":4096}'
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate, zstd
+      connection:
+      - keep-alive
+      content-length:
+      - '6800'
+      content-type:
+      - application/json
+      host:
+      - one.chat-yu.net
+      user-agent:
+      - OpenAI/Python 2.52.0
+      x-stainless-arch:
+      - x64
+      x-stainless-async:
+      - 'false'
+      x-stainless-lang:
+      - python
+      x-stainless-os:
+      - Linux
+      x-stainless-package-version:
+      - 2.52.0
+      x-stainless-raw-response:
+      - 'true'
+      x-stainless-read-timeout:
+      - '120.0'
+      x-stainless-retry-count:
+      - '0'
+      x-stainless-runtime:
+      - CPython
+      x-stainless-runtime-version:
+      - 3.12.3
+    method: POST
+    uri: https://one.chat-yu.net/v1/chat/completions
+  response:
+    body:
+      string: !!binary |
+        KLUv/QBYDR0AZr7EKNAKzQP8JLAly55RKBYiNTyLtL//ij8hApg2lALF9lxTHKUeRsFqAwKtALIA
+        ygC96qfPc67Wy3v3315vXm/piRxrDPLOLslw56fU9qH7afykhe35tXiL9umHbgZx967FZ3n505xN
+        vX3XuCTLG2oMeuPtXMSf/saf2S0BBoqAx29f3g+fuySfvshrBgc0AmsAazzecLo53Dv87fP99vh0
+        ++/2ekv79PXG/WZy3JagV9H+9t1eT2c/fcZBxjmzjeZYMIbpRCDMgeSBCruq7KoSWTWgb/jbf/hJ
+        AAEAAY3pDI1GDdFh9kLiwZqLsymby9ipNB5KiDfFco6cg2sT5xIeUBZ7ND5Wk59DE61FFopUQIVP
+        RsE1So6jlI3fvvb6Pf3vdlJUWn0JcO338xj0HlGHg1l2rrfNKloqfYn02/Ou72iGZX36/NoKlib3
+        Osf5t79j1U/a6GPVdWkIL+dqrTbB3/6Sov6khS3UWG9ec+UmeMvb9bZPv+vaOea8/vY37/JJ29+w
+        cn7Hpz9JuFi8e+IHlkhiymDPY3Gt6cJgOAvfIJEy0hTjZEXPxTgjDffsXKNSVsU6RQIeRBU1zkR0
+        ukwDyiJLJy1Rp1lIBEAy00UuB2+wDB6J0cb6QVRQcDCIV00ogkCJIIw0mcOYJV2lkx+Z6RE6MOy1
+        0YAwgRBIk5FNBT1sZLIsAW3AL5Iv63QMhyj2KtIhLXpSKVQYqJqQTIRQfF1ziXSjk1JQDs5amceU
+        UYyHRJaAsoQsIw0gpXYJrZAzjSowc2HKCxGZ3UQggFqCaXLcVgAnBEYlpVIprCN+il0lxAG7Kn7A
+        qgvzrtW3vKDG3lhv2Tlplu6Hz40/s96OS5BHqe+KttonXZ4ruP1nizoex08RmZZpGUVRBNT2nW/7
+        NKFlVa5996da9rSqsmp7ru9nd6+T4y5J8ylDqcRQ+uoc6HUsN/j0Cy5HA2jq1nmGtImE0o06c8NR
+        RFR3QRq4ieJBjjzfghFyla9BfTwazwJTwRYTjEHeVDDUR5Qw3sSmCzQsJofaNZSVISFdxI5VnjwC
+        NyBgwlJm1QH/GS+1BGEKKJkDS09KHD+WbKFKoSZiziA1AV1N4pvbwoPZyCROq3gpDUypsKPuMGXB
+        k0l7JX2sBfwlm7FewjFJBIr9A/nqFSJlwIvQFFlXjm+UyiDEI6x72JZbc3jMjCmCvgj/1CKM3MBV
+        cu03i0K2tI1O2gpPEamJxP9tQG9bSoTxvVg=
+    headers:
+      access-control-allow-origin:
+      - '*'
+      access-control-expose-headers:
+      - X-Generation-Id,X-Provider-Name,request-id,cf-ray
+      alt-svc:
+      - h3=":443"; ma=86400
+      cf-cache-status:
+      - DYNAMIC
+      cf-ray:
+      - a475ffd07dc7d472-NRT
+      connection:
+      - keep-alive
+      content-encoding:
+      - zstd
+      content-type:
+      - application/json
+      date:
+      - Thu, 08 Oct 2026 14:57:43 GMT
+      nel:
+      - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
+      permissions-policy:
+      - payment=(self "https://checkout.stripe.com" "https://connect-js.stripe.com"
+        "https://js.stripe.com" "https://*.js.stripe.com" "https://hooks.stripe.com")
+      referrer-policy:
+      - no-referrer, strict-origin-when-cross-origin
+      report-to:
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=jsp%2Feqhs0MR0TzOu0FPbqBDqjRrY3%2F7Md6z11NRcZoH0lS5AsHR%2FJd5veIz6J2%2B6Jx8v2rx9w1cvblL9QnW16RmOeExh7KRhhPGSA8WyECRoV5GRvKgsPLG3gYLtBNDA5uU%3D"}]}'
+      server:
+      - cloudflare
+      set-cookie:
+      - __cf_bm=WAil8iSgKVI1cB97LYiqjipz7Kwp7jWI1bnEdvAo_70-1791471460.8567731-1.0.1.1-jI975n.Z3GONiPbML1Kv8viye06mTGlpEXHDFw.JeRLOluTpa2Jy2YN4aES7zggiuqvA60NyuVci7vms010dKzFHPLztZAppQj83i6.XSM0JXEztpzjbPf0Y04DLgUhh;
+        HttpOnly; SameSite=None; Secure; Path=/; Domain=openrouter.ai; Expires=Thu,
+        08 Oct 2026 15:27:43 GMT
+      strict-transport-security:
+      - max-age=31536000
+      transfer-encoding:
+      - chunked
+      via:
+      - 1.1 Caddy
+      x-content-type-options:
+      - nosniff
+      x-generation-id:
+      - gen-1791471461-lHZiwyLV6iSZnY7vZ7JD
+      x-new-api-version:
+      - v1.0.0-rc.41
+      x-oneapi-request-id:
+      - 202610081457407875930908268d9d6WgIQ1S5K
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"messages":[{"content":"You are a building geometry expert for EnergyPlus.\nEvery
+      zone already has vertical walls, a floor and a flat roof, extruded\nfrom its
+      floor plan; faces shared by two zones are interzone pairs. Your\ntask is only
+      the geometry an extrusion cannot express: sloped or pitched\nroofs and sloped
+      walls.\n\nWorkflow:\n1. Call `list_surfaces` to see the extruded faces, `list_constructions`\n   for
+      the opaque constructions you may use.\n2. `delete_surface` each flat face the
+      sloped geometry replaces, e.g. the\n   flat roof under a pitched roof.\n3. Call
+      `create_surfaces` once with all new surfaces (roof planes, gable\n   walls);
+      resend only entries reported as failed.\n4. Call `list_surfaces` once at the
+      end to confirm.\n\nRules:\n- `zone_name` and construction names MUST appear
+      verbatim in the\n  list results. If one is missing, STOP and report; do NOT
+      invent names.\n- A zone must stay closed: the new surfaces must cover exactly
+      the\n  opening left by the deleted faces.\n- Vertices are dicts with X / Y /
+      Z keys in meters, counter-clockwise\n  seen from OUTSIDE the zone.\n","role":"system"},{"content":"Replace
+      the flat roof of zone ''Hall'' (6 m by 8 m, walls 3 m high) with a gable roof
+      whose ridge runs along Y at x=3, z=4.5: two roof planes ''Hall_Roof_West'' and
+      ''Hall_Roof_East'' with construction ''Wall'', and triangular gable walls ''Hall_Gable_South''
+      at y=0 and ''Hall_Gable_North'' at y=8 with construction ''Wall'', all outdoors.","role":"user"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_584416","function":{"name":"list_surfaces","arguments":"{}"}},{"type":"function","id":"call_584417","function":{"name":"list_constructions","arguments":"{}"}},{"type":"function","id":"call_584420","function":{"name":"list_zones","arguments":"{}"}}]},{"content":"{\"success\":
+      true, \"message\": \"Listed 6 BuildingSurface:Detailed.\", \"data\": [{\"name\":
+      \"Hall_Wall_1\", \"surface_type\": \"Wall\", \"construction_name\": \"Wall\",
+      \"zone_name\": \"Hall\", \"outside_boundary_condition\": \"Outdoors\", \"sun_exposure\":
+      \"SunExposed\", \"wind_exposure\": \"WindExposed\", \"view_factor_to_ground\":
+      \"Autocalculate\", \"number_of_vertices\": 4.0, \"vertices\": [{\"vertex_x_coordinate\":
+      0.0, \"vertex_y_coordinate\": 0.0, \"vertex_z_coordinate\": 3.0}, {\"vertex_x_coordinate\":
+      0.0, \"vertex_y_coordinate\": 0.0, \"vertex_z_coordinate\": 0.0}, {\"vertex_x_coordinate\":
+      6.0, \"vertex_y_coordinate\": 0.0, \"vertex_z_coordinate\": 0.0}, {\"vertex_x_coordinate\":
+      6.0, \"vertex_y_coordinate\": 0.0, \"vertex_z_coordinate\": 3.0}]}, {\"name\":
+      \"Hall_Wall_2\", \"surface_type\": \"Wall\", \"construction_name\": \"Wall\",
+      \"zone_name\": \"Hall\", \"outside_boundary_condition\": \"Outdoors\", \"sun_exposure\":
+      \"SunExposed\", \"wind_exposure\": \"WindExposed\", \"view_factor_to_ground\":
+      \"Autocalculate\", \"number_of_vertices\": 4.0, \"vertices\": [{\"vertex_x_coordinate\":
+      6.0, \"vertex_y_coordinate\": 0.0, \"vertex_z_coordinate\": 3.0}, {\"vertex_x_coordinate\":
+      6.0, \"vertex_y_coordinate\": 0.0, \"vertex_z_coordinate\": 0.0}, {\"vertex_x_coordinate\":
+      6.0, \"vertex_y_coordinate\": 8.0, \"vertex_z_coordinate\": 0.0}, {\"vertex_x_coordinate\":
+      6.0, \"vertex_y_coordinate\": 8.0, \"vertex_z_coordinate\": 3.0}]}, {\"name\":
+      \"Hall_Wall_3\", \"surface_type\": \"Wall\", \"construction_name\": \"Wall\",
+      \"zone_name\": \"Hall\", \"outside_boundary_condition\": \"Outdoors\", \"sun_exposure\":
+      \"SunExposed\", \"wind_exposure\": \"WindExposed\", \"view_factor_to_ground\":
+      \"Autocalculate\", \"number_of_vertices\": 4.0, \"vertices\": [{\"vertex_x_coordinate\":
+      6.0, \"vertex_y_coordinate\": 8.0, \"vertex_z_coordinate\": 3.0}, {\"vertex_x_coordinate\":
+      6.0, \"vertex_y_coordinate\": 8.0, \"vertex_z_coordinate\": 0.0}, {\"vertex_x_coordinate\":
+      0.0, \"vertex_y_coordinate\": 8.0, \"vertex_z_coordinate\": 0.0}, {\"vertex_x_coordinate\":
+      0.0, \"vertex_y_coordinate\": 8.0, \"vertex_z_coordinate\": 3.0}]}, {\"name\":
+      \"Hall_Wall_4\", \"surface_type\": \"Wall\", \"construction_name\": \"Wall\",
+      \"zone_name\": \"Hall\", \"outside_boundary_condition\": \"Outdoors\", \"sun_exposure\":
+      \"SunExposed\", \"wind_exposure\": \"WindExposed\", \"view_factor_to_ground\":
+      \"Autocalculate\", \"number_of_vertices\": 4.0, \"vertices\": [{\"vertex_x_coordinate\":
+      0.0, \"vertex_y_coordinate\": 8.0, \"vertex_z_coordinate\": 3.0}, {\"vertex_x_coordinate\":
+      0.0, \"vertex_y_coordinate\": 8.0, \"vertex_z_coordinate\": 0.0}, {\"vertex_x_coordinate\":
+      0.0, \"vertex_y_coordinate\": 0.0, \"vertex_z_coordinate\": 0.0}, {\"vertex_x_coordinate\":
+      0.0, \"vertex_y_coordinate\": 0.0, \"vertex_z_coordinate\": 3.0}]}, {\"name\":
+      \"Hall_Floor\", \"surface_type\": \"Floor\", \"construction_name\": \"Slab\",
+      \"zone_name\": \"Hall\", \"outside_boundary_condition\": \"Ground\", \"sun_exposure\":
+      \"NoSun\", \"wind_exposure\": \"NoWind\", \"view_factor_to_ground\": \"Autocalculate\",
+      \"number_of_vertices\": 4.0, \"vertices\": [{\"vertex_x_coordinate\": 0.0, \"vertex_y_coordinate\":
+      0.0, \"vertex_z_coordinate\": 0.0}, {\"vertex_x_coordinate\": 0.0, \"vertex_y_coordinate\":
+      8.0, \"vertex_z_coordinate\": 0.0}, {\"vertex_x_coordinate\": 6.0, \"vertex_y_coordinate\":
+      8.0, \"vertex_z_coordinate\": 0.0}, {\"vertex_x_coordinate\": 6.0, \"vertex_y_coordinate\":
+      0.0, \"vertex_z_coordinate\": 0.0}]}, {\"name\": \"Hall_Roof\", \"surface_type\":
+      \"Roof\", \"construction_name\": \"Wall\", \"zone_name\": \"Hall\", \"outside_boundary_condition\":
+      \"Outdoors\", \"sun_exposure\": \"SunExposed\", \"wind_exposure\": \"WindExposed\",
+      \"view_factor_to_ground\": \"Autocalculate\", \"number_of_vertices\": 4.0, \"vertices\":
+      [{\"vertex_x_coordinate\": 0.0, \"vertex_y_coordinate\": 8.0, \"vertex_z_coordinate\":
+      3.0}, {\"vertex_x_coordinate\": 0.0, \"vertex_y_coordinate\": 0.0, \"vertex_z_coordinate\":
+      3.0}, {\"vertex_x_coordinate\": 6.0, \"vertex_y_coordinate\": 0.0, \"vertex_z_coordinate\":
+      3.0}, {\"vertex_x_coordinate\": 6.0, \"vertex_y_coordinate\": 8.0, \"vertex_z_coordinate\":
+      3.0}]}]}","role":"tool","tool_call_id":"call_584416"},{"content":"{\"success\":
+      true, \"message\": \"Listed 2 constructions.\", \"data\": [{\"kind\": \"opaque\",
+      \"name\": \"Wall\", \"outside_layer\": \"Brick_100mm\"}, {\"kind\": \"opaque\",
+      \"name\": \"Slab\", \"outside_layer\": \"Brick_100mm\"}]}","role":"tool","tool_call_id":"call_584417"},{"content":"{\"success\":
+      true, \"message\": \"Listed 1 Zone.\", \"data\": [{\"name\": \"Hall\", \"direction_of_relative_north\":
+      0.0, \"x_origin\": 0.0, \"y_origin\": 0.0, \"z_origin\": 0.0, \"type\": 1, \"multiplier\":
+      1, \"ceiling_height\": \"Autocalculate\", \"volume\": \"Autocalculate\", \"floor_area\":
+      \"Autocalculate\", \"part_of_total_floor_area\": \"Yes\"}]}","role":"tool","tool_call_id":"call_584420"}],"model":"google/gemini-3.8-flash","max_completion_tokens":16384,"parallel_tool_calls":false,"stream":false,"temperature":0.7,"tool_choice":"required","tools":[{"type":"function","function":{"name":"create_surfaces","description":"Create
+      several surfaces at once, e.g. sloped roofs and gable walls.\n\n        Each
+      surface succeeds or fails on its own; resend only the failed\n        entries.
+      Interzone partners may be later entries of the same list.","parameters":{"properties":{"surfaces":{"items":{"description":"One
+      base surface as tool callers describe it.","properties":{"name":{"type":"string"},"surface_type":{"enum":["Wall","Floor","Roof","Ceiling"],"type":"string"},"construction_name":{"type":"string"},"zone_name":{"type":"string"},"outside_boundary_condition":{"enum":["Outdoors","Ground","Surface","Zone","Adiabatic"],"type":"string"},"vertices":{"description":">=
+      3 vertices in meters, counter-clockwise seen from outside","items":{"description":"One
+      polygon vertex in metres, world coordinates.","properties":{"X":{"type":"number"},"Y":{"type":"number"},"Z":{"type":"number"}},"required":["X","Y","Z"],"type":"object"},"type":"array"},"sun_exposure":{"default":"NoSun","enum":["SunExposed","NoSun"],"type":"string"},"wind_exposure":{"default":"NoWind","enum":["WindExposed","NoWind"],"type":"string"},"outside_boundary_condition_object":{"anyOf":[{"type":"string"},{"type":"null"}],"default":null,"description":"Partner
+      surface for a Surface boundary (may be created later), adjacent zone for a Zone
+      boundary"}},"required":["name","surface_type","construction_name","zone_name","outside_boundary_condition","vertices"],"type":"object"},"type":"array"}},"required":["surfaces"],"type":"object"}}},{"type":"function","function":{"name":"create_surface","description":"Create
+      a BuildingSurface:Detailed (wall/floor/roof/ceiling).\n\n        Args:\n            name:
+      Unique surface name.\n            surface_type: Wall / Floor / Roof / Ceiling.\n            construction_name:
+      Existing opaque construction name.\n            zone_name: Existing Zone name
+      the surface belongs to.\n            outside_boundary_condition: Outdoors /
+      Ground / Zone / Adiabatic / Surface.\n            vertices: >= 3 vertices in
+      meters, counter-clockwise when viewed\n                from OUTSIDE. Example
+      4-vertex south wall (2m tall, 5m wide,\n                at y=0):\n                  [{\"X\":
+      0.0, \"Y\": 0.0, \"Z\": 0.0},\n                   {\"X\": 5.0, \"Y\": 0.0, \"Z\":
+      0.0},\n                   {\"X\": 5.0, \"Y\": 0.0, \"Z\": 2.0},\n                   {\"X\":
+      0.0, \"Y\": 0.0, \"Z\": 2.0}]\n            sun_exposure: SunExposed for outdoor-facing
+      walls and roofs.\n            wind_exposure: WindExposed for outdoor-facing
+      walls and roofs.\n            outside_boundary_condition_object: Name of the
+      partner surface\n                when outside_boundary_condition is Surface,
+      or of the\n                adjacent zone when it is Zone. The partner may be
+      created\n                after this surface; when it already exists it is linked
+      back\n                automatically.","parameters":{"properties":{"name":{"type":"string"},"surface_type":{"enum":["Ceiling","Floor","Roof","Wall"],"type":"string"},"construction_name":{"type":"string"},"zone_name":{"type":"string"},"outside_boundary_condition":{"enum":["Outdoors","Ground","Zone","Adiabatic","Surface"],"type":"string"},"vertices":{"items":{"description":"One
+      polygon vertex in metres, world coordinates.","properties":{"X":{"type":"number"},"Y":{"type":"number"},"Z":{"type":"number"}},"required":["X","Y","Z"],"type":"object"},"type":"array"},"sun_exposure":{"default":"NoSun","enum":["SunExposed","NoSun"],"type":"string"},"wind_exposure":{"default":"NoWind","enum":["WindExposed","NoWind"],"type":"string"},"outside_boundary_condition_object":{"anyOf":[{"type":"string"},{"type":"null"}],"default":null}},"required":["name","surface_type","construction_name","zone_name","outside_boundary_condition","vertices"],"type":"object"}}},{"type":"function","function":{"name":"list_surfaces","description":"List
+      all building surfaces.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"get_surface","description":"Read
+      a surface by name.","parameters":{"properties":{"name":{"type":"string"}},"required":["name"],"type":"object"}}},{"type":"function","function":{"name":"delete_surface","description":"Delete
+      a surface; refused while fenestration or a partner uses it.","parameters":{"properties":{"name":{"type":"string"}},"required":["name"],"type":"object"}}},{"type":"function","function":{"name":"list_zones","description":"List
+      zones a surface can belong to.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"list_constructions","description":"List
+      the opaque constructions a surface can use.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"SurfaceResponse","description":"Structured
+      summary returned by the surface phase agent.","parameters":{"properties":{"surface_names":{"description":"Names
+      of all surfaces created","items":{"type":"string"},"type":"array"},"summary":{"description":"One-line
+      summary of the surface creation result","type":"string"}},"required":["surface_names","summary"],"type":"object"}}}],"max_thinking_budget":4096}'
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate, zstd
+      connection:
+      - keep-alive
+      content-length:
+      - '12103'
+      content-type:
+      - application/json
+      host:
+      - one.chat-yu.net
+      user-agent:
+      - OpenAI/Python 2.52.0
+      x-stainless-arch:
+      - x64
+      x-stainless-async:
+      - 'false'
+      x-stainless-lang:
+      - python
+      x-stainless-os:
+      - Linux
+      x-stainless-package-version:
+      - 2.52.0
+      x-stainless-raw-response:
+      - 'true'
+      x-stainless-read-timeout:
+      - '120.0'
+      x-stainless-retry-count:
+      - '0'
+      x-stainless-runtime:
+      - CPython
+      x-stainless-runtime-version:
+      - 3.12.3
+    method: POST
+    uri: https://one.chat-yu.net/v1/chat/completions
+  response:
+    body:
+      string: !!binary |
+        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
+    headers:
+      access-control-allow-origin:
+      - '*'
+      access-control-expose-headers:
+      - X-Generation-Id,X-Provider-Name,request-id,cf-ray
+      alt-svc:
+      - h3=":443"; ma=86400
+      cf-cache-status:
+      - DYNAMIC
+      cf-ray:
+      - a475ffe59d6ed472-NRT
+      connection:
+      - keep-alive
+      content-encoding:
+      - zstd
+      content-type:
+      - application/json
+      date:
+      - Thu, 08 Oct 2026 14:58:10 GMT
+      nel:
+      - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
+      permissions-policy:
+      - payment=(self "https://checkout.stripe.com" "https://connect-js.stripe.com"
+        "https://js.stripe.com" "https://*.js.stripe.com" "https://hooks.stripe.com")
+      referrer-policy:
+      - no-referrer, strict-origin-when-cross-origin
+      report-to:
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=ux4Mscessh7Wza7lgkKEDdy9eDm%2BbkUQoDJX60e9%2BMKDQfkEmIQN54QHmq%2FosjzTcvUL2vWY5HlwOma%2BVRV6kLgu5ISDS2oesfLTj7HiI2ZdgzOLWw7addgxtHmWBQRtrWI%3D"}]}'
+      server:
+      - cloudflare
+      set-cookie:
+      - __cf_bm=mZC_ypPIv_IvQiDXP_spwl3RnErTf0ugBgr4KrmdvYo-1791471463.4563193-1.0.1.1-EXrKf5t67OYrTVHhpGwNzG3RPKVvXLeX3ksySKJnywmgXGQDt8UhfVtsGmQ5a7sztteysM_8oik10neko.8qzUk_LFSw.g8A7imKwb7hcsZqWNEhnoJoQqd8gyTBfygL;
+        HttpOnly; SameSite=None; Secure; Path=/; Domain=openrouter.ai; Expires=Thu,
+        08 Oct 2026 15:27:46 GMT
+      strict-transport-security:
+      - max-age=31536000
+      transfer-encoding:
+      - chunked
+      via:
+      - 1.1 Caddy
+      x-content-type-options:
+      - nosniff
+      x-generation-id:
+      - gen-1791471463-VrfntR5Vhse4C0nanLQJ
+      x-new-api-version:
+      - v1.0.0-rc.41
+      x-oneapi-request-id:
+      - 202610081457434278293648268d9d629R74Ww5
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"messages":[{"content":"You are a building geometry expert for EnergyPlus.\nEvery
+      zone already has vertical walls, a floor and a flat roof, extruded\nfrom its
+      floor plan; faces shared by two zones are interzone pairs. Your\ntask is only
+      the geometry an extrusion cannot express: sloped or pitched\nroofs and sloped
+      walls.\n\nWorkflow:\n1. Call `list_surfaces` to see the extruded faces, `list_constructions`\n   for
+      the opaque constructions you may use.\n2. `delete_surface` each flat face the
+      sloped geometry replaces, e.g. the\n   flat roof under a pitched roof.\n3. Call
+      `create_surfaces` once with all new surfaces (roof planes, gable\n   walls);
+      resend only entries reported as failed.\n4. Call `list_surfaces` once at the
+      end to confirm.\n\nRules:\n- `zone_name` and construction names MUST appear
+      verbatim in the\n  list results. If one is missing, STOP and report; do NOT
+      invent names.\n- A zone must stay closed: the new surfaces must cover exactly
+      the\n  opening left by the deleted faces.\n- Vertices are dicts with X / Y /
+      Z keys in meters, counter-clockwise\n  seen from OUTSIDE the zone.\n","role":"system"},{"content":"Replace
+      the flat roof of zone ''Hall'' (6 m by 8 m, walls 3 m high) with a gable roof
+      whose ridge runs along Y at x=3, z=4.5: two roof planes ''Hall_Roof_West'' and
+      ''Hall_Roof_East'' with construction ''Wall'', and triangular gable walls ''Hall_Gable_South''
+      at y=0 and ''Hall_Gable_North'' at y=8 with construction ''Wall'', all outdoors.","role":"user"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_584416","function":{"name":"list_surfaces","arguments":"{}"}},{"type":"function","id":"call_584417","function":{"name":"list_constructions","arguments":"{}"}},{"type":"function","id":"call_584420","function":{"name":"list_zones","arguments":"{}"}}]},{"content":"{\"success\":
+      true, \"message\": \"Listed 6 BuildingSurface:Detailed.\", \"data\": [{\"name\":
+      \"Hall_Wall_1\", \"surface_type\": \"Wall\", \"construction_name\": \"Wall\",
+      \"zone_name\": \"Hall\", \"outside_boundary_condition\": \"Outdoors\", \"sun_exposure\":
+      \"SunExposed\", \"wind_exposure\": \"WindExposed\", \"view_factor_to_ground\":
+      \"Autocalculate\", \"number_of_vertices\": 4.0, \"vertices\": [{\"vertex_x_coordinate\":
+      0.0, \"vertex_y_coordinate\": 0.0, \"vertex_z_coordinate\": 3.0}, {\"vertex_x_coordinate\":
+      0.0, \"vertex_y_coordinate\": 0.0, \"vertex_z_coordinate\": 0.0}, {\"vertex_x_coordinate\":
+      6.0, \"vertex_y_coordinate\": 0.0, \"vertex_z_coordinate\": 0.0}, {\"vertex_x_coordinate\":
+      6.0, \"vertex_y_coordinate\": 0.0, \"vertex_z_coordinate\": 3.0}]}, {\"name\":
+      \"Hall_Wall_2\", \"surface_type\": \"Wall\", \"construction_name\": \"Wall\",
+      \"zone_name\": \"Hall\", \"outside_boundary_condition\": \"Outdoors\", \"sun_exposure\":
+      \"SunExposed\", \"wind_exposure\": \"WindExposed\", \"view_factor_to_ground\":
+      \"Autocalculate\", \"number_of_vertices\": 4.0, \"vertices\": [{\"vertex_x_coordinate\":
+      6.0, \"vertex_y_coordinate\": 0.0, \"vertex_z_coordinate\": 3.0}, {\"vertex_x_coordinate\":
+      6.0, \"vertex_y_coordinate\": 0.0, \"vertex_z_coordinate\": 0.0}, {\"vertex_x_coordinate\":
+      6.0, \"vertex_y_coordinate\": 8.0, \"vertex_z_coordinate\": 0.0}, {\"vertex_x_coordinate\":
+      6.0, \"vertex_y_coordinate\": 8.0, \"vertex_z_coordinate\": 3.0}]}, {\"name\":
+      \"Hall_Wall_3\", \"surface_type\": \"Wall\", \"construction_name\": \"Wall\",
+      \"zone_name\": \"Hall\", \"outside_boundary_condition\": \"Outdoors\", \"sun_exposure\":
+      \"SunExposed\", \"wind_exposure\": \"WindExposed\", \"view_factor_to_ground\":
+      \"Autocalculate\", \"number_of_vertices\": 4.0, \"vertices\": [{\"vertex_x_coordinate\":
+      6.0, \"vertex_y_coordinate\": 8.0, \"vertex_z_coordinate\": 3.0}, {\"vertex_x_coordinate\":
+      6.0, \"vertex_y_coordinate\": 8.0, \"vertex_z_coordinate\": 0.0}, {\"vertex_x_coordinate\":
+      0.0, \"vertex_y_coordinate\": 8.0, \"vertex_z_coordinate\": 0.0}, {\"vertex_x_coordinate\":
+      0.0, \"vertex_y_coordinate\": 8.0, \"vertex_z_coordinate\": 3.0}]}, {\"name\":
+      \"Hall_Wall_4\", \"surface_type\": \"Wall\", \"construction_name\": \"Wall\",
+      \"zone_name\": \"Hall\", \"outside_boundary_condition\": \"Outdoors\", \"sun_exposure\":
+      \"SunExposed\", \"wind_exposure\": \"WindExposed\", \"view_factor_to_ground\":
+      \"Autocalculate\", \"number_of_vertices\": 4.0, \"vertices\": [{\"vertex_x_coordinate\":
+      0.0, \"vertex_y_coordinate\": 8.0, \"vertex_z_coordinate\": 3.0}, {\"vertex_x_coordinate\":
+      0.0, \"vertex_y_coordinate\": 8.0, \"vertex_z_coordinate\": 0.0}, {\"vertex_x_coordinate\":
+      0.0, \"vertex_y_coordinate\": 0.0, \"vertex_z_coordinate\": 0.0}, {\"vertex_x_coordinate\":
+      0.0, \"vertex_y_coordinate\": 0.0, \"vertex_z_coordinate\": 3.0}]}, {\"name\":
+      \"Hall_Floor\", \"surface_type\": \"Floor\", \"construction_name\": \"Slab\",
+      \"zone_name\": \"Hall\", \"outside_boundary_condition\": \"Ground\", \"sun_exposure\":
+      \"NoSun\", \"wind_exposure\": \"NoWind\", \"view_factor_to_ground\": \"Autocalculate\",
+      \"number_of_vertices\": 4.0, \"vertices\": [{\"vertex_x_coordinate\": 0.0, \"vertex_y_coordinate\":
+      0.0, \"vertex_z_coordinate\": 0.0}, {\"vertex_x_coordinate\": 0.0, \"vertex_y_coordinate\":
+      8.0, \"vertex_z_coordinate\": 0.0}, {\"vertex_x_coordinate\": 6.0, \"vertex_y_coordinate\":
+      8.0, \"vertex_z_coordinate\": 0.0}, {\"vertex_x_coordinate\": 6.0, \"vertex_y_coordinate\":
+      0.0, \"vertex_z_coordinate\": 0.0}]}, {\"name\": \"Hall_Roof\", \"surface_type\":
+      \"Roof\", \"construction_name\": \"Wall\", \"zone_name\": \"Hall\", \"outside_boundary_condition\":
+      \"Outdoors\", \"sun_exposure\": \"SunExposed\", \"wind_exposure\": \"WindExposed\",
+      \"view_factor_to_ground\": \"Autocalculate\", \"number_of_vertices\": 4.0, \"vertices\":
+      [{\"vertex_x_coordinate\": 0.0, \"vertex_y_coordinate\": 8.0, \"vertex_z_coordinate\":
+      3.0}, {\"vertex_x_coordinate\": 0.0, \"vertex_y_coordinate\": 0.0, \"vertex_z_coordinate\":
+      3.0}, {\"vertex_x_coordinate\": 6.0, \"vertex_y_coordinate\": 0.0, \"vertex_z_coordinate\":
+      3.0}, {\"vertex_x_coordinate\": 6.0, \"vertex_y_coordinate\": 8.0, \"vertex_z_coordinate\":
+      3.0}]}]}","role":"tool","tool_call_id":"call_584416"},{"content":"{\"success\":
+      true, \"message\": \"Listed 2 constructions.\", \"data\": [{\"kind\": \"opaque\",
+      \"name\": \"Wall\", \"outside_layer\": \"Brick_100mm\"}, {\"kind\": \"opaque\",
+      \"name\": \"Slab\", \"outside_layer\": \"Brick_100mm\"}]}","role":"tool","tool_call_id":"call_584417"},{"content":"{\"success\":
+      true, \"message\": \"Listed 1 Zone.\", \"data\": [{\"name\": \"Hall\", \"direction_of_relative_north\":
+      0.0, \"x_origin\": 0.0, \"y_origin\": 0.0, \"z_origin\": 0.0, \"type\": 1, \"multiplier\":
+      1, \"ceiling_height\": \"Autocalculate\", \"volume\": \"Autocalculate\", \"floor_area\":
+      \"Autocalculate\", \"part_of_total_floor_area\": \"Yes\"}]}","role":"tool","tool_call_id":"call_584420"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_532209","function":{"name":"delete_surface","arguments":"{\"name\":
+      \"Hall_Roof\"}"}}]},{"content":"{\"success\": true, \"message\": \"Surface ''Hall_Roof''
+      deleted.\", \"data\": null}","role":"tool","tool_call_id":"call_532209"}],"model":"google/gemini-3.8-flash","max_completion_tokens":16384,"parallel_tool_calls":false,"stream":false,"temperature":0.7,"tool_choice":"required","tools":[{"type":"function","function":{"name":"create_surfaces","description":"Create
+      several surfaces at once, e.g. sloped roofs and gable walls.\n\n        Each
+      surface succeeds or fails on its own; resend only the failed\n        entries.
+      Interzone partners may be later entries of the same list.","parameters":{"properties":{"surfaces":{"items":{"description":"One
+      base surface as tool callers describe it.","properties":{"name":{"type":"string"},"surface_type":{"enum":["Wall","Floor","Roof","Ceiling"],"type":"string"},"construction_name":{"type":"string"},"zone_name":{"type":"string"},"outside_boundary_condition":{"enum":["Outdoors","Ground","Surface","Zone","Adiabatic"],"type":"string"},"vertices":{"description":">=
+      3 vertices in meters, counter-clockwise seen from outside","items":{"description":"One
+      polygon vertex in metres, world coordinates.","properties":{"X":{"type":"number"},"Y":{"type":"number"},"Z":{"type":"number"}},"required":["X","Y","Z"],"type":"object"},"type":"array"},"sun_exposure":{"default":"NoSun","enum":["SunExposed","NoSun"],"type":"string"},"wind_exposure":{"default":"NoWind","enum":["WindExposed","NoWind"],"type":"string"},"outside_boundary_condition_object":{"anyOf":[{"type":"string"},{"type":"null"}],"default":null,"description":"Partner
+      surface for a Surface boundary (may be created later), adjacent zone for a Zone
+      boundary"}},"required":["name","surface_type","construction_name","zone_name","outside_boundary_condition","vertices"],"type":"object"},"type":"array"}},"required":["surfaces"],"type":"object"}}},{"type":"function","function":{"name":"create_surface","description":"Create
+      a BuildingSurface:Detailed (wall/floor/roof/ceiling).\n\n        Args:\n            name:
+      Unique surface name.\n            surface_type: Wall / Floor / Roof / Ceiling.\n            construction_name:
+      Existing opaque construction name.\n            zone_name: Existing Zone name
+      the surface belongs to.\n            outside_boundary_condition: Outdoors /
+      Ground / Zone / Adiabatic / Surface.\n            vertices: >= 3 vertices in
+      meters, counter-clockwise when viewed\n                from OUTSIDE. Example
+      4-vertex south wall (2m tall, 5m wide,\n                at y=0):\n                  [{\"X\":
+      0.0, \"Y\": 0.0, \"Z\": 0.0},\n                   {\"X\": 5.0, \"Y\": 0.0, \"Z\":
+      0.0},\n                   {\"X\": 5.0, \"Y\": 0.0, \"Z\": 2.0},\n                   {\"X\":
+      0.0, \"Y\": 0.0, \"Z\": 2.0}]\n            sun_exposure: SunExposed for outdoor-facing
+      walls and roofs.\n            wind_exposure: WindExposed for outdoor-facing
+      walls and roofs.\n            outside_boundary_condition_object: Name of the
+      partner surface\n                when outside_boundary_condition is Surface,
+      or of the\n                adjacent zone when it is Zone. The partner may be
+      created\n                after this surface; when it already exists it is linked
+      back\n                automatically.","parameters":{"properties":{"name":{"type":"string"},"surface_type":{"enum":["Ceiling","Floor","Roof","Wall"],"type":"string"},"construction_name":{"type":"string"},"zone_name":{"type":"string"},"outside_boundary_condition":{"enum":["Outdoors","Ground","Zone","Adiabatic","Surface"],"type":"string"},"vertices":{"items":{"description":"One
+      polygon vertex in metres, world coordinates.","properties":{"X":{"type":"number"},"Y":{"type":"number"},"Z":{"type":"number"}},"required":["X","Y","Z"],"type":"object"},"type":"array"},"sun_exposure":{"default":"NoSun","enum":["SunExposed","NoSun"],"type":"string"},"wind_exposure":{"default":"NoWind","enum":["WindExposed","NoWind"],"type":"string"},"outside_boundary_condition_object":{"anyOf":[{"type":"string"},{"type":"null"}],"default":null}},"required":["name","surface_type","construction_name","zone_name","outside_boundary_condition","vertices"],"type":"object"}}},{"type":"function","function":{"name":"list_surfaces","description":"List
+      all building surfaces.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"get_surface","description":"Read
+      a surface by name.","parameters":{"properties":{"name":{"type":"string"}},"required":["name"],"type":"object"}}},{"type":"function","function":{"name":"delete_surface","description":"Delete
+      a surface; refused while fenestration or a partner uses it.","parameters":{"properties":{"name":{"type":"string"}},"required":["name"],"type":"object"}}},{"type":"function","function":{"name":"list_zones","description":"List
+      zones a surface can belong to.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"list_constructions","description":"List
+      the opaque constructions a surface can use.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"SurfaceResponse","description":"Structured
+      summary returned by the surface phase agent.","parameters":{"properties":{"surface_names":{"description":"Names
+      of all surfaces created","items":{"type":"string"},"type":"array"},"summary":{"description":"One-line
+      summary of the surface creation result","type":"string"}},"required":["surface_names","summary"],"type":"object"}}}],"max_thinking_budget":4096}'
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate, zstd
+      connection:
+      - keep-alive
+      content-length:
+      - '12410'
+      content-type:
+      - application/json
+      host:
+      - one.chat-yu.net
+      user-agent:
+      - OpenAI/Python 2.52.0
+      x-stainless-arch:
+      - x64
+      x-stainless-async:
+      - 'false'
+      x-stainless-lang:
+      - python
+      x-stainless-os:
+      - Linux
+      x-stainless-package-version:
+      - 2.52.0
+      x-stainless-raw-response:
+      - 'true'
+      x-stainless-read-timeout:
+      - '120.0'
+      x-stainless-retry-count:
+      - '0'
+      x-stainless-runtime:
+      - CPython
+      x-stainless-runtime-version:
+      - 3.12.3
+    method: POST
+    uri: https://one.chat-yu.net/v1/chat/completions
+  response:
+    body:
+      string: !!binary |
+        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
+    headers:
+      access-control-allow-origin:
+      - '*'
+      access-control-expose-headers:
+      - X-Generation-Id,X-Provider-Name,request-id,cf-ray
+      alt-svc:
+      - h3=":443"; ma=86400
+      cf-cache-status:
+      - DYNAMIC
+      cf-ray:
+      - a4760090bcd4d472-NRT
+      connection:
+      - keep-alive
+      content-encoding:
+      - zstd
+      content-type:
+      - application/json
+      date:
+      - Thu, 08 Oct 2026 14:58:32 GMT
+      nel:
+      - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
+      permissions-policy:
+      - payment=(self "https://checkout.stripe.com" "https://connect-js.stripe.com"
+        "https://js.stripe.com" "https://*.js.stripe.com" "https://hooks.stripe.com")
+      referrer-policy:
+      - no-referrer, strict-origin-when-cross-origin
+      report-to:
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=3Hf1txtiRJi1aPLaNN6RQl%2B0E2XVAzM2T8RWCsLys53HoUWS1WZaS07G9Zt5IF8lMhRXvWfq2Y8Bq2alvxi43Q8co3UE4me1y%2BOysKISafiuGJm7l25XaZJ78m6oH%2BnwjME%3D"}]}'
+      server:
+      - cloudflare
+      set-cookie:
+      - __cf_bm=DNTMnHrNYQbH6vSx0zzeApQH5wIr.KomMJJDwliPrMI-1791471490.8416352-1.0.1.1-Nw50QA_NiIrjpBKUtU6gdz9LwCIYYZTHkk_vfAId9lpahmHc44JnKXPqzi9yCGHAicMDOcwUnC4P2BxjdJvrfSTEBcWD0IQIhtRy8jkYxlshf.qpKeToz4_Un1ttOu8_;
+        HttpOnly; SameSite=None; Secure; Path=/; Domain=openrouter.ai; Expires=Thu,
+        08 Oct 2026 15:28:13 GMT
+      strict-transport-security:
+      - max-age=31536000
+      transfer-encoding:
+      - chunked
+      via:
+      - 1.1 Caddy
+      x-content-type-options:
+      - nosniff
+      x-generation-id:
+      - gen-1791471490-AHXMptTYjhn0iSFxNsGc
+      x-new-api-version:
+      - v1.0.0-rc.41
+      x-oneapi-request-id:
+      - 202610081458108112516408268d9d6cNpE38oj
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"messages":[{"content":"You are a building geometry expert for EnergyPlus.\nEvery
+      zone already has vertical walls, a floor and a flat roof, extruded\nfrom its
+      floor plan; faces shared by two zones are interzone pairs. Your\ntask is only
+      the geometry an extrusion cannot express: sloped or pitched\nroofs and sloped
+      walls.\n\nWorkflow:\n1. Call `list_surfaces` to see the extruded faces, `list_constructions`\n   for
+      the opaque constructions you may use.\n2. `delete_surface` each flat face the
+      sloped geometry replaces, e.g. the\n   flat roof under a pitched roof.\n3. Call
+      `create_surfaces` once with all new surfaces (roof planes, gable\n   walls);
+      resend only entries reported as failed.\n4. Call `list_surfaces` once at the
+      end to confirm.\n\nRules:\n- `zone_name` and construction names MUST appear
+      verbatim in the\n  list results. If one is missing, STOP and report; do NOT
+      invent names.\n- A zone must stay closed: the new surfaces must cover exactly
+      the\n  opening left by the deleted faces.\n- Vertices are dicts with X / Y /
+      Z keys in meters, counter-clockwise\n  seen from OUTSIDE the zone.\n","role":"system"},{"content":"Replace
+      the flat roof of zone ''Hall'' (6 m by 8 m, walls 3 m high) with a gable roof
+      whose ridge runs along Y at x=3, z=4.5: two roof planes ''Hall_Roof_West'' and
+      ''Hall_Roof_East'' with construction ''Wall'', and triangular gable walls ''Hall_Gable_South''
+      at y=0 and ''Hall_Gable_North'' at y=8 with construction ''Wall'', all outdoors.","role":"user"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_584416","function":{"name":"list_surfaces","arguments":"{}"}},{"type":"function","id":"call_584417","function":{"name":"list_constructions","arguments":"{}"}},{"type":"function","id":"call_584420","function":{"name":"list_zones","arguments":"{}"}}]},{"content":"{\"success\":
+      true, \"message\": \"Listed 6 BuildingSurface:Detailed.\", \"data\": [{\"name\":
+      \"Hall_Wall_1\", \"surface_type\": \"Wall\", \"construction_name\": \"Wall\",
+      \"zone_name\": \"Hall\", \"outside_boundary_condition\": \"Outdoors\", \"sun_exposure\":
+      \"SunExposed\", \"wind_exposure\": \"WindExposed\", \"view_factor_to_ground\":
+      \"Autocalculate\", \"number_of_vertices\": 4.0, \"vertices\": [{\"vertex_x_coordinate\":
+      0.0, \"vertex_y_coordinate\": 0.0, \"vertex_z_coordinate\": 3.0}, {\"vertex_x_coordinate\":
+      0.0, \"vertex_y_coordinate\": 0.0, \"vertex_z_coordinate\": 0.0}, {\"vertex_x_coordinate\":
+      6.0, \"vertex_y_coordinate\": 0.0, \"vertex_z_coordinate\": 0.0}, {\"vertex_x_coordinate\":
+      6.0, \"vertex_y_coordinate\": 0.0, \"vertex_z_coordinate\": 3.0}]}, {\"name\":
+      \"Hall_Wall_2\", \"surface_type\": \"Wall\", \"construction_name\": \"Wall\",
+      \"zone_name\": \"Hall\", \"outside_boundary_condition\": \"Outdoors\", \"sun_exposure\":
+      \"SunExposed\", \"wind_exposure\": \"WindExposed\", \"view_factor_to_ground\":
+      \"Autocalculate\", \"number_of_vertices\": 4.0, \"vertices\": [{\"vertex_x_coordinate\":
+      6.0, \"vertex_y_coordinate\": 0.0, \"vertex_z_coordinate\": 3.0}, {\"vertex_x_coordinate\":
+      6.0, \"vertex_y_coordinate\": 0.0, \"vertex_z_coordinate\": 0.0}, {\"vertex_x_coordinate\":
+      6.0, \"vertex_y_coordinate\": 8.0, \"vertex_z_coordinate\": 0.0}, {\"vertex_x_coordinate\":
+      6.0, \"vertex_y_coordinate\": 8.0, \"vertex_z_coordinate\": 3.0}]}, {\"name\":
+      \"Hall_Wall_3\", \"surface_type\": \"Wall\", \"construction_name\": \"Wall\",
+      \"zone_name\": \"Hall\", \"outside_boundary_condition\": \"Outdoors\", \"sun_exposure\":
+      \"SunExposed\", \"wind_exposure\": \"WindExposed\", \"view_factor_to_ground\":
+      \"Autocalculate\", \"number_of_vertices\": 4.0, \"vertices\": [{\"vertex_x_coordinate\":
+      6.0, \"vertex_y_coordinate\": 8.0, \"vertex_z_coordinate\": 3.0}, {\"vertex_x_coordinate\":
+      6.0, \"vertex_y_coordinate\": 8.0, \"vertex_z_coordinate\": 0.0}, {\"vertex_x_coordinate\":
+      0.0, \"vertex_y_coordinate\": 8.0, \"vertex_z_coordinate\": 0.0}, {\"vertex_x_coordinate\":
+      0.0, \"vertex_y_coordinate\": 8.0, \"vertex_z_coordinate\": 3.0}]}, {\"name\":
+      \"Hall_Wall_4\", \"surface_type\": \"Wall\", \"construction_name\": \"Wall\",
+      \"zone_name\": \"Hall\", \"outside_boundary_condition\": \"Outdoors\", \"sun_exposure\":
+      \"SunExposed\", \"wind_exposure\": \"WindExposed\", \"view_factor_to_ground\":
+      \"Autocalculate\", \"number_of_vertices\": 4.0, \"vertices\": [{\"vertex_x_coordinate\":
+      0.0, \"vertex_y_coordinate\": 8.0, \"vertex_z_coordinate\": 3.0}, {\"vertex_x_coordinate\":
+      0.0, \"vertex_y_coordinate\": 8.0, \"vertex_z_coordinate\": 0.0}, {\"vertex_x_coordinate\":
+      0.0, \"vertex_y_coordinate\": 0.0, \"vertex_z_coordinate\": 0.0}, {\"vertex_x_coordinate\":
+      0.0, \"vertex_y_coordinate\": 0.0, \"vertex_z_coordinate\": 3.0}]}, {\"name\":
+      \"Hall_Floor\", \"surface_type\": \"Floor\", \"construction_name\": \"Slab\",
+      \"zone_name\": \"Hall\", \"outside_boundary_condition\": \"Ground\", \"sun_exposure\":
+      \"NoSun\", \"wind_exposure\": \"NoWind\", \"view_factor_to_ground\": \"Autocalculate\",
+      \"number_of_vertices\": 4.0, \"vertices\": [{\"vertex_x_coordinate\": 0.0, \"vertex_y_coordinate\":
+      0.0, \"vertex_z_coordinate\": 0.0}, {\"vertex_x_coordinate\": 0.0, \"vertex_y_coordinate\":
+      8.0, \"vertex_z_coordinate\": 0.0}, {\"vertex_x_coordinate\": 6.0, \"vertex_y_coordinate\":
+      8.0, \"vertex_z_coordinate\": 0.0}, {\"vertex_x_coordinate\": 6.0, \"vertex_y_coordinate\":
+      0.0, \"vertex_z_coordinate\": 0.0}]}, {\"name\": \"Hall_Roof\", \"surface_type\":
+      \"Roof\", \"construction_name\": \"Wall\", \"zone_name\": \"Hall\", \"outside_boundary_condition\":
+      \"Outdoors\", \"sun_exposure\": \"SunExposed\", \"wind_exposure\": \"WindExposed\",
+      \"view_factor_to_ground\": \"Autocalculate\", \"number_of_vertices\": 4.0, \"vertices\":
+      [{\"vertex_x_coordinate\": 0.0, \"vertex_y_coordinate\": 8.0, \"vertex_z_coordinate\":
+      3.0}, {\"vertex_x_coordinate\": 0.0, \"vertex_y_coordinate\": 0.0, \"vertex_z_coordinate\":
+      3.0}, {\"vertex_x_coordinate\": 6.0, \"vertex_y_coordinate\": 0.0, \"vertex_z_coordinate\":
+      3.0}, {\"vertex_x_coordinate\": 6.0, \"vertex_y_coordinate\": 8.0, \"vertex_z_coordinate\":
+      3.0}]}]}","role":"tool","tool_call_id":"call_584416"},{"content":"{\"success\":
+      true, \"message\": \"Listed 2 constructions.\", \"data\": [{\"kind\": \"opaque\",
+      \"name\": \"Wall\", \"outside_layer\": \"Brick_100mm\"}, {\"kind\": \"opaque\",
+      \"name\": \"Slab\", \"outside_layer\": \"Brick_100mm\"}]}","role":"tool","tool_call_id":"call_584417"},{"content":"{\"success\":
+      true, \"message\": \"Listed 1 Zone.\", \"data\": [{\"name\": \"Hall\", \"direction_of_relative_north\":
+      0.0, \"x_origin\": 0.0, \"y_origin\": 0.0, \"z_origin\": 0.0, \"type\": 1, \"multiplier\":
+      1, \"ceiling_height\": \"Autocalculate\", \"volume\": \"Autocalculate\", \"floor_area\":
+      \"Autocalculate\", \"part_of_total_floor_area\": \"Yes\"}]}","role":"tool","tool_call_id":"call_584420"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_532209","function":{"name":"delete_surface","arguments":"{\"name\":
+      \"Hall_Roof\"}"}}]},{"content":"{\"success\": true, \"message\": \"Surface ''Hall_Roof''
+      deleted.\", \"data\": null}","role":"tool","tool_call_id":"call_532209"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_549931","function":{"name":"create_surfaces","arguments":"{\"surfaces\":
+      [{\"wind_exposure\": \"WindExposed\", \"name\": \"Hall_Roof_West\", \"sun_exposure\":
+      \"SunExposed\", \"vertices\": [{\"Y\": 8, \"Z\": 3, \"X\": 0}, {\"X\": 0, \"Z\":
+      3, \"Y\": 0}, {\"Z\": 4.5, \"X\": 3, \"Y\": 0}, {\"Y\": 8, \"Z\": 4.5, \"X\":
+      3}], \"zone_name\": \"Hall\", \"construction_name\": \"Wall\", \"surface_type\":
+      \"Roof\", \"outside_boundary_condition\": \"Outdoors\"}, {\"outside_boundary_condition\":
+      \"Outdoors\", \"sun_exposure\": \"SunExposed\", \"construction_name\": \"Wall\",
+      \"wind_exposure\": \"WindExposed\", \"surface_type\": \"Roof\", \"name\": \"Hall_Roof_East\",
+      \"zone_name\": \"Hall\", \"vertices\": [{\"X\": 6, \"Z\": 3, \"Y\": 0}, {\"Y\":
+      8, \"X\": 6, \"Z\": 3}, {\"Z\": 4.5, \"X\": 3, \"Y\": 8}, {\"Y\": 0, \"Z\":
+      4.5, \"X\": 3}]}, {\"name\": \"Hall_Gable_South\", \"sun_exposure\": \"SunExposed\",
+      \"zone_name\": \"Hall\", \"vertices\": [{\"Y\": 0, \"Z\": 3, \"X\": 0}, {\"Y\":
+      0, \"Z\": 3, \"X\": 6}, {\"Y\": 0, \"Z\": 4.5, \"X\": 3}], \"wind_exposure\":
+      \"WindExposed\", \"surface_type\": \"Wall\", \"outside_boundary_condition\":
+      \"Outdoors\", \"construction_name\": \"Wall\"}, {\"wind_exposure\": \"WindExposed\",
+      \"surface_type\": \"Wall\", \"name\": \"Hall_Gable_North\", \"sun_exposure\":
+      \"SunExposed\", \"zone_name\": \"Hall\", \"vertices\": [{\"X\": 6, \"Z\": 3,
+      \"Y\": 8}, {\"Y\": 8, \"X\": 0, \"Z\": 3}, {\"Z\": 4.5, \"X\": 3, \"Y\": 8}],
+      \"construction_name\": \"Wall\", \"outside_boundary_condition\": \"Outdoors\"}]}"}}]},{"content":"{\"success\":
+      true, \"message\": \"Created 4 surfaces.\", \"data\": {\"created\": [\"Hall_Roof_West\",
+      \"Hall_Roof_East\", \"Hall_Gable_South\", \"Hall_Gable_North\"], \"failed\":
+      []}}","role":"tool","tool_call_id":"call_549931"}],"model":"google/gemini-3.8-flash","max_completion_tokens":16384,"parallel_tool_calls":false,"stream":false,"temperature":0.7,"tool_choice":"required","tools":[{"type":"function","function":{"name":"create_surfaces","description":"Create
+      several surfaces at once, e.g. sloped roofs and gable walls.\n\n        Each
+      surface succeeds or fails on its own; resend only the failed\n        entries.
+      Interzone partners may be later entries of the same list.","parameters":{"properties":{"surfaces":{"items":{"description":"One
+      base surface as tool callers describe it.","properties":{"name":{"type":"string"},"surface_type":{"enum":["Wall","Floor","Roof","Ceiling"],"type":"string"},"construction_name":{"type":"string"},"zone_name":{"type":"string"},"outside_boundary_condition":{"enum":["Outdoors","Ground","Surface","Zone","Adiabatic"],"type":"string"},"vertices":{"description":">=
+      3 vertices in meters, counter-clockwise seen from outside","items":{"description":"One
+      polygon vertex in metres, world coordinates.","properties":{"X":{"type":"number"},"Y":{"type":"number"},"Z":{"type":"number"}},"required":["X","Y","Z"],"type":"object"},"type":"array"},"sun_exposure":{"default":"NoSun","enum":["SunExposed","NoSun"],"type":"string"},"wind_exposure":{"default":"NoWind","enum":["WindExposed","NoWind"],"type":"string"},"outside_boundary_condition_object":{"anyOf":[{"type":"string"},{"type":"null"}],"default":null,"description":"Partner
+      surface for a Surface boundary (may be created later), adjacent zone for a Zone
+      boundary"}},"required":["name","surface_type","construction_name","zone_name","outside_boundary_condition","vertices"],"type":"object"},"type":"array"}},"required":["surfaces"],"type":"object"}}},{"type":"function","function":{"name":"create_surface","description":"Create
+      a BuildingSurface:Detailed (wall/floor/roof/ceiling).\n\n        Args:\n            name:
+      Unique surface name.\n            surface_type: Wall / Floor / Roof / Ceiling.\n            construction_name:
+      Existing opaque construction name.\n            zone_name: Existing Zone name
+      the surface belongs to.\n            outside_boundary_condition: Outdoors /
+      Ground / Zone / Adiabatic / Surface.\n            vertices: >= 3 vertices in
+      meters, counter-clockwise when viewed\n                from OUTSIDE. Example
+      4-vertex south wall (2m tall, 5m wide,\n                at y=0):\n                  [{\"X\":
+      0.0, \"Y\": 0.0, \"Z\": 0.0},\n                   {\"X\": 5.0, \"Y\": 0.0, \"Z\":
+      0.0},\n                   {\"X\": 5.0, \"Y\": 0.0, \"Z\": 2.0},\n                   {\"X\":
+      0.0, \"Y\": 0.0, \"Z\": 2.0}]\n            sun_exposure: SunExposed for outdoor-facing
+      walls and roofs.\n            wind_exposure: WindExposed for outdoor-facing
+      walls and roofs.\n            outside_boundary_condition_object: Name of the
+      partner surface\n                when outside_boundary_condition is Surface,
+      or of the\n                adjacent zone when it is Zone. The partner may be
+      created\n                after this surface; when it already exists it is linked
+      back\n                automatically.","parameters":{"properties":{"name":{"type":"string"},"surface_type":{"enum":["Ceiling","Floor","Roof","Wall"],"type":"string"},"construction_name":{"type":"string"},"zone_name":{"type":"string"},"outside_boundary_condition":{"enum":["Outdoors","Ground","Zone","Adiabatic","Surface"],"type":"string"},"vertices":{"items":{"description":"One
+      polygon vertex in metres, world coordinates.","properties":{"X":{"type":"number"},"Y":{"type":"number"},"Z":{"type":"number"}},"required":["X","Y","Z"],"type":"object"},"type":"array"},"sun_exposure":{"default":"NoSun","enum":["SunExposed","NoSun"],"type":"string"},"wind_exposure":{"default":"NoWind","enum":["WindExposed","NoWind"],"type":"string"},"outside_boundary_condition_object":{"anyOf":[{"type":"string"},{"type":"null"}],"default":null}},"required":["name","surface_type","construction_name","zone_name","outside_boundary_condition","vertices"],"type":"object"}}},{"type":"function","function":{"name":"list_surfaces","description":"List
+      all building surfaces.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"get_surface","description":"Read
+      a surface by name.","parameters":{"properties":{"name":{"type":"string"}},"required":["name"],"type":"object"}}},{"type":"function","function":{"name":"delete_surface","description":"Delete
+      a surface; refused while fenestration or a partner uses it.","parameters":{"properties":{"name":{"type":"string"}},"required":["name"],"type":"object"}}},{"type":"function","function":{"name":"list_zones","description":"List
+      zones a surface can belong to.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"list_constructions","description":"List
+      the opaque constructions a surface can use.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"SurfaceResponse","description":"Structured
+      summary returned by the surface phase agent.","parameters":{"properties":{"surface_names":{"description":"Names
+      of all surfaces created","items":{"type":"string"},"type":"array"},"summary":{"description":"One-line
+      summary of the surface creation result","type":"string"}},"required":["surface_names","summary"],"type":"object"}}}],"max_thinking_budget":4096}'
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate, zstd
+      connection:
+      - keep-alive
+      content-length:
+      - '14275'
+      content-type:
+      - application/json
+      host:
+      - one.chat-yu.net
+      user-agent:
+      - OpenAI/Python 2.52.0
+      x-stainless-arch:
+      - x64
+      x-stainless-async:
+      - 'false'
+      x-stainless-lang:
+      - python
+      x-stainless-os:
+      - Linux
+      x-stainless-package-version:
+      - 2.52.0
+      x-stainless-raw-response:
+      - 'true'
+      x-stainless-read-timeout:
+      - '120.0'
+      x-stainless-retry-count:
+      - '0'
+      x-stainless-runtime:
+      - CPython
+      x-stainless-runtime-version:
+      - 3.12.3
+    method: POST
+    uri: https://one.chat-yu.net/v1/chat/completions
+  response:
+    body:
+      string: !!binary |
+        KLUv/QBYXRIAdqZzJ/CwOAfseWTyQpOkn6yZtJdW10m0bH2eaDpmcY/dinMetRaHhcNUBWoAXgBw
+        AExJ1nbl1LdPnrC2BCQUBCDcne7Em0mvt2fqi5SD8og4WLK1lcDGas7q7nGnab25T9tvKXy7nNwb
+        L2vCR78MvHvD1VzMty9MaqKQYNlIgJCoaEwkBBNhKI4IFEGTAagygRxyq7tP/A5AAEAsZ33xVYxa
+        ui0nfHvL15VrfXffOOk77lu9Wtd6O8TDxSLthvvJt9cYH5TinH13OetbKmUqS6bqxaRXNePb466x
+        k+R3KtzrQp4Z+HaNjRS3tJA3dOtbjJh0b8n0olvJGQ2aqKHgwAsmarg4RIkJBs5cHqLHgrEUDBya
+        wgCjkbgwRA4QGjYqAwdOBILCAgUf3P31m94+bV8cCuU++PVOkkWWPevcvbZcC6voe3td+CiKVakr
+        x7uv9eQ7rr0yoUCgASnGB6HEqLvvxel3KlwlA1mWVc/ityyCSB7I81TIM5EWyqVLSZast7TrhWU7
+        8WbyhL1tphlSe6bNwAff2Rof5Y4xORdS5bdoQnkqEeh5Ho971wnfIokkEl/PfoOgt4FIEnGvcjFm
+        S31Zk16YRXZo4+hn0Um9nYAgMCBAgsYY9v5ZLbGBwwoojQNLJA5jeOWbfVQGziHWDNIJ6GoS39wW
+        HOxGpjit5KU0MKXCJuwwc8Enpb1KH08BE2WzXXRtXdybCN79cb6KwcoBFvZfFiYYy2X4p4gwcgNX
+        zbVrFo1saRuduBUeI1ITie9tQG1bSgbje7E=
+    headers:
+      access-control-allow-origin:
+      - '*'
+      access-control-expose-headers:
+      - X-Generation-Id,X-Provider-Name,request-id,cf-ray
+      alt-svc:
+      - h3=":443"; ma=86400
+      cf-cache-status:
+      - DYNAMIC
+      cf-ray:
+      - a476011b7ec2d472-NRT
+      connection:
+      - keep-alive
+      content-encoding:
+      - zstd
+      content-type:
+      - application/json
+      date:
+      - Thu, 08 Oct 2026 14:58:34 GMT
+      nel:
+      - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
+      permissions-policy:
+      - payment=(self "https://checkout.stripe.com" "https://connect-js.stripe.com"
+        "https://js.stripe.com" "https://*.js.stripe.com" "https://hooks.stripe.com")
+      referrer-policy:
+      - no-referrer, strict-origin-when-cross-origin
+      report-to:
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=a7AyPWP0TqLL8Y5kbcqUg5mJktp6uzzfSgRkVV8p9tHnoW61xMITgs8WAhU5PjHNaLawh79H7F8Rz0uG4xxrPbsqnkUcAy9sBlP7Bu71haQot7niVjsa%2B5Oe6yDQe4IIIYY%3D"}]}'
+      server:
+      - cloudflare
+      set-cookie:
+      - __cf_bm=VxNxPXggI4FBZUjIDgTD_2PHfttAVD4FqE5kpvMb5Bo-1791471513.0420978-1.0.1.1-vDi6XZ.hGQd_yAMN7LCEp32ea6OJA_7Fnd7n2j82Vg5bS9K2gK5hUCQXkm30jEAVMwU5o3UeQ2JjTgSGQ7RKPcb3Y2n6dMrFplGNCYUJoNUWgLjuMdBBex5BDaII4Jca;
+        HttpOnly; SameSite=None; Secure; Path=/; Domain=openrouter.ai; Expires=Thu,
+        08 Oct 2026 15:28:34 GMT
+      strict-transport-security:
+      - max-age=31536000
+      transfer-encoding:
+      - chunked
+      via:
+      - 1.1 Caddy
+      x-content-type-options:
+      - nosniff
+      x-generation-id:
+      - gen-1791471513-8Z5Z2n7x9VPIzSIJ7foK
+      x-new-api-version:
+      - v1.0.0-rc.41
+      x-oneapi-request-id:
+      - 202610081458330110337238268d9d6buJeHBHZ
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"messages":[{"content":"You are a building geometry expert for EnergyPlus.\nEvery
+      zone already has vertical walls, a floor and a flat roof, extruded\nfrom its
+      floor plan; faces shared by two zones are interzone pairs. Your\ntask is only
+      the geometry an extrusion cannot express: sloped or pitched\nroofs and sloped
+      walls.\n\nWorkflow:\n1. Call `list_surfaces` to see the extruded faces, `list_constructions`\n   for
+      the opaque constructions you may use.\n2. `delete_surface` each flat face the
+      sloped geometry replaces, e.g. the\n   flat roof under a pitched roof.\n3. Call
+      `create_surfaces` once with all new surfaces (roof planes, gable\n   walls);
+      resend only entries reported as failed.\n4. Call `list_surfaces` once at the
+      end to confirm.\n\nRules:\n- `zone_name` and construction names MUST appear
+      verbatim in the\n  list results. If one is missing, STOP and report; do NOT
+      invent names.\n- A zone must stay closed: the new surfaces must cover exactly
+      the\n  opening left by the deleted faces.\n- Vertices are dicts with X / Y /
+      Z keys in meters, counter-clockwise\n  seen from OUTSIDE the zone.\n","role":"system"},{"content":"Replace
+      the flat roof of zone ''Hall'' (6 m by 8 m, walls 3 m high) with a gable roof
+      whose ridge runs along Y at x=3, z=4.5: two roof planes ''Hall_Roof_West'' and
+      ''Hall_Roof_East'' with construction ''Wall'', and triangular gable walls ''Hall_Gable_South''
+      at y=0 and ''Hall_Gable_North'' at y=8 with construction ''Wall'', all outdoors.","role":"user"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_584416","function":{"name":"list_surfaces","arguments":"{}"}},{"type":"function","id":"call_584417","function":{"name":"list_constructions","arguments":"{}"}},{"type":"function","id":"call_584420","function":{"name":"list_zones","arguments":"{}"}}]},{"content":"{\"success\":
+      true, \"message\": \"Listed 6 BuildingSurface:Detailed.\", \"data\": [{\"name\":
+      \"Hall_Wall_1\", \"surface_type\": \"Wall\", \"construction_name\": \"Wall\",
+      \"zone_name\": \"Hall\", \"outside_boundary_condition\": \"Outdoors\", \"sun_exposure\":
+      \"SunExposed\", \"wind_exposure\": \"WindExposed\", \"view_factor_to_ground\":
+      \"Autocalculate\", \"number_of_vertices\": 4.0, \"vertices\": [{\"vertex_x_coordinate\":
+      0.0, \"vertex_y_coordinate\": 0.0, \"vertex_z_coordinate\": 3.0}, {\"vertex_x_coordinate\":
+      0.0, \"vertex_y_coordinate\": 0.0, \"vertex_z_coordinate\": 0.0}, {\"vertex_x_coordinate\":
+      6.0, \"vertex_y_coordinate\": 0.0, \"vertex_z_coordinate\": 0.0}, {\"vertex_x_coordinate\":
+      6.0, \"vertex_y_coordinate\": 0.0, \"vertex_z_coordinate\": 3.0}]}, {\"name\":
+      \"Hall_Wall_2\", \"surface_type\": \"Wall\", \"construction_name\": \"Wall\",
+      \"zone_name\": \"Hall\", \"outside_boundary_condition\": \"Outdoors\", \"sun_exposure\":
+      \"SunExposed\", \"wind_exposure\": \"WindExposed\", \"view_factor_to_ground\":
+      \"Autocalculate\", \"number_of_vertices\": 4.0, \"vertices\": [{\"vertex_x_coordinate\":
+      6.0, \"vertex_y_coordinate\": 0.0, \"vertex_z_coordinate\": 3.0}, {\"vertex_x_coordinate\":
+      6.0, \"vertex_y_coordinate\": 0.0, \"vertex_z_coordinate\": 0.0}, {\"vertex_x_coordinate\":
+      6.0, \"vertex_y_coordinate\": 8.0, \"vertex_z_coordinate\": 0.0}, {\"vertex_x_coordinate\":
+      6.0, \"vertex_y_coordinate\": 8.0, \"vertex_z_coordinate\": 3.0}]}, {\"name\":
+      \"Hall_Wall_3\", \"surface_type\": \"Wall\", \"construction_name\": \"Wall\",
+      \"zone_name\": \"Hall\", \"outside_boundary_condition\": \"Outdoors\", \"sun_exposure\":
+      \"SunExposed\", \"wind_exposure\": \"WindExposed\", \"view_factor_to_ground\":
+      \"Autocalculate\", \"number_of_vertices\": 4.0, \"vertices\": [{\"vertex_x_coordinate\":
+      6.0, \"vertex_y_coordinate\": 8.0, \"vertex_z_coordinate\": 3.0}, {\"vertex_x_coordinate\":
+      6.0, \"vertex_y_coordinate\": 8.0, \"vertex_z_coordinate\": 0.0}, {\"vertex_x_coordinate\":
+      0.0, \"vertex_y_coordinate\": 8.0, \"vertex_z_coordinate\": 0.0}, {\"vertex_x_coordinate\":
+      0.0, \"vertex_y_coordinate\": 8.0, \"vertex_z_coordinate\": 3.0}]}, {\"name\":
+      \"Hall_Wall_4\", \"surface_type\": \"Wall\", \"construction_name\": \"Wall\",
+      \"zone_name\": \"Hall\", \"outside_boundary_condition\": \"Outdoors\", \"sun_exposure\":
+      \"SunExposed\", \"wind_exposure\": \"WindExposed\", \"view_factor_to_ground\":
+      \"Autocalculate\", \"number_of_vertices\": 4.0, \"vertices\": [{\"vertex_x_coordinate\":
+      0.0, \"vertex_y_coordinate\": 8.0, \"vertex_z_coordinate\": 3.0}, {\"vertex_x_coordinate\":
+      0.0, \"vertex_y_coordinate\": 8.0, \"vertex_z_coordinate\": 0.0}, {\"vertex_x_coordinate\":
+      0.0, \"vertex_y_coordinate\": 0.0, \"vertex_z_coordinate\": 0.0}, {\"vertex_x_coordinate\":
+      0.0, \"vertex_y_coordinate\": 0.0, \"vertex_z_coordinate\": 3.0}]}, {\"name\":
+      \"Hall_Floor\", \"surface_type\": \"Floor\", \"construction_name\": \"Slab\",
+      \"zone_name\": \"Hall\", \"outside_boundary_condition\": \"Ground\", \"sun_exposure\":
+      \"NoSun\", \"wind_exposure\": \"NoWind\", \"view_factor_to_ground\": \"Autocalculate\",
+      \"number_of_vertices\": 4.0, \"vertices\": [{\"vertex_x_coordinate\": 0.0, \"vertex_y_coordinate\":
+      0.0, \"vertex_z_coordinate\": 0.0}, {\"vertex_x_coordinate\": 0.0, \"vertex_y_coordinate\":
+      8.0, \"vertex_z_coordinate\": 0.0}, {\"vertex_x_coordinate\": 6.0, \"vertex_y_coordinate\":
+      8.0, \"vertex_z_coordinate\": 0.0}, {\"vertex_x_coordinate\": 6.0, \"vertex_y_coordinate\":
+      0.0, \"vertex_z_coordinate\": 0.0}]}, {\"name\": \"Hall_Roof\", \"surface_type\":
+      \"Roof\", \"construction_name\": \"Wall\", \"zone_name\": \"Hall\", \"outside_boundary_condition\":
+      \"Outdoors\", \"sun_exposure\": \"SunExposed\", \"wind_exposure\": \"WindExposed\",
+      \"view_factor_to_ground\": \"Autocalculate\", \"number_of_vertices\": 4.0, \"vertices\":
+      [{\"vertex_x_coordinate\": 0.0, \"vertex_y_coordinate\": 8.0, \"vertex_z_coordinate\":
+      3.0}, {\"vertex_x_coordinate\": 0.0, \"vertex_y_coordinate\": 0.0, \"vertex_z_coordinate\":
+      3.0}, {\"vertex_x_coordinate\": 6.0, \"vertex_y_coordinate\": 0.0, \"vertex_z_coordinate\":
+      3.0}, {\"vertex_x_coordinate\": 6.0, \"vertex_y_coordinate\": 8.0, \"vertex_z_coordinate\":
+      3.0}]}]}","role":"tool","tool_call_id":"call_584416"},{"content":"{\"success\":
+      true, \"message\": \"Listed 2 constructions.\", \"data\": [{\"kind\": \"opaque\",
+      \"name\": \"Wall\", \"outside_layer\": \"Brick_100mm\"}, {\"kind\": \"opaque\",
+      \"name\": \"Slab\", \"outside_layer\": \"Brick_100mm\"}]}","role":"tool","tool_call_id":"call_584417"},{"content":"{\"success\":
+      true, \"message\": \"Listed 1 Zone.\", \"data\": [{\"name\": \"Hall\", \"direction_of_relative_north\":
+      0.0, \"x_origin\": 0.0, \"y_origin\": 0.0, \"z_origin\": 0.0, \"type\": 1, \"multiplier\":
+      1, \"ceiling_height\": \"Autocalculate\", \"volume\": \"Autocalculate\", \"floor_area\":
+      \"Autocalculate\", \"part_of_total_floor_area\": \"Yes\"}]}","role":"tool","tool_call_id":"call_584420"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_532209","function":{"name":"delete_surface","arguments":"{\"name\":
+      \"Hall_Roof\"}"}}]},{"content":"{\"success\": true, \"message\": \"Surface ''Hall_Roof''
+      deleted.\", \"data\": null}","role":"tool","tool_call_id":"call_532209"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_549931","function":{"name":"create_surfaces","arguments":"{\"surfaces\":
+      [{\"wind_exposure\": \"WindExposed\", \"name\": \"Hall_Roof_West\", \"sun_exposure\":
+      \"SunExposed\", \"vertices\": [{\"Y\": 8, \"Z\": 3, \"X\": 0}, {\"X\": 0, \"Z\":
+      3, \"Y\": 0}, {\"Z\": 4.5, \"X\": 3, \"Y\": 0}, {\"Y\": 8, \"Z\": 4.5, \"X\":
+      3}], \"zone_name\": \"Hall\", \"construction_name\": \"Wall\", \"surface_type\":
+      \"Roof\", \"outside_boundary_condition\": \"Outdoors\"}, {\"outside_boundary_condition\":
+      \"Outdoors\", \"sun_exposure\": \"SunExposed\", \"construction_name\": \"Wall\",
+      \"wind_exposure\": \"WindExposed\", \"surface_type\": \"Roof\", \"name\": \"Hall_Roof_East\",
+      \"zone_name\": \"Hall\", \"vertices\": [{\"X\": 6, \"Z\": 3, \"Y\": 0}, {\"Y\":
+      8, \"X\": 6, \"Z\": 3}, {\"Z\": 4.5, \"X\": 3, \"Y\": 8}, {\"Y\": 0, \"Z\":
+      4.5, \"X\": 3}]}, {\"name\": \"Hall_Gable_South\", \"sun_exposure\": \"SunExposed\",
+      \"zone_name\": \"Hall\", \"vertices\": [{\"Y\": 0, \"Z\": 3, \"X\": 0}, {\"Y\":
+      0, \"Z\": 3, \"X\": 6}, {\"Y\": 0, \"Z\": 4.5, \"X\": 3}], \"wind_exposure\":
+      \"WindExposed\", \"surface_type\": \"Wall\", \"outside_boundary_condition\":
+      \"Outdoors\", \"construction_name\": \"Wall\"}, {\"wind_exposure\": \"WindExposed\",
+      \"surface_type\": \"Wall\", \"name\": \"Hall_Gable_North\", \"sun_exposure\":
+      \"SunExposed\", \"zone_name\": \"Hall\", \"vertices\": [{\"X\": 6, \"Z\": 3,
+      \"Y\": 8}, {\"Y\": 8, \"X\": 0, \"Z\": 3}, {\"Z\": 4.5, \"X\": 3, \"Y\": 8}],
+      \"construction_name\": \"Wall\", \"outside_boundary_condition\": \"Outdoors\"}]}"}}]},{"content":"{\"success\":
+      true, \"message\": \"Created 4 surfaces.\", \"data\": {\"created\": [\"Hall_Roof_West\",
+      \"Hall_Roof_East\", \"Hall_Gable_South\", \"Hall_Gable_North\"], \"failed\":
+      []}}","role":"tool","tool_call_id":"call_549931"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_412879","function":{"name":"list_surfaces","arguments":"{}"}}]},{"content":"{\"success\":
+      true, \"message\": \"Listed 9 BuildingSurface:Detailed.\", \"data\": [{\"name\":
+      \"Hall_Wall_1\", \"surface_type\": \"Wall\", \"construction_name\": \"Wall\",
+      \"zone_name\": \"Hall\", \"outside_boundary_condition\": \"Outdoors\", \"sun_exposure\":
+      \"SunExposed\", \"wind_exposure\": \"WindExposed\", \"view_factor_to_ground\":
+      \"Autocalculate\", \"number_of_vertices\": 4.0, \"vertices\": [{\"vertex_x_coordinate\":
+      0.0, \"vertex_y_coordinate\": 0.0, \"vertex_z_coordinate\": 3.0}, {\"vertex_x_coordinate\":
+      0.0, \"vertex_y_coordinate\": 0.0, \"vertex_z_coordinate\": 0.0}, {\"vertex_x_coordinate\":
+      6.0, \"vertex_y_coordinate\": 0.0, \"vertex_z_coordinate\": 0.0}, {\"vertex_x_coordinate\":
+      6.0, \"vertex_y_coordinate\": 0.0, \"vertex_z_coordinate\": 3.0}]}, {\"name\":
+      \"Hall_Wall_2\", \"surface_type\": \"Wall\", \"construction_name\": \"Wall\",
+      \"zone_name\": \"Hall\", \"outside_boundary_condition\": \"Outdoors\", \"sun_exposure\":
+      \"SunExposed\", \"wind_exposure\": \"WindExposed\", \"view_factor_to_ground\":
+      \"Autocalculate\", \"number_of_vertices\": 4.0, \"vertices\": [{\"vertex_x_coordinate\":
+      6.0, \"vertex_y_coordinate\": 0.0, \"vertex_z_coordinate\": 3.0}, {\"vertex_x_coordinate\":
+      6.0, \"vertex_y_coordinate\": 0.0, \"vertex_z_coordinate\": 0.0}, {\"vertex_x_coordinate\":
+      6.0, \"vertex_y_coordinate\": 8.0, \"vertex_z_coordinate\": 0.0}, {\"vertex_x_coordinate\":
+      6.0, \"vertex_y_coordinate\": 8.0, \"vertex_z_coordinate\": 3.0}]}, {\"name\":
+      \"Hall_Wall_3\", \"surface_type\": \"Wall\", \"construction_name\": \"Wall\",
+      \"zone_name\": \"Hall\", \"outside_boundary_condition\": \"Outdoors\", \"sun_exposure\":
+      \"SunExposed\", \"wind_exposure\": \"WindExposed\", \"view_factor_to_ground\":
+      \"Autocalculate\", \"number_of_vertices\": 4.0, \"vertices\": [{\"vertex_x_coordinate\":
+      6.0, \"vertex_y_coordinate\": 8.0, \"vertex_z_coordinate\": 3.0}, {\"vertex_x_coordinate\":
+      6.0, \"vertex_y_coordinate\": 8.0, \"vertex_z_coordinate\": 0.0}, {\"vertex_x_coordinate\":
+      0.0, \"vertex_y_coordinate\": 8.0, \"vertex_z_coordinate\": 0.0}, {\"vertex_x_coordinate\":
+      0.0, \"vertex_y_coordinate\": 8.0, \"vertex_z_coordinate\": 3.0}]}, {\"name\":
+      \"Hall_Wall_4\", \"surface_type\": \"Wall\", \"construction_name\": \"Wall\",
+      \"zone_name\": \"Hall\", \"outside_boundary_condition\": \"Outdoors\", \"sun_exposure\":
+      \"SunExposed\", \"wind_exposure\": \"WindExposed\", \"view_factor_to_ground\":
+      \"Autocalculate\", \"number_of_vertices\": 4.0, \"vertices\": [{\"vertex_x_coordinate\":
+      0.0, \"vertex_y_coordinate\": 8.0, \"vertex_z_coordinate\": 3.0}, {\"vertex_x_coordinate\":
+      0.0, \"vertex_y_coordinate\": 8.0, \"vertex_z_coordinate\": 0.0}, {\"vertex_x_coordinate\":
+      0.0, \"vertex_y_coordinate\": 0.0, \"vertex_z_coordinate\": 0.0}, {\"vertex_x_coordinate\":
+      0.0, \"vertex_y_coordinate\": 0.0, \"vertex_z_coordinate\": 3.0}]}, {\"name\":
+      \"Hall_Floor\", \"surface_type\": \"Floor\", \"construction_name\": \"Slab\",
+      \"zone_name\": \"Hall\", \"outside_boundary_condition\": \"Ground\", \"sun_exposure\":
+      \"NoSun\", \"wind_exposure\": \"NoWind\", \"view_factor_to_ground\": \"Autocalculate\",
+      \"number_of_vertices\": 4.0, \"vertices\": [{\"vertex_x_coordinate\": 0.0, \"vertex_y_coordinate\":
+      0.0, \"vertex_z_coordinate\": 0.0}, {\"vertex_x_coordinate\": 0.0, \"vertex_y_coordinate\":
+      8.0, \"vertex_z_coordinate\": 0.0}, {\"vertex_x_coordinate\": 6.0, \"vertex_y_coordinate\":
+      8.0, \"vertex_z_coordinate\": 0.0}, {\"vertex_x_coordinate\": 6.0, \"vertex_y_coordinate\":
+      0.0, \"vertex_z_coordinate\": 0.0}]}, {\"name\": \"Hall_Roof_West\", \"surface_type\":
+      \"Roof\", \"construction_name\": \"Wall\", \"zone_name\": \"Hall\", \"outside_boundary_condition\":
+      \"Outdoors\", \"sun_exposure\": \"SunExposed\", \"wind_exposure\": \"WindExposed\",
+      \"view_factor_to_ground\": \"Autocalculate\", \"number_of_vertices\": 4.0, \"vertices\":
+      [{\"vertex_x_coordinate\": 0.0, \"vertex_y_coordinate\": 8.0, \"vertex_z_coordinate\":
+      3.0}, {\"vertex_x_coordinate\": 0.0, \"vertex_y_coordinate\": 0.0, \"vertex_z_coordinate\":
+      3.0}, {\"vertex_x_coordinate\": 3.0, \"vertex_y_coordinate\": 0.0, \"vertex_z_coordinate\":
+      4.5}, {\"vertex_x_coordinate\": 3.0, \"vertex_y_coordinate\": 8.0, \"vertex_z_coordinate\":
+      4.5}]}, {\"name\": \"Hall_Roof_East\", \"surface_type\": \"Roof\", \"construction_name\":
+      \"Wall\", \"zone_name\": \"Hall\", \"outside_boundary_condition\": \"Outdoors\",
+      \"sun_exposure\": \"SunExposed\", \"wind_exposure\": \"WindExposed\", \"view_factor_to_ground\":
+      \"Autocalculate\", \"number_of_vertices\": 4.0, \"vertices\": [{\"vertex_x_coordinate\":
+      6.0, \"vertex_y_coordinate\": 0.0, \"vertex_z_coordinate\": 3.0}, {\"vertex_x_coordinate\":
+      6.0, \"vertex_y_coordinate\": 8.0, \"vertex_z_coordinate\": 3.0}, {\"vertex_x_coordinate\":
+      3.0, \"vertex_y_coordinate\": 8.0, \"vertex_z_coordinate\": 4.5}, {\"vertex_x_coordinate\":
+      3.0, \"vertex_y_coordinate\": 0.0, \"vertex_z_coordinate\": 4.5}]}, {\"name\":
+      \"Hall_Gable_South\", \"surface_type\": \"Wall\", \"construction_name\": \"Wall\",
+      \"zone_name\": \"Hall\", \"outside_boundary_condition\": \"Outdoors\", \"sun_exposure\":
+      \"SunExposed\", \"wind_exposure\": \"WindExposed\", \"view_factor_to_ground\":
+      \"Autocalculate\", \"number_of_vertices\": 3.0, \"vertices\": [{\"vertex_x_coordinate\":
+      0.0, \"vertex_y_coordinate\": 0.0, \"vertex_z_coordinate\": 3.0}, {\"vertex_x_coordinate\":
+      6.0, \"vertex_y_coordinate\": 0.0, \"vertex_z_coordinate\": 3.0}, {\"vertex_x_coordinate\":
+      3.0, \"vertex_y_coordinate\": 0.0, \"vertex_z_coordinate\": 4.5}]}, {\"name\":
+      \"Hall_Gable_North\", \"surface_type\": \"Wall\", \"construction_name\": \"Wall\",
+      \"zone_name\": \"Hall\", \"outside_boundary_condition\": \"Outdoors\", \"sun_exposure\":
+      \"SunExposed\", \"wind_exposure\": \"WindExposed\", \"view_factor_to_ground\":
+      \"Autocalculate\", \"number_of_vertices\": 3.0, \"vertices\": [{\"vertex_x_coordinate\":
+      6.0, \"vertex_y_coordinate\": 8.0, \"vertex_z_coordinate\": 3.0}, {\"vertex_x_coordinate\":
+      0.0, \"vertex_y_coordinate\": 8.0, \"vertex_z_coordinate\": 3.0}, {\"vertex_x_coordinate\":
+      3.0, \"vertex_y_coordinate\": 8.0, \"vertex_z_coordinate\": 4.5}]}]}","role":"tool","tool_call_id":"call_412879"}],"model":"google/gemini-3.8-flash","max_completion_tokens":16384,"parallel_tool_calls":false,"stream":false,"temperature":0.7,"tool_choice":"required","tools":[{"type":"function","function":{"name":"create_surfaces","description":"Create
+      several surfaces at once, e.g. sloped roofs and gable walls.\n\n        Each
+      surface succeeds or fails on its own; resend only the failed\n        entries.
+      Interzone partners may be later entries of the same list.","parameters":{"properties":{"surfaces":{"items":{"description":"One
+      base surface as tool callers describe it.","properties":{"name":{"type":"string"},"surface_type":{"enum":["Wall","Floor","Roof","Ceiling"],"type":"string"},"construction_name":{"type":"string"},"zone_name":{"type":"string"},"outside_boundary_condition":{"enum":["Outdoors","Ground","Surface","Zone","Adiabatic"],"type":"string"},"vertices":{"description":">=
+      3 vertices in meters, counter-clockwise seen from outside","items":{"description":"One
+      polygon vertex in metres, world coordinates.","properties":{"X":{"type":"number"},"Y":{"type":"number"},"Z":{"type":"number"}},"required":["X","Y","Z"],"type":"object"},"type":"array"},"sun_exposure":{"default":"NoSun","enum":["SunExposed","NoSun"],"type":"string"},"wind_exposure":{"default":"NoWind","enum":["WindExposed","NoWind"],"type":"string"},"outside_boundary_condition_object":{"anyOf":[{"type":"string"},{"type":"null"}],"default":null,"description":"Partner
+      surface for a Surface boundary (may be created later), adjacent zone for a Zone
+      boundary"}},"required":["name","surface_type","construction_name","zone_name","outside_boundary_condition","vertices"],"type":"object"},"type":"array"}},"required":["surfaces"],"type":"object"}}},{"type":"function","function":{"name":"create_surface","description":"Create
+      a BuildingSurface:Detailed (wall/floor/roof/ceiling).\n\n        Args:\n            name:
+      Unique surface name.\n            surface_type: Wall / Floor / Roof / Ceiling.\n            construction_name:
+      Existing opaque construction name.\n            zone_name: Existing Zone name
+      the surface belongs to.\n            outside_boundary_condition: Outdoors /
+      Ground / Zone / Adiabatic / Surface.\n            vertices: >= 3 vertices in
+      meters, counter-clockwise when viewed\n                from OUTSIDE. Example
+      4-vertex south wall (2m tall, 5m wide,\n                at y=0):\n                  [{\"X\":
+      0.0, \"Y\": 0.0, \"Z\": 0.0},\n                   {\"X\": 5.0, \"Y\": 0.0, \"Z\":
+      0.0},\n                   {\"X\": 5.0, \"Y\": 0.0, \"Z\": 2.0},\n                   {\"X\":
+      0.0, \"Y\": 0.0, \"Z\": 2.0}]\n            sun_exposure: SunExposed for outdoor-facing
+      walls and roofs.\n            wind_exposure: WindExposed for outdoor-facing
+      walls and roofs.\n            outside_boundary_condition_object: Name of the
+      partner surface\n                when outside_boundary_condition is Surface,
+      or of the\n                adjacent zone when it is Zone. The partner may be
+      created\n                after this surface; when it already exists it is linked
+      back\n                automatically.","parameters":{"properties":{"name":{"type":"string"},"surface_type":{"enum":["Ceiling","Floor","Roof","Wall"],"type":"string"},"construction_name":{"type":"string"},"zone_name":{"type":"string"},"outside_boundary_condition":{"enum":["Outdoors","Ground","Zone","Adiabatic","Surface"],"type":"string"},"vertices":{"items":{"description":"One
+      polygon vertex in metres, world coordinates.","properties":{"X":{"type":"number"},"Y":{"type":"number"},"Z":{"type":"number"}},"required":["X","Y","Z"],"type":"object"},"type":"array"},"sun_exposure":{"default":"NoSun","enum":["SunExposed","NoSun"],"type":"string"},"wind_exposure":{"default":"NoWind","enum":["WindExposed","NoWind"],"type":"string"},"outside_boundary_condition_object":{"anyOf":[{"type":"string"},{"type":"null"}],"default":null}},"required":["name","surface_type","construction_name","zone_name","outside_boundary_condition","vertices"],"type":"object"}}},{"type":"function","function":{"name":"list_surfaces","description":"List
+      all building surfaces.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"get_surface","description":"Read
+      a surface by name.","parameters":{"properties":{"name":{"type":"string"}},"required":["name"],"type":"object"}}},{"type":"function","function":{"name":"delete_surface","description":"Delete
+      a surface; refused while fenestration or a partner uses it.","parameters":{"properties":{"name":{"type":"string"}},"required":["name"],"type":"object"}}},{"type":"function","function":{"name":"list_zones","description":"List
+      zones a surface can belong to.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"list_constructions","description":"List
+      the opaque constructions a surface can use.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"SurfaceResponse","description":"Structured
+      summary returned by the surface phase agent.","parameters":{"properties":{"surface_names":{"description":"Names
+      of all surfaces created","items":{"type":"string"},"type":"array"},"summary":{"description":"One-line
+      summary of the surface creation result","type":"string"}},"required":["surface_names","summary"],"type":"object"}}}],"max_thinking_budget":4096}'
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate, zstd
+      connection:
+      - keep-alive
+      content-length:
+      - '20590'
+      content-type:
+      - application/json
+      host:
+      - one.chat-yu.net
+      user-agent:
+      - OpenAI/Python 2.52.0
+      x-stainless-arch:
+      - x64
+      x-stainless-async:
+      - 'false'
+      x-stainless-lang:
+      - python
+      x-stainless-os:
+      - Linux
+      x-stainless-package-version:
+      - 2.52.0
+      x-stainless-raw-response:
+      - 'true'
+      x-stainless-read-timeout:
+      - '120.0'
+      x-stainless-retry-count:
+      - '0'
+      x-stainless-runtime:
+      - CPython
+      x-stainless-runtime-version:
+      - 3.12.3
+    method: POST
+    uri: https://one.chat-yu.net/v1/chat/completions
+  response:
+    body:
+      string: !!binary |
+        KLUv/QBYBRYA9i2JJ+CSWAdMVQHefHlOvoU8KaDfvmllZmYqJKgzOjWttoE3PGGGOY4xDnwAcwCC
+        AC2peKWGkVPb3kmZzfc7Y8VqVzNS0tXXavbuNE7ZxTwNBs/C32tPkUMrdnfLsqQiFolAJM54dRXQ
+        sqK0+rvsiV5371Nf7grvPmm8LbGLQsllC/79wu7Y0LtPhAMPbdLTwtJaAwisLh3BEKFElKgyEF0q
+        UWR29fcpvgPwAASV7952Usx2RUOmaob5e18833nuloFJhaAiSckQzoz6e2PafWfjVTNOalmyzaiu
+        fSeFd7+Tr43W8t9b0vrOe1dsbV93p5jIYKTmxMvz7lZKhpKk9P59UstdJcvGGSm7oRWrqLyD3kF6
+        mvGdjXfbMFIL3h0kNyNBo+MiAyGgsBARUiVIaBYLDg8ZUeHvfHm6+9QX0yqcLYl8e5I4tu0bxzWs
+        cG1jXLPxrrF98ZTsNe4aiXUrlXDWzShGarnhBSn5Y5r8XMsK7trGkGxPlthDUVqflhuuHuvGj4ei
+        tEKSkhmeqSFLrCuueddola8rs9d0/m7v7CurAtu2VXzFu41SsRAQRJClTKIJBEkNZ9emZpQu7not
+        lm09RQ6NU8Z9Y/2QHDS1BRm+01Yy9e5BtY1k492FIJpAkAR6v5bCO8tkgCL50nt3sdxdBAQo73a2
+        B73SxS5asYxje8SJXL4qpe5eUPAR0SE7MjSY0aBEZCTkBQZEtDITFAijcTkkSAQ+IECCx8zs/Fkl
+        a8OFFDCaA0ZO/G3Y5JuF/9U04FIG5gm4Gokv3BAxGEYmOa3gpRo4cuGR7hi1gILVXqWPVcC9uxlN
+        6Nq+2G4iQOPP5av8pRywsHGXZa+RT0WgBiw3kG4AOJo2JBvpDFMsWKp4kswEn/nAFEi+zeX+6VsY
+        A4EruNqNi3xbAI1OgQvPEOmJxN9tQLYtJQ7jC7A=
+    headers:
+      access-control-allow-origin:
+      - '*'
+      access-control-expose-headers:
+      - X-Generation-Id,X-Provider-Name,request-id,cf-ray
+      alt-svc:
+      - h3=":443"; ma=86400
+      cf-cache-status:
+      - DYNAMIC
+      cf-ray:
+      - a4760127bc50d472-NRT
+      connection:
+      - keep-alive
+      content-encoding:
+      - zstd
+      content-type:
+      - application/json
+      date:
+      - Thu, 08 Oct 2026 14:58:37 GMT
+      nel:
+      - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
+      permissions-policy:
+      - payment=(self "https://checkout.stripe.com" "https://connect-js.stripe.com"
+        "https://js.stripe.com" "https://*.js.stripe.com" "https://hooks.stripe.com")
+      referrer-policy:
+      - no-referrer, strict-origin-when-cross-origin
+      report-to:
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=vrysubFWLwMXzbcRVVu7JDD0kyIh8kaHLUaGThowZBDMRZbMnBm5THJTOZKYuXON%2FB7QZ9x0ALy%2FekhtQsL74BNboL1xrU8f5axV%2B7rFugnCPWvZTH5XIySmvkJPi%2FH6RhA%3D"}]}'
+      server:
+      - cloudflare
+      set-cookie:
+      - __cf_bm=NNLCX5nDY.HJB3fXgfDJ4p2YLpY90vnSpuNMXzNXocI-1791471515.0130537-1.0.1.1-tyeSX451rm4uZnE9C3ZLJaJAK_EOkmV3la.is1to0rPwumJW3oG1JxNs6k.YxxLx8h2VbrgcNGQtTspT5t5rvxEdjAVg_ICYOFdhtGklILSlPMlqHfWrJXhbj5UgRMc9;
+        HttpOnly; SameSite=None; Secure; Path=/; Domain=openrouter.ai; Expires=Thu,
+        08 Oct 2026 15:28:37 GMT
+      strict-transport-security:
+      - max-age=31536000
+      transfer-encoding:
+      - chunked
+      via:
+      - 1.1 Caddy
+      x-content-type-options:
+      - nosniff
+      x-generation-id:
+      - gen-1791471515-HMe9gcxIye8Une2ykBCn
+      x-new-api-version:
+      - v1.0.0-rc.41
+      x-oneapi-request-id:
+      - 202610081458349681595908268d9d6ERyYV6vC
+    status:
+      code: 200
+      message: OK
+version: 1

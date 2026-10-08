@@ -55,6 +55,7 @@ def test_fenestration_agent_creates_window(brick: Material):
     )
     seeded.idf.add(Construction(name="Window_Simple", outside_layer="Glass_U18"))
     state = AgentState(
+        pending_phases=["fenestration"],
         config_state=seeded,
         user_input=(
             "Create exactly one window named 'F1_Office_South_Wall_Window' on "

@@ -9,12 +9,11 @@ from src.agent.tools._share import (
     model_tool,
     ok,
 )
-from src.modeling import geometry, objects
+from src.modeling import objects
 from src.modeling.envelope import (
     VertexSchema,
     surface_geometry,
 )
-from src.modeling.geometry import PlanPointSchema, ZoneConstructions
 from src.modeling.surfaces import SurfaceSpecSchema, add_surface, add_surfaces
 from src.state.config_state import ConfigState
 
@@ -93,59 +92,6 @@ def make_surface_tools(config: ConfigState) -> list[BaseTool]:
         return ok(f"Surface '{name}' deleted.")
 
     @model_tool
-    def create_zone_geometry(
-        zone_name: str,
-        plan: list[PlanPointSchema],
-        floor_z: float,
-        height: float,
-        exterior_wall_construction: str,
-        roof_construction: str,
-        ground_floor_construction: str,
-        interior_wall_construction: str,
-        interior_floor_construction: str,
-    ) -> str:
-        """Create all surfaces of a zone by extruding its floor plan.
-
-        Prefer this over create_surface for any zone with vertical walls and
-        a flat top. Faces touching another zone's faces become interzone
-        pairs automatically, whatever the order zones are created in, also
-        for zones of different height and for storeys whose plans differ.
-
-        Args:
-            zone_name: Existing zone.
-            plan: Floor plan corners (X, Y in meters), in order around the zone.
-            floor_z: Floor level in meters; 0 for the ground floor.
-            height: Floor-to-ceiling height in meters.
-            exterior_wall_construction: Opaque construction of outdoor walls.
-            roof_construction: Opaque construction of the roof.
-            ground_floor_construction: Opaque construction of a floor on the
-                ground or above outdoor air.
-            interior_wall_construction: Opaque construction of walls shared
-                with another zone.
-            interior_floor_construction: Opaque construction of floors and
-                ceilings shared with another zone.
-        """
-        result = geometry.create_zone_geometry(
-            idf,
-            zone_name,
-            plan,
-            floor_z,
-            height,
-            ZoneConstructions(
-                exterior_wall=exterior_wall_construction,
-                roof=roof_construction,
-                ground_floor=ground_floor_construction,
-                interior_wall=interior_wall_construction,
-                interior_floor=interior_floor_construction,
-            ),
-        )
-        return ok(
-            f"Zone '{zone_name}' extruded into {len(result.created)} surfaces."
-            + " ".join(["", *result.notes]),
-            {"created": result.created, "replaced": result.replaced},
-        )
-
-    @model_tool
     def create_surfaces(surfaces: list[SurfaceSpecSchema]) -> str:
         """Create several surfaces at once, e.g. sloped roofs and gable walls.
 
@@ -159,7 +105,6 @@ def make_surface_tools(config: ConfigState) -> list[BaseTool]:
         return ok(message + ".", {"created": outcome.created, "failed": outcome.failed})
 
     return [
-        create_zone_geometry,
         create_surfaces,
         create_surface,
         list_tool(

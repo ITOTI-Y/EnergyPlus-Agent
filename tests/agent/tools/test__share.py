@@ -41,12 +41,12 @@ def test_tool_arguments_declare_object_properties(tool: BaseTool):
 
 
 def test_rejected_operation_returns_error_status_with_details():
-    tools = {t.name: t for t in agent_tools.make_zone_tools(ConfigState())}
+    tools = {t.name: t for t in agent_tools.make_lights_tools(ConfigState())}
     call = ToolCall(
-        name="delete_zone", args={"name": "Nowhere"}, id="1", type="tool_call"
+        name="delete_light", args={"name": "Nowhere"}, id="1", type="tool_call"
     )
 
-    message = tools["delete_zone"].invoke(call)
+    message = tools["delete_light"].invoke(call)
 
     assert message.status == "error"
-    assert json.loads(message.content)["message"] == "Zone 'Nowhere' not found."
+    assert json.loads(message.content)["message"] == "Lights 'Nowhere' not found."

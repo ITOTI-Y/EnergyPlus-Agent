@@ -1,10 +1,15 @@
-from idfpy.models.constructions import Material
+import pickle
+
+import pytest
+from idfpy.models.constructions import Construction, Material
 from idfpy.models.outputs import OutputVariable
 from idfpy.models.thermal_zones import Zone
+from pydantic import ValidationError
 
 from src.agent import build_graph
-from src.agent.state import merge_config_state
+from src.agent.state import IntakePatch, merge_config_state
 from src.state.config_state import ConfigState
+from tests.agent.intake_data import intake, zone_spec
 
 
 def test_config_states_stay_isolated_after_graph_build():
@@ -101,3 +106,79 @@ def test_merge_does_not_mutate_inputs():
 
     assert set(old.idf.all_of_type(Zone)) == {"Z_OLD"}
     assert set(new.idf.all_of_type(Zone)) == {"Z_NEW"}
+
+
+def test_patch_reports_phases_whose_input_changed():
+    before = intake(
+        zones=[zone_spec("A", [(0, 0), (5, 0), (5, 5), (0, 5)])], hvac_specs="ideal"
+    )
+    patch = IntakePatch.model_validate(
+        {
+            "reason": "r",
+            "zones": before.model_dump()["zones"],  # given but unchanged
+            "hvac_specs": "ideal loads, 20/26 C",
+        }
+    )
+
+    after, changed = patch.apply(before)
+
+    assert changed == {"hvac"}
+    assert after.hvac_specs == "ideal loads, 20/26 C"
+    assert after.zones == before.zones
+
+
+def test_patch_repeating_a_zone_name_is_rejected():
+    square = [(0, 0), (5, 0), (5, 5), (0, 5)]
+    patch = IntakePatch.model_validate(
+        {"reason": "r", "zones": [zone_spec("A", square), zone_spec("A", square)]}
+    )
+
+    with pytest.raises(ValidationError, match="repeated"):
+        patch.apply(intake())
+
+
+@pytest.mark.parametrize(
+    ("second", "phases"),
+    [
+        ("B", {"surface"}),  # moved: only its geometry changes
+        ("C", {"zone", "surface"}),  # renamed: objects naming it change too
+    ],
+)
+def test_zone_patch_rebuilds_zones_only_when_names_change(second, phases):
+    square = [(0, 0), (5, 0), (5, 5), (0, 5)]
+    before = intake(
+        zones=[zone_spec("A", square), zone_spec("B", [(4, 0), (9, 0), (9, 5), (4, 5)])]
+    )
+    moved = zone_spec(second, [(5, 0), (10, 0), (10, 5), (5, 5)])
+    patch = IntakePatch.model_validate(
+        {"reason": "r", "zones": [zone_spec("A", square), moved]}
+    )
+
+    _, changed = patch.apply(before)
+
+    assert changed == phases
+
+
+def test_copied_and_checkpointed_models_resolve_references_in_themselves():
+    original = ConfigState()
+    original.idf.add(
+        Material(
+            name="Brick",
+            roughness="Rough",
+            thickness=0.1,
+            conductivity=0.9,
+            density=1900.0,
+            specific_heat=800.0,
+        )
+    )
+    original.idf.add(Construction(name="Wall", outside_layer="Brick"))
+
+    for copy in (
+        original.model_copy(deep=True),
+        pickle.loads(pickle.dumps(original)),
+    ):
+        wall = copy.idf.get(Construction, "Wall")
+        assert wall is not None
+        # Phase nodes work on copies, and checkpoints pickle the state; a
+        # lookup must not reach back into the original model.
+        assert wall.outside_layer_ref is copy.idf.get(Material, "Brick")

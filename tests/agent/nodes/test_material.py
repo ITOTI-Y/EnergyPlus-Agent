@@ -18,11 +18,12 @@ pytestmark = pytest.mark.usefixtures("pinned_llm_env")
 @pytest.mark.vcr
 def test_material_agent_creates_material():
     state = AgentState(
+        pending_phases=["material"],
         user_input=(
             "Create exactly one standard material named 'Brick_100mm': "
             "thickness 0.1 m, conductivity 0.89 W/m-K, density 1920 kg/m3, "
             "specific heat 790 J/kg-K, roughness MediumRough."
-        )
+        ),
     )
 
     out = material_agent(state)

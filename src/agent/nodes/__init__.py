@@ -10,11 +10,12 @@ from src.agent.nodes.intake import intake_node
 from src.agent.nodes.lights import lights_agent
 from src.agent.nodes.material import material_agent
 from src.agent.nodes.people import people_agent
+from src.agent.nodes.rerun import plan_rerun_node
 from src.agent.nodes.schedule import schedule_agent
 from src.agent.nodes.simulate import simulate_node
 from src.agent.nodes.surface import surface_agent
 from src.agent.nodes.validate import validate_node
-from src.agent.nodes.zone import zone_agent
+from src.agent.nodes.zone import zone_node
 
 __all__ = [
     "construction_agent",
@@ -27,9 +28,10 @@ __all__ = [
     "lights_agent",
     "material_agent",
     "people_agent",
+    "plan_rerun_node",
     "schedule_agent",
     "simulate_node",
     "surface_agent",
     "validate_node",
-    "zone_agent",
+    "zone_node",
 ]

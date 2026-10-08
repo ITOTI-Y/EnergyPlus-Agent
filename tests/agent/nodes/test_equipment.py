@@ -28,6 +28,7 @@ def test_equipment_agent_creates_equipment(
     seeded.idf.add(fraction_limits)
     seeded.idf.add(constant_schedule("Office_Equipment", "Fraction", 1.0))
     state = AgentState(
+        pending_phases=["equipment"],
         config_state=seeded,
         user_input=(
             "Create exactly one ElectricEquipment object named "
