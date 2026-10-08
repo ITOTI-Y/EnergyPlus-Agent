@@ -16,11 +16,12 @@ pytestmark = pytest.mark.usefixtures("pinned_llm_env")
 @pytest.mark.vcr
 def test_schedule_agent_creates_schedule():
     state = AgentState(
+        pending_phases=["schedule"],
         user_input=(
             "Create the ScheduleTypeLimits 'Fraction' (0.0 to 1.0, CONTINUOUS, "
             "Dimensionless) and exactly one Schedule:Compact named "
             "'Office_Occupancy' using it: 1.0 for all days, all year."
-        )
+        ),
     )
 
     out = schedule_agent(state)

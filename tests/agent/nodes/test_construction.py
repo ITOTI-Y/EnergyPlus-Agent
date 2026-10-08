@@ -22,6 +22,7 @@ def test_construction_agent_creates_construction(brick: Material):
     seeded = ConfigState()
     seeded.idf.add(brick)
     state = AgentState(
+        pending_phases=["construction"],
         config_state=seeded,
         user_input=(
             "Create exactly one construction named 'ExtWall_Simple' with a "

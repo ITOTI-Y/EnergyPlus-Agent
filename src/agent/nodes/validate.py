@@ -1,38 +1,84 @@
+from collections import defaultdict
 from typing import Literal
 
 from langchain_core.messages import RemoveMessage
 from langgraph.types import Command, interrupt
 
-from src.agent.state import AgentState
+from src.agent.phases import DEPENDS_ON, Phase, owner, rerun_closure
+from src.agent.state import AgentState, IntakeOutput
+from src.modeling.validation import ModelIssue
 
-Destination = Literal["simulate", "intake"]
+Destination = Literal["simulate", "intake", "plan_rerun"]
 ValidateCommand = Command[Destination]
 
 
+def _feedback(issues: list[ModelIssue]) -> dict[str, list[str]]:
+    by_phase: dict[str, list[str]] = defaultdict(list)
+    for issue in issues:
+        if (phase := owner(issue)) is not None:
+            by_phase[phase].append(str(issue))
+    return dict(by_phase)
+
+
+def _phase_fixable(issue: ModelIssue, intake: IntakeOutput | None) -> bool:
+    """Whether rerunning the owning phase, with the same task, can fix it.
+
+    Zones are built from the intake output and surfaces from the zone
+    prisms, so their problems need a new intake output; only sloped
+    surfaces come from the surface phase's own LLM.
+    """
+    match owner(issue):
+        case None | "zone":
+            return False
+        case "surface":
+            return intake is not None and bool(intake.surface_specs.strip())
+        case _:
+            return True
+
+
+def ordered(phases: set[Phase]) -> list[Phase]:
+    return [p for p in DEPENDS_ON if p in phases]
+
+
+def _clear_messages(state: AgentState) -> list[RemoveMessage]:
+    return [RemoveMessage(id=m.id) for m in state.messages if m.id is not None]
+
+
 def validate_node(state: AgentState) -> ValidateCommand:
-    """Act on the issues found by the preceding cross-reference node.
+    """Choose the next step from the problems found in the model.
 
-    Auto-retry on error up to max_retries; else HITL.
-
-    Return behavior:
-    - errors + retries remaining -> goto intake with error feedback
-    - clean or retries exhausted  -> interrupt() for human review
-        - approved -> goto simulate
-        - rejected -> goto intake with human feedback
+    1. Problems the owning phases can fix -> rerun those phases and their
+       dependants with the problems as feedback (once per intake output).
+    2. Otherwise, while global retries remain -> intake revises its output.
+    3. Otherwise, or with no problems -> a human reviews: approval runs the
+       simulation, feedback goes to intake as a correction.
     """
     errors = state.validation_errors
+    feedback = _feedback(errors)
 
-    if errors and state.retry_count < state.max_retries:
-        return ValidateCommand(
-            goto="intake",
-            update={
-                "validation_errors": errors,
-                "retry_count": state.retry_count + 1,
-                "messages": [
-                    RemoveMessage(id=m.id) for m in state.messages if m.id is not None
-                ],
-            },
-        )
+    if errors:
+        if not state.subgroup_retried and all(
+            _phase_fixable(e, state.intake_output) for e in errors
+        ):
+            owners = {p for e in errors if (p := owner(e)) is not None}
+            rerun = rerun_closure(owners) | set(state.unfinished_phases)
+            return ValidateCommand(
+                goto="plan_rerun",
+                update={
+                    "pending_phases": ordered(rerun),
+                    "phase_feedback": feedback,
+                    "subgroup_retried": True,
+                },
+            )
+        if state.global_retries < state.max_global_retries:
+            return ValidateCommand(
+                goto="intake",
+                update={
+                    "phase_feedback": feedback,
+                    "global_retries": state.global_retries + 1,
+                    "messages": _clear_messages(state),
+                },
+            )
 
     summary = state.config_state.get_summary()
     decision = interrupt(
@@ -51,11 +97,9 @@ def validate_node(state: AgentState) -> ValidateCommand:
     return ValidateCommand(
         goto="intake",
         update={
-            "user_input": decision.get("feedback", state.user_input),
-            "validation_errors": [],
-            "retry_count": 0,
-            "messages": [
-                RemoveMessage(id=m.id) for m in state.messages if m.id is not None
-            ],
+            "review_feedback": decision.get("feedback", ""),
+            "phase_feedback": feedback,
+            "global_retries": 0,
+            "messages": _clear_messages(state),
         },
     )

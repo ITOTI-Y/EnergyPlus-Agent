@@ -7,7 +7,6 @@ from src.agent.tools.material_tools import make_material_tools
 from src.agent.tools.people_tools import make_people_tools
 from src.agent.tools.schedule_tools import make_schedule_tools
 from src.agent.tools.surface_tools import make_surface_tools
-from src.agent.tools.zone_tools import make_zone_tools
 
 __all__ = [
     "make_construction_tools",
@@ -19,5 +18,4 @@ __all__ = [
     "make_people_tools",
     "make_schedule_tools",
     "make_surface_tools",
-    "make_zone_tools",
 ]
