@@ -101,3 +101,15 @@ def test_delete_removes_unreferenced_object():
     objects.delete(idf, objects.get(idf, Construction, "Wall"), "Wall")
 
     assert idf.get(Construction, "Wall") is None
+
+
+def test_delete_allowed_once_the_reference_moved_away():
+    idf = _wall_model()
+    idf.add(_brick("Stone"))
+
+    objects.update(
+        idf, objects.get(idf, Construction, "Wall"), {"outside_layer": "Stone"}
+    )
+    objects.delete(idf, objects.get(idf, Material, "Brick"), "Brick")
+
+    assert idf.get(Material, "Brick") is None
