@@ -6,6 +6,8 @@ from idfpy.models.constructions import (
     Material,
     MaterialAirGap,
     MaterialNoMass,
+    WindowMaterialGas,
+    WindowMaterialGlazing,
     WindowMaterialSimpleGlazingSystem,
 )
 from idfpy.models.thermal_zones import (
@@ -19,13 +21,20 @@ from src.modeling.envelope import (
     Roughness,
     VertexSchema,
     all_materials,
-    construction_from_layers,
+    check_construction_fits,
+    checked_construction,
+    construction_kind,
     fenestration_from_vertices,
-    fenestration_vertices,
     find_material,
-    layer_fields,
+    layer_changes,
     surface_geometry,
 )
+from src.modeling.fenestration import (
+    add_fenestration,
+    remove_fenestration,
+    update_fenestration,
+)
+from src.modeling.surfaces import add_surface
 from src.state.config_state import ConfigState
 
 type SurfaceType = Literal["Wall", "Floor", "Roof", "Ceiling"]
@@ -33,6 +42,7 @@ type BoundaryCondition = Literal["Outdoors", "Ground", "Surface", "Zone", "Adiab
 type SunExposure = Literal["SunExposed", "NoSun"]
 type WindExposure = Literal["WindExposed", "NoWind"]
 type FenestrationType = Literal["Window", "Door", "GlassDoor"]
+type GasType = Literal["Air", "Argon", "Krypton", "Xenon"]
 
 
 def _register_materials(mcp: FastMCP, state: ConfigState) -> None:
@@ -80,7 +90,10 @@ def _register_materials(mcp: FastMCP, state: ConfigState) -> None:
 
     @tool
     def create_air_gap_material(name: str, thermal_resistance: float) -> Outcome:
-        """Create a Material:AirGap for opaque constructions (m^2*K/W)."""
+        """Create a Material:AirGap for opaque constructions (m^2*K/W).
+
+        Not for windows: separate panes with create_window_gas_material.
+        """
         material = MaterialAirGap(name=name, thermal_resistance=thermal_resistance)
         return f"Material '{name}' created.", dump(objects.create(idf, material))
 
@@ -105,6 +118,49 @@ def _register_materials(mcp: FastMCP, state: ConfigState) -> None:
             solar_heat_gain_coefficient=solar_heat_gain_coefficient,
             visible_transmittance=visible_transmittance,
         )
+        return f"Material '{name}' created.", dump(objects.create(idf, material))
+
+    @tool
+    def create_window_glazing_material(
+        name: str,
+        thickness: float,
+        solar_transmittance: float = 0.775,
+        solar_reflectance: float = 0.071,
+        visible_transmittance: float = 0.881,
+        visible_reflectance: float = 0.080,
+        conductivity: float = 0.9,
+    ) -> Outcome:
+        """Create one glass pane (WindowMaterial:Glazing); defaults are clear glass.
+
+        Args:
+            name: Unique material name.
+            thickness: Meters.
+            solar_transmittance: At normal incidence, 0-1.
+            solar_reflectance: At normal incidence, both faces, 0-1.
+            visible_transmittance: At normal incidence, 0-1.
+            visible_reflectance: At normal incidence, both faces, 0-1.
+            conductivity: W/(m*K).
+        """
+        material = WindowMaterialGlazing(
+            name=name,
+            optical_data_type="SpectralAverage",
+            thickness=thickness,
+            solar_transmittance_at_normal_incidence=solar_transmittance,
+            front_side_solar_reflectance_at_normal_incidence=solar_reflectance,
+            back_side_solar_reflectance_at_normal_incidence=solar_reflectance,
+            visible_transmittance_at_normal_incidence=visible_transmittance,
+            front_side_visible_reflectance_at_normal_incidence=visible_reflectance,
+            back_side_visible_reflectance_at_normal_incidence=visible_reflectance,
+            conductivity=conductivity,
+        )
+        return f"Material '{name}' created.", dump(objects.create(idf, material))
+
+    @tool
+    def create_window_gas_material(
+        name: str, thickness: float, gas_type: GasType = "Air"
+    ) -> Outcome:
+        """Create the gas layer between two panes (WindowMaterial:Gas), thickness in m."""
+        material = WindowMaterialGas(name=name, gas_type=gas_type, thickness=thickness)
         return f"Material '{name}' created.", dump(objects.create(idf, material))
 
     @tool
@@ -212,8 +268,13 @@ def _register_constructions(mcp: FastMCP, state: ConfigState) -> None:
 
     @tool
     def create_construction(name: str, layers: list[str]) -> Outcome:
-        """Create a construction from 1 to 10 material names, outside to inside."""
-        construction = objects.create(idf, construction_from_layers(name, layers))
+        """Create a construction from 1 to 10 material names, outside to inside.
+
+        Opaque constructions use opaque materials only. Window constructions
+        are one SimpleGlazingSystem, or glazing layers with exactly one window
+        gas layer between each pair, starting and ending with glazing.
+        """
+        construction = objects.create(idf, checked_construction(idf, name, layers))
         return f"Construction '{name}' created.", dump(construction)
 
     @tool
@@ -229,12 +290,11 @@ def _register_constructions(mcp: FastMCP, state: ConfigState) -> None:
         name: str, new_name: str | None = None, layers: list[str] | None = None
     ) -> Outcome:
         """Rename a construction or replace its layers (outside to inside)."""
+        construction = objects.get(idf, Construction, name)
         changes = given(name=new_name)
         if layers is not None:
-            changes |= layer_fields(layers)
-        construction = objects.update(
-            idf, objects.get(idf, Construction, name), changes
-        )
+            changes |= layer_changes(idf, construction, layers)
+        objects.update(idf, construction, changes)
         return f"Construction '{name}' updated.", dump(construction)
 
     @tool
@@ -245,8 +305,11 @@ def _register_constructions(mcp: FastMCP, state: ConfigState) -> None:
 
     @tool
     def list_constructions() -> Outcome:
-        """List all constructions."""
-        return "Listed constructions.", objects.dumps(idf.all_of_type(Construction))
+        """List all constructions with their kind: window, opaque or mixed."""
+        return "Listed constructions.", [
+            {"kind": construction_kind(c), **dump(c)}
+            for c in idf.all_of_type(Construction).values()
+        ]
 
 
 def _register_surfaces(mcp: FastMCP, state: ConfigState) -> None:
@@ -270,14 +333,15 @@ def _register_surfaces(mcp: FastMCP, state: ConfigState) -> None:
         Args:
             name: Unique surface name.
             surface_type: Wall, Floor, Roof or Ceiling.
-            construction_name: Existing construction.
+            construction_name: Existing opaque construction.
             zone_name: Existing zone the surface belongs to.
             outside_boundary_condition: What the outside face sees.
             vertices: >= 3 vertices in meters, counter-clockwise seen from outside.
             sun_exposure: SunExposed for outdoor walls and roofs.
             wind_exposure: WindExposed for outdoor walls and roofs.
             outside_boundary_condition_object: Partner surface name for a
-                Surface boundary, adjacent zone name for a Zone boundary.
+                Surface boundary (it may be created later; an existing one is
+                linked back), adjacent zone name for a Zone boundary.
         """
         surface = BuildingSurfaceDetailed.model_validate(
             {
@@ -292,7 +356,9 @@ def _register_surfaces(mcp: FastMCP, state: ConfigState) -> None:
                 **surface_geometry(vertices),
             }
         )
-        return f"Surface '{name}' created.", dump(objects.create(idf, surface))
+        return f"Surface '{name}' created.", [
+            dump(s) for s in add_surface(idf, surface)
+        ]
 
     @tool
     def get_surface(name: str) -> Outcome:
@@ -328,9 +394,14 @@ def _register_surfaces(mcp: FastMCP, state: ConfigState) -> None:
         )
         if vertices is not None:
             changes |= surface_geometry(vertices)
-        surface = objects.update(
-            idf, objects.get(idf, BuildingSurfaceDetailed, name), changes
-        )
+        surface = objects.get(idf, BuildingSurfaceDetailed, name)
+        if construction_name is not None or surface_type is not None:
+            check_construction_fits(
+                idf,
+                construction_name or surface.construction_name,
+                surface_type or surface.surface_type,
+            )
+        objects.update(idf, surface, changes)
         return f"Surface '{name}' updated.", dump(surface)
 
     @tool
@@ -365,24 +436,29 @@ def _register_fenestration(mcp: FastMCP, state: ConfigState) -> None:
         Args:
             name: Unique fenestration name.
             surface_type: Window, Door or GlassDoor.
-            construction_name: Existing construction.
-            building_surface_name: Existing parent surface.
-            vertices: 3 or 4 vertices in meters on the parent surface plane,
-                counter-clockwise seen from outside.
+            construction_name: A window construction for Window and GlassDoor,
+                an opaque one for Door.
+            building_surface_name: Existing parent surface. On a wall shared
+                with another zone, the matching opening in that zone is
+                created as '<name>_Partner'.
+            vertices: 3 or 4 vertices in meters on the parent surface plane
+                and inside its outline; the order is corrected to match the
+                parent surface.
             multiplier: Count of identical openings represented (>= 1).
         """
-        fenestration = fenestration_from_vertices(
-            vertices,
-            name=name,
-            surface_type=surface_type,
-            construction_name=construction_name,
-            building_surface_name=building_surface_name,
-            multiplier=float(multiplier),
+        created, flipped = add_fenestration(
+            idf,
+            fenestration_from_vertices(
+                vertices,
+                name=name,
+                surface_type=surface_type,
+                construction_name=construction_name,
+                building_surface_name=building_surface_name,
+                multiplier=float(multiplier),
+            ),
         )
-        return (
-            f"Fenestration '{name}' created.",
-            dump(objects.create(idf, fenestration)),
-        )
+        note = " Vertex order reversed to match the surface." if flipped else ""
+        return f"Fenestration '{name}' created.{note}", [dump(f) for f in created]
 
     @tool
     def get_fenestration_surface(name: str) -> Outcome:
@@ -396,32 +472,27 @@ def _register_fenestration(mcp: FastMCP, state: ConfigState) -> None:
     def update_fenestration_surface(
         name: str,
         new_name: str | None = None,
-        surface_type: FenestrationType | None = None,
         construction_name: str | None = None,
-        building_surface_name: str | None = None,
         multiplier: int | None = None,
-        vertices: list[VertexSchema] | None = None,
     ) -> Outcome:
-        """Update a fenestration surface; omitted fields stay unchanged."""
-        changes = given(
-            name=new_name,
-            surface_type=surface_type,
+        """Rename an opening or change its construction or multiplier.
+
+        Construction and multiplier also apply to an interzone partner. To
+        move or reshape an opening, delete it and create it again.
+        """
+        updated = update_fenestration(
+            idf,
+            name,
+            new_name=new_name,
             construction_name=construction_name,
-            building_surface_name=building_surface_name,
             multiplier=None if multiplier is None else float(multiplier),
         )
-        if vertices is not None:
-            changes |= fenestration_vertices(vertices)
-        fenestration = objects.update(
-            idf, objects.get(idf, FenestrationSurfaceDetailed, name), changes
-        )
-        return f"Fenestration '{name}' updated.", dump(fenestration)
+        return f"Fenestration '{name}' updated.", [dump(f) for f in updated]
 
     @tool
     def delete_fenestration_surface(name: str) -> Outcome:
-        """Delete a fenestration surface."""
-        objects.delete(idf, objects.get(idf, FenestrationSurfaceDetailed, name), name)
-        return f"Fenestration '{name}' deleted.", None
+        """Delete an opening, and its partner when it is an interzone opening."""
+        return f"Deleted {', '.join(remove_fenestration(idf, name))}.", None
 
     @tool
     def list_fenestration_surfaces() -> Outcome:

@@ -1,10 +1,12 @@
-from typing import Any
+from typing import Any, Literal
 
 from idfpy import IDFBaseModel
 from idfpy.models.constructions import (
     Material,
     MaterialAirGap,
     MaterialNoMass,
+    WindowMaterialGas,
+    WindowMaterialGlazing,
     WindowMaterialSimpleGlazingSystem,
 )
 from langchain_core.tools import BaseTool, tool
@@ -88,7 +90,14 @@ def make_material_tools(config: ConfigState) -> list[BaseTool]:
 
     @model_tool
     def create_airgap_material(name: str, thermal_resistance: float) -> str:
-        """Create an AirGap material (air cavity resistance, m^2*K/W)."""
+        """Create an AirGap material for opaque walls, roofs and floors.
+
+        Not for windows: separate glass panes with create_window_gas_material.
+
+        Args:
+            name: Unique material name.
+            thermal_resistance: Air cavity resistance, m^2*K/W.
+        """
         material = objects.create(
             idf, MaterialAirGap(name=name, thermal_resistance=thermal_resistance)
         )
@@ -124,6 +133,64 @@ def make_material_tools(config: ConfigState) -> list[BaseTool]:
         )
 
     @model_tool
+    def create_window_glazing_material(
+        name: str,
+        thickness: float,
+        solar_transmittance: float = 0.775,
+        solar_reflectance: float = 0.071,
+        visible_transmittance: float = 0.881,
+        visible_reflectance: float = 0.080,
+        conductivity: float = 0.9,
+    ) -> str:
+        """Create one glass pane for a multi-pane window (WindowMaterial:Glazing).
+
+        Defaults describe clear float glass; both faces share the reflectances.
+
+        Args:
+            name: Unique material name.
+            thickness: Pane thickness in meters, e.g. 0.006.
+            solar_transmittance: At normal incidence, 0-1.
+            solar_reflectance: At normal incidence, 0-1.
+            visible_transmittance: At normal incidence, 0-1.
+            visible_reflectance: At normal incidence, 0-1.
+            conductivity: W/(m*K).
+        """
+        material = objects.create(
+            idf,
+            WindowMaterialGlazing(
+                name=name,
+                optical_data_type="SpectralAverage",
+                thickness=thickness,
+                solar_transmittance_at_normal_incidence=solar_transmittance,
+                front_side_solar_reflectance_at_normal_incidence=solar_reflectance,
+                back_side_solar_reflectance_at_normal_incidence=solar_reflectance,
+                visible_transmittance_at_normal_incidence=visible_transmittance,
+                front_side_visible_reflectance_at_normal_incidence=visible_reflectance,
+                back_side_visible_reflectance_at_normal_incidence=visible_reflectance,
+                conductivity=conductivity,
+            ),
+        )
+        return ok(f"WindowMaterial:Glazing '{name}' created.", _material_dump(material))
+
+    @model_tool
+    def create_window_gas_material(
+        name: str,
+        thickness: float,
+        gas_type: Literal["Air", "Argon", "Krypton", "Xenon"] = "Air",
+    ) -> str:
+        """Create the gas layer between two glass panes (WindowMaterial:Gas).
+
+        Args:
+            name: Unique material name.
+            thickness: Gap width in meters, e.g. 0.012.
+            gas_type: Fill gas.
+        """
+        material = objects.create(
+            idf, WindowMaterialGas(name=name, gas_type=gas_type, thickness=thickness)
+        )
+        return ok(f"WindowMaterial:Gas '{name}' created.", _material_dump(material))
+
+    @model_tool
     def get_material(name: str) -> str:
         """Read a material by name."""
         return ok(f"Material '{name}' read.", _material_dump(find_material(idf, name)))
@@ -139,6 +206,8 @@ def make_material_tools(config: ConfigState) -> list[BaseTool]:
         create_nomass_material,
         create_airgap_material,
         create_glazing_material,
+        create_window_glazing_material,
+        create_window_gas_material,
         list_materials_tool(config),
         get_material,
         delete_material,
