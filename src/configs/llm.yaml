@@ -3,7 +3,10 @@ base_url: ${oc.env:LLM_BASE_URL,null}
 api_key: ${oc.env:LLM_API_KEY,null}
 model_name: ${oc.env:LLM_MODEL,null}
 temperature: 0.7
-max_tokens: 64000
+# OpenRouter holds credits for max_tokens of every in-flight request; the
+# largest reply measured is ~3.5k tokens (intake of a one-zone office).
+max_tokens: 16384
+timeout: 120
 # Thinking budget of reasoning models (OpenRouter reasoning.max_tokens).
 # Without one, qwen/qwen3.8-27b spent all of an 8,000-token reply on
 # thinking; Gemini 3 maps it to a thinking level, and Claude does not think

@@ -13,6 +13,7 @@ from langgraph.prebuilt.tool_node import ToolCallRequest
 from src.agent.llm import (
     MAX_CONSECUTIVE_FAILURES,
     MAX_REPEATED_FAILURES,
+    MAX_TOTAL_FAILURES,
     FailureLoopGuard,
     create_llm,
     serial_write_tools_middleware,
@@ -45,10 +46,11 @@ def test_create_llm_sends_the_thinking_budget_as_reasoning_max_tokens():
     assert llm.extra_body == {"reasoning": {"max_tokens": 8192}}
 
 
-def test_create_llm_passes_configured_retries():
-    llm = create_llm(_config(max_retries=5))
+def test_create_llm_passes_configured_retries_and_timeout():
+    llm = create_llm(_config(max_retries=5, timeout=30.0))
     assert isinstance(llm, ChatOpenAI)
     assert llm.max_retries == 5
+    assert llm.request_timeout == 30.0
 
 
 def _request(tool_name: str) -> ToolCallRequest:
@@ -149,6 +151,8 @@ def test_guard_stops_identical_failing_calls():
     assert len(tool_messages) == MAX_REPEATED_FAILURES
     assert all(m.status == "error" for m in tool_messages)
     assert "vertices.0.X" in str(tool_messages[0].content)
+    # The call's arguments are already in the model's own message.
+    assert "with kwargs" not in str(tool_messages[0].content)
     assert guard.reason is not None
     assert messages[-1].content.startswith("Stopped: create_surface failed")
 
@@ -161,3 +165,21 @@ def test_guard_stops_consecutive_failures_with_varying_arguments():
     assert sum(isinstance(m, ToolMessage) for m in messages) == MAX_CONSECUTIVE_FAILURES
     assert guard.reason is not None
     assert "in a row" in guard.reason
+
+
+def _failures_between_successes(i: int) -> AIMessage:
+    call = (
+        {"name": "list_surfaces", "args": {}}
+        if i % 2
+        else {"name": "create_surface", "args": _empty_vertex_surface(i)}
+    )
+    return AIMessage(content="", tool_calls=[{**call, "id": f"call_{i}"}])
+
+
+def test_guard_stops_failures_interleaved_with_successes():
+    guard, messages = _run_guarded(_failures_between_successes(i) for i in count())
+
+    failed = [m for m in messages if isinstance(m, ToolMessage) and m.status == "error"]
+    assert len(failed) == MAX_TOTAL_FAILURES
+    assert guard.reason is not None
+    assert "failed in this phase" in guard.reason
