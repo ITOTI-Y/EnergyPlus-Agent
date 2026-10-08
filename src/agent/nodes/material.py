@@ -1,10 +1,12 @@
 from langchain_core.messages import AIMessage, HumanMessage
+from langgraph.runtime import Runtime
 from pydantic import BaseModel, Field
 
 from src.agent.llm import build_agent
 from src.agent.nodes._share import last_message_text, skipped, with_feedback
-from src.agent.state import AgentState, AgentStateUpdate
+from src.agent.state import AgentState, AgentStateUpdate, SimContext
 from src.agent.tools import make_material_tools
+from src.agent.tools.reference_tools import make_reference_tools, reference_prompt
 from src.agent.trace import TraceCollector, record_phase_trace, trace_middleware
 
 MATERIAL_SYSTEM_PROMPT = """You are a building material expert for EnergyPlus.
@@ -43,16 +45,20 @@ class MaterialResponse(BaseModel):
     summary: str = Field(description="One-line summary of the material creation result")
 
 
-def material_agent(state: AgentState) -> AgentStateUpdate:
+def material_agent(state: AgentState, runtime: Runtime[SimContext]) -> AgentStateUpdate:
     if skipped(state, "material"):
         return AgentStateUpdate()
     local = state.config_state.model_copy(deep=True)
     tools = make_material_tools(local)
+    prompt = MATERIAL_SYSTEM_PROMPT
+    if (reference := runtime.context.reference) is not None:
+        tools += make_reference_tools(reference, ("material", "construction"))
+        prompt += reference_prompt(reference, ("material", "construction"))
     collector = TraceCollector(phase="material")
 
     agent = build_agent(
         tools=tools,
-        system_prompt=MATERIAL_SYSTEM_PROMPT,
+        system_prompt=prompt,
         response_format=MaterialResponse,
         middleware=[trace_middleware(collector)],
     )
