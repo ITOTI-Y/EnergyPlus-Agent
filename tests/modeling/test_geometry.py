@@ -14,7 +14,7 @@ from idfpy.models import (
     Zone,
 )
 
-from src.modeling.errors import ReferencedObjectError
+from src.modeling.errors import ObjectNotFoundError, ReferencedObjectError
 from src.modeling.geometry import (
     PlanPointSchema,
     ZoneConstructions,
@@ -174,6 +174,66 @@ def test_u_shaped_zone_pairs_both_arms_with_one_neighbour_wall():
         3 * (4 + 10 + 4 + 4)
     )
     assert model_issues(idf) == []
+
+
+def _layered(idf: IDF) -> None:
+    """Make the interior constructions asymmetric: concrete, then gypsum."""
+    idf.add(
+        Material(
+            name="Gypsum",
+            roughness="Smooth",
+            thickness=0.013,
+            conductivity=0.16,
+            density=800.0,
+            specific_heat=1090.0,
+        )
+    )
+    for name in ("Int", "Deck"):
+        construction = idf.get(Construction, name)
+        assert construction is not None
+        construction.layer_2 = "Gypsum"
+
+
+def test_pairs_use_the_construction_reversed_on_one_side():
+    idf = _model()
+    _layered(idf)
+    _zone(idf, "Low", _rect(0, 0, 5, 8), 0, 3)
+    _zone(idf, "Side", _rect(5, 0, 10, 8), 0, 3)
+
+    _zone(idf, "Up", _rect(0, 0, 5, 8), 3, 3)
+
+    used = {
+        (s.zone_name, s.surface_type): s.construction_name
+        for s in idf.all_of_type(BuildingSurfaceDetailed).values()
+        if s.outside_boundary_condition == "Surface"
+    }
+    assert used == {
+        ("Up", "Floor"): "Deck",
+        ("Low", "Ceiling"): "Deck_Reversed",
+        ("Side", "Wall"): "Int",
+        ("Low", "Wall"): "Int_Reversed",
+    }
+    reversed_deck = idf.get(Construction, "Deck_Reversed")
+    assert reversed_deck is not None
+    assert (reversed_deck.outside_layer, reversed_deck.layer_2) == (
+        "Gypsum",
+        "Concrete",
+    )
+
+
+def test_failed_extrusion_removes_the_reversed_constructions_it_made():
+    idf = _model()
+    _layered(idf)
+    _zone(idf, "Low", _rect(0, 0, 5, 8), 0, 3)
+    _zone(idf, "Side", _rect(5, 0, 10, 8), 3, 3)
+    idf.add(Zone(name="Up"))
+    # Up shares a wall with Side, then its floor needs a missing construction.
+    missing_floor = ZoneConstructions("Ext", "Roof", "Slab", "Int", "Missing")
+
+    with pytest.raises(ObjectNotFoundError):
+        create_zone_geometry(idf, "Up", _rect(0, 0, 5, 8), 3, 3, missing_floor)
+
+    assert "Int_Reversed" not in idf.all_of_type(Construction)
 
 
 def test_overlapping_zone_is_rejected():
