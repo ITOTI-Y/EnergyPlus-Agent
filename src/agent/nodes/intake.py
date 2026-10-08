@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any, Final, Literal, TypedDict, cast
 
 from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
+from langchain_core.utils.function_calling import convert_to_openai_tool
 from langgraph.runtime import Runtime
 from loguru import logger
 from pydantic import BaseModel
@@ -159,35 +160,70 @@ MAX_STRUCTURED_ATTEMPTS: Final = 2
 when told so once."""
 
 
+def _without_empty_choices(node: Any) -> Any:
+    """The schema with "" removed from enums.
+
+    idfpy allows "" (leave blank) in many choices; Gemini rejects empty enum
+    values in tool declarations. Replies are still validated by the model.
+    """
+    if isinstance(node, dict):
+        return {
+            key: [v for v in value if v != ""]
+            if key == "enum" and isinstance(value, list)
+            else _without_empty_choices(value)
+            for key, value in node.items()
+        }
+    if isinstance(node, list):
+        return [_without_empty_choices(v) for v in node]
+    return node
+
+
+def _tool(schema: type[BaseModel]) -> dict[str, Any]:
+    return _without_empty_choices(convert_to_openai_tool(schema))
+
+
+def _parse_call[T: BaseModel](schema: type[T], reply: BaseMessage) -> T:
+    """The schema's tool call in a reply.
+
+    Raises:
+        ValueError: If the reply has no such call or its arguments do not
+            validate.
+    """
+    calls = getattr(reply, "tool_calls", None) or []
+    call = next((c for c in calls if c["name"] == schema.__name__), None)
+    if call is None:
+        raise ValueError(
+            f"no {schema.__name__} tool call; reply {repr(reply.content)[:300]}"
+        )
+    return schema.model_validate(call["args"])
+
+
 def _structured[T: BaseModel, R](
     schema: type[T], messages: list[BaseMessage], check: Callable[[T], R]
 ) -> tuple[T, R]:
     """Call the LLM for ``schema``, retrying once on an unusable reply.
 
+    The schema is offered as a tool the model chooses to call, as the prompt
+    asks. A forced call is not used: some models reject tool_choice "any",
+    and the provider's JSON-schema mode is not translated for every model by
+    OpenAI-compatible gateways (Claude then writes the call as text until
+    the token limit).
+
     ``check`` turns the parsed reply into the result the caller needs; a
-    ValueError from it, like a reply that is not a tool call, is sent back
-    to the LLM for one more attempt.
+    ValueError from it, like a reply without the tool call, is sent back to
+    the LLM for one more attempt.
 
     Raises:
         RuntimeError: If no attempt gives a usable reply.
     """
-    llm = create_llm().with_structured_output(schema, include_raw=True)
+    llm = create_llm().bind_tools([_tool(schema)])
     problem = ""
     for _ in range(MAX_STRUCTURED_ATTEMPTS):
-        result = cast(dict[str, Any], llm.invoke(messages))
-        parsed: T | None = result.get("parsed")
-        if parsed is None:
-            raw: BaseMessage | None = result.get("raw")
-            problem = (
-                f"no {schema.__name__} tool call (parsing error "
-                f"{result.get('parsing_error')!r}; reply "
-                f"{repr(raw.content if raw is not None else raw)[:300]})"
-            )
-        else:
-            try:
-                return parsed, check(parsed)
-            except ValueError as e:
-                problem = str(e)
+        try:
+            parsed = _parse_call(schema, llm.invoke(messages))
+            return parsed, check(parsed)
+        except ValueError as e:  # pydantic.ValidationError is a ValueError
+            problem = str(e)
         logger.warning("intake: unusable reply: {}", problem)
         messages = [
             *messages,

@@ -80,8 +80,8 @@ def invoke_with_self_repair(
         phase: Phase whose objects are checked; also used in logs.
 
     Returns:
-        The final agent result dict (shape {"messages": [...]}, plus
-        "structured_response" when the agent declares a response_format).
+        The final agent result dict (shape {"messages": [...]}); its last
+        AI message is the phase summary.
     """
     messages: list[AnyMessage] = [HumanMessage(content=specs)]
 

@@ -172,6 +172,7 @@ Copy `.env.example` to `.env` and fill in what you need:
 # Agent LLM (used with src/configs/llm.yaml)
 LLM_API_KEY=
 LLM_BASE_URL=            # optional, for OpenAI-compatible gateways
+LLM_TEMPERATURE=         # optional, default 0.7; "null" sends none (Claude 5.5 models reject one)
 
 # Prototype reference library (both URLs, or neither)
 REFERENCE_QDRANT_URL=      # e.g. http://pan-office:6333

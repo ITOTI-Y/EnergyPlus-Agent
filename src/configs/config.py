@@ -18,8 +18,11 @@ class LLMConfig(BaseModel):
         default=None, description="The base URL of the LLM model"
     )
     model_name: str = Field(..., description="The name of the LLM model to use")
-    temperature: float = Field(
-        ..., ge=0.0, description="The temperature of the LLM model"
+    temperature: float | None = Field(
+        default=None,
+        ge=0.0,
+        description="Sampling temperature; None sends none, as Claude 5.5 "
+        "models reject non-default values",
     )
     max_tokens: int = Field(
         ..., ge=0, description="The maximum number of tokens to generate"

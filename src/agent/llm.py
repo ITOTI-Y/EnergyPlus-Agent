@@ -28,7 +28,6 @@ from langgraph.runtime import Runtime
 from langgraph.types import Command
 from loguru import logger
 from omegaconf import OmegaConf
-from pydantic import BaseModel
 
 from src.agent._share import language_directive
 from src.configs.config import LLMConfig
@@ -56,11 +55,12 @@ def create_llm(config: LLMConfig | None = None) -> BaseChatModel:
         config = _load_config()
 
     kwargs: dict[str, Any] = {
-        "temperature": config.temperature,
         "max_tokens": config.max_tokens,
         "max_retries": config.max_retries,
         "timeout": config.timeout,
     }
+    if config.temperature is not None:
+        kwargs["temperature"] = config.temperature
     if config.reasoning_max_tokens is not None:
         kwargs["extra_body"] = {
             "reasoning": {"max_tokens": config.reasoning_max_tokens}
@@ -212,11 +212,16 @@ class FailureLoopGuard(AgentMiddleware):
         }
 
 
+SUMMARY_DIRECTIVE: Final = (
+    "\n\nWhen done, reply with one line summarising what you created or "
+    "what is missing; that line is the phase summary."
+)
+
+
 def build_agent(
     config: LLMConfig | None = None,
     system_prompt: str | None = None,
     tools: list[BaseTool] | None = None,
-    response_format: type[BaseModel] | None = None,
     middleware: Sequence[AgentMiddleware] = (),
 ):
     """Build a tool-calling agent with optional structured final output.
@@ -226,8 +231,6 @@ def build_agent(
         system_prompt: Phase prompt; `language_directive()` is appended here
             so per-phase prompts stay free of language boilerplate.
         tools: Tools bound to the agent.
-        response_format: Pydantic schema for the final structured answer,
-            surfaced as `result["structured_response"]`.
         middleware: Extra middleware, e.g. `trace_middleware(collector)`.
 
     Returns:
@@ -236,8 +239,7 @@ def build_agent(
     return create_agent(
         model=create_llm(config),
         tools=tools or [],
-        system_prompt=(system_prompt or "") + language_directive(),
-        response_format=response_format,
+        system_prompt=(system_prompt or "") + SUMMARY_DIRECTIVE + language_directive(),
         middleware=[
             FailureLoopGuard(),
             # Phase agents resend their whole history on every call; this caps

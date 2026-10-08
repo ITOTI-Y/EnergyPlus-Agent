@@ -19,10 +19,11 @@ interactions:
       into a separate ZoneControl:Thermostat per zone.\n- Use the thermostat names
       the specification gives; otherwise name each\n  after its setpoint group, e.g.
       ''Office_Thermostat''.\n- Setpoint values live in the schedules; this phase
-      only references them.\n","role":"system"},{"content":"Create exactly one thermostat
-      named ''Office_Thermostat'' using heating setpoint schedule ''Heating_Setpoint''
-      and cooling setpoint schedule ''Cooling_Setpoint'', then one IdealLoadsAirSystem
-      for zone ''F1_Office'' using that thermostat.","role":"user"}],"model":"google/gemini-3.8-flash","max_completion_tokens":16384,"parallel_tool_calls":false,"stream":false,"temperature":0.7,"tool_choice":"required","tools":[{"type":"function","function":{"name":"create_thermostat","description":"Create
+      only references them.\n\n\nWhen done, reply with one line summarising what you
+      created or what is missing; that line is the phase summary.","role":"system"},{"content":"Create
+      exactly one thermostat named ''Office_Thermostat'' using heating setpoint schedule
+      ''Heating_Setpoint'' and cooling setpoint schedule ''Cooling_Setpoint'', then
+      one IdealLoadsAirSystem for zone ''F1_Office'' using that thermostat.","role":"user"}],"model":"google/gemini-3.8-flash","max_completion_tokens":16384,"parallel_tool_calls":false,"stream":false,"temperature":0.7,"tools":[{"type":"function","function":{"name":"create_thermostat","description":"Create
       an HVACTemplate:Thermostat.\n\n        Args:\n            name: Unique thermostat
       name.\n            heating_setpoint_schedule_name: Existing Schedule:Compact
       for heating setpoints (C).\n            cooling_setpoint_schedule_name: Existing
@@ -36,11 +37,7 @@ interactions:
       a thermostat; refused while an IdealLoadsAirSystem uses it.","parameters":{"properties":{"name":{"type":"string"}},"required":["name"],"type":"object"}}},{"type":"function","function":{"name":"delete_ideal_loads_system","description":"Delete
       the IdealLoadsAirSystem of a zone.","parameters":{"properties":{"zone_name":{"type":"string"}},"required":["zone_name"],"type":"object"}}},{"type":"function","function":{"name":"list_zones","description":"List
       zones that can get an HVAC system.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"list_schedules","description":"List
-      Schedule:Compact for setpoint and availability references.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"HVACResponse","description":"Structured
-      summary returned by the HVAC phase agent.","parameters":{"properties":{"thermostat_names":{"description":"Names
-      of all thermostats created","items":{"type":"string"},"type":"array"},"ideal_loads_zone_names":{"description":"Zone
-      names that received an IdealLoadsAirSystem","items":{"type":"string"},"type":"array"},"summary":{"description":"One-line
-      summary of the HVAC creation result","type":"string"}},"required":["thermostat_names","ideal_loads_zone_names","summary"],"type":"object"}}}],"max_thinking_budget":4096}'
+      Schedule:Compact for setpoint and availability references.","parameters":{"properties":{},"type":"object"}}}],"max_thinking_budget":4096}'
     headers:
       accept:
       - application/json
@@ -49,7 +46,7 @@ interactions:
       connection:
       - keep-alive
       content-length:
-      - '5057'
+      - '4578'
       content-type:
       - application/json
       host:
@@ -81,28 +78,37 @@ interactions:
   response:
     body:
       string: !!binary |
-        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
+        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
+        6oWwOr3zPEGp0+N7CVAnKUnzPeAI
     headers:
       access-control-allow-origin:
       - '*'
@@ -113,7 +119,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a47658b23ac3a0ee-NRT
+      - a478907848f0f9b0-NRT
       connection:
       - keep-alive
       content-encoding:
@@ -121,7 +127,7 @@ interactions:
       content-type:
       - application/json
       date:
-      - Thu, 08 Oct 2026 15:58:29 GMT
+      - Thu, 08 Oct 2026 22:25:59 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       permissions-policy:
@@ -130,13 +136,13 @@ interactions:
       referrer-policy:
       - no-referrer, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=t%2BhASO0wb%2FsGRHZxRp%2F7aJ9SBUrGty3q%2BRJzm2Cr%2F99ThL1N8HMax%2BxM5kGQcH2SrPEQgvojbssqzVn7ccZICtQUoi8MRXJNLRP4%2B%2BTNKZbv9psSubNuIi5nae8FVYEnEe4%3D"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=4EUxL5BoK%2FpOMyeYjgrzsIaQPMOL1DGRKm3xZXL2qSWxHDYcNKy9MIAXhAO6H%2FwGj7mBORAavKv8kuhwXy1sHjjslFi3%2FLPbUhnbs8QZMsPqVc42KOsCRoiGa9tXmIC5p90%3D"}]}'
       server:
       - cloudflare
       set-cookie:
-      - __cf_bm=zx.Giq1j0DcjTY.980pXiaFXsfrZ4DGtGNn0S6Pjg2E-1791475100.6757636-1.0.1.1-Y.aqOMBf3XsONcyr5_DUY.FQs63F19CZWxDmxpc1FdAJ7vLjcP5uwhZwNy7wFb3dik6zr8v7w.Skwehp9giMifg7POpN8PgVE6ZL1pyBIhj_qLDM.gmoH6TP7X3fO_k9;
+      - __cf_bm=eeXQbtXju2_edAL.6CWPZeLLCWzCDSktRZVL8dZ1qPY-1791498356.6645627-1.0.1.1-pJgb3yRopXJT1s57Q84_SCx1Jg2fA.ILN_c1MKltuFrAtQ2E6l19yoep_4madURKzHpCnjCfr2nD7Blz4crOntUiTsGWjuAZLrI3Rx0HGR.3AwRpxpYiMnGbOZep66aI;
         HttpOnly; SameSite=None; Secure; Path=/; Domain=openrouter.ai; Expires=Thu,
-        08 Oct 2026 16:28:29 GMT
+        08 Oct 2026 22:55:58 GMT
       strict-transport-security:
       - max-age=31536000
       transfer-encoding:
@@ -146,11 +152,11 @@ interactions:
       x-content-type-options:
       - nosniff
       x-generation-id:
-      - gen-1791475100-x3B1JGJQRxwo3W4RMX1K
+      - gen-1791498356-prgKg8eUfDk4x0P8cmmM
       x-new-api-version:
-      - v1.0.0-rc.41
+      - v1.0.0-rc.42
       x-oneapi-request-id:
-      - 202610081558206627173908268d9d6peGgCZl9
+      - 202610082225566560653868268d9d621TFFbTY
     status:
       code: 200
       message: OK
@@ -174,21 +180,22 @@ interactions:
       into a separate ZoneControl:Thermostat per zone.\n- Use the thermostat names
       the specification gives; otherwise name each\n  after its setpoint group, e.g.
       ''Office_Thermostat''.\n- Setpoint values live in the schedules; this phase
-      only references them.\n","role":"system"},{"content":"Create exactly one thermostat
-      named ''Office_Thermostat'' using heating setpoint schedule ''Heating_Setpoint''
-      and cooling setpoint schedule ''Cooling_Setpoint'', then one IdealLoadsAirSystem
-      for zone ''F1_Office'' using that thermostat.","role":"user"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_337228","function":{"name":"list_schedules","arguments":"{}"}},{"type":"function","id":"call_337231","function":{"name":"list_zones","arguments":"{}"}}]},{"content":"{\"success\":
+      only references them.\n\n\nWhen done, reply with one line summarising what you
+      created or what is missing; that line is the phase summary.","role":"system"},{"content":"Create
+      exactly one thermostat named ''Office_Thermostat'' using heating setpoint schedule
+      ''Heating_Setpoint'' and cooling setpoint schedule ''Cooling_Setpoint'', then
+      one IdealLoadsAirSystem for zone ''F1_Office'' using that thermostat.","role":"user"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_829441","function":{"name":"list_schedules","arguments":"{}"}},{"type":"function","id":"call_829442","function":{"name":"list_zones","arguments":"{}"}}]},{"content":"{\"success\":
       true, \"message\": \"Listed 2 Schedule:Compact.\", \"data\": [{\"name\": \"Heating_Setpoint\",
       \"schedule_type_limits_name\": \"Temperature\", \"data\": [{\"field\": \"Through:
       12/31\"}, {\"field\": \"For: AllDays\"}, {\"field\": \"Until: 24:00\"}, {\"field\":
       \"20.0\"}]}, {\"name\": \"Cooling_Setpoint\", \"schedule_type_limits_name\":
       \"Temperature\", \"data\": [{\"field\": \"Through: 12/31\"}, {\"field\": \"For:
-      AllDays\"}, {\"field\": \"Until: 24:00\"}, {\"field\": \"24.0\"}]}]}","role":"tool","tool_call_id":"call_337228"},{"content":"{\"success\":
+      AllDays\"}, {\"field\": \"Until: 24:00\"}, {\"field\": \"24.0\"}]}]}","role":"tool","tool_call_id":"call_829441"},{"content":"{\"success\":
       true, \"message\": \"Listed 1 Zone.\", \"data\": [{\"name\": \"F1_Office\",
       \"direction_of_relative_north\": 0.0, \"x_origin\": 0.0, \"y_origin\": 0.0,
       \"z_origin\": 0.0, \"type\": 1, \"multiplier\": 1, \"ceiling_height\": \"Autocalculate\",
       \"volume\": \"Autocalculate\", \"floor_area\": \"Autocalculate\", \"part_of_total_floor_area\":
-      \"Yes\"}]}","role":"tool","tool_call_id":"call_337231"}],"model":"google/gemini-3.8-flash","max_completion_tokens":16384,"parallel_tool_calls":false,"stream":false,"temperature":0.7,"tool_choice":"required","tools":[{"type":"function","function":{"name":"create_thermostat","description":"Create
+      \"Yes\"}]}","role":"tool","tool_call_id":"call_829442"}],"model":"google/gemini-3.8-flash","max_completion_tokens":16384,"parallel_tool_calls":false,"stream":false,"temperature":0.7,"tools":[{"type":"function","function":{"name":"create_thermostat","description":"Create
       an HVACTemplate:Thermostat.\n\n        Args:\n            name: Unique thermostat
       name.\n            heating_setpoint_schedule_name: Existing Schedule:Compact
       for heating setpoints (C).\n            cooling_setpoint_schedule_name: Existing
@@ -202,11 +209,7 @@ interactions:
       a thermostat; refused while an IdealLoadsAirSystem uses it.","parameters":{"properties":{"name":{"type":"string"}},"required":["name"],"type":"object"}}},{"type":"function","function":{"name":"delete_ideal_loads_system","description":"Delete
       the IdealLoadsAirSystem of a zone.","parameters":{"properties":{"zone_name":{"type":"string"}},"required":["zone_name"],"type":"object"}}},{"type":"function","function":{"name":"list_zones","description":"List
       zones that can get an HVAC system.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"list_schedules","description":"List
-      Schedule:Compact for setpoint and availability references.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"HVACResponse","description":"Structured
-      summary returned by the HVAC phase agent.","parameters":{"properties":{"thermostat_names":{"description":"Names
-      of all thermostats created","items":{"type":"string"},"type":"array"},"ideal_loads_zone_names":{"description":"Zone
-      names that received an IdealLoadsAirSystem","items":{"type":"string"},"type":"array"},"summary":{"description":"One-line
-      summary of the HVAC creation result","type":"string"}},"required":["thermostat_names","ideal_loads_zone_names","summary"],"type":"object"}}}],"max_thinking_budget":4096}'
+      Schedule:Compact for setpoint and availability references.","parameters":{"properties":{},"type":"object"}}}],"max_thinking_budget":4096}'
     headers:
       accept:
       - application/json
@@ -215,7 +218,7 @@ interactions:
       connection:
       - keep-alive
       content-length:
-      - '6268'
+      - '5789'
       content-type:
       - application/json
       host:
@@ -247,25 +250,30 @@ interactions:
   response:
     body:
       string: !!binary |
-        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
+        KLUv/QBYvSgAelsAEijQRvI2eGNIXOEEvEJI21WRnNnbXe+N+YFKBIFPMGrFPAVfPECdesAE/wAZ
+        ASIBJjru+tP32rk29yV7Z/tr1vwG2/TaVVGU1inLam1Gxd/+nml/AwLbmHHWvJaVo+Ldt2dtf/qe
+        a+eY8/rb31LvN9j+jpXza/70lAnm0rki3Gv+6XlZVtspte6/fda83t0hOc5Y5B69z1GXP1Hbk26Y
+        8RsQ2J5fizVpf3rSLUXcO9di0b78p7JE8/Y9433uO2Ysdszbecp/eo1DtF8CeFyAxm+/b4hFep8/
+        PclrKQ5oAqwBnLF5x8ItR63H3768oTZ/2j68vd5tf/qscb/laWoroFfS/vbd3o9H//TW4kMQWKFG
+        8iaIlIBrYCIwMYA4WBriqhBZNZDv+NuH+A0ABAAQhg/B5ZOQ4FhJ8ARnm9+nNLlpg1HoSNFInRDN
+        wShGp4ZTIQRpA9qoI4skSpVHBelCJZKIMRahFEkJzTeFibWy1Au5hrgtcqSRfHBF6lCy8kxJMxFS
+        o02LbW+fGE6ISXDhsleEQIILx0gDLw5YfchDvtYhXWQjVmaCV34fQoQ3Mswk078MAbkwGtxVL8sq
+        VfejtNTBIR8UPR/giI2da0DtyoUHxICNOPFhVoTqkQEtKivMqJyaI87ZQYRh4RGBpw3DTO4W0Rt5
+        aMQifiCQ66xI0WlR99vXXsOfPrz9TLfNVwCu/YadAgcHf/AFmM61WBQnjl4v+QXTF1wUX7B9wTVr
+        7twSDS9peadnrM9+eWfMuNTafoHBb897vgHUxh6dh+N1HNJCUSLO1kIWxiFxRe/ruMOtDAYuvETS
+        zJgFXGpRyS+7qwRHSeyiUFAk/tAcMNMQHTW9GAdN6UJLmDSSCTMWI1NuZBN2YqlkWMm7igyCeJUJ
+        B1nw2uCXbS4JPQnltAuNmIfSeSRQ+Ug4Dh7BrFLqYkUkIa8+JJfLtxjZMW+w88FBtRcZ8Qi5HJKy
+        udttsvGWKJnPptPcRsVR4o0ohCAiIRCmgtFcKIl8ZGmBHLtz4BC9uYL57EhBgxF8kfJrEIxQjrG4
+        KFLM0EIUBmOQ5EtkQmGgjkMlm1AkSMx4NldWqjRKzuZwlnjoC5E4kTPaoZhRN+YOVZjiqaTPhBsZ
+        HAgMkvBEGNtV2iVIMpg5EdYjDUPdizhMG2olB2vXIwcHB2M1q4ODATtYFj9klgFxda7Nd18x445Z
+        7+78RA9uiEUah2i9He9RZ6LCS9pq3+Dysorbg3Tq6XD8k2bQKIoSQG3fubY/GRBXWbvuPyGyn6zK
+        qrbn+YJ07/TT1PtECxx8JRro1dxa/OkHDKgQnAf0DH3bSjTIpEwgJJUEaaBkwkCcHt2zBoMCbrDK
+        iZmslEEeh4Pm0ELqKEkdXCS0j1UKC1i8HhysIeEYMgwQZHVR40gsyNEq4M/QyD4QGjELeXMLoTKg
+        GFteuM5TWexiBBEUCzGb2xC61AjlQpJZ4hqe6mAIabaYKhzXHo03LFm4cXM8hnLnTk3LuKkLFFJa
+        WcBP8yona+AGt1wNdZlXidRlAoehiNANBjkgQILFlJkO/nl+fi+JEjSlgNEcOHpiX/idZAvQX60G
+        XMjAmIArI/GFGwIGg5GpnNbyUh04sjAQ2kFywX5MeyZ4LAjeCGSS9rvSLTCVEIER/nG+4upGSdDC
+        RkSWDUTzueZMRfiAKbsb25EvMMjnMFle7p++hREQuIKrfXGR3hZBo9Nw4WlECpH4uA3obUvJYHwv
+        Fg==
     headers:
       access-control-allow-origin:
       - '*'
@@ -276,7 +284,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a47658ebded0a0ee-NRT
+      - a4789089ba60f9b0-NRT
       connection:
       - keep-alive
       content-encoding:
@@ -284,7 +292,7 @@ interactions:
       content-type:
       - application/json
       date:
-      - Thu, 08 Oct 2026 15:58:45 GMT
+      - Thu, 08 Oct 2026 22:26:01 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       permissions-policy:
@@ -293,13 +301,13 @@ interactions:
       referrer-policy:
       - no-referrer, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=hvm7%2FjStU%2B5%2FEQr%2FM7PM6lpUzwLtuFlocgeWxCUX668TCDPRN8n6do5KGg9iAVucIVZStko303XNqDme%2B0Ph0NC3yE00a04bjAJY98E2uPBlOoHzORmzJiCyEM0RaquATno%3D"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=TOO%2Bnc8fu18p%2Bp6O7OLX5tvOYWeDQXGo3KfvtRD004U%2FPLWbAwMaZMXzTJPgJ7aRXTM3yaQzZC8FccGegEz2SJEdlDn%2FxE%2FxSPAz8vzrAqKlBX6xOQP4dAL3%2BA8ncsxJqjc%3D"}]}'
       server:
       - cloudflare
       set-cookie:
-      - __cf_bm=a02O_U7Qdg2Zwrhh1s7fnstjv.XiCHdzBdfUAA_tJbk-1791475109.9041677-1.0.1.1-qckSpqoErA7eo75vPX.b0VGQ6WdwL_lGZ6_sZHerSKolJ7yLrLhAtXrezgI6XYXAD6tNG5hur67oKKsLil.TxkX.8BFeYjvGi9GH9KO1ajJY6zrFlWDPK62pHuUCCRgR;
+      - __cf_bm=dGvpK4wVG4v0nz.7thfJ5FFqjczu2A3lZQTwS6pzsY0-1791498359.46285-1.0.1.1-631XxCioKAsZjsJbdQIaELWqZv_tq3rWxgQUYZc.bUfoHYf82CGTgK_Kx2.jaMav60YO00Q2gGwYT3wJUeJSM59GFppFN0IgcGKOQ.jFgoUbZwDodT1H1qT5umlDf0DY;
         HttpOnly; SameSite=None; Secure; Path=/; Domain=openrouter.ai; Expires=Thu,
-        08 Oct 2026 16:28:45 GMT
+        08 Oct 2026 22:56:01 GMT
       strict-transport-security:
       - max-age=31536000
       transfer-encoding:
@@ -309,11 +317,11 @@ interactions:
       x-content-type-options:
       - nosniff
       x-generation-id:
-      - gen-1791475110-hsvSknA8p17feRMjBTuV
+      - gen-1791498359-BWv6GAKy9OIx8d3K9UD3
       x-new-api-version:
-      - v1.0.0-rc.41
+      - v1.0.0-rc.42
       x-oneapi-request-id:
-      - 202610081558298755938198268d9d6l6upnAbI
+      - 202610082225594519175548268d9d6vTpcQTPZ
     status:
       code: 200
       message: OK
@@ -337,26 +345,27 @@ interactions:
       into a separate ZoneControl:Thermostat per zone.\n- Use the thermostat names
       the specification gives; otherwise name each\n  after its setpoint group, e.g.
       ''Office_Thermostat''.\n- Setpoint values live in the schedules; this phase
-      only references them.\n","role":"system"},{"content":"Create exactly one thermostat
-      named ''Office_Thermostat'' using heating setpoint schedule ''Heating_Setpoint''
-      and cooling setpoint schedule ''Cooling_Setpoint'', then one IdealLoadsAirSystem
-      for zone ''F1_Office'' using that thermostat.","role":"user"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_337228","function":{"name":"list_schedules","arguments":"{}"}},{"type":"function","id":"call_337231","function":{"name":"list_zones","arguments":"{}"}}]},{"content":"{\"success\":
+      only references them.\n\n\nWhen done, reply with one line summarising what you
+      created or what is missing; that line is the phase summary.","role":"system"},{"content":"Create
+      exactly one thermostat named ''Office_Thermostat'' using heating setpoint schedule
+      ''Heating_Setpoint'' and cooling setpoint schedule ''Cooling_Setpoint'', then
+      one IdealLoadsAirSystem for zone ''F1_Office'' using that thermostat.","role":"user"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_829441","function":{"name":"list_schedules","arguments":"{}"}},{"type":"function","id":"call_829442","function":{"name":"list_zones","arguments":"{}"}}]},{"content":"{\"success\":
       true, \"message\": \"Listed 2 Schedule:Compact.\", \"data\": [{\"name\": \"Heating_Setpoint\",
       \"schedule_type_limits_name\": \"Temperature\", \"data\": [{\"field\": \"Through:
       12/31\"}, {\"field\": \"For: AllDays\"}, {\"field\": \"Until: 24:00\"}, {\"field\":
       \"20.0\"}]}, {\"name\": \"Cooling_Setpoint\", \"schedule_type_limits_name\":
       \"Temperature\", \"data\": [{\"field\": \"Through: 12/31\"}, {\"field\": \"For:
-      AllDays\"}, {\"field\": \"Until: 24:00\"}, {\"field\": \"24.0\"}]}]}","role":"tool","tool_call_id":"call_337228"},{"content":"{\"success\":
+      AllDays\"}, {\"field\": \"Until: 24:00\"}, {\"field\": \"24.0\"}]}]}","role":"tool","tool_call_id":"call_829441"},{"content":"{\"success\":
       true, \"message\": \"Listed 1 Zone.\", \"data\": [{\"name\": \"F1_Office\",
       \"direction_of_relative_north\": 0.0, \"x_origin\": 0.0, \"y_origin\": 0.0,
       \"z_origin\": 0.0, \"type\": 1, \"multiplier\": 1, \"ceiling_height\": \"Autocalculate\",
       \"volume\": \"Autocalculate\", \"floor_area\": \"Autocalculate\", \"part_of_total_floor_area\":
-      \"Yes\"}]}","role":"tool","tool_call_id":"call_337231"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_582781","function":{"name":"create_thermostat","arguments":"{\"heating_setpoint_schedule_name\":
-      \"Heating_Setpoint\", \"name\": \"Office_Thermostat\", \"cooling_setpoint_schedule_name\":
-      \"Cooling_Setpoint\"}"}}]},{"content":"{\"success\": true, \"message\": \"Thermostat
-      ''Office_Thermostat'' created.\", \"data\": {\"name\": \"Office_Thermostat\",
+      \"Yes\"}]}","role":"tool","tool_call_id":"call_829442"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_800148","function":{"name":"create_thermostat","arguments":"{\"cooling_setpoint_schedule_name\":
+      \"Cooling_Setpoint\", \"heating_setpoint_schedule_name\": \"Heating_Setpoint\",
+      \"name\": \"Office_Thermostat\"}"}}]},{"content":"{\"success\": true, \"message\":
+      \"Thermostat ''Office_Thermostat'' created.\", \"data\": {\"name\": \"Office_Thermostat\",
       \"heating_setpoint_schedule_name\": \"Heating_Setpoint\", \"cooling_setpoint_schedule_name\":
-      \"Cooling_Setpoint\"}}","role":"tool","tool_call_id":"call_582781"}],"model":"google/gemini-3.8-flash","max_completion_tokens":16384,"parallel_tool_calls":false,"stream":false,"temperature":0.7,"tool_choice":"required","tools":[{"type":"function","function":{"name":"create_thermostat","description":"Create
+      \"Cooling_Setpoint\"}}","role":"tool","tool_call_id":"call_800148"}],"model":"google/gemini-3.8-flash","max_completion_tokens":16384,"parallel_tool_calls":false,"stream":false,"temperature":0.7,"tools":[{"type":"function","function":{"name":"create_thermostat","description":"Create
       an HVACTemplate:Thermostat.\n\n        Args:\n            name: Unique thermostat
       name.\n            heating_setpoint_schedule_name: Existing Schedule:Compact
       for heating setpoints (C).\n            cooling_setpoint_schedule_name: Existing
@@ -370,11 +379,7 @@ interactions:
       a thermostat; refused while an IdealLoadsAirSystem uses it.","parameters":{"properties":{"name":{"type":"string"}},"required":["name"],"type":"object"}}},{"type":"function","function":{"name":"delete_ideal_loads_system","description":"Delete
       the IdealLoadsAirSystem of a zone.","parameters":{"properties":{"zone_name":{"type":"string"}},"required":["zone_name"],"type":"object"}}},{"type":"function","function":{"name":"list_zones","description":"List
       zones that can get an HVAC system.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"list_schedules","description":"List
-      Schedule:Compact for setpoint and availability references.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"HVACResponse","description":"Structured
-      summary returned by the HVAC phase agent.","parameters":{"properties":{"thermostat_names":{"description":"Names
-      of all thermostats created","items":{"type":"string"},"type":"array"},"ideal_loads_zone_names":{"description":"Zone
-      names that received an IdealLoadsAirSystem","items":{"type":"string"},"type":"array"},"summary":{"description":"One-line
-      summary of the HVAC creation result","type":"string"}},"required":["thermostat_names","ideal_loads_zone_names","summary"],"type":"object"}}}],"max_thinking_budget":4096}'
+      Schedule:Compact for setpoint and availability references.","parameters":{"properties":{},"type":"object"}}}],"max_thinking_budget":4096}'
     headers:
       accept:
       - application/json
@@ -383,7 +388,7 @@ interactions:
       connection:
       - keep-alive
       content-length:
-      - '6858'
+      - '6379'
       content-type:
       - application/json
       host:
@@ -415,18 +420,18 @@ interactions:
   response:
     body:
       string: !!binary |
-        KLUv/QBY3RMApml8J+CyVgfMpTFJZ0Q3QGhNpr0jpTYyM6t3EmBn94Z9q8KYGWSYoQgyL3MAaQB1
-        ABzq3lRazLJFZfUu7uu5b6+S4vRFgANCQMPdLVOyUy329syFs4pQJJOIpPJiS4CnVat198lUvd7c
-        KW7INr6dVtk8satGScNMvHtH1njUt08oU0GySNBAl8xGqizsRgOqRAikaCoYiAwKoghl6+6U/Acg
-        ACAUaULw5oQxUk51d8Y8/Q+Hs6ik9cIJL6diy01rfHtT2FfeC+/Os9p/3NmC9/L19goKy8XjjmxI
-        337nhPHNWvvutF7I9mWupLK6HtViVp1vkDsIU1T+w+F+OcqaiW8H4VnJfhxlx/J9mzMTM0MjQmYs
-        FBN0sXE9VCb6UtnQZFgiJgsNEiFWZcKD0fAAcZELd4cNqbdT3JjHRsoSCZup15Flz455EQPTGnJM
-        O8byOMqqojjGHcMXpK9h33pZzvTjhhO7uI/53P025YtjWfj2dylY55uQKfnc+YL0H9cuTQFZllnw
-        km/ZJEWTAuhKlOlxpGy5ovJdkG1fjJMxJTtVUhzILe3HaxDFmQjjP3wnrNw31ePxrnybpGiaCCAI
-        kkDufWt8iwymaMKu/WYweZOmKXK/lDe1X2NXtRinI3vUiTS8bK3efnDwIaGZmosnWjYmCUs1IDCC
-        BtXd/FklY4MGFTCaA0lN7Jtfilto/QMzECuDhAR0MYlvbosa7EYmcVrjpTgwlcIm2GHegrdLe5U+
-        5gKO02Zo6Np6sQoi4Nify1eZsRxAYbPIMnY0KjyO+5yzQEWMf7h8rPZPa2E0BK7gaj8u4tsiNDoZ
-        LjyBSCES39uA1raUHIwvwAI=
+        KLUv/QBY5RMApql8J+CyVgfMJcMEujVtgdCaTHuHdGhkZla3cLMhCzxuh8KYGWSYoQgyL3MAaQB1
+        ABh1byrtZbmiknoW9/Xct1c5YT0RoFAQkHB3y5PsVHu9fXPhpCCWiASRVFpcCfCsaq3uPnmq1pv7
+        xA3ZxrfTKpvnZdUYabiJd+/IHI36dgkDtJC4kAdHpoDiCMmHR2IniGRAslwm0aUSQShXd5/kPwAB
+        AAHQgOXy5oQxUoy6O1+e/gfDVVTSeuGEF6PYctMa394U9pX3wrvzrPYfd67gvWy9PQICM/G4IxvS
+        t985YXyz1r47rReyfZsrqaSuRrVXVecb5O7BE5X/YLhfjrJu4ts9eFKyH0fZsXzf5gwPs8KiQW4w
+        EBRoImMtGDz0hUGGU4FpkA4SHD4qgwcPRcICw4U8uDtsOL194r48NlKOSNg8vYwse3bNixCY1o9r
+        2jWYx1FSFMQ17hq2IH0N+1bL8qYfN5yXxX3N5+63KVtYZeHb351gnW9CnuRzZwvSf1y7RAlZllXQ
+        km8ZRRJJFehWJMrjSNkyReWzINu+F5bxJDtVThjklrbjNWjiTYTxH74TUu4b1aPxrnyjVCxQNABB
+        UARy71vjm1SZRBN27beL9DaRJpH7pbxR+/VlVXthGdmjDqShZSv1dgKCDgfO5Fx4IiZDccAENSAw
+        ggbV3f5ZLWMDBxVQmgNLTSyc34pbeK0DixDLhYQEdDGJb26LGuxGJnFa46U4MJXCJthh3oK3S3uV
+        PuYCjtNmaOjaerEKIuDYn8tXmbEcQGGzyDJ2NCo8jvucs0BFjH+4fKz2T2thNASu4Go/LuLbIjQ6
+        GS48gUghEt/bgNa2lByML8AC
     headers:
       access-control-allow-origin:
       - '*'
@@ -437,7 +442,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a47659503d04a0ee-NRT
+      - a4789099ddf0f9b0-NRT
       connection:
       - keep-alive
       content-encoding:
@@ -445,7 +450,7 @@ interactions:
       content-type:
       - application/json
       date:
-      - Thu, 08 Oct 2026 15:58:48 GMT
+      - Thu, 08 Oct 2026 22:26:04 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       permissions-policy:
@@ -454,13 +459,13 @@ interactions:
       referrer-policy:
       - no-referrer, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=WTO2JObkQXGPj2HYoK3MA%2FEULII5FxFJyp4Y%2FmVNJRxT47aD48jDj6zNp6SS7aF%2FyFlYUkSIF9SWwInd8HtGWD5vqNT7G4rF8zLQqjhsFFTAABiFOXcCUDsD4UbuT%2BS%2FYRg%3D"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=bJ3iZvvf%2BB8mwHLdY%2FcDLhd6lSk5nxLtCzbi5tYuL7ICh0GIs3Bz%2BJ49AzZ1zM1jvSaNpV6tlcPENcF%2BTgo1T%2BeN%2Bib9TiIB7hHGF6nJxJ%2FTQFex0ueXbxaVCZJSoBL0%2F%2FA%3D"}]}'
       server:
       - cloudflare
       set-cookie:
-      - __cf_bm=OGxI7JDFs6UgnYXSIQePnh88kLKa6RKyq6BNyad8ACI-1791475125.958315-1.0.1.1-R2s_xulZoxM_uyoYQDhb7WXgaC3DSh5rlaaYD97957jsKCm42v6c3Lvz3IGGa9yg7tX3yM2yxXgbdeEI1rUAITc_OgYm6XC.9NWJ8sY1rWrUvvDP3Mpwa8P98NZ6FXLV;
+      - __cf_bm=vVazhd.6fuVGZqG0KxDCxuswbITdEoVUgYNuw9LhJXo-1791498362.0439115-1.0.1.1-cEE9v49yoJQWTb3aR5LfVCdroSB8ilhP_LGXZ4_t85HvtnmC2izPPtU.M2fAYUCaGh0c3ctr9TQLpRCWByJkPZAzXNZXr8KL86Jrbqyy7oKe_zTUxCBOWkXqQTA7ghIF;
         HttpOnly; SameSite=None; Secure; Path=/; Domain=openrouter.ai; Expires=Thu,
-        08 Oct 2026 16:28:48 GMT
+        08 Oct 2026 22:56:04 GMT
       strict-transport-security:
       - max-age=31536000
       transfer-encoding:
@@ -470,11 +475,11 @@ interactions:
       x-content-type-options:
       - nosniff
       x-generation-id:
-      - gen-1791475126-D0WkrQf2khY0jBQ2Cl83
+      - gen-1791498362-dr2yz2PefAZqx0sQWaK2
       x-new-api-version:
-      - v1.0.0-rc.41
+      - v1.0.0-rc.42
       x-oneapi-request-id:
-      - 202610081558459399958818268d9d6JNbSStbd
+      - 202610082226020294220528268d9d6hBzYIw9m
     status:
       code: 200
       message: OK
@@ -498,26 +503,27 @@ interactions:
       into a separate ZoneControl:Thermostat per zone.\n- Use the thermostat names
       the specification gives; otherwise name each\n  after its setpoint group, e.g.
       ''Office_Thermostat''.\n- Setpoint values live in the schedules; this phase
-      only references them.\n","role":"system"},{"content":"Create exactly one thermostat
-      named ''Office_Thermostat'' using heating setpoint schedule ''Heating_Setpoint''
-      and cooling setpoint schedule ''Cooling_Setpoint'', then one IdealLoadsAirSystem
-      for zone ''F1_Office'' using that thermostat.","role":"user"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_337228","function":{"name":"list_schedules","arguments":"{}"}},{"type":"function","id":"call_337231","function":{"name":"list_zones","arguments":"{}"}}]},{"content":"{\"success\":
+      only references them.\n\n\nWhen done, reply with one line summarising what you
+      created or what is missing; that line is the phase summary.","role":"system"},{"content":"Create
+      exactly one thermostat named ''Office_Thermostat'' using heating setpoint schedule
+      ''Heating_Setpoint'' and cooling setpoint schedule ''Cooling_Setpoint'', then
+      one IdealLoadsAirSystem for zone ''F1_Office'' using that thermostat.","role":"user"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_829441","function":{"name":"list_schedules","arguments":"{}"}},{"type":"function","id":"call_829442","function":{"name":"list_zones","arguments":"{}"}}]},{"content":"{\"success\":
       true, \"message\": \"Listed 2 Schedule:Compact.\", \"data\": [{\"name\": \"Heating_Setpoint\",
       \"schedule_type_limits_name\": \"Temperature\", \"data\": [{\"field\": \"Through:
       12/31\"}, {\"field\": \"For: AllDays\"}, {\"field\": \"Until: 24:00\"}, {\"field\":
       \"20.0\"}]}, {\"name\": \"Cooling_Setpoint\", \"schedule_type_limits_name\":
       \"Temperature\", \"data\": [{\"field\": \"Through: 12/31\"}, {\"field\": \"For:
-      AllDays\"}, {\"field\": \"Until: 24:00\"}, {\"field\": \"24.0\"}]}]}","role":"tool","tool_call_id":"call_337228"},{"content":"{\"success\":
+      AllDays\"}, {\"field\": \"Until: 24:00\"}, {\"field\": \"24.0\"}]}]}","role":"tool","tool_call_id":"call_829441"},{"content":"{\"success\":
       true, \"message\": \"Listed 1 Zone.\", \"data\": [{\"name\": \"F1_Office\",
       \"direction_of_relative_north\": 0.0, \"x_origin\": 0.0, \"y_origin\": 0.0,
       \"z_origin\": 0.0, \"type\": 1, \"multiplier\": 1, \"ceiling_height\": \"Autocalculate\",
       \"volume\": \"Autocalculate\", \"floor_area\": \"Autocalculate\", \"part_of_total_floor_area\":
-      \"Yes\"}]}","role":"tool","tool_call_id":"call_337231"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_582781","function":{"name":"create_thermostat","arguments":"{\"heating_setpoint_schedule_name\":
-      \"Heating_Setpoint\", \"name\": \"Office_Thermostat\", \"cooling_setpoint_schedule_name\":
-      \"Cooling_Setpoint\"}"}}]},{"content":"{\"success\": true, \"message\": \"Thermostat
-      ''Office_Thermostat'' created.\", \"data\": {\"name\": \"Office_Thermostat\",
+      \"Yes\"}]}","role":"tool","tool_call_id":"call_829442"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_800148","function":{"name":"create_thermostat","arguments":"{\"cooling_setpoint_schedule_name\":
+      \"Cooling_Setpoint\", \"heating_setpoint_schedule_name\": \"Heating_Setpoint\",
+      \"name\": \"Office_Thermostat\"}"}}]},{"content":"{\"success\": true, \"message\":
+      \"Thermostat ''Office_Thermostat'' created.\", \"data\": {\"name\": \"Office_Thermostat\",
       \"heating_setpoint_schedule_name\": \"Heating_Setpoint\", \"cooling_setpoint_schedule_name\":
-      \"Cooling_Setpoint\"}}","role":"tool","tool_call_id":"call_582781"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_632852","function":{"name":"create_ideal_loads_system","arguments":"{\"template_thermostat_name\":
+      \"Cooling_Setpoint\"}}","role":"tool","tool_call_id":"call_800148"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_986053","function":{"name":"create_ideal_loads_system","arguments":"{\"template_thermostat_name\":
       \"Office_Thermostat\", \"zone_name\": \"F1_Office\"}"}}]},{"content":"{\"success\":
       true, \"message\": \"IdealLoadsAirSystem for zone ''F1_Office'' created.\",
       \"data\": {\"zone_name\": \"F1_Office\", \"template_thermostat_name\": \"Office_Thermostat\",
@@ -530,7 +536,7 @@ interactions:
       0.00944, \"outdoor_air_flow_rate_per_zone_floor_area\": 0.0, \"outdoor_air_flow_rate_per_zone\":
       0.0, \"demand_controlled_ventilation_type\": \"None\", \"outdoor_air_economizer_type\":
       \"NoEconomizer\", \"heat_recovery_type\": \"None\", \"sensible_heat_recovery_effectiveness\":
-      0.7, \"latent_heat_recovery_effectiveness\": 0.65}}","role":"tool","tool_call_id":"call_632852"}],"model":"google/gemini-3.8-flash","max_completion_tokens":16384,"parallel_tool_calls":false,"stream":false,"temperature":0.7,"tool_choice":"required","tools":[{"type":"function","function":{"name":"create_thermostat","description":"Create
+      0.7, \"latent_heat_recovery_effectiveness\": 0.65}}","role":"tool","tool_call_id":"call_986053"}],"model":"google/gemini-3.8-flash","max_completion_tokens":16384,"parallel_tool_calls":false,"stream":false,"temperature":0.7,"tools":[{"type":"function","function":{"name":"create_thermostat","description":"Create
       an HVACTemplate:Thermostat.\n\n        Args:\n            name: Unique thermostat
       name.\n            heating_setpoint_schedule_name: Existing Schedule:Compact
       for heating setpoints (C).\n            cooling_setpoint_schedule_name: Existing
@@ -544,11 +550,7 @@ interactions:
       a thermostat; refused while an IdealLoadsAirSystem uses it.","parameters":{"properties":{"name":{"type":"string"}},"required":["name"],"type":"object"}}},{"type":"function","function":{"name":"delete_ideal_loads_system","description":"Delete
       the IdealLoadsAirSystem of a zone.","parameters":{"properties":{"zone_name":{"type":"string"}},"required":["zone_name"],"type":"object"}}},{"type":"function","function":{"name":"list_zones","description":"List
       zones that can get an HVAC system.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"list_schedules","description":"List
-      Schedule:Compact for setpoint and availability references.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"HVACResponse","description":"Structured
-      summary returned by the HVAC phase agent.","parameters":{"properties":{"thermostat_names":{"description":"Names
-      of all thermostats created","items":{"type":"string"},"type":"array"},"ideal_loads_zone_names":{"description":"Zone
-      names that received an IdealLoadsAirSystem","items":{"type":"string"},"type":"array"},"summary":{"description":"One-line
-      summary of the HVAC creation result","type":"string"}},"required":["thermostat_names","ideal_loads_zone_names","summary"],"type":"object"}}}],"max_thinking_budget":4096}'
+      Schedule:Compact for setpoint and availability references.","parameters":{"properties":{},"type":"object"}}}],"max_thinking_budget":4096}'
     headers:
       accept:
       - application/json
@@ -557,7 +559,7 @@ interactions:
       connection:
       - keep-alive
       content-length:
-      - '8229'
+      - '7750'
       content-type:
       - application/json
       host:
@@ -589,17 +591,17 @@ interactions:
   response:
     body:
       string: !!binary |
-        KLUv/QBYBRMAlqd2J/CyNgfABMjkTdv1yr41cRdco1sKTeRmhZcJcpGhq8584hPZhDwfDW4AYgBx
-        ABflSkJKsrirp759wgnriQAGg4CFu1OeYGfS6+2cupGKXCQDESihxZUAx2rO6u6Rp2m9uU/cy/S9
-        XU7YHC9rPkkv5929H3NszLfTjo+HSGEtB48DzG5q5oLCwIpcJlHFQokwligiubr7BP8BCAAIfHn6
-        nwxXSShn3bgVo5hyy/ne3nK7wlr37hwn/cedq62VrbdLRGgmJO7AXvn2GuM+Kc7Zd5ezLlOJU6GE
-        VN2Y9KpmfIPcQXiS8J8M98oPTs57OwhHCrbED3Yo17cYMeneEtKRA8PzNJsKhCYTKyweIEcTUYEm
-        NlYDQqYxEDYcFZqHgYQFiJAKIeOhWGhwwIAJd9/e6e0T9+WhT7IEbvMkaUh12hmluDzBS9Sy7Nnn
-        7rUlW1hF9+21t+u0KHNa6grj3dla+Y9rr0CUysQixbjvSYy6e1mWVWvBt6xiuVCgOpH4SaZMSShZ
-        y7TrhWU8wc6EE7bckH5IDZqY8/b9wzUu5d4xPRtShW8Vy4XAAkGQBHLvOt8bAQUTxe3ZbwSTN2iC
-        idyr5I7ZUl/WpBf2ppFlGtmjTqTXopN6e0HBBwRHNCBQwnLM7PlZGWuDhRQAmgNFTqqbn8m3YH/3
-        wAOWDJAJ2JIXH7gpOFiNTOG0hpdq4CmFS7qj1AIbVHs1fTwF7JfN1CH8diJI9U/zVYBUDljYuWT1
-        Ex/9D6wf8uF5ZmcN+jr8U0QYtYGr5tplFoVsaRuduhUeI1KIxP82oLYtJYDxdVg=
+        KLUv/QBYJRMA1qd3J/CyNgfABMjkTdt19cWsiXtxNVsKIiI/W5UJJCq/rd984hPZhDwfDW4AYgB0
+        APSiS0meImu7eurbJ0tYSwQoFAQg3J2uxJ1Jr7dX9cUJgokMQFiytZTARmpO6u5xpWm9uUvbbyl8
+        u5zcGy9rwki/Ct694XI05tsZqsmggWCDiqZapoQMhXLpcEAolgFMhiLJXCQQudTdJf4HIAAg7nt5
+        +h8MR0mWs774KjYt3ZYTvr3l68q1vrtvnPQf96VerWu9PQJiIxFth/vJt9cYH4zinH13OetbGlWV
+        JU9VY9KLmvENcvdYSfI/GO51Ic8Kvt1j48QdLeQO3foWIybdW3KcyLHwwM1FxWHzECkqGrjaQFQg
+        iQtr4eChLQ4uOBSbhgENgsMHdfDgmUBYYLBgzd1fP+nt0vbloVBuhF+vFGVEVXozRvGtxJOLpGXZ
+        s8/da8u1MIq+t9d+XadFt+qoK8e7r/XkP649Y8FQoIkkivFBKLHpAVmWUc/it6xywVCgeqlcLNFC
+        uXQnyZH1lna9sGwl7kyWsLfNtCNqkLQVfPCfrfFN7hvToxFVfqtQJhcIgiKQe9cJ3zATjCS+nv1m
+        mbxNIIzEvcrdmB31ZU16YW8ZWZaRXdKB9LPonN5OQNDhEDQgUMJyzOz7WSFrA4YUIJoDRk7qm9/J
+        t/BW5GDglQyOCcjSHB+4JThYjUzhtIaXamAphUu6g9SCIlR7NX08BQSYzdohLHciUFVN81WCVA5Y
+        2Lpk/RNf/Q+uH9JD9MzeGnR2qKcIMGoDV821yywK2dI2OnUrPEakEIn/bUBtW0oA4+uw
     headers:
       access-control-allow-origin:
       - '*'
@@ -610,7 +612,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a4765961fd8aa0ee-NRT
+      - a47890a80ca3f9b0-NRT
       connection:
       - keep-alive
       content-encoding:
@@ -618,7 +620,7 @@ interactions:
       content-type:
       - application/json
       date:
-      - Thu, 08 Oct 2026 15:58:51 GMT
+      - Thu, 08 Oct 2026 22:26:05 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       permissions-policy:
@@ -627,13 +629,13 @@ interactions:
       referrer-policy:
       - no-referrer, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=D3sV%2FHA57xlPV%2FqaPS6d3gIW40OMJLi0WWFs9knSHorvS28jdTd2d2Hg5%2FCQGScJNE%2FBQnoujy8r8gRDZ9J0uArLQFupCTCJd50NJo8fM4Tns5d%2BArOzekOi8q4CSar4iSc%3D"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=zddieJfy8x8fDySVgC%2FAM%2BADfyJrlW91A7mylCR7ahCW%2FX8rWoZb78mUFj%2Fbsz6CO%2Fu3syzp74oJS1m1hPDlrSFqlK3Z9EPR%2BCi%2BJi%2FCW6kogBLgwU%2BH9HkmVhSb1oQ5AMw%3D"}]}'
       server:
       - cloudflare
       set-cookie:
-      - __cf_bm=U9TSioLv7bhLFIvvDZ.hzK3ScT1wI_odH2NOyKn5w4o-1791475128.7911391-1.0.1.1-qeqpgO5FBS5ewG2z7g_1GM.SHs4UylIoEYGJjtcpEjFWx.o9Vk67apHBLQPyk6sic.qsRht7L34l6XOT.gaxI4jIANFTMSTKX4jmUx1PbBlnhNoh1XnPanZgqP05TRhe;
+      - __cf_bm=nGhO.ikqFPK4nymsauUxbiH3QBg2z5Rj3T_IZIOak_k-1791498364.314391-1.0.1.1-9BvTz2ZYgPlQX6w8SRdK.B4R7w_GdvPo5eMT97nuab0Y4JOjm7SAvcELB013e5KgkNdX_mctGf3a0vxm72_vTutdNsIKsEMfec78NQuAZfghwZDdeu97DiZYNfmRkt2D;
         HttpOnly; SameSite=None; Secure; Path=/; Domain=openrouter.ai; Expires=Thu,
-        08 Oct 2026 16:28:50 GMT
+        08 Oct 2026 22:56:05 GMT
       strict-transport-security:
       - max-age=31536000
       transfer-encoding:
@@ -643,11 +645,11 @@ interactions:
       x-content-type-options:
       - nosniff
       x-generation-id:
-      - gen-1791475128-mAUXNsZa9BqKmaF1Lwkr
+      - gen-1791498364-qv7449Hf6sE5CiOEKohK
       x-new-api-version:
-      - v1.0.0-rc.41
+      - v1.0.0-rc.42
       x-oneapi-request-id:
-      - 202610081558487745805568268d9d6v2PfVEdh
+      - 202610082226043013066658268d9d6dmwLy7zf
     status:
       code: 200
       message: OK
@@ -671,26 +673,27 @@ interactions:
       into a separate ZoneControl:Thermostat per zone.\n- Use the thermostat names
       the specification gives; otherwise name each\n  after its setpoint group, e.g.
       ''Office_Thermostat''.\n- Setpoint values live in the schedules; this phase
-      only references them.\n","role":"system"},{"content":"Create exactly one thermostat
-      named ''Office_Thermostat'' using heating setpoint schedule ''Heating_Setpoint''
-      and cooling setpoint schedule ''Cooling_Setpoint'', then one IdealLoadsAirSystem
-      for zone ''F1_Office'' using that thermostat.","role":"user"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_337228","function":{"name":"list_schedules","arguments":"{}"}},{"type":"function","id":"call_337231","function":{"name":"list_zones","arguments":"{}"}}]},{"content":"{\"success\":
+      only references them.\n\n\nWhen done, reply with one line summarising what you
+      created or what is missing; that line is the phase summary.","role":"system"},{"content":"Create
+      exactly one thermostat named ''Office_Thermostat'' using heating setpoint schedule
+      ''Heating_Setpoint'' and cooling setpoint schedule ''Cooling_Setpoint'', then
+      one IdealLoadsAirSystem for zone ''F1_Office'' using that thermostat.","role":"user"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_829441","function":{"name":"list_schedules","arguments":"{}"}},{"type":"function","id":"call_829442","function":{"name":"list_zones","arguments":"{}"}}]},{"content":"{\"success\":
       true, \"message\": \"Listed 2 Schedule:Compact.\", \"data\": [{\"name\": \"Heating_Setpoint\",
       \"schedule_type_limits_name\": \"Temperature\", \"data\": [{\"field\": \"Through:
       12/31\"}, {\"field\": \"For: AllDays\"}, {\"field\": \"Until: 24:00\"}, {\"field\":
       \"20.0\"}]}, {\"name\": \"Cooling_Setpoint\", \"schedule_type_limits_name\":
       \"Temperature\", \"data\": [{\"field\": \"Through: 12/31\"}, {\"field\": \"For:
-      AllDays\"}, {\"field\": \"Until: 24:00\"}, {\"field\": \"24.0\"}]}]}","role":"tool","tool_call_id":"call_337228"},{"content":"{\"success\":
+      AllDays\"}, {\"field\": \"Until: 24:00\"}, {\"field\": \"24.0\"}]}]}","role":"tool","tool_call_id":"call_829441"},{"content":"{\"success\":
       true, \"message\": \"Listed 1 Zone.\", \"data\": [{\"name\": \"F1_Office\",
       \"direction_of_relative_north\": 0.0, \"x_origin\": 0.0, \"y_origin\": 0.0,
       \"z_origin\": 0.0, \"type\": 1, \"multiplier\": 1, \"ceiling_height\": \"Autocalculate\",
       \"volume\": \"Autocalculate\", \"floor_area\": \"Autocalculate\", \"part_of_total_floor_area\":
-      \"Yes\"}]}","role":"tool","tool_call_id":"call_337231"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_582781","function":{"name":"create_thermostat","arguments":"{\"heating_setpoint_schedule_name\":
-      \"Heating_Setpoint\", \"name\": \"Office_Thermostat\", \"cooling_setpoint_schedule_name\":
-      \"Cooling_Setpoint\"}"}}]},{"content":"{\"success\": true, \"message\": \"Thermostat
-      ''Office_Thermostat'' created.\", \"data\": {\"name\": \"Office_Thermostat\",
+      \"Yes\"}]}","role":"tool","tool_call_id":"call_829442"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_800148","function":{"name":"create_thermostat","arguments":"{\"cooling_setpoint_schedule_name\":
+      \"Cooling_Setpoint\", \"heating_setpoint_schedule_name\": \"Heating_Setpoint\",
+      \"name\": \"Office_Thermostat\"}"}}]},{"content":"{\"success\": true, \"message\":
+      \"Thermostat ''Office_Thermostat'' created.\", \"data\": {\"name\": \"Office_Thermostat\",
       \"heating_setpoint_schedule_name\": \"Heating_Setpoint\", \"cooling_setpoint_schedule_name\":
-      \"Cooling_Setpoint\"}}","role":"tool","tool_call_id":"call_582781"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_632852","function":{"name":"create_ideal_loads_system","arguments":"{\"template_thermostat_name\":
+      \"Cooling_Setpoint\"}}","role":"tool","tool_call_id":"call_800148"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_986053","function":{"name":"create_ideal_loads_system","arguments":"{\"template_thermostat_name\":
       \"Office_Thermostat\", \"zone_name\": \"F1_Office\"}"}}]},{"content":"{\"success\":
       true, \"message\": \"IdealLoadsAirSystem for zone ''F1_Office'' created.\",
       \"data\": {\"zone_name\": \"F1_Office\", \"template_thermostat_name\": \"Office_Thermostat\",
@@ -703,10 +706,10 @@ interactions:
       0.00944, \"outdoor_air_flow_rate_per_zone_floor_area\": 0.0, \"outdoor_air_flow_rate_per_zone\":
       0.0, \"demand_controlled_ventilation_type\": \"None\", \"outdoor_air_economizer_type\":
       \"NoEconomizer\", \"heat_recovery_type\": \"None\", \"sensible_heat_recovery_effectiveness\":
-      0.7, \"latent_heat_recovery_effectiveness\": 0.65}}","role":"tool","tool_call_id":"call_632852"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_725405","function":{"name":"list_thermostats","arguments":"{}"}},{"type":"function","id":"call_725408","function":{"name":"list_ideal_loads_systems","arguments":"{}"}}]},{"content":"{\"success\":
+      0.7, \"latent_heat_recovery_effectiveness\": 0.65}}","role":"tool","tool_call_id":"call_986053"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_1204869","function":{"name":"list_thermostats","arguments":"{}"}},{"type":"function","id":"call_1204872","function":{"name":"list_ideal_loads_systems","arguments":"{}"}}]},{"content":"{\"success\":
       true, \"message\": \"Listed 1 HVACTemplate:Thermostat.\", \"data\": [{\"name\":
       \"Office_Thermostat\", \"heating_setpoint_schedule_name\": \"Heating_Setpoint\",
-      \"cooling_setpoint_schedule_name\": \"Cooling_Setpoint\"}]}","role":"tool","tool_call_id":"call_725405"},{"content":"{\"success\":
+      \"cooling_setpoint_schedule_name\": \"Cooling_Setpoint\"}]}","role":"tool","tool_call_id":"call_1204869"},{"content":"{\"success\":
       true, \"message\": \"Listed 1 HVACTemplate:Zone:IdealLoadsAirSystem.\", \"data\":
       [{\"zone_name\": \"F1_Office\", \"template_thermostat_name\": \"Office_Thermostat\",
       \"maximum_heating_supply_air_temperature\": 50.0, \"minimum_cooling_supply_air_temperature\":
@@ -718,7 +721,7 @@ interactions:
       0.00944, \"outdoor_air_flow_rate_per_zone_floor_area\": 0.0, \"outdoor_air_flow_rate_per_zone\":
       0.0, \"demand_controlled_ventilation_type\": \"None\", \"outdoor_air_economizer_type\":
       \"NoEconomizer\", \"heat_recovery_type\": \"None\", \"sensible_heat_recovery_effectiveness\":
-      0.7, \"latent_heat_recovery_effectiveness\": 0.65}]}","role":"tool","tool_call_id":"call_725408"}],"model":"google/gemini-3.8-flash","max_completion_tokens":16384,"parallel_tool_calls":false,"stream":false,"temperature":0.7,"tool_choice":"required","tools":[{"type":"function","function":{"name":"create_thermostat","description":"Create
+      0.7, \"latent_heat_recovery_effectiveness\": 0.65}]}","role":"tool","tool_call_id":"call_1204872"}],"model":"google/gemini-3.8-flash","max_completion_tokens":16384,"parallel_tool_calls":false,"stream":false,"temperature":0.7,"tools":[{"type":"function","function":{"name":"create_thermostat","description":"Create
       an HVACTemplate:Thermostat.\n\n        Args:\n            name: Unique thermostat
       name.\n            heating_setpoint_schedule_name: Existing Schedule:Compact
       for heating setpoints (C).\n            cooling_setpoint_schedule_name: Existing
@@ -732,11 +735,7 @@ interactions:
       a thermostat; refused while an IdealLoadsAirSystem uses it.","parameters":{"properties":{"name":{"type":"string"}},"required":["name"],"type":"object"}}},{"type":"function","function":{"name":"delete_ideal_loads_system","description":"Delete
       the IdealLoadsAirSystem of a zone.","parameters":{"properties":{"zone_name":{"type":"string"}},"required":["zone_name"],"type":"object"}}},{"type":"function","function":{"name":"list_zones","description":"List
       zones that can get an HVAC system.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"list_schedules","description":"List
-      Schedule:Compact for setpoint and availability references.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"HVACResponse","description":"Structured
-      summary returned by the HVAC phase agent.","parameters":{"properties":{"thermostat_names":{"description":"Names
-      of all thermostats created","items":{"type":"string"},"type":"array"},"ideal_loads_zone_names":{"description":"Zone
-      names that received an IdealLoadsAirSystem","items":{"type":"string"},"type":"array"},"summary":{"description":"One-line
-      summary of the HVAC creation result","type":"string"}},"required":["thermostat_names","ideal_loads_zone_names","summary"],"type":"object"}}}],"max_thinking_budget":4096}'
+      Schedule:Compact for setpoint and availability references.","parameters":{"properties":{},"type":"object"}}}],"max_thinking_budget":4096}'
     headers:
       accept:
       - application/json
@@ -745,7 +744,7 @@ interactions:
       connection:
       - keep-alive
       content-length:
-      - '9905'
+      - '9430'
       content-type:
       - application/json
       host:
@@ -777,19 +776,18 @@ interactions:
   response:
     body:
       string: !!binary |
-        KLUv/QBYtRUA5m2JJtAWrQ6AU1qbT7Rt478gSZ9MXPScc05F00AVqQ7+xZwUuZrBKh6AfgB1AH8A
-        Lal4Xb9IUtueSemZ7XfGetWuZqSc1dd+7NlphJ6LETkYRAxvrw0jCa3X2TuWJUUhqFwocUarq4CW
-        FaXV22VDap21w77c9Z190nhbXhZ9lcud9/b7OgSEnv1i08GhYVFychskKBQu7MjCVTigSBcpo8FI
-        G41EmV29HcaDACKAlqeqfPa2k162LxAMNBre3hbPgxr7AOay2WCclPze9FBv7+tzD/Jo1YyTWpZs
-        PVTXvpO+s9/J10Zr+e0taT2ovSu2tq2zV1BwMFyTxMvz7FZKfk5Set8+qeWurmPjjJQFofWqqDyz
-        tJs0nPEgj3bbL9LOO7tJE5cjoSNEgxNxUWCQOKkSJj4ZDA8QHFHh7XwZnh32vT71za5Evg3dRyj0
-        0MennvTEWchUOskN4yf28emTR/tk2+Lp7if2qeKkhagnPYnojTBqNLCQaYTkhg7R5Aj2rKK1HMHJ
-        0eVrqVW7w3H9IkVRRAif2qdPZcvy2E+gt9s7O6FQqGIrnoUymgtGkqxmoyFw/WbXpmZ0Fne99vKE
-        GkYSGqGH+8Za4pgFdufxO6itZKpdhH5AnI1nGQEJs9lYLJaKpf1a+s40FoyA5EvvmTRwNoC5CLTb
-        2SL0untZtF6ej9AlEsplq1Lq7AUFJRIhMoTj8zgdGQnOhNTYiIgdDkXGgtFhPSQENyAwgsWg3QH+
-        WS11A4cUUJoDSyUWkt8KW3hQBGUgdgbpCeg6iW9uCx/sRqZxWsdLPTCVwibsMGHBlaa9sj52AYHu
-        5haha/uibESo/D+XrxqWcqDC2iQL0CNvaoGdayYzJdWGcFJMdmHFfkDL/VO3MAKBq7vaFRf1bQka
-        nQwXHkWkEIn/24BqW0oOxhdgAQ==
+        KLUv/QBY1RQANiyJKOAuuQE4pbrbIRFgjFlm0gLWHC768/l8Psdr0kPNyKgSl4IxxhhGTAh6AHQA
+        iwD0SddxR88bVdm5/gWvc/W37POMT7hj29dGeUNhKtRBy76uPclesGN3eHpbY+LAGl//c07APc5a
+        rmV7rtmvo2zN8/RLO3a1n90DP0sdeXa0ZWfqoI/t2CUJCr1Y1wf0SDBcVbKkD41oRCLYhPKwKBKr
+        UZ1r2dr3BQAFEBaUzdTmfgVr02a86RqGqpPSvHKP8aS0OikGJ3P626ZhUHlmbL/rXaYsLTtXz9XS
+        jp3rzPgxni3bPXv7QrZzE2P/OnaDhrPJnPR51o4N2oxbdrV4+s06/PU3/LEX5KzXsZJtcq1+X1DI
+        xk7fdrRjm9zbPmceWyZ0QPGENBUSylwYSwcsCPBMhU0lkStI5AJg9506gaFIdB5VZaHEeYuVcBlE
+        aoTgITEJKHSojWi2h09lgiTSOFgKsEuFA9XOhk5MkQCNl8BpOIUessE8XcKlZJ5TIVzAS2lCIfQZ
+        tGy/ozwr97hjZ5Nnh2wHT9n7mV3LuPrexKPNb8d2MDLrwqC82mEYcvP7jiHksrBHhSFY5rT69a1+
+        9k2/GYOj0LUn2ddG0/PfUhYrzTs6aV849uYmO2RPnwx/R8gVmUgmVVU5KtkZW9rRglzezDZ3xDpO
+        ruuSjauHbM4y+NkLjjpWhGFFGNsiNfL8rt069kB1JwZ6oBcIyyecaBogcEQMGAcsIECCxpTxAf1Z
+        KWsDmBRAmgNKSAycn0q24K4glEfMGSQmoOtJfHJb1GAYmcZpjZfiwFQKr3GHqQXWpfYqyMwwhBVk
+        oz1erpqQb8uIiozvIuHBUHOUxqCBJDGcD33vaxUGCx2gwcjV9OJ7EFAbSEnC84I2
     headers:
       access-control-allow-origin:
       - '*'
@@ -800,7 +798,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a4765970eeb0a0ee-NRT
+      - a47890b23acff9b0-NRT
       connection:
       - keep-alive
       content-encoding:
@@ -808,7 +806,7 @@ interactions:
       content-type:
       - application/json
       date:
-      - Thu, 08 Oct 2026 15:58:53 GMT
+      - Thu, 08 Oct 2026 22:26:07 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       permissions-policy:
@@ -817,13 +815,13 @@ interactions:
       referrer-policy:
       - no-referrer, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=sogZz2aK5DPXjJkmIqrsoUZyoRK4YJCoxb40ALeOqXvvZt1tFSSuZASfBtGcAorUCy7yt7f34sXLm0cyuibSY6EriEljIK1CtLUH%2F0lMurA%2BJyrcu8%2BhRAXhVr06PHBb1VI%3D"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=yBylNFSmDUW6DcydHBGThbUjAMKPmpTGSADpC95CAcqOXdhf1mls%2Fh9pdF58%2B%2B71%2B1mFyNA69ILR9B9lxTuqWBDhWnrB0nxlMlbhr51MfztKNccl47MxuMoYbLe01i5%2Fdl8%3D"}]}'
       server:
       - cloudflare
       set-cookie:
-      - __cf_bm=300Sy6QRmpLhltpyktPlF6ANniBNmALGVfaIIA0NxFU-1791475131.183043-1.0.1.1-cg74DjL5s_U0MBLcV4XSZsHQUuNoG9WNxIlDIQBCLLA393pZBdOF26f6DsXOy4yiPVtmBYHP7AX0oPhB41813l4dSMH3riGmv_XuJpnk5xvVABK9ZU06pxoqmufrn20c;
+      - __cf_bm=euLNuzdlM7pyv8wAom9w_p4e_Rv5PhEYVDtjf5Ujz4Q-1791498365.945624-1.0.1.1-uiuX9Lg3nXmT0IFxTJ72rNOjz3APeQuQB6wvlyuVbLwi_NgHHFLxWMtJV8yXIxMqACfMMPbwZCvZzyv2hS1qIDoBCBFJRH2n8nyJvscIqUcpwMIkR0nEIdS_31NVa_pw;
         HttpOnly; SameSite=None; Secure; Path=/; Domain=openrouter.ai; Expires=Thu,
-        08 Oct 2026 16:28:53 GMT
+        08 Oct 2026 22:56:07 GMT
       strict-transport-security:
       - max-age=31536000
       transfer-encoding:
@@ -833,11 +831,11 @@ interactions:
       x-content-type-options:
       - nosniff
       x-generation-id:
-      - gen-1791475131-BEtFqsREOMHtzwQVYZ9R
+      - gen-1791498366-Wcbvow0gI7Ypb21Fc9Xw
       x-new-api-version:
-      - v1.0.0-rc.41
+      - v1.0.0-rc.42
       x-oneapi-request-id:
-      - 202610081558511611868108268d9d6K0LzSRV5
+      - 202610082226059273610298268d9d6RpFfctQK
     status:
       code: 200
       message: OK

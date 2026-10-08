@@ -1,5 +1,4 @@
 from langchain_core.messages import AIMessage
-from pydantic import BaseModel, Field
 
 from src.agent.llm import build_agent
 from src.agent.nodes._share import (
@@ -42,16 +41,6 @@ Rules:
 """
 
 
-class HVACResponse(BaseModel):
-    """Structured summary returned by the HVAC phase agent."""
-
-    thermostat_names: list[str] = Field(description="Names of all thermostats created")
-    ideal_loads_zone_names: list[str] = Field(
-        description="Zone names that received an IdealLoadsAirSystem"
-    )
-    summary: str = Field(description="One-line summary of the HVAC creation result")
-
-
 def hvac_agent(state: AgentState) -> AgentStateUpdate:
     if skipped(state, "hvac"):
         return AgentStateUpdate()
@@ -62,7 +51,6 @@ def hvac_agent(state: AgentState) -> AgentStateUpdate:
     agent = build_agent(
         tools=tools,
         system_prompt=HVAC_SYSTEM_PROMPT,
-        response_format=HVACResponse,
         middleware=[trace_middleware(collector)],
     )
 
@@ -71,8 +59,7 @@ def hvac_agent(state: AgentState) -> AgentStateUpdate:
         agent, local, with_feedback(specs, state, "hvac"), phase="hvac"
     )
 
-    response: HVACResponse | None = result.get("structured_response")
-    summary = response.summary if response else last_message_text(result)
+    summary = last_message_text(result)
 
     record_phase_trace("hvac", collector.export())
     return AgentStateUpdate(
