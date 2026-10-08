@@ -6,7 +6,12 @@ from idfpy import IDF
 from idfpy.models import BuildingSurfaceDetailed, FenestrationSurfaceDetailed
 
 from src.modeling.errors import ReferencedObjectError
-from src.modeling.surfaces import add_surface, remove_surface
+from src.modeling.surfaces import (
+    SurfaceSpecSchema,
+    add_surface,
+    add_surfaces,
+    remove_surface,
+)
 from src.modeling.validation import interzone_issues
 
 DATA = Path(__file__).parents[2] / "data"
@@ -132,3 +137,54 @@ def test_pair_with_an_opening_is_kept():
     with pytest.raises(ReferencedObjectError):
         remove_surface(idf, EAST)
     assert {EAST, WEST} <= set(idf.all_of_type(BuildingSurfaceDetailed))
+
+
+def _spec(surface: BuildingSurfaceDetailed, **changes: object) -> SurfaceSpecSchema:
+    return SurfaceSpecSchema.model_validate(
+        {
+            "name": surface.name,
+            "surface_type": surface.surface_type,
+            "construction_name": surface.construction_name,
+            "zone_name": surface.zone_name,
+            "outside_boundary_condition": surface.outside_boundary_condition,
+            "vertices": [
+                {"X": x, "Y": y, "Z": z} for x, y, z in surface.vertices_as_tuples
+            ],
+            **changes,
+        }
+    )
+
+
+def test_batch_creates_valid_entries_and_reports_the_rest():
+    idf, east, west = _model_without_shared_wall()
+    batch = [
+        _spec(
+            east,
+            outside_boundary_condition="Surface",
+            outside_boundary_condition_object=WEST,
+        ),
+        _spec(east, name="Broken", vertices=[]),
+        _spec(
+            west,
+            outside_boundary_condition="Surface",
+            outside_boundary_condition_object=EAST,
+        ),
+    ]
+
+    outcome = add_surfaces(idf, batch)
+
+    assert outcome.created == [EAST, WEST]
+    assert [(f["index"], f["name"]) for f in outcome.failed] == [(1, "Broken")]
+    assert interzone_issues(idf) == []
+
+
+@pytest.mark.parametrize(
+    ("boundary", "sun", "wind"),
+    [("Outdoors", "SunExposed", "WindExposed"), ("Ground", "NoSun", "NoWind")],
+)
+def test_spec_exposure_follows_the_boundary(boundary, sun, wind):
+    _, east, _ = _model_without_shared_wall()
+
+    surface = _spec(east, outside_boundary_condition=boundary).surface()
+
+    assert (surface.sun_exposure, surface.wind_exposure) == (sun, wind)
