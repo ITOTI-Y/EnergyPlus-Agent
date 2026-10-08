@@ -8,7 +8,7 @@ from idfpy.models.hvac_templates import (
     HVACTemplateThermostat,
     HVACTemplateZoneIdealLoadsAirSystem,
 )
-from idfpy.models.internal_gains import Lights, People
+from idfpy.models.internal_gains import ElectricEquipment, Lights, People
 from idfpy.models.schedules import ScheduleCompact, ScheduleTypeLimits
 from idfpy.models.thermal_zones import (
     BuildingSurfaceDetailed,
@@ -30,6 +30,7 @@ type Phase = Literal[
     "hvac",
     "people",
     "lights",
+    "equipment",
 ]
 
 PHASE_TYPES: Final[dict[Phase, tuple[type[IDFBaseModel], ...]]] = {
@@ -42,6 +43,7 @@ PHASE_TYPES: Final[dict[Phase, tuple[type[IDFBaseModel], ...]]] = {
     "hvac": (HVACTemplateThermostat, HVACTemplateZoneIdealLoadsAirSystem),
     "people": (People,),
     "lights": (Lights,),
+    "equipment": (ElectricEquipment,),
 }
 
 FOUNDATION_PHASES: Final[tuple[Phase, ...]] = ("zone", "material", "schedule")

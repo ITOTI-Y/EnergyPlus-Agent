@@ -66,6 +66,10 @@ class IntakeOutput(BaseModel):
     lights_specs: str = Field(
         description="Lighting: zone assignment, power density, schedule per zone"
     )
+    equipment_specs: str = Field(
+        description="Plug loads (ElectricEquipment): zone assignment, power "
+        "density, schedule per zone; empty if the brief has none"
+    )
 
 
 @dataclass(frozen=True)

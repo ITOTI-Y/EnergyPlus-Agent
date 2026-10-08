@@ -20,6 +20,7 @@ def _intake(**specs: str) -> IntakeOutput:
             "hvac",
             "people",
             "lights",
+            "equipment",
         )
     }
     return IntakeOutput.model_validate(

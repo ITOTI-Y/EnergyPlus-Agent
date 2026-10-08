@@ -16,6 +16,7 @@ _DEFAULT_OUTPUT_VARIABLES: Final = (
     ("*", "Zone Ideal Loads Supply Air Total Heating Energy"),
     ("*", "Zone Ideal Loads Supply Air Total Cooling Energy"),
     ("*", "Zone Lights Electricity Energy"),
+    ("*", "Zone Electric Equipment Electricity Energy"),
     ("*", "Zone People Total Heating Energy"),
     ("", "Facility Total HVAC Electricity Demand Rate"),
 )

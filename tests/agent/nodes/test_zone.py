@@ -24,6 +24,7 @@ def test_zone_agent_creates_two_zones():
             "hvac_specs": "",
             "people_specs": "",
             "lights_specs": "",
+            "equipment_specs": "",
         }
     )
     out = zone_agent(AgentState(intake_output=intake))

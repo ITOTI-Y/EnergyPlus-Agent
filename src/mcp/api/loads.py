@@ -1,7 +1,7 @@
 from typing import Literal
 
 from fastmcp import FastMCP
-from idfpy.models.internal_gains import Lights, People
+from idfpy.models.internal_gains import ElectricEquipment, Lights, People
 
 from src.mcp.api.common import Outcome, dump, given, model_tool
 from src.modeling import objects
@@ -9,10 +9,11 @@ from src.state.config_state import ConfigState
 
 type PeopleMethod = Literal["People", "People/Area", "Area/Person"]
 type LightingMethod = Literal["LightingLevel", "Watts/Area", "Watts/Person"]
+type EquipmentMethod = Literal["EquipmentLevel", "Watts/Area", "Watts/Person"]
 
 
 def register_load_tools(mcp: FastMCP, state: ConfigState) -> None:
-    """Register People and Lights tools."""
+    """Register People, Lights and ElectricEquipment tools."""
     idf = state.idf
     tool = model_tool(mcp)
 
@@ -185,3 +186,101 @@ def register_load_tools(mcp: FastMCP, state: ConfigState) -> None:
     def list_lights() -> Outcome:
         """List all Lights loads."""
         return "Listed Lights.", objects.dumps(idf.all_of_type(Lights))
+
+    @tool
+    def create_equipment(
+        name: str,
+        zone_name: str,
+        schedule_name: str,
+        design_level_calculation_method: EquipmentMethod = "Watts/Area",
+        design_level: float = 0.0,
+        watts_per_floor_area: float = 0.0,
+        watts_per_person: float = 0.0,
+        fraction_latent: float = 0.0,
+        fraction_radiant: float = 0.0,
+        fraction_lost: float = 0.0,
+    ) -> Outcome:
+        """Create an ElectricEquipment (plug) load.
+
+        Args:
+            name: Unique name.
+            zone_name: Existing zone.
+            schedule_name: Fraction schedule.
+            design_level_calculation_method: Which of the next three applies.
+            design_level: Watts.
+            watts_per_floor_area: W/m^2.
+            watts_per_person: W/person.
+            fraction_latent: Latent fraction (0-1).
+            fraction_radiant: Radiant fraction (0-1).
+            fraction_lost: Fraction leaving the zone (0-1).
+        """
+        equipment = ElectricEquipment(
+            name=name,
+            zone_or_zonelist_or_space_or_spacelist_name=zone_name,
+            schedule_name=schedule_name,
+            design_level_calculation_method=design_level_calculation_method,
+            design_level=design_level,
+            watts_per_floor_area=watts_per_floor_area,
+            watts_per_person=watts_per_person,
+            fraction_latent=fraction_latent,
+            fraction_radiant=fraction_radiant,
+            fraction_lost=fraction_lost,
+        )
+        return (
+            f"ElectricEquipment '{name}' created.",
+            dump(objects.create(idf, equipment)),
+        )
+
+    @tool
+    def get_equipment(name: str) -> Outcome:
+        """Read an ElectricEquipment load by name."""
+        return (
+            f"ElectricEquipment '{name}' read.",
+            dump(objects.get(idf, ElectricEquipment, name)),
+        )
+
+    @tool
+    def update_equipment(
+        name: str,
+        new_name: str | None = None,
+        zone_name: str | None = None,
+        schedule_name: str | None = None,
+        design_level_calculation_method: EquipmentMethod | None = None,
+        design_level: float | None = None,
+        watts_per_floor_area: float | None = None,
+        watts_per_person: float | None = None,
+        fraction_latent: float | None = None,
+        fraction_radiant: float | None = None,
+        fraction_lost: float | None = None,
+    ) -> Outcome:
+        """Update an ElectricEquipment load; omitted fields stay unchanged."""
+        equipment = objects.update(
+            idf,
+            objects.get(idf, ElectricEquipment, name),
+            given(
+                name=new_name,
+                zone_or_zonelist_or_space_or_spacelist_name=zone_name,
+                schedule_name=schedule_name,
+                design_level_calculation_method=design_level_calculation_method,
+                design_level=design_level,
+                watts_per_floor_area=watts_per_floor_area,
+                watts_per_person=watts_per_person,
+                fraction_latent=fraction_latent,
+                fraction_radiant=fraction_radiant,
+                fraction_lost=fraction_lost,
+            ),
+        )
+        return f"ElectricEquipment '{name}' updated.", dump(equipment)
+
+    @tool
+    def delete_equipment(name: str) -> Outcome:
+        """Delete an ElectricEquipment load."""
+        objects.delete(idf, objects.get(idf, ElectricEquipment, name), name)
+        return f"ElectricEquipment '{name}' deleted.", None
+
+    @tool
+    def list_equipment() -> Outcome:
+        """List all ElectricEquipment loads."""
+        return "Listed ElectricEquipment.", objects.dumps(
+            idf.all_of_type(ElectricEquipment)
+        )
