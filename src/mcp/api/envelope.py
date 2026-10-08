@@ -16,7 +16,7 @@ from idfpy.models.thermal_zones import (
 )
 
 from src.mcp.api.common import Outcome, dump, given, model_tool
-from src.modeling import objects
+from src.modeling import geometry, objects
 from src.modeling.envelope import (
     Roughness,
     VertexSchema,
@@ -34,7 +34,8 @@ from src.modeling.fenestration import (
     remove_fenestration,
     update_fenestration,
 )
-from src.modeling.surfaces import add_surface
+from src.modeling.geometry import PlanPointSchema, ZoneConstructions
+from src.modeling.surfaces import SurfaceSpecSchema, add_surface, add_surfaces
 from src.state.config_state import ConfigState
 
 type SurfaceType = Literal["Wall", "Floor", "Roof", "Ceiling"]
@@ -359,6 +360,70 @@ def _register_surfaces(mcp: FastMCP, state: ConfigState) -> None:
         return f"Surface '{name}' created.", [
             dump(s) for s in add_surface(idf, surface)
         ]
+
+    @tool
+    def create_zone_geometry(
+        zone_name: str,
+        plan: list[PlanPointSchema],
+        floor_z: float,
+        height: float,
+        exterior_wall_construction: str,
+        roof_construction: str,
+        ground_floor_construction: str,
+        interior_wall_construction: str,
+        interior_floor_construction: str,
+    ) -> Outcome:
+        """Create all surfaces of a zone by extruding its floor plan.
+
+        Faces touching another zone's faces become interzone pairs, in any
+        creation order and for zones of different height or misaligned
+        storeys. The top is a flat roof; use create_surfaces for sloped ones.
+
+        Args:
+            zone_name: Existing zone.
+            plan: Floor plan corners (X, Y in meters), in order around the zone.
+            floor_z: Floor level in meters; 0 for the ground floor.
+            height: Floor-to-ceiling height in meters.
+            exterior_wall_construction: Outdoor walls.
+            roof_construction: Roof.
+            ground_floor_construction: Floor on the ground or above outdoor air.
+            interior_wall_construction: Walls shared with another zone.
+            interior_floor_construction: Floors and ceilings shared with another zone.
+        """
+        result = geometry.create_zone_geometry(
+            idf,
+            zone_name,
+            plan,
+            floor_z,
+            height,
+            ZoneConstructions(
+                exterior_wall=exterior_wall_construction,
+                roof=roof_construction,
+                ground_floor=ground_floor_construction,
+                interior_wall=interior_wall_construction,
+                interior_floor=interior_floor_construction,
+            ),
+        )
+        message = " ".join(
+            [
+                f"Zone '{zone_name}' extruded into {len(result.created)} surfaces.",
+                *result.notes,
+            ]
+        )
+        return message, {"created": result.created, "replaced": result.replaced}
+
+    @tool
+    def create_surfaces(surfaces: list[SurfaceSpecSchema]) -> Outcome:
+        """Create several surfaces; each succeeds or fails on its own.
+
+        Interzone partners may be later entries of the same list. Failed
+        entries are reported by position so only they need resending.
+        """
+        outcome = add_surfaces(idf, surfaces)
+        return (
+            f"Created {len(outcome.created)} surfaces, {len(outcome.failed)} failed.",
+            {"created": outcome.created, "failed": outcome.failed},
+        )
 
     @tool
     def get_surface(name: str) -> Outcome:

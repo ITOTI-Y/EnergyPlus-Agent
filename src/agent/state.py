@@ -47,7 +47,12 @@ class IntakeOutput(BaseModel):
         description="Construction assembly instructions referencing materials"
     )
     surface_specs: str = Field(
-        description="Surface geometry instructions referencing zones and constructions"
+        description=(
+            "Per zone: floor plan corners (X, Y in meters, in order around the "
+            "zone), floor level and height, and the constructions of exterior "
+            "walls, roof, ground floor, interior walls and interior floors. "
+            "Describe individual surfaces only for sloped roofs or walls."
+        )
     )
     fenestration_specs: str = Field(
         description="Window/door instructions referencing surfaces"

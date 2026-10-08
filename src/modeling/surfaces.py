@@ -6,13 +6,20 @@ the partner of a ``Surface`` boundary is allowed to follow; creating the
 twin, or naming an existing surface, completes the pair.
 """
 
-from typing import Final
+from dataclasses import dataclass
+from typing import Any, Final, Literal
 
 from idfpy import IDF
 from idfpy.models.thermal_zones import BuildingSurfaceDetailed
+from pydantic import BaseModel, Field
 
 from src.modeling import objects
-from src.modeling.envelope import check_construction_fits
+from src.modeling.envelope import (
+    VertexSchema,
+    check_construction_fits,
+    surface_geometry,
+)
+from src.modeling.errors import ModelingError, describe_error
 
 AREA_TOLERANCE: Final = 0.01
 """Relative area difference allowed between the two faces of a pair."""
@@ -78,3 +85,58 @@ def add_surface(
     partner.sun_exposure = "NoSun"
     partner.wind_exposure = "NoWind"
     return [created, partner]
+
+
+class SurfaceSpecSchema(BaseModel):
+    """One base surface as tool callers describe it."""
+
+    name: str
+    surface_type: Literal["Wall", "Floor", "Roof", "Ceiling"]
+    construction_name: str
+    zone_name: str
+    outside_boundary_condition: Literal[
+        "Outdoors", "Ground", "Surface", "Zone", "Adiabatic"
+    ]
+    vertices: list[VertexSchema] = Field(
+        description=">= 3 vertices in meters, counter-clockwise seen from outside"
+    )
+    sun_exposure: Literal["SunExposed", "NoSun"] = "NoSun"
+    wind_exposure: Literal["WindExposed", "NoWind"] = "NoWind"
+    outside_boundary_condition_object: str | None = Field(
+        default=None,
+        description="Partner surface for a Surface boundary (may be created "
+        "later), adjacent zone for a Zone boundary",
+    )
+
+    def surface(self) -> BuildingSurfaceDetailed:
+        """Raises: ValueError: On fewer than 3 vertices or invalid fields."""
+        return BuildingSurfaceDetailed.model_validate(
+            {**self.model_dump(exclude={"vertices"}), **surface_geometry(self.vertices)}
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class BatchOutcome:
+    """Surfaces a batch created and the specs it rejected, by position."""
+
+    created: list[str]
+    failed: list[dict[str, Any]]
+
+
+def add_surfaces(idf: IDF, specs: list[SurfaceSpecSchema]) -> BatchOutcome:
+    """Add each surface on its own; a rejected one does not stop the others.
+
+    Interzone partners may come later in the same batch. The caller resends
+    only the failed entries.
+    """
+    created: list[str] = []
+    failed: list[dict[str, Any]] = []
+    for index, spec in enumerate(specs):
+        try:
+            created.extend(s.name for s in add_surface(idf, spec.surface()))
+        except (ModelingError, ValueError) as e:
+            message, data = describe_error(e)
+            failed.append(
+                {"index": index, "name": spec.name, "message": message, "data": data}
+            )
+    return BatchOutcome(list(dict.fromkeys(created)), failed)
