@@ -12,12 +12,15 @@ from dataclasses import dataclass
 from typing import Final
 
 from idfpy import IDF, IDFBaseModel
+from idfpy.models.constructions import Construction, Material
+from idfpy.models.location import SiteGroundTemperatureBuildingSurface
 from idfpy.models.thermal_zones import (
     BuildingSurfaceDetailed,
     FenestrationSurfaceDetailed,
     Zone,
 )
 
+from src.modeling.envelope import layer_names
 from src.modeling.fenestration import faces_away, placement_problem
 from src.modeling.surfaces import pair_problem
 from src.runner.runner import EnergyPlusMessage
@@ -123,9 +126,55 @@ def interzone_issues(idf: IDF) -> list[ModelIssue]:
     return issues
 
 
+def foundation_issues(idf: IDF) -> list[ModelIssue]:
+    """Ground floor constructions that Kiva cannot model.
+
+    Simulation moves ground floors onto a Kiva foundation unless the model
+    sets its own ground temperature, and Kiva needs layers with thickness
+    and conductivity: a Material:NoMass layer, common for insulation in the
+    DOE prototypes, ends the run with a Fatal error.
+    """
+    if idf.all_of_type(SiteGroundTemperatureBuildingSurface):
+        return []
+    names = {
+        surface.construction_name
+        for surface in idf.all_of_type(BuildingSurfaceDetailed).values()
+        if surface.surface_type == "Floor"
+        and surface.outside_boundary_condition == "Ground"
+    }
+    issues = []
+    for name in sorted(names):
+        construction = idf.get(Construction, name)
+        if construction is None:
+            continue  # reported by reference_issues
+        irregular = [
+            layer
+            for layer in layer_names(construction)
+            if idf.get(Material, layer) is None
+        ]
+        if irregular:
+            issues.append(
+                ModelIssue(
+                    construction.idf_object_type(),
+                    name,
+                    None,
+                    "is used by ground floors, which are simulated with Kiva; "
+                    f"layers {irregular} must be Material objects with "
+                    "thickness and conductivity, not Material:NoMass or "
+                    "Material:AirGap",
+                )
+            )
+    return issues
+
+
 def model_issues(idf: IDF) -> list[ModelIssue]:
     """Problems in the objects present, detectable without running EnergyPlus."""
-    return reference_issues(idf) + fenestration_issues(idf) + interzone_issues(idf)
+    return (
+        reference_issues(idf)
+        + fenestration_issues(idf)
+        + interzone_issues(idf)
+        + foundation_issues(idf)
+    )
 
 
 def completeness_issues(idf: IDF) -> list[ModelIssue]:
