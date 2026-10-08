@@ -73,34 +73,28 @@ interactions:
   response:
     body:
       string: !!binary |
-        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
-        oaEiM50gh6cofSS+/IBoSkpQqpmkZQ4=
+        KLUv/QBYJSYAalXcECfQRvI22A9fozdhc0Jk4orkpJtYcXfNZFAsiCQQWyeUU/DFA9SpB0zwAAkB
+        DQGl1V+wSY9Zk0VRnZwtCOpT/O0vSNS/gMA2aqw3t9nyU7zm7Xpr2znm3P72N2/zC7a/o+X8li89
+        ZeJdOhfF3eqXnudswU7eu//2enN7zY6HY41F/m0TNO780rS9ekONv4DA9vyCeHvAl77n04o3xL1z
+        QYyal7+U86m37xqbIPOOGoud8nYu4i/9xuHZLwEchwCM3968IUa3CXrpPdxmcUATUBjAGpd3JNw8
+        7j3+9vmGu3xp+/B2e03wpdcb95tB5QYFdOsBf/sO3s+3X/rOOiIQBWo5hrUBz0pX0BieAUrDpuqi
+        DBk1oO/424f4CwAEABASKiT7hIqRSyMIUQiVrin5ZQPhqUe4uHgVIpGyvDBfKoKAicvKaaSZ60RL
+        RilhZ5FcDN3iejwoj2emQteFH6Mw4DwlRmwkMJsTqJxiqU6HumZ94R4PxOJIMdM0LphWOAcJJbgE
+        6LEpq5B1DZeKRJSIlcTBXTDiIVTrpCox15bDoqAyjsMH3+fxGWyQY+ojoX0IlY9jQyYLjWO9qsyI
+        eCC4IpJYUw51ZqhsELI8knRSwwSJgoww1HGNFR05DAeyFwQEcScG3FClpTl9sDqxiBhSc+AkPcFt
+        Ovfb227Dlz68HSQyQX0FYNtv2CmQz/B6QJ5R0mj0o4Lfnnd9y3M07UvPr95rp3Ocf/sbmUx6n4zl
+        nRjtIRCNyXU17/I8L+EdCtzMfDg1Y1fG+gZln+Uod2othwVOMFpnZnbB8ESPUvFUkWAypWloIbJc
+        tjDwDgNuAe8mFC1KRauMx0IEJTJNaECJYmpSIJ5mRWwV+3xriGFuHBhEMhJ0Q3MSnJpK+5yfe8eq
+        m0qw70Xe34k5vqt6UtK0JpspMaRZLX2vBc1F4BCYqS4zleOoMmJVi0Wg31RmG52xBhqLPFD4QWN4
+        ULBH8lEOqONEKZaoSzQyYrlkCE1XKRusf4qCRuAULoOaATssUx02ViOhsoiEB1FaIDtqSVdU3Dwy
+        w0Mxbrq2UAukJjAXI1rxQBeLh8HPsIJS2CeRRcO1TtigWWyj0Wi0JX6JqqjRhU0UnzSLkq7Luqpp
+        EtC5oL7mFTXulPaanYPO0Q0xunF42tuxmXakKbwe0IJfcE+zb09u0dfhuPMNvmSoqGz77i9VFvVS
+        phm25/qSu3c6qNwm6HypwGhUYPQUOtBtaW7xpR8wIMXQNCMGjfPh+UIqNhiYkUmokx+OAgKKoQ0i
+        U6qCkgn1aaLYeBLSstxhGvmqCASuZtBHZCU78hRtIqo3dWQ5qiKO1cCIFBSkMIgK4RAUKrlx6Huk
+        SAYorgUDd0CsGoMUjvhEGHM6VUVF6iHKugT5TVREy1zspbecYJPIu9rL0Mwe07RgmFi+UP0UorY2
+        J4IbhFZUzT4BNSBQwlKWCwf62RUvcI8FfIIDO0/qgWGPb/aKHBteysCJniO78cENkMFsZBKnVbyU
+        Bk4sfIB2bFtgO9ova+IYNy4LsF03MwbCS4wILvRP+Qr61UqCCjtWVtvxVaGYw2tmMRP01fBVF2H0
+        DWg91w6zaGTL26haEkHaxwP0IIBKfNwG1LalBDC+Dgs=
     headers:
       access-control-allow-origin:
       - '*'
@@ -111,7 +105,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a4765a70f9e5a0ee-NRT
+      - a47ab17eb99ce399-NRT
       connection:
       - keep-alive
       content-encoding:
@@ -119,7 +113,7 @@ interactions:
       content-type:
       - application/json
       date:
-      - Thu, 08 Oct 2026 15:59:37 GMT
+      - Fri, 09 Oct 2026 04:38:04 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       permissions-policy:
@@ -128,13 +122,13 @@ interactions:
       referrer-policy:
       - no-referrer, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=CwhGunMLWsjhJIoaWwwwwnmg0VY%2BuHegC3nA4YgaYTcsYSPrGBfoMPjbeiII8WgiZJrSUR9pXs7GKzCT72Ja9JGY6rsUgNijEreGdsp9746MYeSf8VdFZox8TZ7CWGOnzFk%3D"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=ZGNf%2F65uWy4fYUTZq9V70jBWbsRYoMYc8TXlJE3txheBaUvyFcY1O6DOsmd4H7aYCtVSC0f3ff62LuPWsoTNieAvuCEJMtO%2B3gnh6au15bsEiS%2FLAwPnESjGBjHbxrLvIl0%3D"}]}'
       server:
       - cloudflare
       set-cookie:
-      - __cf_bm=JbKykOsds_tLqqqi7U7eVi28x7aK2YesbDCoMXbDBsE-1791475172.153888-1.0.1.1-JKRYZb_BszL_gchPLwJKK0zXM782eFumrUSli52g3ukgxsTtGYIJNF9SODnCZHWBtb9maOS.gj9O71mveq28f0KbM3RDLVwG8f958fRzrxjFx.pGlxwJymV12x6umgF7;
-        HttpOnly; SameSite=None; Secure; Path=/; Domain=openrouter.ai; Expires=Thu,
-        08 Oct 2026 16:29:37 GMT
+      - __cf_bm=WnZ2DRL9hkN0lEViW1dhuP.1pX8LImHoGH8I_e.CuHQ-1791520681.6860595-1.0.1.1-tjVKaamGsskV6oPk2_.QjzESr7BbhtO.KvJDviPCsKQh8wYkzJQsyabPOC5wizSyo.m0RNE9f_BN_WtikjOKAjfG7jej4RYCEjQd3sI6NcO29ps4njDWkT3E03_QLlV_;
+        HttpOnly; SameSite=None; Secure; Path=/; Domain=openrouter.ai; Expires=Fri,
+        09 Oct 2026 05:08:04 GMT
       strict-transport-security:
       - max-age=31536000
       transfer-encoding:
@@ -144,11 +138,11 @@ interactions:
       x-content-type-options:
       - nosniff
       x-generation-id:
-      - gen-1791475172-ZPBpccGYgrfdPtODxBia
+      - gen-1791520681-hG83NQucY4GEavDKLIaN
       x-new-api-version:
-      - v1.0.0-rc.41
+      - v1.0.0-rc.42
       x-oneapi-request-id:
-      - 202610081559321399399088268d9d6g0bKY0xO
+      - 202610090438016814383078268d9d68wLoV6ZM
     status:
       code: 200
       message: OK
@@ -169,18 +163,18 @@ interactions:
       (People/Area ~ 0.1).\n- fraction_radiant defaults to 0.3 for seated activity.\n","role":"system"},{"content":"Create
       exactly one People object named ''F1_Office_People'' for zone ''F1_Office'':
       method People/Area with 0.1 people/m2, occupancy schedule ''Office_Occupancy'',
-      activity level schedule ''Office_Activity''.","role":"user"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_558405","function":{"name":"list_zones","arguments":"{}"}},{"type":"function","id":"call_558406","function":{"name":"list_schedules","arguments":"{}"}}]},{"content":"{\"success\":
+      activity level schedule ''Office_Activity''.","role":"user"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_114046","function":{"name":"list_zones","arguments":"{}"}},{"type":"function","id":"call_114047","function":{"name":"list_schedules","arguments":"{}"}}]},{"content":"{\"success\":
       true, \"message\": \"Listed 1 Zone.\", \"data\": [{\"name\": \"F1_Office\",
       \"direction_of_relative_north\": 0.0, \"x_origin\": 0.0, \"y_origin\": 0.0,
       \"z_origin\": 0.0, \"type\": 1, \"multiplier\": 1, \"ceiling_height\": \"Autocalculate\",
       \"volume\": \"Autocalculate\", \"floor_area\": \"Autocalculate\", \"part_of_total_floor_area\":
-      \"Yes\"}]}","role":"tool","tool_call_id":"call_558405"},{"content":"{\"success\":
+      \"Yes\"}]}","role":"tool","tool_call_id":"call_114046"},{"content":"{\"success\":
       true, \"message\": \"Listed 2 Schedule:Compact.\", \"data\": [{\"name\": \"Office_Occupancy\",
       \"schedule_type_limits_name\": \"Fraction\", \"data\": [{\"field\": \"Through:
       12/31\"}, {\"field\": \"For: AllDays\"}, {\"field\": \"Until: 24:00\"}, {\"field\":
       \"1.0\"}]}, {\"name\": \"Office_Activity\", \"schedule_type_limits_name\": \"Activity
       Level\", \"data\": [{\"field\": \"Through: 12/31\"}, {\"field\": \"For: AllDays\"},
-      {\"field\": \"Until: 24:00\"}, {\"field\": \"120.0\"}]}]}","role":"tool","tool_call_id":"call_558406"}],"model":"google/gemini-3.8-flash","max_completion_tokens":16384,"parallel_tool_calls":false,"stream":false,"temperature":0.7,"tool_choice":"required","tools":[{"type":"function","function":{"name":"create_people","description":"Create
+      {\"field\": \"Until: 24:00\"}, {\"field\": \"120.0\"}]}]}","role":"tool","tool_call_id":"call_114047"}],"model":"google/gemini-3.8-flash","max_completion_tokens":16384,"parallel_tool_calls":false,"stream":false,"temperature":0.7,"tool_choice":"required","tools":[{"type":"function","function":{"name":"create_people","description":"Create
       a People (occupancy load) object.\n\n        Args:\n            name: Unique
       people object name.\n            zone_name: Existing Zone name this load applies
       to.\n            number_of_people_schedule_name: Existing Schedule:Compact (Fraction).\n            activity_level_schedule_name:
@@ -237,34 +231,36 @@ interactions:
   response:
     body:
       string: !!binary |
-        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
+        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
     headers:
       access-control-allow-origin:
       - '*'
@@ -275,7 +271,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a4765a927c9ba0ee-NRT
+      - a47ab1947f7ae399-NRT
       connection:
       - keep-alive
       content-encoding:
@@ -283,7 +279,7 @@ interactions:
       content-type:
       - application/json
       date:
-      - Thu, 08 Oct 2026 15:59:40 GMT
+      - Fri, 09 Oct 2026 04:38:07 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       permissions-policy:
@@ -292,13 +288,13 @@ interactions:
       referrer-policy:
       - no-referrer, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=CgH26gdOd4jrC%2FdznYY2Gi121BEFiO3uAFAC74k1lNR%2F%2FwzlBg2CQkjizi7hz1GBoZJ0QmVtXDb65PvPkX9NuHEYO7F6MLmOl6WvVwvCo6xs0lPfIpGeQF%2BImxbgINB%2FoF0%3D"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=oP22pQpfYkk5FsgzK%2Bro4lcPxJ9VIphysdJCGcC0FgWEwdgMY7d4HsAnR5ZqpXlUWX36yrDyd5CH0Kg8IIGadU9Ewc%2F%2BQnYSXbFFLvqiMTJcJN60kvp7heFgRqLQoh7Sq60%3D"}]}'
       server:
       - cloudflare
       set-cookie:
-      - __cf_bm=ahzausNL.Aht7XTxVvENYAxgOjMwJHCKfSrkBlQNi80-1791475177.5109532-1.0.1.1-QATEmCDL8v4qbnbQnWej3G6yNUaNNUAgLBbxwtxoUr04NHm.z9qth4taM2_QyqvBx8Wf32HIyz1XoC4yj5bQjWa5ImGqdAAdD4cFaQNrdRmjqyKRHWXfuovC8Minas3t;
-        HttpOnly; SameSite=None; Secure; Path=/; Domain=openrouter.ai; Expires=Thu,
-        08 Oct 2026 16:29:40 GMT
+      - __cf_bm=0hXyijv7kKLxawBKPZ34ECDTK3f1W2Prz9YEwpZ_xM8-1791520684.392872-1.0.1.1-h3th_4npPYXhj4YocBoRicRlPkUYriuay6mmq0S24JROpPms..VhIjRpjjyBKCmGAico22ZhVcDAkVwxmduUWjgQm1wUhv6kWgJwcsGeknj7OKE8fTJf.SegEidYtbAs;
+        HttpOnly; SameSite=None; Secure; Path=/; Domain=openrouter.ai; Expires=Fri,
+        09 Oct 2026 05:08:07 GMT
       strict-transport-security:
       - max-age=31536000
       transfer-encoding:
@@ -308,11 +304,11 @@ interactions:
       x-content-type-options:
       - nosniff
       x-generation-id:
-      - gen-1791475177-Td7u4snlndq3jmMeBIL5
+      - gen-1791520684-hVWqGMkCpy9YsLa48R7k
       x-new-api-version:
-      - v1.0.0-rc.41
+      - v1.0.0-rc.42
       x-oneapi-request-id:
-      - 202610081559374977663288268d9d6FakS5e77
+      - 202610090438043858477108268d9d6SVAulue0
     status:
       code: 200
       message: OK
@@ -333,31 +329,31 @@ interactions:
       (People/Area ~ 0.1).\n- fraction_radiant defaults to 0.3 for seated activity.\n","role":"system"},{"content":"Create
       exactly one People object named ''F1_Office_People'' for zone ''F1_Office'':
       method People/Area with 0.1 people/m2, occupancy schedule ''Office_Occupancy'',
-      activity level schedule ''Office_Activity''.","role":"user"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_558405","function":{"name":"list_zones","arguments":"{}"}},{"type":"function","id":"call_558406","function":{"name":"list_schedules","arguments":"{}"}}]},{"content":"{\"success\":
+      activity level schedule ''Office_Activity''.","role":"user"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_114046","function":{"name":"list_zones","arguments":"{}"}},{"type":"function","id":"call_114047","function":{"name":"list_schedules","arguments":"{}"}}]},{"content":"{\"success\":
       true, \"message\": \"Listed 1 Zone.\", \"data\": [{\"name\": \"F1_Office\",
       \"direction_of_relative_north\": 0.0, \"x_origin\": 0.0, \"y_origin\": 0.0,
       \"z_origin\": 0.0, \"type\": 1, \"multiplier\": 1, \"ceiling_height\": \"Autocalculate\",
       \"volume\": \"Autocalculate\", \"floor_area\": \"Autocalculate\", \"part_of_total_floor_area\":
-      \"Yes\"}]}","role":"tool","tool_call_id":"call_558405"},{"content":"{\"success\":
+      \"Yes\"}]}","role":"tool","tool_call_id":"call_114046"},{"content":"{\"success\":
       true, \"message\": \"Listed 2 Schedule:Compact.\", \"data\": [{\"name\": \"Office_Occupancy\",
       \"schedule_type_limits_name\": \"Fraction\", \"data\": [{\"field\": \"Through:
       12/31\"}, {\"field\": \"For: AllDays\"}, {\"field\": \"Until: 24:00\"}, {\"field\":
       \"1.0\"}]}, {\"name\": \"Office_Activity\", \"schedule_type_limits_name\": \"Activity
       Level\", \"data\": [{\"field\": \"Through: 12/31\"}, {\"field\": \"For: AllDays\"},
-      {\"field\": \"Until: 24:00\"}, {\"field\": \"120.0\"}]}]}","role":"tool","tool_call_id":"call_558406"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_876595","function":{"name":"create_people","arguments":"{\"fraction_radiant\":
-      0.3, \"zone_name\": \"F1_Office\", \"activity_level_schedule_name\": \"Office_Activity\",
-      \"number_of_people_calculation_method\": \"People/Area\", \"name\": \"F1_Office_People\",
-      \"people_per_floor_area\": 0.1, \"number_of_people_schedule_name\": \"Office_Occupancy\"}"}}]},{"content":"{\"success\":
-      true, \"message\": \"People ''F1_Office_People'' created.\", \"data\": {\"name\":
-      \"F1_Office_People\", \"zone_or_zonelist_or_space_or_spacelist_name\": \"F1_Office\",
-      \"number_of_people_schedule_name\": \"Office_Occupancy\", \"number_of_people_calculation_method\":
+      {\"field\": \"Until: 24:00\"}, {\"field\": \"120.0\"}]}]}","role":"tool","tool_call_id":"call_114047"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_133761","function":{"name":"create_people","arguments":"{\"number_of_people_schedule_name\":
+      \"Office_Occupancy\", \"number_of_people_calculation_method\": \"People/Area\",
+      \"name\": \"F1_Office_People\", \"fraction_radiant\": 0.3, \"zone_name\": \"F1_Office\",
+      \"activity_level_schedule_name\": \"Office_Activity\", \"people_per_floor_area\":
+      0.1}"}}]},{"content":"{\"success\": true, \"message\": \"People ''F1_Office_People''
+      created.\", \"data\": {\"name\": \"F1_Office_People\", \"zone_or_zonelist_or_space_or_spacelist_name\":
+      \"F1_Office\", \"number_of_people_schedule_name\": \"Office_Occupancy\", \"number_of_people_calculation_method\":
       \"People/Area\", \"number_of_people\": 0.0, \"people_per_floor_area\": 0.1,
       \"floor_area_per_person\": 0.0, \"fraction_radiant\": 0.3, \"sensible_heat_fraction\":
       \"Autocalculate\", \"activity_level_schedule_name\": \"Office_Activity\", \"carbon_dioxide_generation_rate\":
       3.82e-08, \"enable_ashrae_55_comfort_warnings\": \"No\", \"mean_radiant_temperature_calculation_type\":
       \"EnclosureAveraged\", \"clothing_insulation_calculation_method\": \"ClothingInsulationSchedule\",
       \"cold_stress_temperature_threshold\": 15.56, \"heat_stress_temperature_threshold\":
-      30.0}}","role":"tool","tool_call_id":"call_876595"}],"model":"google/gemini-3.8-flash","max_completion_tokens":16384,"parallel_tool_calls":false,"stream":false,"temperature":0.7,"tool_choice":"required","tools":[{"type":"function","function":{"name":"create_people","description":"Create
+      30.0}}","role":"tool","tool_call_id":"call_133761"}],"model":"google/gemini-3.8-flash","max_completion_tokens":16384,"parallel_tool_calls":false,"stream":false,"temperature":0.7,"tool_choice":"required","tools":[{"type":"function","function":{"name":"create_people","description":"Create
       a People (occupancy load) object.\n\n        Args:\n            name: Unique
       people object name.\n            zone_name: Existing Zone name this load applies
       to.\n            number_of_people_schedule_name: Existing Schedule:Compact (Fraction).\n            activity_level_schedule_name:
@@ -414,17 +410,17 @@ interactions:
   response:
     body:
       string: !!binary |
-        KLUv/QBYNRIA1mVxJvCSOAdUlbHFapOkTqJVXncRAiITEQF59xn2pKBSnfkEm4HnifPRaABdAGwA
-        XTf17ZOlqyskDAeShbvTlVgzqfX2TH1xmhRQBCYsuVoKYCM1J3X3uNKs3tyl7bcUvl1O7o1WNSGl
-        XwbeveF2cMy3P4YGyKNiJI0CNUMcOLIFQzF5Ch6IYOCxEDwTudTdJT4WkUQikkj1mpZuywnf3vJ1
-        5Vrf3TdOesx9qVfrVm+fkLhURKvhfvLtNcYHozhn313O+pZGmcqSp8oxqUXN+Oa4g6wk+ZiGe13I
-        MwPfDrJx4o4WsoZufYvxku4tmVp0KclTVG3wgoEgLhHxAuOBMxcJyKnAVA0IEZ2BgOm4uDwIJCxA
-        hFAIERuLhQaHDE64++snvV3atjYUyqXw65WijSx7ht29ttzqouh7+0ZrrhV15Xj3rZ485tofy1N5
-        LFGMD0J5TXdfa9PHNBwlWc764gtZllGv4rcMIih4nFp5ooVy6U6So+ot7Wpd2UqsmSxdb5vpR9Qc
-        aTPwwWNb45vcPeaGI6r8BgVAAhXHcSiOe1eoEl/PfnPeBgYqj3uV6zE7aqua1Lo2sj+aSb+Kzunt
-        BgYfEB2xI2MTMiBAgubY9ftZIbkBwwoQgQNHTeoTPxS24KjgkwcsGSATsBUvvrkpYjCMTOO0xktx
-        4AmFS7yj/AIhqTmnwMXNrB0e2ma607VxMV8icPfH+SoFKwdW2F5ZdCCWq/BPL8KIDVw1165ZNLKl
-        bXTKVniMSCUSv7cBrW0pEYx+471Y
+        KLUv/QBYDRIABmVvJvCSVgdAlfEFmpU3q+A3mXZnu/eUuOW2g2WLGD/seO3TsjgsXFxoZgBbAGgA
+        lVPPPlmymiKgASGA4e10Jd5MWp09Ux2cIgUSgghLjksJLKTmpN4OV5rxrF3adkvf2eXkXljF+STt
+        Mu/t/VbDMc8+NSBcKiSIGCvmw3oeMWFW1IiloPIMQBMDyyQil3q7xO8ABAAES7fllK4r1+revnDS
+        d9qXcrVuPPuEBIYi2g23k2evELoXwTn77XJWtzTKVJY8VY5JK2rCs6cdZCXJ72i01308M+/sDS03
+        rcQd7eMN3XoGoSXbWzKt6FKSpyhuBxdocQHBGYwE9FBkRAeFS2MoZGgsMBAECwwRIZTChVPB4PCA
+        wQtvd+2ks0vbFYc+uRJ2vVK0cV2/Om+vLTdaFHVnX1jNraKuDN++0cl3GnuFgGKBIgjde9Ka3r4V
+        p9/RaJRkOauDrlpT13VRLvLZBVmep1YqFDahQAPPI4n2yaU7SY6iW9q1sq6VeDNZstw204+IPdJm
+        nnvvrEW7vWNyOKLKXaEKdD377DmjUCqT9iq3Y3bUVZy0sjauTzaRdpHO6ewHBx8RGqjB4DxMBhSB
+        CTMgQILFWPb2WQ23AYEFdMIBHCflZnijm/2fpgHXGTBRfmQ3PrgBYjAYmcppLS/VwEkKa3zHBgsc
+        SvsRJtj94tJm1g4RbbPcdGtevEuErdOBu4qB9AELyyeLDIpFHZJqYo3cllZz7TKLSra0jeolEdw+
+        nqIHAVTiextQ25YSgPEFWA==
     headers:
       access-control-allow-origin:
       - '*'
@@ -435,7 +431,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a4765aa8ce06a0ee-NRT
+      - a47ab1a9ced6e399-NRT
       connection:
       - keep-alive
       content-encoding:
@@ -443,7 +439,7 @@ interactions:
       content-type:
       - application/json
       date:
-      - Thu, 08 Oct 2026 15:59:47 GMT
+      - Fri, 09 Oct 2026 04:38:09 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       permissions-policy:
@@ -452,13 +448,13 @@ interactions:
       referrer-policy:
       - no-referrer, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=172Z7ZnAQLdDMFk2SnbPwIJzofTKFeCOSUx3yWsrnxyC2GQfuP8QnhyhH3fH6rF2FHohmHa6%2FoTFzZIq5tBfnkRDNtyB5d0p9ch7KJqn73jJeey1KhldhgCY%2BOqqXUvMLxk%3D"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=qUClxkfXg4xEZUiC7b0c%2Btvw8CnGYfYxSiMVw3S5okJfFtNtAeeOFieALTon1aJ9fJNSojU1ecsMBZB11dpzqX2mtSBRgsyg%2B%2FTMt3%2FGFUSsGqsVjjB8EIxAt3ki6jNiC%2Bo%3D"}]}'
       server:
       - cloudflare
       set-cookie:
-      - __cf_bm=JJie7FMelce_svS4BYSkZkHyAnQz.OSES30fGs0VF6I-1791475181.0797937-1.0.1.1-kR_ACoyLXVy1lvURMiPwhh3U.McJjzba5JgkHynsvPNG6XuXtoBsJj6JMXFDQ3quNZHKTbhdR3ut62A1pfcfpeDgU92pTDKtt8Tlsi001mSIEePqWjsTP8y9nsHTPoYN;
-        HttpOnly; SameSite=None; Secure; Path=/; Domain=openrouter.ai; Expires=Thu,
-        08 Oct 2026 16:29:46 GMT
+      - __cf_bm=CeLcsuoBk94BaLBRaoZ4FV55B3P7FpgS_GsyVdO5slk-1791520687.8079598-1.0.1.1-HA2ql5YexyAoi.JclowMU7jokJFPaumZKb1t6JOf1CMwLolcoYWn6AY.DyJ7uyOvqKtdJi4SA3edk0t6G_RxM.fuqxSKhUju2Cx1rg2gdob_M0kTWKU0xvClwyDquFRr;
+        HttpOnly; SameSite=None; Secure; Path=/; Domain=openrouter.ai; Expires=Fri,
+        09 Oct 2026 05:08:09 GMT
       strict-transport-security:
       - max-age=31536000
       transfer-encoding:
@@ -468,11 +464,11 @@ interactions:
       x-content-type-options:
       - nosniff
       x-generation-id:
-      - gen-1791475181-QZ9iliKzogFvdZsk5JIa
+      - gen-1791520687-sUoCmqcuwTsmmLdUNAIf
       x-new-api-version:
-      - v1.0.0-rc.41
+      - v1.0.0-rc.42
       x-oneapi-request-id:
-      - 202610081559410612418088268d9d6xDJmcNzI
+      - 202610090438077951679348268d9d6B7W25Eb1
     status:
       code: 200
       message: OK
@@ -493,31 +489,31 @@ interactions:
       (People/Area ~ 0.1).\n- fraction_radiant defaults to 0.3 for seated activity.\n","role":"system"},{"content":"Create
       exactly one People object named ''F1_Office_People'' for zone ''F1_Office'':
       method People/Area with 0.1 people/m2, occupancy schedule ''Office_Occupancy'',
-      activity level schedule ''Office_Activity''.","role":"user"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_558405","function":{"name":"list_zones","arguments":"{}"}},{"type":"function","id":"call_558406","function":{"name":"list_schedules","arguments":"{}"}}]},{"content":"{\"success\":
+      activity level schedule ''Office_Activity''.","role":"user"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_114046","function":{"name":"list_zones","arguments":"{}"}},{"type":"function","id":"call_114047","function":{"name":"list_schedules","arguments":"{}"}}]},{"content":"{\"success\":
       true, \"message\": \"Listed 1 Zone.\", \"data\": [{\"name\": \"F1_Office\",
       \"direction_of_relative_north\": 0.0, \"x_origin\": 0.0, \"y_origin\": 0.0,
       \"z_origin\": 0.0, \"type\": 1, \"multiplier\": 1, \"ceiling_height\": \"Autocalculate\",
       \"volume\": \"Autocalculate\", \"floor_area\": \"Autocalculate\", \"part_of_total_floor_area\":
-      \"Yes\"}]}","role":"tool","tool_call_id":"call_558405"},{"content":"{\"success\":
+      \"Yes\"}]}","role":"tool","tool_call_id":"call_114046"},{"content":"{\"success\":
       true, \"message\": \"Listed 2 Schedule:Compact.\", \"data\": [{\"name\": \"Office_Occupancy\",
       \"schedule_type_limits_name\": \"Fraction\", \"data\": [{\"field\": \"Through:
       12/31\"}, {\"field\": \"For: AllDays\"}, {\"field\": \"Until: 24:00\"}, {\"field\":
       \"1.0\"}]}, {\"name\": \"Office_Activity\", \"schedule_type_limits_name\": \"Activity
       Level\", \"data\": [{\"field\": \"Through: 12/31\"}, {\"field\": \"For: AllDays\"},
-      {\"field\": \"Until: 24:00\"}, {\"field\": \"120.0\"}]}]}","role":"tool","tool_call_id":"call_558406"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_876595","function":{"name":"create_people","arguments":"{\"fraction_radiant\":
-      0.3, \"zone_name\": \"F1_Office\", \"activity_level_schedule_name\": \"Office_Activity\",
-      \"number_of_people_calculation_method\": \"People/Area\", \"name\": \"F1_Office_People\",
-      \"people_per_floor_area\": 0.1, \"number_of_people_schedule_name\": \"Office_Occupancy\"}"}}]},{"content":"{\"success\":
-      true, \"message\": \"People ''F1_Office_People'' created.\", \"data\": {\"name\":
-      \"F1_Office_People\", \"zone_or_zonelist_or_space_or_spacelist_name\": \"F1_Office\",
-      \"number_of_people_schedule_name\": \"Office_Occupancy\", \"number_of_people_calculation_method\":
+      {\"field\": \"Until: 24:00\"}, {\"field\": \"120.0\"}]}]}","role":"tool","tool_call_id":"call_114047"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_133761","function":{"name":"create_people","arguments":"{\"number_of_people_schedule_name\":
+      \"Office_Occupancy\", \"number_of_people_calculation_method\": \"People/Area\",
+      \"name\": \"F1_Office_People\", \"fraction_radiant\": 0.3, \"zone_name\": \"F1_Office\",
+      \"activity_level_schedule_name\": \"Office_Activity\", \"people_per_floor_area\":
+      0.1}"}}]},{"content":"{\"success\": true, \"message\": \"People ''F1_Office_People''
+      created.\", \"data\": {\"name\": \"F1_Office_People\", \"zone_or_zonelist_or_space_or_spacelist_name\":
+      \"F1_Office\", \"number_of_people_schedule_name\": \"Office_Occupancy\", \"number_of_people_calculation_method\":
       \"People/Area\", \"number_of_people\": 0.0, \"people_per_floor_area\": 0.1,
       \"floor_area_per_person\": 0.0, \"fraction_radiant\": 0.3, \"sensible_heat_fraction\":
       \"Autocalculate\", \"activity_level_schedule_name\": \"Office_Activity\", \"carbon_dioxide_generation_rate\":
       3.82e-08, \"enable_ashrae_55_comfort_warnings\": \"No\", \"mean_radiant_temperature_calculation_type\":
       \"EnclosureAveraged\", \"clothing_insulation_calculation_method\": \"ClothingInsulationSchedule\",
       \"cold_stress_temperature_threshold\": 15.56, \"heat_stress_temperature_threshold\":
-      30.0}}","role":"tool","tool_call_id":"call_876595"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_916191","function":{"name":"list_people","arguments":"{}"}}]},{"content":"{\"success\":
+      30.0}}","role":"tool","tool_call_id":"call_133761"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_57436","function":{"name":"list_people","arguments":"{}"}}]},{"content":"{\"success\":
       true, \"message\": \"Listed 1 People.\", \"data\": [{\"name\": \"F1_Office_People\",
       \"zone_or_zonelist_or_space_or_spacelist_name\": \"F1_Office\", \"number_of_people_schedule_name\":
       \"Office_Occupancy\", \"number_of_people_calculation_method\": \"People/Area\",
@@ -527,7 +523,7 @@ interactions:
       3.82e-08, \"enable_ashrae_55_comfort_warnings\": \"No\", \"mean_radiant_temperature_calculation_type\":
       \"EnclosureAveraged\", \"clothing_insulation_calculation_method\": \"ClothingInsulationSchedule\",
       \"cold_stress_temperature_threshold\": 15.56, \"heat_stress_temperature_threshold\":
-      30.0}]}","role":"tool","tool_call_id":"call_916191"}],"model":"google/gemini-3.8-flash","max_completion_tokens":16384,"parallel_tool_calls":false,"stream":false,"temperature":0.7,"tool_choice":"required","tools":[{"type":"function","function":{"name":"create_people","description":"Create
+      30.0}]}","role":"tool","tool_call_id":"call_57436"}],"model":"google/gemini-3.8-flash","max_completion_tokens":16384,"parallel_tool_calls":false,"stream":false,"temperature":0.7,"tool_choice":"required","tools":[{"type":"function","function":{"name":"create_people","description":"Create
       a People (occupancy load) object.\n\n        Args:\n            name: Unique
       people object name.\n            zone_name: Existing Zone name this load applies
       to.\n            number_of_people_schedule_name: Existing Schedule:Compact (Fraction).\n            activity_level_schedule_name:
@@ -552,7 +548,7 @@ interactions:
       connection:
       - keep-alive
       content-length:
-      - '7676'
+      - '7674'
       content-type:
       - application/json
       host:
@@ -584,18 +580,19 @@ interactions:
   response:
     body:
       string: !!binary |
-        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
+        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
+        CIwvwAI=
     headers:
       access-control-allow-origin:
       - '*'
@@ -606,7 +603,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a4765acf2cb9a0ee-NRT
+      - a47ab1b46970e399-NRT
       connection:
       - keep-alive
       content-encoding:
@@ -614,7 +611,7 @@ interactions:
       content-type:
       - application/json
       date:
-      - Thu, 08 Oct 2026 15:59:49 GMT
+      - Fri, 09 Oct 2026 04:38:12 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       permissions-policy:
@@ -623,13 +620,13 @@ interactions:
       referrer-policy:
       - no-referrer, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=FbWhyJBeKhALJtDMVGX1e1PsWpGwvWphPoYBr%2B%2BgY1746CGxYxCX1dRQiJZHAbqKPRhFglkDMhMul%2Fv%2F39XrkY6M603tHc5c8Xr%2FQn0rI8vW5gKU5yqMIfAXovbEqN5kEUg%3D"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=xTfEWg71dzsXv6GWL%2FR46AvmQHEK9mIhYfMd%2BFCiSQbw0VSOMP3zwdfpP0B%2FnWzQXQ0tq%2BEOW0RFAs3UDFcbJxiC5%2BTKijzCXJEfSVJW0kP%2FbodjWfb4PeyrZBme2aZVxuU%3D"}]}'
       server:
       - cloudflare
       set-cookie:
-      - __cf_bm=dRAiYd6BNk9AyVVw.ZUE5t7OgPAbn78p1I853wtxtT0-1791475187.2217503-1.0.1.1-dO56dxEjSk4lpILblDmdBveBehgR4HPzBT5bpWFZM7sOsRJuTxY5e82baln70_SgW5vYVDBuz.CmU5f.fAA.2eBna2joyTKD1llHt5.7eh.6rSljY4tXa4poNK4qbE7L;
-        HttpOnly; SameSite=None; Secure; Path=/; Domain=openrouter.ai; Expires=Thu,
-        08 Oct 2026 16:29:49 GMT
+      - __cf_bm=LbCNm4TcLTXJ705VS9.zceumnDfK4L_Tkb_tv6pK6Ig-1791520689.5077853-1.0.1.1-D7wmDmYOrS7OVaUamGsE4lvE6uaeZwjDMZjITfS8fBHgeiif5gYPOCUQ1.a10zgnXfalAEO3Vb8pKCvTVVN6rT5MDdr1eCQFhX4kik65.C5w21poRUN1VC4w.l5oL1_8;
+        HttpOnly; SameSite=None; Secure; Path=/; Domain=openrouter.ai; Expires=Fri,
+        09 Oct 2026 05:08:12 GMT
       strict-transport-security:
       - max-age=31536000
       transfer-encoding:
@@ -639,11 +636,11 @@ interactions:
       x-content-type-options:
       - nosniff
       x-generation-id:
-      - gen-1791475187-ReEOKWuoLE2qtE88IMgb
+      - gen-1791520689-wumG5iwjlFUdLvKNCVTK
       x-new-api-version:
-      - v1.0.0-rc.41
+      - v1.0.0-rc.42
       x-oneapi-request-id:
-      - 202610081559472046528568268d9d6AwWtHLx4
+      - 202610090438094943139008268d9d68qZeZYbg
     status:
       code: 200
       message: OK

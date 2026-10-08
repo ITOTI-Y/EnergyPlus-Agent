@@ -72,27 +72,26 @@ interactions:
   response:
     body:
       string: !!binary |
-        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
+        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
+        bGkb1UsiYPt4jh4EUYnv24BsW0oC43ux
     headers:
       access-control-allow-origin:
       - '*'
@@ -103,7 +102,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a47657d20fbaa0ee-NRT
+      - a47aafbb1b6de066-NRT
       connection:
       - keep-alive
       content-encoding:
@@ -111,7 +110,7 @@ interactions:
       content-type:
       - application/json
       date:
-      - Thu, 08 Oct 2026 15:57:47 GMT
+      - Fri, 09 Oct 2026 04:36:51 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       permissions-policy:
@@ -120,13 +119,13 @@ interactions:
       referrer-policy:
       - no-referrer, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=bwmkTFm8vkHzBN%2BITOJHwU8XHdAFup9OQ6G8%2BBg1%2BjqpbWjuPCl2uk%2BHdpVzDMXY2h4ha0th%2B7G9AaI0YDkYIf6qP4Vb9kb%2FfLrJd3Y12kDv4gSocJy%2Fj7r%2Fi7Wx5TRVybs%3D"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=ltmHVzeOs0l2CwdlFJboa0dpKtT%2Bzy1nsGUmRjUMBQmrW%2BFew5qrLnyz5HY30WdAUu1mvaV%2BWt1GlkqoQ9p2zOXOb%2Fyw32RurDzkX1edo4Zgisv1oxd%2BcKROhWIox9x0UdQ%3D"}]}'
       server:
       - cloudflare
       set-cookie:
-      - __cf_bm=YfKMVQHvK17p6eY0S5k29ZnRWhRexnxuwL5XjeG108E-1791475064.8079162-1.0.1.1-VnvGyGNdkK7kKI34hA8ELoG9sDqpU2lzWd0DjzdRNTSKMNJN8lHrqWGrNYNSABh1_7CjnadF9Y8wfdBczg7RpJAQya.yi9o2az2CkyGt46nMZiR4gCwF0i3J78TbnDrH;
-        HttpOnly; SameSite=None; Secure; Path=/; Domain=openrouter.ai; Expires=Thu,
-        08 Oct 2026 16:27:47 GMT
+      - __cf_bm=EATH3khcc62mMGILYDVOGjQPXPOvQjQXlYOnHBX38Qc-1791520609.4463167-1.0.1.1-QRHzjnUPplw6ze5FAUE7DqighFxaFrzGzWnmomBRhuZjZEXEOcV3yuEevMuR0kIkTM_SBBicWCx3IBkCCK9MV3iiZ5H7o6LVD10_OvOR9h2u32qDXnq_sh42Z2WeN6XM;
+        HttpOnly; SameSite=None; Secure; Path=/; Domain=openrouter.ai; Expires=Fri,
+        09 Oct 2026 05:06:51 GMT
       strict-transport-security:
       - max-age=31536000
       transfer-encoding:
@@ -136,11 +135,11 @@ interactions:
       x-content-type-options:
       - nosniff
       x-generation-id:
-      - gen-1791475064-cjKMKYswIphYBOiJ3TeN
+      - gen-1791520609-Ge1najYU5KsSVaOtJtDb
       x-new-api-version:
-      - v1.0.0-rc.41
+      - v1.0.0-rc.42
       x-oneapi-request-id:
-      - 202610081557447948746608268d9d6bkCE1qxQ
+      - 202610090436494404162228268d9d6q4XSGY0g
     status:
       code: 200
       message: OK
@@ -160,16 +159,16 @@ interactions:
       unspecified.\n- Office equipment: fraction_radiant 0.5, fraction_latent 0, fraction_lost
       0,\n  unless the specification says otherwise.\n","role":"system"},{"content":"Create
       exactly one ElectricEquipment object named ''F1_Office_Equipment'' for zone
-      ''F1_Office'': method Watts/Area at 12 W/m2, schedule ''Office_Equipment''.","role":"user"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_780611","function":{"name":"list_zones","arguments":"{}"}},{"type":"function","id":"call_780612","function":{"name":"list_schedules","arguments":"{}"}}]},{"content":"{\"success\":
+      ''F1_Office'': method Watts/Area at 12 W/m2, schedule ''Office_Equipment''.","role":"user"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_79052","function":{"name":"list_zones","arguments":"{}"}},{"type":"function","id":"call_79053","function":{"name":"list_schedules","arguments":"{}"}}]},{"content":"{\"success\":
       true, \"message\": \"Listed 1 Zone.\", \"data\": [{\"name\": \"F1_Office\",
       \"direction_of_relative_north\": 0.0, \"x_origin\": 0.0, \"y_origin\": 0.0,
       \"z_origin\": 0.0, \"type\": 1, \"multiplier\": 1, \"ceiling_height\": \"Autocalculate\",
       \"volume\": \"Autocalculate\", \"floor_area\": \"Autocalculate\", \"part_of_total_floor_area\":
-      \"Yes\"}]}","role":"tool","tool_call_id":"call_780611"},{"content":"{\"success\":
+      \"Yes\"}]}","role":"tool","tool_call_id":"call_79052"},{"content":"{\"success\":
       true, \"message\": \"Listed 1 Schedule:Compact.\", \"data\": [{\"name\": \"Office_Equipment\",
       \"schedule_type_limits_name\": \"Fraction\", \"data\": [{\"field\": \"Through:
       12/31\"}, {\"field\": \"For: AllDays\"}, {\"field\": \"Until: 24:00\"}, {\"field\":
-      \"1.0\"}]}]}","role":"tool","tool_call_id":"call_780612"}],"model":"google/gemini-3.8-flash","max_completion_tokens":16384,"parallel_tool_calls":false,"stream":false,"temperature":0.7,"tool_choice":"required","tools":[{"type":"function","function":{"name":"create_equipment","description":"Create
+      \"1.0\"}]}]}","role":"tool","tool_call_id":"call_79053"}],"model":"google/gemini-3.8-flash","max_completion_tokens":16384,"parallel_tool_calls":false,"stream":false,"temperature":0.7,"tool_choice":"required","tools":[{"type":"function","function":{"name":"create_equipment","description":"Create
       an ElectricEquipment (plug load) object.\n\n        Args:\n            name:
       Unique equipment object name.\n            zone_name: Existing Zone name.\n            schedule_name:
       Existing Schedule:Compact (Fraction).\n            design_level_calculation_method:
@@ -194,7 +193,7 @@ interactions:
       connection:
       - keep-alive
       content-length:
-      - '5060'
+      - '5056'
       content-type:
       - application/json
       host:
@@ -226,34 +225,27 @@ interactions:
   response:
     body:
       string: !!binary |
-        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
-        +OFXAy8=
+        KLUv/QBYPSQAGk5QDynAZtI8OLsZ0SsLX/cb055ai+kPQYSoUmVTP3NRAVuYLVJ0FUXRYZsOBNkA
+        5gD6AP0TCGhitlnzeScnw7przzrPzi3n87WvV+9P0L6Kk/OKn/pLd2Dw1dL2mZ96fu+k39W6v/ZZ
+        81n3B+I225B/9B5FfZ+qtEeoYLafQEB7XqnVIPrU90vOsIK2f5Xaclf+1L1k1r5nu8ddxWzDD9fO
+        S/yp1xYku0GAySJA5LXfFbSl3uNTD+LzhgRYwUVgs8VVLNQrai2+9reCGj+lPVj7rJs+9VnbXu+I
+        NS3oE0Rf+05r6KOfepLkI3qAbMiEM5eMuyomTLkIDFaiMiCsTGER5Cq+9qD9BAABAATZAlPJoera
+        6ApCpLtUCbkpZ2A6oMWW5QOkEA2iAZhDY8JlsH5HNHOsy4fUyJteRg6hN4BkoniYCMdoHByUBplV
+        GDg8ZodwLJlQI+IsHHzUcBxGj9d+9gk+9WDtY2nTXAvs7BX8CpxOf3oPZbC0+W2tb/jtOn6890nK
+        tc/7+C4JVhDl76EQBXlacO5KbRh2nwWpeOavZm16D1Vp7+lc32/u8D3Ue2bdiwLvfXLeo70H1KBe
+        8Ze17fOStJb1flm0vILvSXjtec8Vk+KeFY+WHNVP+4pn/gSNegNmIRLfvZPSTIavfR1LAdzEItoO
+        BgyQEakOrkXFwZAtT6wz29uMGJFOOiGiZDkQwlkYEOHcZ+MqR0UUGtA4MMUoFEUqyM3dwU4owkNM
+        QB7HwCOlE8eRRCRpDJuSVaIVxARbi20QjsErdDoIIImoseLmwnWax+YiC4cHPPZnADOQbEiYxSTr
+        NOPbAzW4Q3HXaRLYRIhcDFpyuTPoohnHwXbRRtexSEINa6FYQhOZ3iZDcrkQ9MNQkXCbhiJqSAfS
+        AUYgMhNHuZmDUdagMLCmnDR5GRINIHRvwqwQWrGguwdpt2qTXEzI4BgZrwstQKIHyTOJFqSbIauX
+        TNWDNyKgiTRw2TwTw5RhFj2n00mc2D51ZSeEAnFZHFFhCovCLuuqqoKv0lx3DbP98Ky785E8VdCW
+        2oLkrN1u0kdVYAXRST+hkrtrL9Klz8dt55o+hSWuO7vuT1nYUwrMsrTnuYp0//qI9R7JAqe3SoI+
+        8dbhUy9AACZxgJQMKFZDc/gcQkModBeO64JZFWvjusXGucQBlzaBW+lylCJSi/fwJiMJFi4XRofT
+        Ly7v9rEOUeLYFbHkQlHGUiFwFt6l7BRGFQ72QJAiPsiDh93NIhv9dqZEZiehi9sU7KJ/StTDFMM1
+        8sodeqWDieOKLsOUkYXCwAPbIYElmbAHQqgxlSJGMUMVjQQiMkGBmjUwguRYcgcR1BCDEDMLDEqa
+        7flrcX+B0Cek3EFuJ3QYB5dqeheRDD8eafkIBtTzg6SG1HHFz4TqySanWsekxShVY+V+dUxyeKQ4
+        GKn+hIrwRI4eYSSSAtnZGRogIMvM+JyCXSRETXwYNWOSQcAV2Gcn8FITS9a3Pnvl8UTjqQRVYaxx
+        tWB36SXfBDaVZQTOEI8+Qegpvn9A5y8lYuWAHA==
     headers:
       access-control-allow-origin:
       - '*'
@@ -264,7 +256,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a47657e3db7ca0ee-NRT
+      - a47aafcffe33e066-NRT
       connection:
       - keep-alive
       content-encoding:
@@ -272,7 +264,7 @@ interactions:
       content-type:
       - application/json
       date:
-      - Thu, 08 Oct 2026 15:57:51 GMT
+      - Fri, 09 Oct 2026 04:36:55 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       permissions-policy:
@@ -281,13 +273,13 @@ interactions:
       referrer-policy:
       - no-referrer, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=gU2pIf0MuFqm5326YXjJn1rTgaJ3XFv3zjMJXDGbhy7qyjBmkFl1Isw%2B%2FZzdtyY7l00ybzqyLsd%2FHfO8edqzWG8fO6isMNUpTukwLBSfGHxRNYbwO0Jw6QUfrSabcce%2FUhw%3D"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=%2B4H2LUayCOxQa0vIUCW%2FlcxDke4e1qQ97dCkPQbRjJBD9SLu5hv49HbTpVcgtyfQcrxZbQeTqNc4IRSYYjxFS2vsFCnqhcuWDbMM26qvJOSpGPKehpbP7ZBID5%2FXVaMEnUU%3D"}]}'
       server:
       - cloudflare
       set-cookie:
-      - __cf_bm=OYmvSakY3anlZGO13D8rnRmVrnmGhJVkdfljPDKuA4E-1791475067.6519542-1.0.1.1-Fetv1xQrS8EEbTRpfGDS0uV8FtPERqPiVBC_MFdw.uJO7dWDGRxT1RSBa_l0GkJiGcYYbEPXmrM4y1kZHpGbqEV2YvP5Sk5HZH4lHyl6VzEz72mowByxDThNJyxVokcw;
-        HttpOnly; SameSite=None; Secure; Path=/; Domain=openrouter.ai; Expires=Thu,
-        08 Oct 2026 16:27:51 GMT
+      - __cf_bm=5MJhUeVc6OZzgVtzF8KH.TnpK57DRn1zdUthaTl36n0-1791520612.8066673-1.0.1.1-deFzfhOqiK_B3G66z6UjnT9Om67KLbmxAFpJxOFUNx4KABUeLL1ozXU.SGTqy3WeRrtB1AMXuWYV.mMyruZl9VGR6Q_MEiL1s1ttB8NfbEvalEV7gey_dt6qiFhB3L1Y;
+        HttpOnly; SameSite=None; Secure; Path=/; Domain=openrouter.ai; Expires=Fri,
+        09 Oct 2026 05:06:55 GMT
       strict-transport-security:
       - max-age=31536000
       transfer-encoding:
@@ -297,11 +289,11 @@ interactions:
       x-content-type-options:
       - nosniff
       x-generation-id:
-      - gen-1791475067-RCpmHGzHsAIotRbf16HB
+      - gen-1791520612-3KmzL3M9PRmzjihEkbHw
       x-new-api-version:
-      - v1.0.0-rc.41
+      - v1.0.0-rc.42
       x-oneapi-request-id:
-      - 202610081557476380527408268d9d6HV7lCdM8
+      - 202610090436528005876058268d9d6YwTrjfIv
     status:
       code: 200
       message: OK
@@ -321,25 +313,25 @@ interactions:
       unspecified.\n- Office equipment: fraction_radiant 0.5, fraction_latent 0, fraction_lost
       0,\n  unless the specification says otherwise.\n","role":"system"},{"content":"Create
       exactly one ElectricEquipment object named ''F1_Office_Equipment'' for zone
-      ''F1_Office'': method Watts/Area at 12 W/m2, schedule ''Office_Equipment''.","role":"user"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_780611","function":{"name":"list_zones","arguments":"{}"}},{"type":"function","id":"call_780612","function":{"name":"list_schedules","arguments":"{}"}}]},{"content":"{\"success\":
+      ''F1_Office'': method Watts/Area at 12 W/m2, schedule ''Office_Equipment''.","role":"user"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_79052","function":{"name":"list_zones","arguments":"{}"}},{"type":"function","id":"call_79053","function":{"name":"list_schedules","arguments":"{}"}}]},{"content":"{\"success\":
       true, \"message\": \"Listed 1 Zone.\", \"data\": [{\"name\": \"F1_Office\",
       \"direction_of_relative_north\": 0.0, \"x_origin\": 0.0, \"y_origin\": 0.0,
       \"z_origin\": 0.0, \"type\": 1, \"multiplier\": 1, \"ceiling_height\": \"Autocalculate\",
       \"volume\": \"Autocalculate\", \"floor_area\": \"Autocalculate\", \"part_of_total_floor_area\":
-      \"Yes\"}]}","role":"tool","tool_call_id":"call_780611"},{"content":"{\"success\":
+      \"Yes\"}]}","role":"tool","tool_call_id":"call_79052"},{"content":"{\"success\":
       true, \"message\": \"Listed 1 Schedule:Compact.\", \"data\": [{\"name\": \"Office_Equipment\",
       \"schedule_type_limits_name\": \"Fraction\", \"data\": [{\"field\": \"Through:
       12/31\"}, {\"field\": \"For: AllDays\"}, {\"field\": \"Until: 24:00\"}, {\"field\":
-      \"1.0\"}]}]}","role":"tool","tool_call_id":"call_780612"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_629607","function":{"name":"create_equipment","arguments":"{\"watts_per_floor_area\":
-      12, \"fraction_latent\": 0, \"fraction_lost\": 0, \"design_level_calculation_method\":
-      \"Watts/Area\", \"zone_name\": \"F1_Office\", \"schedule_name\": \"Office_Equipment\",
-      \"name\": \"F1_Office_Equipment\", \"fraction_radiant\": 0.5}"}}]},{"content":"{\"success\":
-      true, \"message\": \"ElectricEquipment ''F1_Office_Equipment'' created.\", \"data\":
+      \"1.0\"}]}]}","role":"tool","tool_call_id":"call_79053"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_65182","function":{"name":"create_equipment","arguments":"{\"design_level_calculation_method\":
+      \"Watts/Area\", \"fraction_lost\": 0, \"zone_name\": \"F1_Office\", \"fraction_radiant\":
+      0.5, \"schedule_name\": \"Office_Equipment\", \"fraction_latent\": 0, \"watts_per_floor_area\":
+      12, \"name\": \"F1_Office_Equipment\"}"}}]},{"content":"{\"success\": true,
+      \"message\": \"ElectricEquipment ''F1_Office_Equipment'' created.\", \"data\":
       {\"name\": \"F1_Office_Equipment\", \"zone_or_zonelist_or_space_or_spacelist_name\":
       \"F1_Office\", \"schedule_name\": \"Office_Equipment\", \"design_level_calculation_method\":
       \"Watts/Area\", \"design_level\": 0.0, \"watts_per_floor_area\": 12.0, \"watts_per_person\":
       0.0, \"fraction_latent\": 0.0, \"fraction_radiant\": 0.5, \"fraction_lost\":
-      0.0, \"end_use_subcategory\": \"General\"}}","role":"tool","tool_call_id":"call_629607"}],"model":"google/gemini-3.8-flash","max_completion_tokens":16384,"parallel_tool_calls":false,"stream":false,"temperature":0.7,"tool_choice":"required","tools":[{"type":"function","function":{"name":"create_equipment","description":"Create
+      0.0, \"end_use_subcategory\": \"General\"}}","role":"tool","tool_call_id":"call_65182"}],"model":"google/gemini-3.8-flash","max_completion_tokens":16384,"parallel_tool_calls":false,"stream":false,"temperature":0.7,"tool_choice":"required","tools":[{"type":"function","function":{"name":"create_equipment","description":"Create
       an ElectricEquipment (plug load) object.\n\n        Args:\n            name:
       Unique equipment object name.\n            zone_name: Existing Zone name.\n            schedule_name:
       Existing Schedule:Compact (Fraction).\n            design_level_calculation_method:
@@ -364,7 +356,7 @@ interactions:
       connection:
       - keep-alive
       content-length:
-      - '6012'
+      - '6006'
       content-type:
       - application/json
       host:
@@ -396,17 +388,17 @@ interactions:
   response:
     body:
       string: !!binary |
-        KLUv/QBYNRIAhiVxJ/CyNgfABMjkTdt19fLWxOtyatcMqkpdg78ceMCho9984hPZhDwfDWcAXABs
-        ANvVU98+ecKaIoDBIGDh7nQn7kx6vX1TX6Qgl0gEYcnWVgIbqzmru8edpvXmPm2/pfDtcnJvvKwJ
-        I/028O4Nl6OZb5fwAkaDTMJFAaPp4DjoiKAOQCQWqGKhSAgsEojc6u4T/wMQABAYtXRbTvj2lq8r
-        1/ruvnHSf9y3erWu9fYJCQyFtB3uJ99eY3xQinP23eWsb6m0qSyZqppJr2rGN8jdYyfJ/2S414U8
-        N/DtHhspbmkhd+jWtxgx6d6S6UW3kkxJVphMBQITES0uHniDkahAFBmrASGiMRAyHAvMQ5SwAPFR
-        IUR4KhYaHDA44e6v3/T2afvyUCg3wq93kjSy7Nnn7rXlWlhF31oXYxwrdeV497We/Me1Wy4UgmhA
-        ivFBKDHq7nt5+p8MV0mWs774almWVc/it6xiuUigWplEkbRQLl1KsmS9pV0vLNuJO5Mn7G0z7ZAa
-        NO0GPvjP1vgo943p0UiV3yaVCgRBEci9a0SJr2e/QW+TCUXiXuVuzJb6sia9MI3skg6kn0Un9faC
-        gg4ITuRgeGAyIECC5hT2+lkdsaHCCgiNA0RMyhO/Erbw+FGTg4sMTBNwNSQ+uSEw2I1McVrJS2ng
-        6IVHuGPUAiKpOafAxc2sHSra5rvTtX2RDxG+8Qf5qgYqBywsAFkoigHFQlzbP62FsRC4sqsdcVFv
-        C6HRabjwHJGeSHxvA2LbUgIwvgAL
+        KLUv/QBYJRIA5mRvJuCyVgfYBOMFujWtUvCbTHshK6U28RZBQSYR43ArAmTGEGOMQgi/ZwBaAGkA
+        tVPPPhmqGhPQkBDA8Ha6EHMmpc6+qS9GEIMIBcKSp5UENkpzSm+PC83prB3afkvh2eXk3khNE0b6
+        beDbG65Gxjx7hIFmXj4sHRGExSFjgZqHCkxDKhKCZ1KRHBRIIHKlt0N8CyAAIEu35ZSvK9f63r5x
+        0lvtK71adzq7REQG45bD/eTZa4wPujhnv13O+pa6TWXJUc2YlJJmPHvaPRaSfOuivS7kuYFn71i9
+        aCFut5A5dOtZjJVsb8mUoitJjty0HZbMJVJUQPAmE1F5MJrJQeHSFgoaDYoMBGWBwfIhKVw6EwwO
+        Dxa88PbXDzo7tE11KJQb4dcLOYzr+mW9vbbcqZLo24niimNdV45v3+nJW4298lAICFyMD0JZRW9f
+        qtO3LpokWc764qtVFNd1SW/is6tS8DyVQpEwg2cyeZ6IWyiXbiTZTW9pV6q6FmLOZKh620w7HHug
+        3cAHb21Fu31jdjJc5a6Ugfh69tlzNpkMSNqr3I3ZrqlpUqrCuC7hQPpNdEZnR0DosGhEDYsOzGgq
+        ATQgQILFWPb2WQ23AYEFdMIBHCflZnijm/2fpgHXGTBRfmQ3PrgBYjAYmcppLS/VwEkKa3zHBgso
+        SvsUJtj94tJm1g4XbXPddGte1EsEr9OBu+qB9AEL+yeLhDGYSAj1JdXaGgktrbraFRf1bQka1ZBE
+        sPB4ih4EUInvbUBtW0oAxhdgAQ==
     headers:
       access-control-allow-origin:
       - '*'
@@ -417,7 +409,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a47657fd9e40a0ee-NRT
+      - a47aafe6a9fee066-NRT
       connection:
       - keep-alive
       content-encoding:
@@ -425,7 +417,7 @@ interactions:
       content-type:
       - application/json
       date:
-      - Thu, 08 Oct 2026 15:57:54 GMT
+      - Fri, 09 Oct 2026 04:36:57 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       permissions-policy:
@@ -434,13 +426,13 @@ interactions:
       referrer-policy:
       - no-referrer, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=caeZdjoeHdk1J1GlRzLyMGDDh6qV%2FP1CY05FMFEY47GHk3mDYVMEuh0M5cswRD97VGE7UG6ULRCOnIcFfvALh52VYMgLvkYAzt%2BunPGdOhxP9pbYfbUnmg%2BAHbt3Iz%2BG0wI%3D"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=TVmwtO8ckRYkY2JZCZdYbPqi7oxg%2FWgYob6gmOLNF5ZR43J10XR3DrsLmyaOSTj0TaqMob8Hqh%2B4HmAal%2BHuTYZUY9SVAB%2BJNY6RlcwSo35QGUg9SHTmlITXaSkwhZVdGkg%3D"}]}'
       server:
       - cloudflare
       set-cookie:
-      - __cf_bm=Wlw4z9dzZdQEWZW9U_p268eOFOSFXhWcmad_KiTTJYg-1791475071.774707-1.0.1.1-4Pao_RR_2gOI_B8egjW1gcOb924x9VEmopNigw5zmdc8d0g6MwSVhGYbaRkba6XSs_NVtoEDhO8xQQYGnDL0nPyBp3eVbaQxiHKu1NBFr6wfwFC4RiCwJsycif.AGPQR;
-        HttpOnly; SameSite=None; Secure; Path=/; Domain=openrouter.ai; Expires=Thu,
-        08 Oct 2026 16:27:54 GMT
+      - __cf_bm=8gV95VtDHAwqkBG5SQAUaQqVJ7Mpt5Nzt.XbFvw0v0s-1791520615.6268618-1.0.1.1-Tzjf82gv3ikhgyuBl91yp2ERjVWDVmDUD.Mo6P5rwGeR__tK7stIbRBBdD5phCSW_PqFqBkbIJlYDuOi8sWS1Ror0MQ22EtCICOzcTTeruSjTzaFP1ACsdybTTP0y9OI;
+        HttpOnly; SameSite=None; Secure; Path=/; Domain=openrouter.ai; Expires=Fri,
+        09 Oct 2026 05:06:57 GMT
       strict-transport-security:
       - max-age=31536000
       transfer-encoding:
@@ -450,11 +442,11 @@ interactions:
       x-content-type-options:
       - nosniff
       x-generation-id:
-      - gen-1791475071-6s93tBqwbTF8EZAlcWcn
+      - gen-1791520615-tSWKZcMTJMLfwMzNoZ8O
       x-new-api-version:
-      - v1.0.0-rc.41
+      - v1.0.0-rc.42
       x-oneapi-request-id:
-      - 202610081557517622934928268d9d6ZsLfs2QD
+      - 202610090436556182857348268d9d6Pn3zYK2w
     status:
       code: 200
       message: OK
@@ -474,31 +466,31 @@ interactions:
       unspecified.\n- Office equipment: fraction_radiant 0.5, fraction_latent 0, fraction_lost
       0,\n  unless the specification says otherwise.\n","role":"system"},{"content":"Create
       exactly one ElectricEquipment object named ''F1_Office_Equipment'' for zone
-      ''F1_Office'': method Watts/Area at 12 W/m2, schedule ''Office_Equipment''.","role":"user"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_780611","function":{"name":"list_zones","arguments":"{}"}},{"type":"function","id":"call_780612","function":{"name":"list_schedules","arguments":"{}"}}]},{"content":"{\"success\":
+      ''F1_Office'': method Watts/Area at 12 W/m2, schedule ''Office_Equipment''.","role":"user"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_79052","function":{"name":"list_zones","arguments":"{}"}},{"type":"function","id":"call_79053","function":{"name":"list_schedules","arguments":"{}"}}]},{"content":"{\"success\":
       true, \"message\": \"Listed 1 Zone.\", \"data\": [{\"name\": \"F1_Office\",
       \"direction_of_relative_north\": 0.0, \"x_origin\": 0.0, \"y_origin\": 0.0,
       \"z_origin\": 0.0, \"type\": 1, \"multiplier\": 1, \"ceiling_height\": \"Autocalculate\",
       \"volume\": \"Autocalculate\", \"floor_area\": \"Autocalculate\", \"part_of_total_floor_area\":
-      \"Yes\"}]}","role":"tool","tool_call_id":"call_780611"},{"content":"{\"success\":
+      \"Yes\"}]}","role":"tool","tool_call_id":"call_79052"},{"content":"{\"success\":
       true, \"message\": \"Listed 1 Schedule:Compact.\", \"data\": [{\"name\": \"Office_Equipment\",
       \"schedule_type_limits_name\": \"Fraction\", \"data\": [{\"field\": \"Through:
       12/31\"}, {\"field\": \"For: AllDays\"}, {\"field\": \"Until: 24:00\"}, {\"field\":
-      \"1.0\"}]}]}","role":"tool","tool_call_id":"call_780612"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_629607","function":{"name":"create_equipment","arguments":"{\"watts_per_floor_area\":
-      12, \"fraction_latent\": 0, \"fraction_lost\": 0, \"design_level_calculation_method\":
-      \"Watts/Area\", \"zone_name\": \"F1_Office\", \"schedule_name\": \"Office_Equipment\",
-      \"name\": \"F1_Office_Equipment\", \"fraction_radiant\": 0.5}"}}]},{"content":"{\"success\":
-      true, \"message\": \"ElectricEquipment ''F1_Office_Equipment'' created.\", \"data\":
+      \"1.0\"}]}]}","role":"tool","tool_call_id":"call_79053"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_65182","function":{"name":"create_equipment","arguments":"{\"design_level_calculation_method\":
+      \"Watts/Area\", \"fraction_lost\": 0, \"zone_name\": \"F1_Office\", \"fraction_radiant\":
+      0.5, \"schedule_name\": \"Office_Equipment\", \"fraction_latent\": 0, \"watts_per_floor_area\":
+      12, \"name\": \"F1_Office_Equipment\"}"}}]},{"content":"{\"success\": true,
+      \"message\": \"ElectricEquipment ''F1_Office_Equipment'' created.\", \"data\":
       {\"name\": \"F1_Office_Equipment\", \"zone_or_zonelist_or_space_or_spacelist_name\":
       \"F1_Office\", \"schedule_name\": \"Office_Equipment\", \"design_level_calculation_method\":
       \"Watts/Area\", \"design_level\": 0.0, \"watts_per_floor_area\": 12.0, \"watts_per_person\":
       0.0, \"fraction_latent\": 0.0, \"fraction_radiant\": 0.5, \"fraction_lost\":
-      0.0, \"end_use_subcategory\": \"General\"}}","role":"tool","tool_call_id":"call_629607"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_639487","function":{"name":"list_equipment","arguments":"{}"}}]},{"content":"{\"success\":
+      0.0, \"end_use_subcategory\": \"General\"}}","role":"tool","tool_call_id":"call_65182"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_66305","function":{"name":"list_equipment","arguments":"{}"}}]},{"content":"{\"success\":
       true, \"message\": \"Listed 1 ElectricEquipment.\", \"data\": [{\"name\": \"F1_Office_Equipment\",
       \"zone_or_zonelist_or_space_or_spacelist_name\": \"F1_Office\", \"schedule_name\":
       \"Office_Equipment\", \"design_level_calculation_method\": \"Watts/Area\", \"design_level\":
       0.0, \"watts_per_floor_area\": 12.0, \"watts_per_person\": 0.0, \"fraction_latent\":
       0.0, \"fraction_radiant\": 0.5, \"fraction_lost\": 0.0, \"end_use_subcategory\":
-      \"General\"}]}","role":"tool","tool_call_id":"call_639487"}],"model":"google/gemini-3.8-flash","max_completion_tokens":16384,"parallel_tool_calls":false,"stream":false,"temperature":0.7,"tool_choice":"required","tools":[{"type":"function","function":{"name":"create_equipment","description":"Create
+      \"General\"}]}","role":"tool","tool_call_id":"call_66305"}],"model":"google/gemini-3.8-flash","max_completion_tokens":16384,"parallel_tool_calls":false,"stream":false,"temperature":0.7,"tool_choice":"required","tools":[{"type":"function","function":{"name":"create_equipment","description":"Create
       an ElectricEquipment (plug load) object.\n\n        Args:\n            name:
       Unique equipment object name.\n            zone_name: Existing Zone name.\n            schedule_name:
       Existing Schedule:Compact (Fraction).\n            design_level_calculation_method:
@@ -523,7 +515,7 @@ interactions:
       connection:
       - keep-alive
       content-length:
-      - '6683'
+      - '6675'
       content-type:
       - application/json
       host:
@@ -555,19 +547,19 @@ interactions:
   response:
     body:
       string: !!binary |
-        KLUv/QBYdRUAVq2HJ9CyWAfMpVnZoztznDWBy9VOUtbMTAZpQ0tYsgKMpo8pnkGuZrDUvHsAdACB
-        AJfMVUfZuY3v5tTqe67yZrexKq+KdsYefHcrLS1foIUDSOHvty3ZsTe7+wbDeUUIJAIRWSVtLKAn
-        Zi3299mWpXfvVmfYN969Wpl7ZtRGSYab+Pccm6Nh735puBiOpmI0TfdEh6TBgkkmMlCJpsqAVFCR
-        IrWxv1vyHwAIILjaDDdFrk0zqXFY/t4U1n+eezRNE6VSzQljrNr19848+R+Mh1VZLYYTYu3q27na
-        ePdcYcYSY/j3nvb+894YxLjp3SUiMJeqOzLDenc8J4zVtDb/vVoM+1YbLKu8sIa9GWbnXfTu0VaV
-        /2C8447SbuLdPXoGEDmDoOFYYBwELAoPHxgChKdCgaEhIy1/hxlad7c6Z54ba0skzG1VGdv27ZQE
-        AoF6alZvIoY2WXZAExpwAU0kKEMI0tV+QNdeEAQCRXlz7GmBIM+c2oVxx6hdTr1Tngsp1fApl3Gq
-        6iivK6KSEk5hvFO4KaxVn/r8HefaVMMuvHsH27ZhkMq7bZpQJAlPooKp6lj79lVlRWHfjDNta0t2
-        rLQ02FnejspFVm8ijP80nvB637AejQrLu4kSVaIokkTvGdt4RxGgSBNmm+8mlLuByiS949obNlc5
-        o/ZmWsZ2qRPJkF573d3AoOOBMzkZT8RopgcMxLS4cJAbTMQUXTSUASE3IDCCBZndAftZIXXDhRQg
-        mgNGTeqT30lbeChyNfAqg9MEZHWOb24JH+xGpnFax0ttYOnCJNlBfkGjqr2aPp4CJs1mG6Nr68Vd
-        iOAZfy5fxaxy4ML+XJYkxIfIyAkNBCXhXTnHNzuFpdlIyuX+qVsYgcDVXe2Li/y2GBqdhguPIVKI
-        xPc2ILUtJQLjC7A=
+        KLUv/QBYXRUAJmyFJ+DQVgd8y33Z/ZLujf9yatIoRpt7ZzkjnAgW+RG/PONYFhlmWIN8OHkAcQB+
+        AFGGbuO7ObX6nqu82W2syquinbEI391KS8sRkgKBhPD325YM2Zvd/YPhvCCYyAQiq6SNBfTErMX+
+        Ptuy9O7d6gz7xrtXK3PPjNoYyfAT/55jgzDs3UMJFDRpOlqCA5GpsBiN1ZnYQC6UZZJUKIELBamN
+        /d2SHwFIAAG1aSY1jczfm8L60XO3UCgJharmhDFW7fp7Z6L8kcXDqqwWwwmxdvXtXG2FGUuM4d97
+        2vvRe2MQ46Z3f9hwIqoOyQzr3fGcMFbT2vz3ajHsW32wrPLCGPZmmJ130ztHW1V+ZPGOO0r7iXfP
+        U4NXWzJXHR2DCtAEp2GSQXDowAw0IgmEBYaOzPwdZmjd3eqciW6sHZEwt1VdbNu3eyKPh9RTs/oT
+        sYRViTVJQgMoJAklZSg9utoO6dpLejykKG+OPTNSwT3vHtGFlGr4HndxT9VRXtemog7usXj34Kaw
+        Vn3P6O8416YaduHdG1eb4YbIAdu2YZDKu61yqVAmTFkmroKhMJJpilQda9++qqwo7Jtxpm1tyZCV
+        lgY7y7tRucnqT4Txo9Zufs+wIowKy4xtvKtMLNSE2eY7ynJHuVSod1w7w+YqZ9TeTLvYToUgGdJr
+        r7sPDGw4gCaoI4qciooDRzMnKBrkh7OpTBEVdMFAkwM5IDCC5djdAfhZFblhwQr4zAGdpOo2x+Et
+        tP44DbyUgSM9R3XjmxtAB7uRaZzW8VIbOLnwhndsW+Dntp8sApXLsQsIdDeriK5NF18hgqT9uXzV
+        sMoBFHYGWXocnwojJ2SgwYSd5Tz3CIqLsAHRl/uqaWEcAlp1tSsu6tsSNKpCEsHC4xF6EKQS39uA
+        0LaUAIzvxQI=
     headers:
       access-control-allow-origin:
       - '*'
@@ -578,7 +570,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a476580eac74a0ee-NRT
+      - a47aaff31f39e066-NRT
       connection:
       - keep-alive
       content-encoding:
@@ -586,7 +578,7 @@ interactions:
       content-type:
       - application/json
       date:
-      - Thu, 08 Oct 2026 15:57:56 GMT
+      - Fri, 09 Oct 2026 04:37:00 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       permissions-policy:
@@ -595,13 +587,13 @@ interactions:
       referrer-policy:
       - no-referrer, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=zLX9kidSaJStArVuVk4GMlWeLhAfY1BlFOuhOIbh4KSoTq1915k0rfPlkr0Dmev%2F318Ym9DdxlpzH%2FN8rgKai0bt1HqhOPMIBTfbpzSAEm%2BKMf8v6f36Ndqte2ChAMkwdys%3D"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=Bw11OrEsxAiA%2FssJS1jkNVJM9nzIuaitwluCdi%2Fxz2gw2Hvnj8urK3jCDVxD0yqyhVgQBsdHoxXwvnC3VBOhFCQDaNKFqJaMWYgghDFabTUiCYk4IU4qaHvziABfFHcszrQ%3D"}]}'
       server:
       - cloudflare
       set-cookie:
-      - __cf_bm=avppwN1fsjIZRNMVGdyUmeKq_sieqAOmctJbRvho7B8-1791475074.5066779-1.0.1.1-aXsQgOZWZNXcu3cXLcE3l5.9NFYLQ772TDZAEvNeXjl1.8TnbWgAv4jlBnzaLDA4GWWyy7B6NVEqqDC_1.x00ApeMNzQYPQ57AUmdMy0kBFRRKzoDwe0YDNHeVxoOjNf;
-        HttpOnly; SameSite=None; Secure; Path=/; Domain=openrouter.ai; Expires=Thu,
-        08 Oct 2026 16:27:56 GMT
+      - __cf_bm=HsygQ8MpoZlo0.dar0xkXSjGTuoKvuGN_hbil9eL8UA-1791520617.6175745-1.0.1.1-2oRK7Ya8G5vYuX2E0rnUyurMgFWjupQp4R184YeaP.kMZ.xiN3qaZNba.nVzRry.4x22nIIlewGqV2INe_mpEnayzGHYvO3d4bluYjoPG6qjtafJ8X6s9BJ557j6sUKn;
+        HttpOnly; SameSite=None; Secure; Path=/; Domain=openrouter.ai; Expires=Fri,
+        09 Oct 2026 05:07:00 GMT
       strict-transport-security:
       - max-age=31536000
       transfer-encoding:
@@ -611,11 +603,11 @@ interactions:
       x-content-type-options:
       - nosniff
       x-generation-id:
-      - gen-1791475074-Y29au1wQeeZuTnZjTrKS
+      - gen-1791520617-OVYdN8oZERTUezN0jmHv
       x-new-api-version:
-      - v1.0.0-rc.41
+      - v1.0.0-rc.42
       x-oneapi-request-id:
-      - 202610081557544879817468268d9d6Gac0HsJs
+      - 202610090436576046190208268d9d6Yg3jF0FV
     status:
       code: 200
       message: OK
