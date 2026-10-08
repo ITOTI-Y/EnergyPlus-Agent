@@ -9,7 +9,7 @@ from src.agent.trace import TraceCollector, record_phase_trace, trace_middleware
 
 SCHEDULE_SYSTEM_PROMPT = """You are a scheduling expert for EnergyPlus.
 Given schedule specifications, create all ScheduleTypeLimits and
-Schedule:Compact objects required by later phases (HVAC, People, Lights).
+Schedule:Compact objects required by later phases (HVAC, People, Lights, Equipment).
 
 Required type limits to create first (if referenced):
 - 'Fraction' (0.0 to 1.0, CONTINUOUS, Dimensionless)
@@ -84,6 +84,7 @@ Typical required schedules for a conditioned occupied zone:
   people.number_of_people_schedule_name         | Fraction       | occupancy pattern
   people.activity_level_schedule_name           | Activity Level | ~120 W/person seated
   lights.schedule_name                          | Fraction       | lighting pattern
+  equipment.schedule_name                       | Fraction       | plug-load pattern
 
 If the spec implies occupancy but does not explicitly name an activity-
 level schedule, CREATE ONE anyway (e.g. "Office_Activity_Level" at
@@ -131,7 +132,8 @@ def schedule_agent(state: AgentState) -> AgentStateUpdate:
             "phases will reference) ---\n"
             f"[hvac_specs]\n{io.hvac_specs}\n\n"
             f"[people_specs]\n{io.people_specs}\n\n"
-            f"[lights_specs]\n{io.lights_specs}\n"
+            f"[lights_specs]\n{io.lights_specs}\n\n"
+            f"[equipment_specs]\n{io.equipment_specs}\n"
         )
     else:
         specs = state.user_input

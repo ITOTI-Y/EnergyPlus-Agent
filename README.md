@@ -18,7 +18,7 @@ A RAG knowledge base (Gemini Embedding + Qdrant) and SQLite data tools for stand
 ### Multi-phase agent (LangGraph)
 
 - **Intake**: one structured LLM call parses text and images into `IntakeOutput`, which carries the `Building` and `Site:Location` objects and natural-language task specs for each downstream phase.
-- **Phased construction with parallelism**: independent object types are built by separate ReAct sub-agents. Zone, material and schedule run in parallel; construction, surface and fenestration run sequentially because of their dependencies; HVAC, people and lights run in parallel again.
+- **Phased construction with parallelism**: independent object types are built by separate ReAct sub-agents. Zone, material and schedule run in parallel; construction, surface and fenestration run sequentially because of their dependencies; HVAC, people, lights and equipment run in parallel again.
 - **Parallel-safe state**: a reducer (`merge_config_state`) unions the idfpy models written by concurrent phases; on a name conflict the later branch wins.
 - **Shared model operations**: agent tools and MCP tools are thin adapters over `src/modeling`, which rejects missing references and duplicate names at the call, applies updates atomically, renames references along with an object, and refuses to delete an object that others still reference. Tool arguments are typed models with declared fields, so a rejected call names the exact field (for example `vertices.0.X: Field required`).
 - **Envelope rules at the tool boundary**: constructions are checked as they are created. Opaque layers never mix with window layers, a SimpleGlazingSystem stands alone, and multi-pane glazing alternates glass and `WindowMaterial:Gas`. Each surface and opening accepts only a construction of the matching kind, and the list tools show the kind. Openings get their vertex order corrected, are rejected when off their wall, and on an interzone wall get a mirrored partner in the adjacent zone. The two faces of an interzone wall can be created in either order and are linked to each other.
@@ -33,7 +33,7 @@ A RAG knowledge base (Gemini Embedding + Qdrant) and SQLite data tools for stand
 ### MCP server
 
 - **FastMCP framework** with `stdio`, `http`, `sse` and `streamable-http` transports.
-- **Full CRUD tool set** for Building, Location, Zone, Surface, Material, Construction, Fenestration, Schedule, HVAC, People and Lights; update tools take an optional `new_name` that is applied to every reference.
+- **Full CRUD tool set** for Building, Location, Zone, Surface, Material, Construction, Fenestration, Schedule, HVAC, People, Lights and ElectricEquipment; update tools take an optional `new_name` that is applied to every reference.
 - **Workflow tools** for model export and load (IDF or epJSON), validation of references, fenestration placement and completeness, simulation and summary.
 - **Resource endpoints** exposing the current configuration and its summary.
 
@@ -43,7 +43,7 @@ A RAG knowledge base (Gemini Embedding + Qdrant) and SQLite data tools for stand
 - **Design days**: before a run, the annual heating 99.6% and cooling 0.4% design days are imported from the `.ddy` file next to the EPW (`Shenzhen.epw` → `Shenzhen.ddy`) unless the model already has design days; a missing `.ddy` stops the run with an error.
 - **Ground contact**: floors with a `Ground` boundary are simulated on an uninsulated `Foundation:Kiva` slab, with each floor's exposed perimeter measured from the outdoor walls above its edges; Kiva derives the soil temperatures from the weather file. A model that defines `Site:GroundTemperature:BuildingSurface` keeps the fixed-temperature boundary.
 - **Runner**: each run gets its own directory; EnergyPlus runs with `-x` (ExpandObjects, so `HVACTemplate` objects are expanded) and `-r` (ReadVarsESO), and `eplusout.err` is parsed into structured Warning, Severe and Fatal messages.
-- **Default output variables**: when no `Output:Variable` is configured, the simulate step adds an hourly monitoring set (zone temperature and humidity, ideal-loads heating and cooling energy, lighting and people energy, facility HVAC electricity) so results are actually recorded.
+- **Default output variables**: when no `Output:Variable` is configured, `run_simulation` adds an hourly monitoring set (zone temperature and humidity, ideal-loads heating and cooling energy, lighting, equipment and people energy, facility HVAC electricity) so results are actually recorded.
 
 ### RAG knowledge base
 
@@ -72,7 +72,7 @@ EnergyPlus-Agent/
 │   │   ├── trace.py                  # TraceCollector and per-phase trace registry
 │   │   ├── _share.py                 # AGENT_LANGUAGE directive, constants
 │   │   ├── nodes/                    # intake, zone, material, schedule, construction,
-│   │   │                             # surface, fenestration, hvac, people, lights,
+│   │   │                             # surface, fenestration, hvac, people, lights, equipment,
 │   │   │                             # cross_ref, validate, simulate
 │   │   └── tools/                    # make_*_tools() closures over src/modeling
 │   ├── mcp/                          # MCP server
@@ -83,7 +83,7 @@ EnergyPlus-Agent/
 │   │   │   ├── envelope.py           # Material, Construction, Surface, Fenestration
 │   │   │   ├── schedule.py           # ScheduleTypeLimits, Schedule:Compact
 │   │   │   ├── hvac.py               # Thermostat, IdealLoadsAirSystem
-│   │   │   ├── loads.py              # People, Lights
+│   │   │   ├── loads.py              # People, Lights, ElectricEquipment
 │   │   │   ├── workflow.py           # model export/load, validate, simulate, summary, clear
 │   │   │   ├── resources.py          # config://current, config://summary
 │   │   │   └── common.py             # model_tool(): (message, data) -> MCP response
@@ -277,11 +277,11 @@ START -> intake
            | (clean)
       construction -> surface -> fenestration
                                      |
-                               +-----+-----+   phase 3, parallel
-                               v     v     v
-                             hvac  people lights
-                               |     |     |
-                               +-----+-----+
+                         +-----+-----+-----+   phase 3, parallel
+                         v     v     v     v
+                       hvac people lights equipment
+                         |     |     |     |
+                         +-----+-----+-----+
                                      v
                              cross_ref_complete
                                      v
@@ -333,10 +333,11 @@ START -> intake
 
 ### Loads
 
-| Tool                                                                                         | Description |
-| -------------------------------------------------------------------------------------------- | ----------- |
-| `create_people` / `get_people` / `update_people` / `delete_people` / `list_people` | People CRUD |
-| `create_light` / `get_light` / `update_light` / `delete_light` / `list_lights`     | Lights CRUD |
+| Tool                                                                                              | Description                        |
+| ------------------------------------------------------------------------------------------------- | ---------------------------------- |
+| `create_people` / `get_people` / `update_people` / `delete_people` / `list_people`                | People CRUD                        |
+| `create_light` / `get_light` / `update_light` / `delete_light` / `list_lights`                    | Lights CRUD                        |
+| `create_equipment` / `get_equipment` / `update_equipment` / `delete_equipment` / `list_equipment` | ElectricEquipment (plug load) CRUD |
 
 ### Workflow
 

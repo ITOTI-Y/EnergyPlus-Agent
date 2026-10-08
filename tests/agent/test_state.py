@@ -1,7 +1,9 @@
+import pytest
 from idfpy.models import Material, OutputVariable, Zone
+from pydantic import ValidationError
 
 from src.agent import build_graph
-from src.agent.state import merge_config_state
+from src.agent.state import IntakeOutput, merge_config_state
 from src.state.config_state import ConfigState
 
 
@@ -99,3 +101,17 @@ def test_merge_does_not_mutate_inputs():
 
     assert set(old.idf.all_of_type(Zone)) == {"Z_OLD"}
     assert set(new.idf.all_of_type(Zone)) == {"Z_NEW"}
+
+
+def test_intake_output_needs_plug_loads():
+    specs = {f: "given" for f in IntakeOutput.model_fields if f.endswith("_specs")}
+
+    with pytest.raises(ValidationError, match="equipment_specs"):
+        IntakeOutput.model_validate(
+            {
+                "building": {"name": "B"},
+                "site_location": {"name": "S"},
+                **specs,
+                "equipment_specs": " ",
+            }
+        )

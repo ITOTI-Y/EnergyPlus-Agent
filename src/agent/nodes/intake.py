@@ -49,19 +49,23 @@ Rules:
    (e.g., tolerance 0.04, terrain 'City', solar distribution 'FullExterior').
 3. Each `*_specs` field must be concrete: list zone names, material types,
    schedule patterns, etc. Do NOT output placeholders like 'TBD'.
+   `equipment_specs` is never empty: when the brief gives no plug loads,
+   give typical densities for the space types (e.g. 10 W/m^2 for offices)
+   on a fraction schedule.
 4. Internal consistency is CRITICAL — the phase agents work from your
    specs. Names referenced across subsystems must MATCH EXACTLY
    (case, underscores, everything):
    - Constructions named in `surface_specs` / `fenestration_specs` must
      be defined in `construction_specs` with the IDENTICAL name.
-   - Schedules named in `hvac_specs` / `people_specs` / `lights_specs`
+   - Schedules named in `hvac_specs` / `people_specs` / `lights_specs` /
+     `equipment_specs`
      must be defined in `schedule_specs` with the IDENTICAL name.
    - Zones named in `surface_specs` / `people_specs` / `lights_specs` /
-     `hvac_specs` must be defined in `zone_specs` with the IDENTICAL name.
+     `equipment_specs` / `hvac_specs` must be defined in `zone_specs` with the IDENTICAL name.
    Pick names once, reuse them verbatim. No synonyms, no pluralization.
 5. Name format — EVERY Name field (building.name, site_location.name,
    zone / material / construction / surface / fenestration / schedule /
-   thermostat / people / lights names) MUST use ONLY word characters
+   thermostat / people / lights / equipment names) MUST use ONLY word characters
    (letters, digits) with `_` as the ONLY word separator. NO spaces,
    NO commas, NO semicolons, NO hyphens, NO slashes, NO parentheses.
    IDF uses `,` and `;` as field delimiters; other punctuation causes
@@ -86,6 +90,7 @@ Rules:
      people.number_of_people_schedule_name         | Fraction        | -
      people.activity_level_schedule_name           | Activity Level  | W/person
      lights.schedule_name                          | Fraction        | -
+     equipment.schedule_name                       | Fraction        | -
 
    For every row where the downstream phase is non-empty, `schedule_specs`
    must (a) name the schedule, (b) state the schedule type limits it
