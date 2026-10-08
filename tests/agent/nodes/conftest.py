@@ -1,5 +1,6 @@
 import os
 from collections.abc import Callable
+from pathlib import Path
 
 import pytest
 from idfpy.models.constructions import Material
@@ -8,6 +9,9 @@ from idfpy.models.schedules import (
     ScheduleCompactDataItem,
     ScheduleTypeLimits,
 )
+from langgraph.runtime import Runtime
+
+from src.agent.state import SimContext
 
 RECORDED_BASE_URL = "https://one.chat-yu.net/v1"
 RECORDED_MODEL = "google/gemini-3.8-flash"
@@ -72,3 +76,9 @@ def fraction_limits() -> ScheduleTypeLimits:
         upper_limit_value=1.0,
         numeric_type="Continuous",
     )
+
+
+@pytest.fixture
+def runtime() -> Runtime[SimContext]:
+    """Graph runtime without the reference library."""
+    return Runtime(context=SimContext(epw_path=Path("data/weather/Shenzhen.epw")))

@@ -18,6 +18,7 @@ from src.agent._share import DEFAULT_OUTPUT_DIR, MAX_GLOBAL_RETRIES
 from src.agent.phases import Phase
 from src.modeling.geometry import PlanPointSchema
 from src.modeling.validation import ModelIssue
+from src.reference.search import ReferenceSearch
 from src.state.config_state import ConfigState
 
 
@@ -186,6 +187,8 @@ class SimContext:
 
     epw_path: Path
     output_dir: Path = DEFAULT_OUTPUT_DIR
+    reference: ReferenceSearch | None = None
+    """Prototype reference search, when configured; phases add its tools."""
 
 
 def _merge_idf(old_idf: IDF, new_idf: IDF) -> IDF:

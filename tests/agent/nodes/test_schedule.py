@@ -6,15 +6,18 @@ real on every replay, so the assertions cover prompt -> tool call -> model.
 
 import pytest
 from idfpy.models.schedules import ScheduleCompact
+from langgraph.runtime import Runtime
 
 from src.agent.nodes.schedule import schedule_agent
-from src.agent.state import AgentState
+from src.agent.state import AgentState, SimContext
 
 pytestmark = pytest.mark.usefixtures("pinned_llm_env")
 
 
 @pytest.mark.vcr
-def test_schedule_agent_creates_schedule():
+def test_schedule_agent_creates_schedule(
+    runtime: Runtime[SimContext],
+):
     state = AgentState(
         pending_phases=["schedule"],
         user_input=(
@@ -24,7 +27,7 @@ def test_schedule_agent_creates_schedule():
         ),
     )
 
-    out = schedule_agent(state)
+    out = schedule_agent(state, runtime)
 
     schedules = out["config_state"].idf.all_of_type(ScheduleCompact)
     assert "Office_Occupancy" in schedules

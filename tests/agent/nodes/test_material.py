@@ -8,15 +8,18 @@ import pytest
 from idfpy.models.constructions import (
     Material,
 )
+from langgraph.runtime import Runtime
 
 from src.agent.nodes.material import material_agent
-from src.agent.state import AgentState
+from src.agent.state import AgentState, SimContext
 
 pytestmark = pytest.mark.usefixtures("pinned_llm_env")
 
 
 @pytest.mark.vcr
-def test_material_agent_creates_material():
+def test_material_agent_creates_material(
+    runtime: Runtime[SimContext],
+):
     state = AgentState(
         pending_phases=["material"],
         user_input=(
@@ -26,7 +29,7 @@ def test_material_agent_creates_material():
         ),
     )
 
-    out = material_agent(state)
+    out = material_agent(state, runtime)
 
     materials = out["config_state"].idf.all_of_type(Material)
     assert "Brick_100mm" in materials

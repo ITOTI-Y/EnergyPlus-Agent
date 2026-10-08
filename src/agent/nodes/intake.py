@@ -6,13 +6,20 @@ from pathlib import Path
 from typing import Any, Final, Literal, TypedDict, cast
 
 from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
+from langgraph.runtime import Runtime
 from loguru import logger
 from pydantic import BaseModel
 
 from src.agent._share import language_directive
 from src.agent.llm import create_llm
 from src.agent.phases import DEPENDS_ON, PHASE_TYPES, Phase, owner, rerun_closure
-from src.agent.state import AgentState, AgentStateUpdate, IntakeOutput, IntakePatch
+from src.agent.state import (
+    AgentState,
+    AgentStateUpdate,
+    IntakeOutput,
+    IntakePatch,
+    SimContext,
+)
 
 
 class TextContentPart(TypedDict):
@@ -209,7 +216,19 @@ def _revision(state: AgentState, previous: IntakeOutput) -> HumanMessage:
     )
 
 
-def intake_node(state: AgentState) -> AgentStateUpdate:
+REFERENCE_INTAKE_RULE = """
+7. A reference library of DOE prototype buildings is available to the
+   material, construction and schedule phases. Where the brief gives no
+   values, do NOT invent material properties, layer thicknesses or
+   schedule profiles: describe each material, construction and schedule by
+   purpose and building type (e.g. "exterior wall insulation of a medium
+   office suited to the site's climate"), still giving the names other
+   specs reference, and let those phases take the values from the library.
+   Values the brief gives are passed on as given.
+"""
+
+
+def intake_node(state: AgentState, runtime: Runtime[SimContext]) -> AgentStateUpdate:
     """Write the specifications on the first pass, revise them on retries.
 
     The first pass runs every phase. A revision returns a patch; the phases
@@ -217,7 +236,10 @@ def intake_node(state: AgentState) -> AgentStateUpdate:
     dependants run again, and the rest keep their objects. Building and
     Site:Location go into the model here.
     """
-    system = SystemMessage(content=INTAKE_SYSTEM_PROMPT + language_directive())
+    rules = INTAKE_SYSTEM_PROMPT
+    if runtime.context.reference is not None:
+        rules += REFERENCE_INTAKE_RULE
+    system = SystemMessage(content=rules + language_directive())
     previous = state.intake_output
     if previous is None:
         output, _ = _structured(IntakeOutput, [system, _brief(state)], lambda o: o)

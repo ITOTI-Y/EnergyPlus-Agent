@@ -1,4 +1,3 @@
-import os
 import time
 from pathlib import Path
 from typing import Annotated, Literal
@@ -39,39 +38,91 @@ def mcp_server(
         mcp.run(transport=transport, port=port, host=host)
 
 
-@app.command()
-def embedding(
-    qdrant_collection_name: Annotated[
-        str,
-        typer.Option("--collection", "-c", help="The name of the Qdrant collection"),
-    ],
-    index_db_path: Annotated[
-        str, typer.Option("--db-path", "-d", help="The path to the index database")
-    ],
-):
-    import asyncio
+reference_app = typer.Typer(
+    help="Build, index and share the prototype reference library"
+)
+app.add_typer(reference_app, name="reference")
 
-    from src.rag.rag import RAGSystem
 
-    qdrant_url = os.getenv("QDRANT_ENDPOINT")
-    qdrant_api_key = os.getenv("QDRANT_API_KEY")
-    gemini_api_key = os.getenv("GEMINI_API_KEY")
-    if not qdrant_url or not qdrant_api_key or not gemini_api_key:
-        raise ValueError(
-            "QDRANT_ENDPOINT, QDRANT_API_KEY, and GEMINI_API_KEY must be set"
+@reference_app.command("build")
+def reference_build(
+    downloads: Annotated[
+        Path, Option(help="Directory for the downloaded prototype zips")
+    ] = Path("/tmp/ep-agent-prototypes/raw_doe_prototypes"),
+) -> None:
+    """Download the DOE prototypes and build the library from them."""
+    import tempfile
+
+    from src.reference import library, prototypes
+    from src.reference.settings import ReferenceSettings
+
+    settings = ReferenceSettings()
+    archives = prototypes.download(prototypes.archive_urls(), downloads)
+    with tempfile.TemporaryDirectory(prefix="ep-prototypes-") as work:
+        models = prototypes.extract(archives, Path(work))
+        report = library.build(
+            models, settings.library_path, {"source": "energycodes.gov"}
         )
-    rag_system = RAGSystem(
-        qdrant_url=qdrant_url,
-        qdrant_api_key=qdrant_api_key,
-        qdrant_collection_name=qdrant_collection_name,
-        gemini_api_key=gemini_api_key,
-        index_db_path=index_db_path,
+    logger.info(
+        "Built {} from {} models: {}; {} schedules skipped",
+        settings.library_path,
+        report.models,
+        report.entries,
+        len(report.skipped_schedules),
     )
-    result = asyncio.run(rag_system.sync_rag_async())
-    if result.failed_count > 0:
-        logger.error(f"Failed to embed {result.failed_count} batches")
-        raise typer.Exit(1)
-    logger.info(f"Successfully embedded {result.success_count} batches")
+
+
+@reference_app.command("embed")
+def reference_embed() -> None:
+    """Embed library entries that have no embedding yet."""
+    from src.reference.index import Embedder, embed_library
+    from src.reference.settings import ReferenceSettings
+
+    settings = ReferenceSettings()
+    if settings.embedding_url is None:
+        raise typer.BadParameter("set REFERENCE_EMBEDDING_URL")
+    embedder = Embedder(settings.embedding_url, settings.embedding_model)
+    count = embed_library(settings.library_path, embedder)
+    logger.info("Embedded {} entries", count)
+
+
+@reference_app.command("load")
+def reference_load() -> None:
+    """Replace the Qdrant collection with the library's embedded entries."""
+    from qdrant_client import QdrantClient
+
+    from src.reference.index import load_collection
+    from src.reference.settings import ReferenceSettings
+
+    settings = ReferenceSettings()
+    if settings.qdrant_url is None:
+        raise typer.BadParameter("set REFERENCE_QDRANT_URL")
+    key = settings.qdrant_api_key
+    client = QdrantClient(
+        url=settings.qdrant_url, api_key=key.get_secret_value() if key else None
+    )
+    count = load_collection(settings.library_path, client, settings.collection)
+    logger.info("Loaded {} points into {}", count, settings.collection)
+
+
+@reference_app.command("publish")
+def reference_publish() -> None:
+    """Upload the library to the private Hugging Face dataset repo."""
+    from src.reference.hub import publish
+    from src.reference.settings import ReferenceSettings
+
+    settings = ReferenceSettings()
+    logger.info("Published: {}", publish(settings.library_path, settings.hub_repo))
+
+
+@reference_app.command("pull")
+def reference_pull() -> None:
+    """Download the library from the Hugging Face dataset repo."""
+    from src.reference.hub import pull
+    from src.reference.settings import ReferenceSettings
+
+    settings = ReferenceSettings()
+    logger.info("Pulled {}", pull(settings.hub_repo, settings.library_path))
 
 
 @app.command()
@@ -115,7 +166,13 @@ def run_agent(
         user_input=user_input,
         image_paths=[str(p) for p in images],
     )
-    context = SimContext(epw_path=epw, output_dir=output_dir)
+    from src.reference.search import ReferenceSearch
+    from src.reference.settings import ReferenceSettings
+
+    settings = ReferenceSettings()
+    # Configured but unreachable or mismatched fails here, before any LLM call.
+    reference = ReferenceSearch.connect(settings, epw) if settings.enabled else None
+    context = SimContext(epw_path=epw, output_dir=output_dir, reference=reference)
     config: RunnableConfig = {"configurable": {"thread_id": thread_id}}
 
     state = run_session(

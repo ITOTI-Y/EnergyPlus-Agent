@@ -9,16 +9,19 @@ from idfpy.models.constructions import (
     Construction,
     Material,
 )
+from langgraph.runtime import Runtime
 
 from src.agent.nodes.construction import construction_agent
-from src.agent.state import AgentState
+from src.agent.state import AgentState, SimContext
 from src.state.config_state import ConfigState
 
 pytestmark = pytest.mark.usefixtures("pinned_llm_env")
 
 
 @pytest.mark.vcr
-def test_construction_agent_creates_construction(brick: Material):
+def test_construction_agent_creates_construction(
+    runtime: Runtime[SimContext], brick: Material
+):
     seeded = ConfigState()
     seeded.idf.add(brick)
     state = AgentState(
@@ -30,7 +33,7 @@ def test_construction_agent_creates_construction(brick: Material):
         ),
     )
 
-    out = construction_agent(state)
+    out = construction_agent(state, runtime)
 
     constructions = out["config_state"].idf.all_of_type(Construction)
     assert "ExtWall_Simple" in constructions
