@@ -65,7 +65,9 @@ Rules:
    (case, underscores, everything):
    - Constructions named in `zones` / `surface_specs` /
      `fenestration_specs` must be defined in `construction_specs` with
-     the IDENTICAL name, opaque for walls, roofs and floors.
+     the IDENTICAL name, opaque for walls, roofs and floors. Give the
+     interior floor layers from the ceiling below up to the floor above;
+     the face on the other side gets the reversed layers automatically.
    - Schedules named in `hvac_specs` / `people_specs` / `lights_specs` /
      `equipment_specs`
      must be defined in `schedule_specs` with the IDENTICAL name.
@@ -98,14 +100,15 @@ Rules:
      thermostat.cooling_setpoint_schedule_name     | Temperature     | degC
      ideal_loads.system_availability_schedule_name | Fraction / OnOff| -
      people.number_of_people_schedule_name         | Fraction        | -
-     people.activity_level_schedule_name           | Activity Level  | W/person
+     people.activity_level_schedule_name           | ActivityLevel   | W/person
      lights.schedule_name                          | Fraction        | -
      equipment.schedule_name                       | Fraction        | -
 
    For every row where the downstream phase is non-empty, `schedule_specs`
    must (a) name the schedule, (b) state the schedule type limits it
-   uses, and (c) give the value profile (e.g. "weekdays 8-18 at 1.0,
-   else 0.0"). The activity_level schedule is commonly forgotten —
+   uses, and (c) give the value profile for EVERY day type, weekends,
+   holidays and design days included (e.g. "weekdays 8-18 at 1.0, all
+   other days 0.0"). The activity_level schedule is commonly forgotten —
    default ~120 W/person for seated office work.
 """
 

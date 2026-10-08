@@ -87,7 +87,9 @@ class IntakeOutput(BaseModel):
         description="Window/door instructions referencing surfaces"
     )
     hvac_specs: str = Field(
-        description="HVAC system type, thermostat setpoints, schedule references"
+        description="HVAC system per conditioned zone; one thermostat template "
+        "per distinct pair of heating/cooling setpoint schedules, with the "
+        "zones that use it; availability schedule references"
     )
     people_specs: str = Field(
         description="Occupancy: zone assignment, density, activity schedule per zone"

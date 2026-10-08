@@ -19,7 +19,7 @@ Schedule:Compact objects required by later phases (HVAC, People, Lights, Equipme
 Required type limits to create first (if referenced):
 - 'Fraction' (0.0 to 1.0, CONTINUOUS, Dimensionless)
 - 'Temperature' (-100 to 100, CONTINUOUS, Temperature)
-- 'Activity Level' (0 to 1000, CONTINUOUS, Dimensionless)
+- 'ActivityLevel' (0 to 1000, CONTINUOUS, ActivityLevel)
 - 'OnOff' (0 to 1, DISCRETE, Dimensionless)
 
 Then create Schedule:Compact entries. The `data` argument is a NESTED LIST
@@ -87,7 +87,7 @@ Typical required schedules for a conditioned occupied zone:
   thermostat.cooling_setpoint_schedule_name     | Temperature    | 24 occupied / 28 setback
   ideal_loads.system_availability_schedule_name | Fraction/OnOff | 1 during hours, else 0
   people.number_of_people_schedule_name         | Fraction       | occupancy pattern
-  people.activity_level_schedule_name           | Activity Level | ~120 W/person seated
+  people.activity_level_schedule_name           | ActivityLevel  | ~120 W/person seated
   lights.schedule_name                          | Fraction       | lighting pattern
   equipment.schedule_name                       | Fraction       | plug-load pattern
 
@@ -101,8 +101,11 @@ Rules:
   phases will reference non-existent schedules.
 - The LAST "Through" block must be "12/31" (full-year coverage).
 - Within each "For" block, the LAST "Until.Time" must be "24:00".
-- Cover every day type: either use "AllDays", or use specific day types
-  followed by "AllOtherDays" to catch the rest.
+- Every "Through" block must give EVERY day type a value, including
+  weekends, holidays, the summer and winter design days used for sizing,
+  and the custom days: use "AllDays", or list day types and end with
+  "AllOtherDays" (never first). create_schedule_compact rejects a block
+  that misses any of them.
 - Call list_schedules once at the end.
 """
 

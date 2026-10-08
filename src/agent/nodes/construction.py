@@ -30,10 +30,14 @@ Rules:
   the list_materials result (exact case, underscores, dashes, numbers).
 - If a needed material is missing from list_materials, STOP and report
   the gap; do NOT invent names or call create with a broken reference.
-- Each Construction is an ordered list of layers from OUTSIDE to INSIDE.
-- Use separate constructions per surface type when thermal properties differ
-  (e.g., 'ExtWall_Office', 'IntWall_Office', 'Roof_Office', 'Floor_Office',
-  'Window_Office').
+- Use the construction names the specification gives, verbatim: zones and
+  openings reference them. Only for constructions it does not name, use
+  separate ones per surface type when thermal properties differ (e.g.,
+  'ExtWall_Office', 'IntWall_Office', 'Roof_Office', 'Window_Office').
+- Each Construction is an ordered list of layers from OUTSIDE to INSIDE. An
+  interior floor lists its layers from the ceiling below up to the floor
+  above. Do NOT create reversed copies of interior constructions; the face
+  in the adjacent zone gets one automatically.
 - Opaque constructions (walls, roofs, floors, ceilings, doors) use only
   opaque materials; Material:AirGap is allowed there.
 - Window constructions are either a single simplified glazing material, or

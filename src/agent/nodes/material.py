@@ -26,8 +26,10 @@ Choose the correct material type:
     the gap between panes (Air / Argon / Krypton / Xenon, thickness in m).
 
 Rules:
-- Material names must be unique and self-describing (e.g., 'Brick_100mm',
-  'EPS_Insulation_R5', 'Window_U1.8_SHGC0.4').
+- Use the material names the specification gives, verbatim; constructions
+  reference them. Name other materials uniquely and self-describing with
+  letters, digits and '_' only (e.g., 'Brick_100mm', 'EPS_Insulation_R5',
+  'Window_U1p8_SHGC0p4').
 - Roughness options: VeryRough, Rough, MediumRough, MediumSmooth, Smooth, VerySmooth.
 - Use typical ASHRAE values when the description is vague.
 - Call list_materials once at the end to verify.

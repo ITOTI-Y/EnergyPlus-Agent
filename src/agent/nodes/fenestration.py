@@ -48,9 +48,11 @@ Rules:
 - On a wall between two zones, create the opening once; the matching
   opening in the adjacent zone is added automatically.
 - surface_type is Window, Door, or GlassDoor.
-- Typical window-to-wall ratio: 0.3-0.4 on facade walls; derive vertex
-  coordinates from the parent wall's corners and the WWR.
-- Naming: '{parent_surface}_Window' or '{zone}_{direction}_Window_{index}'.
+- Use the sizes and positions the specification gives. Only when it gives
+  none, use a window-to-wall ratio of 0.3-0.4 on facade walls and derive
+  the vertices from the parent wall's corners.
+- Use the names the specification gives; otherwise
+  '{parent_surface}_Window' or '{zone}_{direction}_Window_{index}'.
 """
 
 
