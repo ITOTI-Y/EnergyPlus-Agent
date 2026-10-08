@@ -2,7 +2,8 @@ import os
 from pathlib import Path
 from typing import Final
 
-MAX_RETRIES: Final[int] = 0
+MAX_GLOBAL_RETRIES: Final[int] = 2
+"""Intake revisions after validation errors before a human reviews the model."""
 
 DEFAULT_OUTPUT_DIR: Final[Path] = Path("output")
 

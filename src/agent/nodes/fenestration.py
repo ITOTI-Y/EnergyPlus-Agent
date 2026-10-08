@@ -2,7 +2,12 @@ from langchain_core.messages import AIMessage
 from pydantic import BaseModel, Field
 
 from src.agent.llm import build_agent
-from src.agent.nodes._share import invoke_with_self_repair, last_message_text
+from src.agent.nodes._share import (
+    invoke_with_self_repair,
+    last_message_text,
+    skipped,
+    with_feedback,
+)
 from src.agent.state import AgentState, AgentStateUpdate
 from src.agent.tools import make_fenestration_tools
 from src.agent.trace import TraceCollector, record_phase_trace, trace_middleware
@@ -61,6 +66,8 @@ class FenestrationResponse(BaseModel):
 
 
 def fenestration_agent(state: AgentState) -> AgentStateUpdate:
+    if skipped(state, "fenestration"):
+        return AgentStateUpdate()
     local = state.config_state.model_copy(deep=True)
     tools = make_fenestration_tools(local)
     collector = TraceCollector(phase="fenestration")
@@ -77,7 +84,9 @@ def fenestration_agent(state: AgentState) -> AgentStateUpdate:
         if state.intake_output
         else state.user_input
     )
-    result = invoke_with_self_repair(agent, local, specs, phase="fenestration")
+    result = invoke_with_self_repair(
+        agent, local, with_feedback(specs, state, "fenestration"), phase="fenestration"
+    )
 
     response: FenestrationResponse | None = result.get("structured_response")
     summary = response.summary if response else last_message_text(result)
