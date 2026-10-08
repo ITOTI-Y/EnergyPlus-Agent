@@ -29,7 +29,12 @@ Rules:
 - Use separate constructions per surface type when thermal properties differ
   (e.g., 'ExtWall_Office', 'IntWall_Office', 'Roof_Office', 'Floor_Office',
   'Window_Office').
-- For fenestration, the construction's only layer is the glazing material.
+- Opaque constructions (walls, roofs, floors, ceilings, doors) use only
+  opaque materials; Material:AirGap is allowed there.
+- Window constructions are either a single simplified glazing material, or
+  glass panes with exactly one window gas layer between each pair, starting
+  and ending with glass (e.g., [Glass_6mm, Air_13mm, Glass_6mm]). Never mix
+  window and opaque materials; create_construction rejects such layers.
 """
 
 

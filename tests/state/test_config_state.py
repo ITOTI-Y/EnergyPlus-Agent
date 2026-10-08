@@ -4,6 +4,8 @@ from idfpy.models import (
     ScheduleCompact,
     ScheduleCompactDataItem,
     Version,
+    WindowMaterialGas,
+    WindowMaterialGlazing,
     Zone,
 )
 
@@ -88,3 +90,24 @@ def test_clear_restores_default_model():
 
     assert not state.idf.all_of_type(Zone)
     assert state.idf.all_of_type(Version)
+
+
+def test_summary_counts_every_material_type():
+    state = ConfigState()
+    state.idf.add(
+        WindowMaterialGlazing(
+            name="Clear6",
+            optical_data_type="SpectralAverage",
+            thickness=0.006,
+            solar_transmittance_at_normal_incidence=0.775,
+            front_side_solar_reflectance_at_normal_incidence=0.071,
+            back_side_solar_reflectance_at_normal_incidence=0.071,
+            visible_transmittance_at_normal_incidence=0.881,
+            front_side_visible_reflectance_at_normal_incidence=0.08,
+            back_side_visible_reflectance_at_normal_incidence=0.08,
+            conductivity=0.9,
+        )
+    )
+    state.idf.add(WindowMaterialGas(name="Air13", gas_type="Air", thickness=0.013))
+
+    assert state.get_summary().materials_count == 2

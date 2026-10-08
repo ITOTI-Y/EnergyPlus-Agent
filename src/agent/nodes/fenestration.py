@@ -26,7 +26,7 @@ Workflow:
 1. FIRST call `list_surfaces` to see parent surface names AND their
    vertex geometry — you need the parent surface's plane to place the
    fenestration's coplanar vertices correctly.
-2. THEN call `list_constructions` to find glazing/door construction names.
+2. THEN call `list_constructions`; each entry has a `kind`.
 3. Create each fenestration via `create_fenestration`.
 4. Call `list_fenestrations` once at the end to confirm.
 
@@ -35,9 +35,13 @@ Rules:
   in the list_surfaces / list_constructions results.
 - If a needed surface or construction is missing after list, STOP and
   report; do NOT invent names.
-- construction_name should be a Glazing construction for windows/skylights.
-- >= 3 vertices, counter-clockwise from OUTSIDE, and MUST lie on the
-  parent surface's plane (coplanar — share one coordinate for walls).
+- Window and GlassDoor need a construction of kind `window`; Door needs
+  kind `opaque`.
+- 3 or 4 vertices that MUST lie on the parent surface's plane (coplanar —
+  share one coordinate for walls) and inside its outline. The vertex order
+  is corrected to match the parent surface automatically.
+- On a wall between two zones, create the opening once; the matching
+  opening in the adjacent zone is added automatically.
 - surface_type is Window, Door, or GlassDoor.
 - Typical window-to-wall ratio: 0.3-0.4 on facade walls; derive vertex
   coordinates from the parent wall's corners and the WWR.
