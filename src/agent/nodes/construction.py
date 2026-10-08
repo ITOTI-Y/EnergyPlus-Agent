@@ -1,4 +1,5 @@
 from langchain_core.messages import AIMessage
+from langgraph.runtime import Runtime
 from pydantic import BaseModel, Field
 
 from src.agent.llm import build_agent
@@ -8,8 +9,9 @@ from src.agent.nodes._share import (
     skipped,
     with_feedback,
 )
-from src.agent.state import AgentState, AgentStateUpdate
+from src.agent.state import AgentState, AgentStateUpdate, SimContext
 from src.agent.tools import make_construction_tools
+from src.agent.tools.reference_tools import make_reference_tools, reference_prompt
 from src.agent.trace import TraceCollector, record_phase_trace, trace_middleware
 
 CONSTRUCTION_SYSTEM_PROMPT = """You are a construction-assembly expert for EnergyPlus.
@@ -58,16 +60,22 @@ class ConstructionResponse(BaseModel):
     )
 
 
-def construction_agent(state: AgentState) -> AgentStateUpdate:
+def construction_agent(
+    state: AgentState, runtime: Runtime[SimContext]
+) -> AgentStateUpdate:
     if skipped(state, "construction"):
         return AgentStateUpdate()
     local = state.config_state.model_copy(deep=True)
     tools = make_construction_tools(local)
+    prompt = CONSTRUCTION_SYSTEM_PROMPT
+    if (reference := runtime.context.reference) is not None:
+        tools += make_reference_tools(reference, ("construction",))
+        prompt += reference_prompt(reference, ("construction",))
     collector = TraceCollector(phase="construction")
 
     agent = build_agent(
         tools=tools,
-        system_prompt=CONSTRUCTION_SYSTEM_PROMPT,
+        system_prompt=prompt,
         response_format=ConstructionResponse,
         middleware=[trace_middleware(collector)],
     )
