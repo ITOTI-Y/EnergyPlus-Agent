@@ -131,7 +131,7 @@ def register_core_tools(mcp: FastMCP, state: ConfigState) -> None:
         direction_of_relative_north: float = 0.0,
         multiplier: int = 1,
     ) -> Outcome:
-        """Create a thermal zone; add its surfaces with create_surface.
+        """Create a thermal zone; add its surfaces with create_zone_geometry.
 
         Args:
             name: Unique zone name.
