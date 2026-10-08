@@ -3,6 +3,7 @@ from src.agent.nodes.cross_ref import (
     cross_ref_complete_node,
     cross_ref_foundations_node,
 )
+from src.agent.nodes.equipment import equipment_agent
 from src.agent.nodes.fenestration import fenestration_agent
 from src.agent.nodes.hvac import hvac_agent
 from src.agent.nodes.intake import intake_node
@@ -19,6 +20,7 @@ __all__ = [
     "construction_agent",
     "cross_ref_complete_node",
     "cross_ref_foundations_node",
+    "equipment_agent",
     "fenestration_agent",
     "hvac_agent",
     "intake_node",

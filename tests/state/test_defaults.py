@@ -56,6 +56,6 @@ def test_add_output_variables_adds_hourly_zone_and_facility_outputs():
     add_output_variables(idf)
 
     variables = list(idf.all_of_type(OutputVariable).values())
-    assert len(variables) == 7
+    assert len(variables) == 8
     assert {v.reporting_frequency for v in variables} == {"Hourly"}
     assert "Zone Mean Air Temperature" in {v.variable_name for v in variables}

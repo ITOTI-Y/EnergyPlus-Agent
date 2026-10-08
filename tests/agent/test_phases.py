@@ -19,8 +19,10 @@ def _intake(**specs: str) -> IntakeOutput:
             "hvac",
             "people",
             "lights",
+            "equipment",
         )
     }
+    fields["equipment_specs"] = "10 W/m2 in every zone"  # never empty
     return IntakeOutput.model_validate(
         {"building": {"name": "B"}, "site_location": {"name": "S"}, **fields, **specs}
     )

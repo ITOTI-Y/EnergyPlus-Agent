@@ -9,7 +9,7 @@ from idfpy import IDF
 from idfpy.models import Building, SiteLocation
 from langchain_core.messages import AnyMessage
 from langgraph.graph.message import add_messages
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from typing_extensions import TypedDict
 
 from src.agent._share import DEFAULT_OUTPUT_DIR, MAX_RETRIES
@@ -65,6 +65,23 @@ class IntakeOutput(BaseModel):
     lights_specs: str = Field(
         description="Lighting: zone assignment, power density, schedule per zone"
     )
+    equipment_specs: str = Field(
+        description="Plug loads (ElectricEquipment): zone assignment, power "
+        "density, schedule per zone; typical densities for the space types "
+        "when the brief gives none"
+    )
+
+    @field_validator("equipment_specs")
+    @classmethod
+    def _plug_loads_given(cls, value: str) -> str:
+        # Occupied buildings have plug loads; leaving them out understates
+        # the internal gains.
+        if not value.strip():
+            raise ValueError(
+                "equipment_specs must give the plug loads of every zone, with "
+                "typical densities for the space types when the brief gives none"
+            )
+        return value
 
 
 @dataclass(frozen=True)

@@ -40,7 +40,7 @@ def test_run_simulation_adds_default_output_variables(tmp_path, written_models):
     )
 
     assert response.success, response.message
-    assert len(written_models[0].all_of_type(OutputVariable)) == 7
+    assert len(written_models[0].all_of_type(OutputVariable)) == 8
 
 
 def test_run_simulation_leaves_the_edited_model_unchanged(tmp_path, written_models):

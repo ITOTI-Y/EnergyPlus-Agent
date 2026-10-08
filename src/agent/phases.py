@@ -6,6 +6,7 @@ from idfpy import IDF, IDFBaseModel
 from idfpy.models import (
     BuildingSurfaceDetailed,
     Construction,
+    ElectricEquipment,
     FenestrationSurfaceDetailed,
     HVACTemplateThermostat,
     HVACTemplateZoneIdealLoadsAirSystem,
@@ -30,6 +31,7 @@ type Phase = Literal[
     "hvac",
     "people",
     "lights",
+    "equipment",
 ]
 
 PHASE_TYPES: Final[dict[Phase, tuple[type[IDFBaseModel], ...]]] = {
@@ -42,6 +44,7 @@ PHASE_TYPES: Final[dict[Phase, tuple[type[IDFBaseModel], ...]]] = {
     "hvac": (HVACTemplateThermostat, HVACTemplateZoneIdealLoadsAirSystem),
     "people": (People,),
     "lights": (Lights,),
+    "equipment": (ElectricEquipment,),
 }
 
 FOUNDATION_PHASES: Final[tuple[Phase, ...]] = ("zone", "material", "schedule")
