@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Final
+from typing import Any
 
 from idfpy import IDF, IDFBaseModel
 from idfpy.models import (
@@ -12,19 +12,16 @@ from idfpy.models import (
     GlobalGeometryRules,
     HVACTemplateThermostat,
     HVACTemplateZoneIdealLoadsAirSystem,
-    Material,
-    MaterialAirGap,
-    MaterialNoMass,
     RunPeriod,
     ScheduleCompact,
     SimulationControl,
     SiteLocation,
-    WindowMaterialSimpleGlazingSystem,
     Zone,
 )
 from loguru import logger
 from pydantic import BaseModel, PrivateAttr
 
+from src.modeling.envelope import MATERIAL_TYPES
 from src.state.defaults import new_model
 
 
@@ -53,14 +50,6 @@ def _first_dump(idf: IDF, object_type: type[IDFBaseModel]) -> dict[str, Any] | N
 
 def _names(idf: IDF, *object_types: type[IDFBaseModel]) -> set[str]:
     return {name for t in object_types for name in idf.all_of_type(t)}
-
-
-_MATERIAL_TYPES: Final = (
-    Material,
-    MaterialNoMass,
-    MaterialAirGap,
-    WindowMaterialSimpleGlazingSystem,
-)
 
 
 class ConfigState(BaseModel):
@@ -119,7 +108,7 @@ class ConfigState(BaseModel):
             building=_first_dump(idf, Building),
             site_location=_first_dump(idf, SiteLocation),
             zones_count=len(idf.all_of_type(Zone)),
-            materials_count=len(_names(idf, *_MATERIAL_TYPES)),
+            materials_count=len(_names(idf, *MATERIAL_TYPES)),
             constructions_count=len(idf.all_of_type(Construction)),
             surfaces_count=len(idf.all_of_type(BuildingSurfaceDetailed)),
             fenestrations_count=len(idf.all_of_type(FenestrationSurfaceDetailed)),

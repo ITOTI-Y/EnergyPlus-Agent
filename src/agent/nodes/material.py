@@ -15,9 +15,15 @@ Choose the correct material type:
   (brick, concrete, insulation board, gypsum). Requires thickness,
   conductivity (W/m-K), density (kg/m^3), specific heat (J/kg-K).
 - create_nomass_material when only R-value is known (thin finishes, membranes).
-- create_airgap_material for enclosed air cavities in wall/roof assemblies.
-- create_glazing_material for simplified windows: supply u_factor (W/m^2-K),
-  solar_heat_gain_coefficient (0-1), optional visible_transmittance (0-1).
+- create_airgap_material for enclosed air cavities in OPAQUE wall/roof
+  assemblies only. Never use it in a window.
+- Windows, either:
+  * create_glazing_material for a simplified window given as a whole:
+    u_factor (W/m^2-K), solar_heat_gain_coefficient (0-1), optional
+    visible_transmittance (0-1). It is used as the only layer.
+  * or, for an explicit multi-pane window, create_window_glazing_material
+    for each glass pane (thickness in m) and create_window_gas_material for
+    the gap between panes (Air / Argon / Krypton / Xenon, thickness in m).
 
 Rules:
 - Material names must be unique and self-describing (e.g., 'Brick_100mm',
