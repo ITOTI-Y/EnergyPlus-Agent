@@ -178,7 +178,12 @@ def make_material_tools(config: ConfigState) -> list[BaseTool]:
             *(WindowMaterialGas(**m.model_dump()) for m in window_gases or []),
         ]
         if not materials:
-            raise ValueError("no materials given")
+            # Haiku sent empty calls to finish; as errors they tripped the
+            # failure-loop guard and the phase lost its final answer.
+            return ok(
+                "No materials given. If every material exists, give your final "
+                "answer now."
+            )
         created = kept = 0
         failed = []
         for material in materials:

@@ -118,3 +118,12 @@ def test_absorptances_given_are_kept_and_others_default():
     pad = config.idf.all_of_type(MaterialNoMass)["Pad"]
     assert (brick.solar_absorptance, brick.thermal_absorptance) == (0.45, 0.9)
     assert pad.solar_absorptance == 0.7
+
+
+def test_an_empty_call_points_to_the_final_answer():
+    _, tools = _tools()
+
+    reply = _create(tools, standard=[])
+
+    assert reply.status != "error"
+    assert "final answer" in str(reply.content)
