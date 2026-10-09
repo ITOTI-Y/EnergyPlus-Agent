@@ -2,10 +2,15 @@ from typing import Literal
 
 from idfpy.models.internal_gains import People
 from idfpy.models.schedules import ScheduleCompact
-from idfpy.models.thermal_zones import Zone
 from langchain_core.tools import BaseTool
 
-from src.agent.tools._share import list_tool, model_tool, ok
+from src.agent.tools._share import (
+    create_in_zones,
+    list_tool,
+    list_zone_names_tool,
+    model_tool,
+    ok,
+)
 from src.modeling import objects
 from src.state.config_state import ConfigState
 
@@ -15,8 +20,7 @@ def make_people_tools(config: ConfigState) -> list[BaseTool]:
 
     @model_tool
     def create_people(
-        name: str,
-        zone_name: str,
+        zone_names: list[str],
         number_of_people_schedule_name: str,
         activity_level_schedule_name: str,
         number_of_people_calculation_method: Literal[
@@ -26,25 +30,31 @@ def make_people_tools(config: ConfigState) -> list[BaseTool]:
         people_per_floor_area: float = 0.0,
         floor_area_per_person: float = 0.0,
         fraction_radiant: float = 0.3,
+        name_suffix: str = "People",
     ) -> str:
-        """Create a People (occupancy load) object.
+        """Create one People object, named '<zone>_<name_suffix>', per zone.
+
+        Call it once per group of zones with the same values.
 
         Args:
-            name: Unique people object name.
-            zone_name: Existing Zone name this load applies to.
+            zone_names: Existing Zone names.
             number_of_people_schedule_name: Existing Schedule:Compact (Fraction).
             activity_level_schedule_name: Existing Schedule:Compact (ActivityLevel limits, W/person).
             number_of_people_calculation_method: People / People/Area / Area/Person.
-            number_of_people: Absolute count (use when method=People).
+            number_of_people: Absolute count per zone (use when method=People).
             people_per_floor_area: people/m^2 (use when method=People/Area).
             floor_area_per_person: m^2/person (use when method=Area/Person).
             fraction_radiant: Radiant fraction of sensible heat (0-1).
+            name_suffix: Name suffix; give another one for a second People
+                object in the same zones.
         """
-        people = objects.create(
+        return create_in_zones(
             idf,
-            People(
-                name=name,
-                zone_or_zonelist_or_space_or_spacelist_name=zone_name,
+            "People",
+            zone_names,
+            lambda zone: People(
+                name=f"{zone}_{name_suffix}",
+                zone_or_zonelist_or_space_or_spacelist_name=zone,
                 number_of_people_schedule_name=number_of_people_schedule_name,
                 activity_level_schedule_name=activity_level_schedule_name,
                 number_of_people_calculation_method=number_of_people_calculation_method,
@@ -54,7 +64,6 @@ def make_people_tools(config: ConfigState) -> list[BaseTool]:
                 fraction_radiant=fraction_radiant,
             ),
         )
-        return ok(f"People '{name}' created.", people.model_dump(exclude_none=True))
 
     @model_tool
     def delete_people(name: str) -> str:
@@ -64,13 +73,30 @@ def make_people_tools(config: ConfigState) -> list[BaseTool]:
 
     return [
         create_people,
-        list_tool(idf, "list_people", People, "List all People objects."),
+        list_tool(
+            idf,
+            "list_people",
+            People,
+            "List People objects: name, zone, schedules and density.",
+            (
+                "name",
+                "zone_or_zonelist_or_space_or_spacelist_name",
+                "number_of_people_schedule_name",
+                "activity_level_schedule_name",
+                "number_of_people_calculation_method",
+                "number_of_people",
+                "people_per_floor_area",
+                "floor_area_per_person",
+            ),
+        ),
         delete_people,
-        list_tool(idf, "list_zones", Zone, "List zones an occupancy load can use."),
+        list_zone_names_tool(idf, "List zone names an occupancy load can use."),
         list_tool(
             idf,
             "list_schedules",
             ScheduleCompact,
-            "List Schedule:Compact for occupancy and activity references.",
+            "List Schedule:Compact names and type limits, for occupancy and "
+            "activity references.",
+            ("name", "schedule_type_limits_name"),
         ),
     ]

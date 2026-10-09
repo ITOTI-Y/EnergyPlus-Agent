@@ -5,38 +5,40 @@ interactions:
       per conditioned zone.\n\nWorkflow:\n1. FIRST call `list_schedules` to see the
       exact names of all Schedule:Compact\n   objects (you need these for setpoint
       + availability references).\n2. FIRST call `list_zones` to see the exact zone
-      names (you need these for\n   create_ideal_loads_system).\n3. Create one HVACTemplate:Thermostat
+      names (you need these for\n   create_ideal_loads_systems).\n3. Create one HVACTemplate:Thermostat
       via create_thermostat for each\n   distinct pair of heating and cooling setpoint
-      schedules, NOT one per\n   zone, using schedule names from step 1.\n4. For each
-      conditioned zone, create HVACTemplate:Zone:IdealLoadsAirSystem\n   via create_ideal_loads_system(zone_name=...,
-      template_thermostat_name=...).\n5. Call list_thermostats and list_ideal_loads_systems
-      once at the end.\n\nRules:\n- `zone_name`, `heating_setpoint_schedule_name`,
-      `cooling_setpoint_schedule_name`,\n  `template_thermostat_name`, `system_availability_schedule_name`
-      MUST all\n  appear verbatim in the respective list_* results.\n- If a needed
-      zone or schedule is missing, do NOT invent a name and do NOT\n  list again:
-      give your final answer at once, with it in `missing_inputs`.\n- Every zone with
-      the same setpoint schedules references the same\n  thermostat template. Each
-      zone is still controlled on its own: EnergyPlus\n  expands the template into
-      a separate ZoneControl:Thermostat per zone.\n- Use the thermostat names the
-      specification gives; otherwise name each\n  after its setpoint group, e.g. ''Office_Thermostat''.\n-
-      Setpoint values live in the schedules; this phase only references them.\n","role":"system"},{"content":"Create
-      exactly one thermostat named ''Office_Thermostat'' using heating setpoint schedule
-      ''Heating_Setpoint'' and cooling setpoint schedule ''Cooling_Setpoint'', then
-      one IdealLoadsAirSystem for zone ''F1_Office'' using that thermostat.","role":"user"}],"model":"google/gemini-3.8-flash","max_completion_tokens":16384,"parallel_tool_calls":false,"stream":false,"temperature":0.7,"tool_choice":"required","tools":[{"type":"function","function":{"name":"create_thermostat","description":"Create
+      schedules, NOT one per\n   zone, using schedule names from step 1.\n4. Give
+      every conditioned zone an HVACTemplate:Zone:IdealLoadsAirSystem:\n   call `create_ideal_loads_systems`
+      once per thermostat, listing its zones\n   in `zone_names`. Its reply names
+      only zones that failed; the rest got\n   their system. Do not list afterwards.\n\nRules:\n-
+      Zone names, `heating_setpoint_schedule_name`, `cooling_setpoint_schedule_name`,\n  `template_thermostat_name`,
+      `system_availability_schedule_name` MUST all\n  appear verbatim in the respective
+      list_* results.\n- If a needed zone or schedule is missing, do NOT invent a
+      name and do NOT\n  list again: give your final answer at once, with it in `missing_inputs`.\n-
+      Every zone with the same setpoint schedules references the same\n  thermostat
+      template. Each zone is still controlled on its own: EnergyPlus\n  expands the
+      template into a separate ZoneControl:Thermostat per zone.\n- Use the thermostat
+      names the specification gives; otherwise name each\n  after its setpoint group,
+      e.g. ''Office_Thermostat''.\n- Setpoint values live in the schedules; this phase
+      only references them.\n","role":"system"},{"content":"Create exactly one thermostat
+      named ''Office_Thermostat'' using heating setpoint schedule ''Heating_Setpoint''
+      and cooling setpoint schedule ''Cooling_Setpoint'', then one IdealLoadsAirSystem
+      for zone ''F1_Office'' using that thermostat.","role":"user"}],"model":"google/gemini-3.8-flash","max_completion_tokens":16384,"parallel_tool_calls":false,"stream":false,"temperature":0.7,"tool_choice":"required","tools":[{"type":"function","function":{"name":"create_thermostat","description":"Create
       an HVACTemplate:Thermostat.\n\n        Args:\n            name: Unique thermostat
       name.\n            heating_setpoint_schedule_name: Existing Schedule:Compact
       for heating setpoints (C).\n            cooling_setpoint_schedule_name: Existing
-      Schedule:Compact for cooling setpoints (C).","parameters":{"properties":{"name":{"type":"string"},"heating_setpoint_schedule_name":{"type":"string"},"cooling_setpoint_schedule_name":{"type":"string"}},"required":["name","heating_setpoint_schedule_name","cooling_setpoint_schedule_name"],"type":"object"}}},{"type":"function","function":{"name":"create_ideal_loads_system","description":"Create
-      an HVACTemplate:Zone:IdealLoadsAirSystem (one per zone).\n\n        Args:\n            zone_name:
-      Existing Zone name; identifies the system.\n            template_thermostat_name:
+      Schedule:Compact for cooling setpoints (C).","parameters":{"properties":{"name":{"type":"string"},"heating_setpoint_schedule_name":{"type":"string"},"cooling_setpoint_schedule_name":{"type":"string"}},"required":["name","heating_setpoint_schedule_name","cooling_setpoint_schedule_name"],"type":"object"}}},{"type":"function","function":{"name":"create_ideal_loads_systems","description":"Create
+      an HVACTemplate:Zone:IdealLoadsAirSystem for each zone.\n\n        Call it once
+      per group of zones with the same thermostat.\n\n        Args:\n            zone_names:
+      Existing Zone names, each without a system yet.\n            template_thermostat_name:
       Existing HVACTemplate:Thermostat name.\n            system_availability_schedule_name:
-      Optional availability Schedule:Compact.","parameters":{"properties":{"zone_name":{"type":"string"},"template_thermostat_name":{"type":"string"},"system_availability_schedule_name":{"anyOf":[{"type":"string"},{"type":"null"}],"default":null}},"required":["zone_name","template_thermostat_name"],"type":"object"}}},{"type":"function","function":{"name":"list_thermostats","description":"List
+      Optional availability Schedule:Compact.","parameters":{"properties":{"zone_names":{"items":{"type":"string"},"type":"array"},"template_thermostat_name":{"type":"string"},"system_availability_schedule_name":{"anyOf":[{"type":"string"},{"type":"null"}],"default":null}},"required":["zone_names","template_thermostat_name"],"type":"object"}}},{"type":"function","function":{"name":"list_thermostats","description":"List
       all thermostats.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"list_ideal_loads_systems","description":"List
-      all IdealLoadsAirSystem entries (keyed by zone_name).","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"delete_thermostat","description":"Delete
+      IdealLoadsAirSystem entries: zone, thermostat, availability.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"delete_thermostat","description":"Delete
       a thermostat; refused while an IdealLoadsAirSystem uses it.","parameters":{"properties":{"name":{"type":"string"}},"required":["name"],"type":"object"}}},{"type":"function","function":{"name":"delete_ideal_loads_system","description":"Delete
       the IdealLoadsAirSystem of a zone.","parameters":{"properties":{"zone_name":{"type":"string"}},"required":["zone_name"],"type":"object"}}},{"type":"function","function":{"name":"list_zones","description":"List
-      zones that can get an HVAC system.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"list_schedules","description":"List
-      Schedule:Compact for setpoint and availability references.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"HVACResponse","description":"Structured
+      zone names that can get an HVAC system.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"list_schedules","description":"List
+      Schedule:Compact names and type limits, for setpoint and availability references.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"HVACResponse","description":"Structured
       summary returned by the HVAC phase agent.","parameters":{"properties":{"missing_inputs":{"description":"Needed
       objects that do not exist; empty when none","items":{"description":"An upstream
       object a phase needed but did not find.","properties":{"kind":{"description":"Kind
@@ -54,7 +56,7 @@ interactions:
       connection:
       - keep-alive
       content-length:
-      - '5667'
+      - '5843'
       content-type:
       - application/json
       host:
@@ -86,27 +88,26 @@ interactions:
   response:
     body:
       string: !!binary |
-        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
+        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
     headers:
       access-control-allow-origin:
       - '*'
@@ -117,7 +118,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a47d57828df7d2fd-NRT
+      - a47e1fe5ee71af28-NRT
       connection:
       - keep-alive
       content-encoding:
@@ -125,7 +126,7 @@ interactions:
       content-type:
       - application/json
       date:
-      - Fri, 09 Oct 2026 12:20:54 GMT
+      - Fri, 09 Oct 2026 14:37:43 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       permissions-policy:
@@ -134,13 +135,13 @@ interactions:
       referrer-policy:
       - no-referrer, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=b4rtQz0wtHW4ggAb1wRVlkL4%2FDyVBQ6isZ5x6GZVQCGtKldfIFymJy8Jl4BsDF8zCS5mE4UxUOHIXw2lqeOp%2FEKuqQ50XEnZidIBBfB4Slfn%2BgKS3ZviUArPXI9BthQe%2FeY%3D"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=ggmauMBzdZWKcPtAyCrHIVQklEbEEZmc6MejJRJPAeDI4QJRNUJBLFg%2BZLsCwORFq%2Bqm6raSIktsXNUENazy8oJLAMgBJUoIg559tI%2B2eQsvRtVC0ABmz%2BgyAgxAZYI19Tk%3D"}]}'
       server:
       - cloudflare
       set-cookie:
-      - __cf_bm=8EOAE0ZvQpqDoiYgJMg9raDfBOPGIsX3S.OXNBqn1fI-1791548452.4043603-1.0.1.1-KWQLIhmedV_2LBvrzJq5SoZhVrpZkJZS43jR8SpM_ImAOm7cWCNsThpplbako4BD1wGZH3v6cQ4OpnURq0QrRtAJy3eXjx5O6.kB77xTAuofiN2xoHD3xZvfbQpbcEH1;
+      - __cf_bm=1SaGIiM_Xx08L4dFagRVy.HC4BO4NzYPa1_zzCMM07w-1791556660.3022532-1.0.1.1-_b9RKzIQrE4.a0NzyddCYcf5oOZkiiSqGix6ntPV3X0P4KtGJr3vibT9rTzQNU93RWrxfRRMpAh5byc2kIqOlDlZ03ztmzrQJNMTMUcsa0Y24oQqVUkGXT3QHSrT9.x1;
         HttpOnly; SameSite=None; Secure; Path=/; Domain=openrouter.ai; Expires=Fri,
-        09 Oct 2026 12:50:54 GMT
+        09 Oct 2026 15:07:43 GMT
       strict-transport-security:
       - max-age=31536000
       transfer-encoding:
@@ -150,11 +151,11 @@ interactions:
       x-content-type-options:
       - nosniff
       x-generation-id:
-      - gen-1791548452-Ap4nEkYbECwv52B3kzey
+      - gen-1791556660-9zIoy6fHBLmDTUj8aFxU
       x-new-api-version:
       - v1.0.0-rc.42
       x-oneapi-request-id:
-      - 202610091220523906089248268d9d6aitvdlPc
+      - 202610091437402876918418268d9d6T11AzzKB
     status:
       code: 200
       message: OK
@@ -164,49 +165,44 @@ interactions:
       per conditioned zone.\n\nWorkflow:\n1. FIRST call `list_schedules` to see the
       exact names of all Schedule:Compact\n   objects (you need these for setpoint
       + availability references).\n2. FIRST call `list_zones` to see the exact zone
-      names (you need these for\n   create_ideal_loads_system).\n3. Create one HVACTemplate:Thermostat
+      names (you need these for\n   create_ideal_loads_systems).\n3. Create one HVACTemplate:Thermostat
       via create_thermostat for each\n   distinct pair of heating and cooling setpoint
-      schedules, NOT one per\n   zone, using schedule names from step 1.\n4. For each
-      conditioned zone, create HVACTemplate:Zone:IdealLoadsAirSystem\n   via create_ideal_loads_system(zone_name=...,
-      template_thermostat_name=...).\n5. Call list_thermostats and list_ideal_loads_systems
-      once at the end.\n\nRules:\n- `zone_name`, `heating_setpoint_schedule_name`,
-      `cooling_setpoint_schedule_name`,\n  `template_thermostat_name`, `system_availability_schedule_name`
-      MUST all\n  appear verbatim in the respective list_* results.\n- If a needed
-      zone or schedule is missing, do NOT invent a name and do NOT\n  list again:
-      give your final answer at once, with it in `missing_inputs`.\n- Every zone with
-      the same setpoint schedules references the same\n  thermostat template. Each
-      zone is still controlled on its own: EnergyPlus\n  expands the template into
-      a separate ZoneControl:Thermostat per zone.\n- Use the thermostat names the
-      specification gives; otherwise name each\n  after its setpoint group, e.g. ''Office_Thermostat''.\n-
-      Setpoint values live in the schedules; this phase only references them.\n","role":"system"},{"content":"Create
-      exactly one thermostat named ''Office_Thermostat'' using heating setpoint schedule
-      ''Heating_Setpoint'' and cooling setpoint schedule ''Cooling_Setpoint'', then
-      one IdealLoadsAirSystem for zone ''F1_Office'' using that thermostat.","role":"user"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_45258","function":{"name":"list_schedules","arguments":"{}"}},{"type":"function","id":"call_45261","function":{"name":"list_zones","arguments":"{}"}}]},{"content":"{\"success\":
+      schedules, NOT one per\n   zone, using schedule names from step 1.\n4. Give
+      every conditioned zone an HVACTemplate:Zone:IdealLoadsAirSystem:\n   call `create_ideal_loads_systems`
+      once per thermostat, listing its zones\n   in `zone_names`. Its reply names
+      only zones that failed; the rest got\n   their system. Do not list afterwards.\n\nRules:\n-
+      Zone names, `heating_setpoint_schedule_name`, `cooling_setpoint_schedule_name`,\n  `template_thermostat_name`,
+      `system_availability_schedule_name` MUST all\n  appear verbatim in the respective
+      list_* results.\n- If a needed zone or schedule is missing, do NOT invent a
+      name and do NOT\n  list again: give your final answer at once, with it in `missing_inputs`.\n-
+      Every zone with the same setpoint schedules references the same\n  thermostat
+      template. Each zone is still controlled on its own: EnergyPlus\n  expands the
+      template into a separate ZoneControl:Thermostat per zone.\n- Use the thermostat
+      names the specification gives; otherwise name each\n  after its setpoint group,
+      e.g. ''Office_Thermostat''.\n- Setpoint values live in the schedules; this phase
+      only references them.\n","role":"system"},{"content":"Create exactly one thermostat
+      named ''Office_Thermostat'' using heating setpoint schedule ''Heating_Setpoint''
+      and cooling setpoint schedule ''Cooling_Setpoint'', then one IdealLoadsAirSystem
+      for zone ''F1_Office'' using that thermostat.","role":"user"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_124363","function":{"name":"list_schedules","arguments":"{}"}},{"type":"function","id":"call_124364","function":{"name":"list_zones","arguments":"{}"}}]},{"content":"{\"success\":
       true, \"message\": \"Listed 2 Schedule:Compact.\", \"data\": [{\"name\": \"Heating_Setpoint\",
-      \"schedule_type_limits_name\": \"Temperature\", \"data\": [{\"field\": \"Through:
-      12/31\"}, {\"field\": \"For: AllDays\"}, {\"field\": \"Until: 24:00\"}, {\"field\":
-      \"20.0\"}]}, {\"name\": \"Cooling_Setpoint\", \"schedule_type_limits_name\":
-      \"Temperature\", \"data\": [{\"field\": \"Through: 12/31\"}, {\"field\": \"For:
-      AllDays\"}, {\"field\": \"Until: 24:00\"}, {\"field\": \"24.0\"}]}]}","role":"tool","tool_call_id":"call_45258"},{"content":"{\"success\":
-      true, \"message\": \"Listed 1 Zone.\", \"data\": [{\"name\": \"F1_Office\",
-      \"direction_of_relative_north\": 0.0, \"x_origin\": 0.0, \"y_origin\": 0.0,
-      \"z_origin\": 0.0, \"type\": 1, \"multiplier\": 1, \"ceiling_height\": \"Autocalculate\",
-      \"volume\": \"Autocalculate\", \"floor_area\": \"Autocalculate\", \"part_of_total_floor_area\":
-      \"Yes\"}]}","role":"tool","tool_call_id":"call_45261"}],"model":"google/gemini-3.8-flash","max_completion_tokens":16384,"parallel_tool_calls":false,"stream":false,"temperature":0.7,"tool_choice":"required","tools":[{"type":"function","function":{"name":"create_thermostat","description":"Create
+      \"schedule_type_limits_name\": \"Temperature\"}, {\"name\": \"Cooling_Setpoint\",
+      \"schedule_type_limits_name\": \"Temperature\"}]}","role":"tool","tool_call_id":"call_124363"},{"content":"{\"success\":
+      true, \"message\": \"Listed 1 zones.\", \"data\": [\"F1_Office\"]}","role":"tool","tool_call_id":"call_124364"}],"model":"google/gemini-3.8-flash","max_completion_tokens":16384,"parallel_tool_calls":false,"stream":false,"temperature":0.7,"tool_choice":"required","tools":[{"type":"function","function":{"name":"create_thermostat","description":"Create
       an HVACTemplate:Thermostat.\n\n        Args:\n            name: Unique thermostat
       name.\n            heating_setpoint_schedule_name: Existing Schedule:Compact
       for heating setpoints (C).\n            cooling_setpoint_schedule_name: Existing
-      Schedule:Compact for cooling setpoints (C).","parameters":{"properties":{"name":{"type":"string"},"heating_setpoint_schedule_name":{"type":"string"},"cooling_setpoint_schedule_name":{"type":"string"}},"required":["name","heating_setpoint_schedule_name","cooling_setpoint_schedule_name"],"type":"object"}}},{"type":"function","function":{"name":"create_ideal_loads_system","description":"Create
-      an HVACTemplate:Zone:IdealLoadsAirSystem (one per zone).\n\n        Args:\n            zone_name:
-      Existing Zone name; identifies the system.\n            template_thermostat_name:
+      Schedule:Compact for cooling setpoints (C).","parameters":{"properties":{"name":{"type":"string"},"heating_setpoint_schedule_name":{"type":"string"},"cooling_setpoint_schedule_name":{"type":"string"}},"required":["name","heating_setpoint_schedule_name","cooling_setpoint_schedule_name"],"type":"object"}}},{"type":"function","function":{"name":"create_ideal_loads_systems","description":"Create
+      an HVACTemplate:Zone:IdealLoadsAirSystem for each zone.\n\n        Call it once
+      per group of zones with the same thermostat.\n\n        Args:\n            zone_names:
+      Existing Zone names, each without a system yet.\n            template_thermostat_name:
       Existing HVACTemplate:Thermostat name.\n            system_availability_schedule_name:
-      Optional availability Schedule:Compact.","parameters":{"properties":{"zone_name":{"type":"string"},"template_thermostat_name":{"type":"string"},"system_availability_schedule_name":{"anyOf":[{"type":"string"},{"type":"null"}],"default":null}},"required":["zone_name","template_thermostat_name"],"type":"object"}}},{"type":"function","function":{"name":"list_thermostats","description":"List
+      Optional availability Schedule:Compact.","parameters":{"properties":{"zone_names":{"items":{"type":"string"},"type":"array"},"template_thermostat_name":{"type":"string"},"system_availability_schedule_name":{"anyOf":[{"type":"string"},{"type":"null"}],"default":null}},"required":["zone_names","template_thermostat_name"],"type":"object"}}},{"type":"function","function":{"name":"list_thermostats","description":"List
       all thermostats.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"list_ideal_loads_systems","description":"List
-      all IdealLoadsAirSystem entries (keyed by zone_name).","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"delete_thermostat","description":"Delete
+      IdealLoadsAirSystem entries: zone, thermostat, availability.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"delete_thermostat","description":"Delete
       a thermostat; refused while an IdealLoadsAirSystem uses it.","parameters":{"properties":{"name":{"type":"string"}},"required":["name"],"type":"object"}}},{"type":"function","function":{"name":"delete_ideal_loads_system","description":"Delete
       the IdealLoadsAirSystem of a zone.","parameters":{"properties":{"zone_name":{"type":"string"}},"required":["zone_name"],"type":"object"}}},{"type":"function","function":{"name":"list_zones","description":"List
-      zones that can get an HVAC system.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"list_schedules","description":"List
-      Schedule:Compact for setpoint and availability references.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"HVACResponse","description":"Structured
+      zone names that can get an HVAC system.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"list_schedules","description":"List
+      Schedule:Compact names and type limits, for setpoint and availability references.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"HVACResponse","description":"Structured
       summary returned by the HVAC phase agent.","parameters":{"properties":{"missing_inputs":{"description":"Needed
       objects that do not exist; empty when none","items":{"description":"An upstream
       object a phase needed but did not find.","properties":{"kind":{"description":"Kind
@@ -224,7 +220,7 @@ interactions:
       connection:
       - keep-alive
       content-length:
-      - '6874'
+      - '6512'
       content-type:
       - application/json
       host:
@@ -256,25 +252,24 @@ interactions:
   response:
     body:
       string: !!binary |
-        KLUv/QBYJSAA6kWoDSrQhtA2mMUhcdqTLp8bEjHay4rJ4m7Sks3jXNj/l/CfoIRyCr54gDr1gAnA
-        AMkA4AD+Fmcnaf7h1PpHn5wywVy8B9U9r0+urZ3Usxhv1/xiPT97oq63grqDMxli6xOluei/W51E
-        QHP9tGKR+uTblhP8r27vaQXl1z5ZW17N962ZzB/eCnrjbz3SPjmuX7kvAQZsAR6uef6vgnAmfXJR
-        TwsSKAougnrr+OHhbYhx6Jrb//Dok+bf7/mZ+uQX1/2WHDEt2FOkrvmm7+lgn/wxIqV+Ev8pK2Ty
-        sIQMPuMIEBhCgcCqRVYR3A9d8686CUAAAAHkHMA1qGNvn0dk841sQ0GoGwlZ9sHmWI1RjkbUVcXY
-        9gyFdB7F7sHQZFdUXLSHVFDdAdwkCgwEzMHhBrQEc7uuMTCxgBkGhY0LQRynQQ3XfO75+eTfb3KU
-        6f2COvd/XoFSyUu+gPGeVhCcQPZ80RcmX7hwvqD5wo/zem/L70WqvX0rJvdrL7zVYkx9geSa631/
-        LMM8ffI9t8ZjfnF7mv84r5O0yS8KyxCXZ+2k9Jaga/7kaDuJgBbeerGeduoS/Pz74ju3rlpP1wJ6
-        5JAGW+czfgfdIUGx+Vwk9gmz4uE4Xfd9G+JysTgVjMNabA4oF+TDMRBEmNEGzPXwyXQy3Yu6z9Qu
-        kavKuYwgONKJNN1lUHI7YhEmCdbCm4vQsEl4CENfxIaHNDQfDwhh3A+C5HfFVSxMQ+1EFJd+dmk0
-        hBQoeFUWPBBSEDnlYVvZB2noJhaGIwdgIztuVeWfksZv6jaaZDSUxYE9QhyovPCVbAxzvLtysmrU
-        eLDmAZFoizePBTtEBmhK2eH2CMoWlVQMHEa72g4Wjt8wyEwEXnUAQTLgKiH0BlVR8Ug+EaVSKZxj
-        9YlKlDDrUlC6WlzWhF2WdVFUgff0fn7wVm+cn7cmy9J/FYTrV87fNYe8ifpepJM66cu8NWfAo46n
-        69aY+oRRmZ0bb5+qyifEAqs01/cZ8PY2OeJMlgVKXoEI9hwzBn1yAQI2RGUZSRIShNBSgBj2DwhK
-        otuzunDJZTyhLRPhhIXBAKqUGVFUo1xppNLIk0aoBXkNbGKOwAzogFlkNVIOIlH5MA+jdISUqyGk
-        UIkYOMQL/ApFWAuTJ/XQ2IdIk4Cxy6y7ocksdtJRzAI6IECCBZVVB/kZF7UEdQr4mAM7T9XFXMe3
-        0Prk3PByBk70HMmNL9wANRiMTOW0lpfqwIkKk+sO7hYwJ9uHI+KY9rFu0Jxshr50/fBi1RIB5/6B
-        fHVIo5LghY2ILBuO5kPN2YvwgCG7u9uRLzDOR5Esr++rpoWRENCKqx1x0d6WQaMiJBEsPB6jB0Eq
-        8b0NaG1LyWF8HRY=
+        KLUv/QBYPR4AakCoDCrQpuw2rHYK2RIncFTkibiofT4u2Cj5tVoApyGAjgNO+YlRJHM1g6ziCpuy
+        ALUA0wAZ96bd9DrkWhRp5USMt19+saafuVDbaz/d4UyCWHQoupzz3rXuIXC5/mpxWB3yLZb0e89u
+        7qs182uHRLG8l+9rM5kfvPbjxt/61A45tl65swASRwCIX57fsybOpEMeaip+AwUE04C9dnxQ8SKI
+        MeiXi+/h0aHLvd/0c3XIL7b7RXLElWDTsPrlu/5Dhx3yr8BAOshe8ukxvBoxY2IMzgDFYDCqSmpY
+        0sB90C/3rHsABAAQJ1UAJe1SGfd70iDiAum0SvdIvBWhsGq74M3BKuHGsClEOB8YsVy+bZNxYFHG
+        MId++OV0U88h936TZ673CSzd73EFPh//RDb9MMO4F0vvw6q5fS0m92sOvFbEuLoD5A4a99V+X8Ud
+        Lndw8Pjlet8fSzBTh3zTrfGYP9zc5T/S654L8sVUIFESJ4q01lt+fvmT53YPgQu89mJNRarL7/Pv
+        iy/d2mpN/fIXcXbP5Q9SrX90yC0VLRWaWZt8Tg2ZjalBGmimoR6rdIqXZBYa6OISkZCAcG4Uk8HG
+        jDTWhWHTOsqkj43s0AeVEToL1MJ8GoWcCScGrmAOLEpHkrCMk4Oyki2h2B4eBCOS0KgUa5S2DEcx
+        gPP1zwml0Y7IiM2D8IxwKgUMldCZRmmAFoYQZ9Y4NVBrb431PDC1lhua6unFZnIklAFhY6DwyDgW
+        EgrTknUoEhuQ8Gp1RlQSjVyropmygg1lnY2sAZMmk8RCxAJiAWmITMyn6JzdhmIUa8EQoWSyz5GQ
+        ycCqKgOfzweko3Uoqj6VVVmRZjAkqJoWjUUUEXBf7+f/ruVG+nlrsvy8Z01svZL+tjmCgyLvw0qr
+        e77M+/INPjtO261xdaiiKpFuvB2SIocoipIu1/c3eHObHHEmywIfl8yBTceMP4dcwKZz1ejPLDcF
+        YaEamNFZe2JGCZL8YMEICgpCJLEW6Vy6CExXvKdtyigMWfeA+A4GYQT1RkFJGDxECieVNG2BfBLI
+        gvJAHSwmZIdNNB0N5yGbCGIaSMwCxoFsUzwgQIIlVVUH+TEurgThFvAhB3aSqou5jrfQ+uNq4GUG
+        Dug5khufuQF0MBiZymktL9WBkxem1B0cLGCJtA+CxLHt49mgJbIZMOm66MWCSwR0/OP5as6gMsBF
+        iIAsGxEVGCbutWnvwvkMmc0p+aM+jdcpmo/FfVW3MBYCWna1Jy7i20JoVIIkAoXHA/QgSCV+twG1
+        bSlxGF+ABQ==
     headers:
       access-control-allow-origin:
       - '*'
@@ -285,7 +280,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a47d5791afccd2fd-NRT
+      - a47e1ffefe3baf28-NRT
       connection:
       - keep-alive
       content-encoding:
@@ -293,7 +288,7 @@ interactions:
       content-type:
       - application/json
       date:
-      - Fri, 09 Oct 2026 12:20:57 GMT
+      - Fri, 09 Oct 2026 14:37:47 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       permissions-policy:
@@ -302,13 +297,13 @@ interactions:
       referrer-policy:
       - no-referrer, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=CvIwN7dPUmLKicAIjm9j5DX09D2eyS1jECCLuDyFUzh0f6UCA%2FLbfg3PpS24d%2FajoyDom86NKTHy0r%2BhUv0%2FFj0oh1tEJHWtE9rS4tNdoEbuI4Ej8uyy3sO0ALAn3HyUAkE%3D"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=WO2cTQAYT5jizg%2FmECCB59bpcwuaeVA%2B6rwefNeyS2s27Zvlj5cSSdux604CQMJ%2FiC9SPOzB%2B%2FyZVtIKC2E4%2Bq9QR4f7XjrTdQB%2Ftt3fa0%2B4lKFD9tqlr%2FJl0vMyCDkxrdo%3D"}]}'
       server:
       - cloudflare
       set-cookie:
-      - __cf_bm=Ej3vhh3RwXH5N.5rWbsFX24RZ4ByEZanrdC054Q_T4M-1791548454.8257341-1.0.1.1-QaYCU._3YB5FqSsJaYe.vNX.mLl3S9qmHKBMecqO4WaGZNl9VxPr1OKbgI9ukXDlmSt7.Plxh6y4nz4JgzrhuzYB5H7eeGIXcwaaK5cbTMNriPQVKc73O0qg2vH_VoF1;
+      - __cf_bm=3qXAv8oqlVyovopawJdWZZuX65CpzHWXPPwoYDl3rSc-1791556664.314889-1.0.1.1-tvr9qojqdxDskV13Ok8z3cwRE5LxUtBvlg_NlY56mhby5k1tnM0qPB9Q9vt8vp6gAUCqA1qD5.YMGaW72aXHNRZcq7qIxkNniB4IgwOVn54PMfzfzVQVL7zG7WT3RcAP;
         HttpOnly; SameSite=None; Secure; Path=/; Domain=openrouter.ai; Expires=Fri,
-        09 Oct 2026 12:50:57 GMT
+        09 Oct 2026 15:07:47 GMT
       strict-transport-security:
       - max-age=31536000
       transfer-encoding:
@@ -318,11 +313,11 @@ interactions:
       x-content-type-options:
       - nosniff
       x-generation-id:
-      - gen-1791548454-C7eDwRGOHiuqe6qiPhTe
+      - gen-1791556664-x6CvWlZnhmsfIeSF1D8f
       x-new-api-version:
       - v1.0.0-rc.42
       x-oneapi-request-id:
-      - 202610091220548088816158268d9d6XXrwdV39
+      - 202610091437442926048878268d9d6qOJ7bCVb
     status:
       code: 200
       message: OK
@@ -332,54 +327,48 @@ interactions:
       per conditioned zone.\n\nWorkflow:\n1. FIRST call `list_schedules` to see the
       exact names of all Schedule:Compact\n   objects (you need these for setpoint
       + availability references).\n2. FIRST call `list_zones` to see the exact zone
-      names (you need these for\n   create_ideal_loads_system).\n3. Create one HVACTemplate:Thermostat
+      names (you need these for\n   create_ideal_loads_systems).\n3. Create one HVACTemplate:Thermostat
       via create_thermostat for each\n   distinct pair of heating and cooling setpoint
-      schedules, NOT one per\n   zone, using schedule names from step 1.\n4. For each
-      conditioned zone, create HVACTemplate:Zone:IdealLoadsAirSystem\n   via create_ideal_loads_system(zone_name=...,
-      template_thermostat_name=...).\n5. Call list_thermostats and list_ideal_loads_systems
-      once at the end.\n\nRules:\n- `zone_name`, `heating_setpoint_schedule_name`,
-      `cooling_setpoint_schedule_name`,\n  `template_thermostat_name`, `system_availability_schedule_name`
-      MUST all\n  appear verbatim in the respective list_* results.\n- If a needed
-      zone or schedule is missing, do NOT invent a name and do NOT\n  list again:
-      give your final answer at once, with it in `missing_inputs`.\n- Every zone with
-      the same setpoint schedules references the same\n  thermostat template. Each
-      zone is still controlled on its own: EnergyPlus\n  expands the template into
-      a separate ZoneControl:Thermostat per zone.\n- Use the thermostat names the
-      specification gives; otherwise name each\n  after its setpoint group, e.g. ''Office_Thermostat''.\n-
-      Setpoint values live in the schedules; this phase only references them.\n","role":"system"},{"content":"Create
-      exactly one thermostat named ''Office_Thermostat'' using heating setpoint schedule
-      ''Heating_Setpoint'' and cooling setpoint schedule ''Cooling_Setpoint'', then
-      one IdealLoadsAirSystem for zone ''F1_Office'' using that thermostat.","role":"user"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_45258","function":{"name":"list_schedules","arguments":"{}"}},{"type":"function","id":"call_45261","function":{"name":"list_zones","arguments":"{}"}}]},{"content":"{\"success\":
+      schedules, NOT one per\n   zone, using schedule names from step 1.\n4. Give
+      every conditioned zone an HVACTemplate:Zone:IdealLoadsAirSystem:\n   call `create_ideal_loads_systems`
+      once per thermostat, listing its zones\n   in `zone_names`. Its reply names
+      only zones that failed; the rest got\n   their system. Do not list afterwards.\n\nRules:\n-
+      Zone names, `heating_setpoint_schedule_name`, `cooling_setpoint_schedule_name`,\n  `template_thermostat_name`,
+      `system_availability_schedule_name` MUST all\n  appear verbatim in the respective
+      list_* results.\n- If a needed zone or schedule is missing, do NOT invent a
+      name and do NOT\n  list again: give your final answer at once, with it in `missing_inputs`.\n-
+      Every zone with the same setpoint schedules references the same\n  thermostat
+      template. Each zone is still controlled on its own: EnergyPlus\n  expands the
+      template into a separate ZoneControl:Thermostat per zone.\n- Use the thermostat
+      names the specification gives; otherwise name each\n  after its setpoint group,
+      e.g. ''Office_Thermostat''.\n- Setpoint values live in the schedules; this phase
+      only references them.\n","role":"system"},{"content":"Create exactly one thermostat
+      named ''Office_Thermostat'' using heating setpoint schedule ''Heating_Setpoint''
+      and cooling setpoint schedule ''Cooling_Setpoint'', then one IdealLoadsAirSystem
+      for zone ''F1_Office'' using that thermostat.","role":"user"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_124363","function":{"name":"list_schedules","arguments":"{}"}},{"type":"function","id":"call_124364","function":{"name":"list_zones","arguments":"{}"}}]},{"content":"{\"success\":
       true, \"message\": \"Listed 2 Schedule:Compact.\", \"data\": [{\"name\": \"Heating_Setpoint\",
-      \"schedule_type_limits_name\": \"Temperature\", \"data\": [{\"field\": \"Through:
-      12/31\"}, {\"field\": \"For: AllDays\"}, {\"field\": \"Until: 24:00\"}, {\"field\":
-      \"20.0\"}]}, {\"name\": \"Cooling_Setpoint\", \"schedule_type_limits_name\":
-      \"Temperature\", \"data\": [{\"field\": \"Through: 12/31\"}, {\"field\": \"For:
-      AllDays\"}, {\"field\": \"Until: 24:00\"}, {\"field\": \"24.0\"}]}]}","role":"tool","tool_call_id":"call_45258"},{"content":"{\"success\":
-      true, \"message\": \"Listed 1 Zone.\", \"data\": [{\"name\": \"F1_Office\",
-      \"direction_of_relative_north\": 0.0, \"x_origin\": 0.0, \"y_origin\": 0.0,
-      \"z_origin\": 0.0, \"type\": 1, \"multiplier\": 1, \"ceiling_height\": \"Autocalculate\",
-      \"volume\": \"Autocalculate\", \"floor_area\": \"Autocalculate\", \"part_of_total_floor_area\":
-      \"Yes\"}]}","role":"tool","tool_call_id":"call_45261"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_347503","function":{"name":"create_thermostat","arguments":"{\"cooling_setpoint_schedule_name\":
-      \"Cooling_Setpoint\", \"heating_setpoint_schedule_name\": \"Heating_Setpoint\",
-      \"name\": \"Office_Thermostat\"}"}}]},{"content":"{\"success\": true, \"message\":
-      \"Thermostat ''Office_Thermostat'' created.\", \"data\": {\"name\": \"Office_Thermostat\",
-      \"heating_setpoint_schedule_name\": \"Heating_Setpoint\", \"cooling_setpoint_schedule_name\":
-      \"Cooling_Setpoint\"}}","role":"tool","tool_call_id":"call_347503"}],"model":"google/gemini-3.8-flash","max_completion_tokens":16384,"parallel_tool_calls":false,"stream":false,"temperature":0.7,"tool_choice":"required","tools":[{"type":"function","function":{"name":"create_thermostat","description":"Create
+      \"schedule_type_limits_name\": \"Temperature\"}, {\"name\": \"Cooling_Setpoint\",
+      \"schedule_type_limits_name\": \"Temperature\"}]}","role":"tool","tool_call_id":"call_124363"},{"content":"{\"success\":
+      true, \"message\": \"Listed 1 zones.\", \"data\": [\"F1_Office\"]}","role":"tool","tool_call_id":"call_124364"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_141832","function":{"name":"create_thermostat","arguments":"{\"name\":
+      \"Office_Thermostat\", \"cooling_setpoint_schedule_name\": \"Cooling_Setpoint\",
+      \"heating_setpoint_schedule_name\": \"Heating_Setpoint\"}"}}]},{"content":"{\"success\":
+      true, \"message\": \"Thermostat ''Office_Thermostat'' created.\", \"data\":
+      null}","role":"tool","tool_call_id":"call_141832"}],"model":"google/gemini-3.8-flash","max_completion_tokens":16384,"parallel_tool_calls":false,"stream":false,"temperature":0.7,"tool_choice":"required","tools":[{"type":"function","function":{"name":"create_thermostat","description":"Create
       an HVACTemplate:Thermostat.\n\n        Args:\n            name: Unique thermostat
       name.\n            heating_setpoint_schedule_name: Existing Schedule:Compact
       for heating setpoints (C).\n            cooling_setpoint_schedule_name: Existing
-      Schedule:Compact for cooling setpoints (C).","parameters":{"properties":{"name":{"type":"string"},"heating_setpoint_schedule_name":{"type":"string"},"cooling_setpoint_schedule_name":{"type":"string"}},"required":["name","heating_setpoint_schedule_name","cooling_setpoint_schedule_name"],"type":"object"}}},{"type":"function","function":{"name":"create_ideal_loads_system","description":"Create
-      an HVACTemplate:Zone:IdealLoadsAirSystem (one per zone).\n\n        Args:\n            zone_name:
-      Existing Zone name; identifies the system.\n            template_thermostat_name:
+      Schedule:Compact for cooling setpoints (C).","parameters":{"properties":{"name":{"type":"string"},"heating_setpoint_schedule_name":{"type":"string"},"cooling_setpoint_schedule_name":{"type":"string"}},"required":["name","heating_setpoint_schedule_name","cooling_setpoint_schedule_name"],"type":"object"}}},{"type":"function","function":{"name":"create_ideal_loads_systems","description":"Create
+      an HVACTemplate:Zone:IdealLoadsAirSystem for each zone.\n\n        Call it once
+      per group of zones with the same thermostat.\n\n        Args:\n            zone_names:
+      Existing Zone names, each without a system yet.\n            template_thermostat_name:
       Existing HVACTemplate:Thermostat name.\n            system_availability_schedule_name:
-      Optional availability Schedule:Compact.","parameters":{"properties":{"zone_name":{"type":"string"},"template_thermostat_name":{"type":"string"},"system_availability_schedule_name":{"anyOf":[{"type":"string"},{"type":"null"}],"default":null}},"required":["zone_name","template_thermostat_name"],"type":"object"}}},{"type":"function","function":{"name":"list_thermostats","description":"List
+      Optional availability Schedule:Compact.","parameters":{"properties":{"zone_names":{"items":{"type":"string"},"type":"array"},"template_thermostat_name":{"type":"string"},"system_availability_schedule_name":{"anyOf":[{"type":"string"},{"type":"null"}],"default":null}},"required":["zone_names","template_thermostat_name"],"type":"object"}}},{"type":"function","function":{"name":"list_thermostats","description":"List
       all thermostats.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"list_ideal_loads_systems","description":"List
-      all IdealLoadsAirSystem entries (keyed by zone_name).","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"delete_thermostat","description":"Delete
+      IdealLoadsAirSystem entries: zone, thermostat, availability.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"delete_thermostat","description":"Delete
       a thermostat; refused while an IdealLoadsAirSystem uses it.","parameters":{"properties":{"name":{"type":"string"}},"required":["name"],"type":"object"}}},{"type":"function","function":{"name":"delete_ideal_loads_system","description":"Delete
       the IdealLoadsAirSystem of a zone.","parameters":{"properties":{"zone_name":{"type":"string"}},"required":["zone_name"],"type":"object"}}},{"type":"function","function":{"name":"list_zones","description":"List
-      zones that can get an HVAC system.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"list_schedules","description":"List
-      Schedule:Compact for setpoint and availability references.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"HVACResponse","description":"Structured
+      zone names that can get an HVAC system.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"list_schedules","description":"List
+      Schedule:Compact names and type limits, for setpoint and availability references.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"HVACResponse","description":"Structured
       summary returned by the HVAC phase agent.","parameters":{"properties":{"missing_inputs":{"description":"Needed
       objects that do not exist; empty when none","items":{"description":"An upstream
       object a phase needed but did not find.","properties":{"kind":{"description":"Kind
@@ -397,7 +386,7 @@ interactions:
       connection:
       - keep-alive
       content-length:
-      - '7464'
+      - '6957'
       content-type:
       - application/json
       host:
@@ -429,18 +418,18 @@ interactions:
   response:
     body:
       string: !!binary |
-        KLUv/QBYvRMA9uh5J/CwVgfsecgEyZaUWPwmp7X6/+Bp6eOifDS9fioO4ZxHrcVh4TBVAW8AZgBx
-        AG8abWWZonFyk/t67tlrlKyeCGA4CFh4u2Updqqtzr65T06PCmTyiDROpgRYUrVSb5cs1XnWLnE/
-        tvDstMZmWc0KIf028O0NmaOpZ58HVl/uBoajkRZNBScQYpA8KNFAZSCCCijQgzL1din+AxAAEE7K
-        ByG1prdz5el/MBpFI633yXetiS03rfT1jfe+t7Os9p92pt69PM8uYblMOO7EfvTsV8oHnay1307r
-        fWzd5kYap6uptqKqPIu0c7BE4z8Y7ZdhrBt49pbWm1iK7RjGjuV7JqVFWxdLFJm4mA0IEY1BuOBU
-        XB4mCQsQHRRChIdiocEBExPe/vpJZ5e4K4+FlCHxNUsu47p+PeMgBaa14xn2zMUxjNNkeaY9w/NR
-        169vnZY37bifrCb3M5+336Y8Lcq+s7srvSqdfCxF187z0X8aO1ShTKBJ13VRb8azK5IUSCJXQolY
-        RFCRRCIQx5Cy5YlGNx/bvpV1sRQ7NUrW4452w7GIxBv44D9s2W7XqB6Nu7FvhWcDEQWSr2ufFUzO
-        IogCtV/KGrVdV7Paysq4DnUe/aat09kNDDYgOJKD8cDLRQRxiZAVFg9xEzcgMILm1N0B+FkVuWHB
-        CvjMAZ2k6mCOgy04qmkZcJEBU8qP7sYnNwAPhpFpnFbxUh04sfBGd2xboNy2/yYCVeWYC2iuzdCm
-        a/tiVUTA+T+Xr0pTOYDCZpdl3GhUeJzvc16BkDK+IvlY3FelhbEQ0KKr3bhob4vQqARJBAuPh+hB
-        AJX43Qb0tqVkYXwBFg==
+        KLUv/QBYBRQAlil8J+CyVgfMJcME2ZbXQWhNyDVLI2elqqqiIJM4eIFh+AyeQYYZiiDzAnIAaQBz
+        ABZtbyptZXmiUnIU9/Xcs1cZra4IaDgIWHi75Sg71VZn39w3JQhBhAKRVFI8CfCcap3ePjlW6qw9
+        cj+28Oy0yuZZURVG+m3g2xsyR1PPrmnbwaFwMXCiwGBwDiwaGDAixFKpVKIIKrBAEMrT26P8ByAA
+        IBJooBJBbs4HIbWkt3Pl6X802kQlrffNdy2JLTet9PWV976386z2n3ae3r1MnZ1i4lLhuCP70bPf
+        OR90s9Z+O633sXWbK6mUrqbaaqrzTNLuwZHKfzTaL0NZN/DsPa0ncZTtGMqO5Xs2Z5eJSFKBoRwQ
+        JDoDAcO5uEBQEhYiPiYECY/FgsNDhkx4++sXzx65K4+FlCPyNUe3cV2/nrm4Z9oz/fpWyvKmHfeb
+        FcX9DNt4hqGUpAkHKTyj0Z65TD3qmNaPZz5vv02Zsib7zn7dja9ONx9H6dqZevSfxh7XdU2PkmdX
+        NCmYSG40QDBhFks0kUgijiFlyxKVjnps+1bWxVF2qozW45a2wzFJ5A188B+2bLdzVI/GXdm3wrNJ
+        JYLm69pnBZQzyiSC2i9ljtquK6raytq4DnUg/ShbpbMbGHREcCYnwwMvmCjiIjEvMCDkJjcgMILm
+        1N0B+FkVuWHBCvjMAZ2k6mCOgy04fmoZcJEBU8qP7sYnNwAPhpFpnFbxUh04sfBGd2xbIN22PycC
+        VeWYC6iuzdSma/tiVkTg+T+Xr2pTOYDCdpfl3GhcjRlGi+g9kTK+IvlY3FelhbEQ0KKr3bhob4vQ
+        qARJBAuPh+hBAJX43Qb0tqVkYXwBFg==
     headers:
       access-control-allow-origin:
       - '*'
@@ -451,7 +440,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a47d57a339dad2fd-NRT
+      - a47e201239f8af28-NRT
       connection:
       - keep-alive
       content-encoding:
@@ -459,7 +448,7 @@ interactions:
       content-type:
       - application/json
       date:
-      - Fri, 09 Oct 2026 12:20:59 GMT
+      - Fri, 09 Oct 2026 14:37:49 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       permissions-policy:
@@ -468,13 +457,13 @@ interactions:
       referrer-policy:
       - no-referrer, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=zSxpxoCylt1D33fkjV4Me0Na5ZVoG6E6tr1vYGZ5A3xAOrxnKamPAeRQrke5JeTT6qI0xDFUoFT9BRC2t5GHfceqObFJtzaijwsVzozI6jzWdeGliaxWaeTYpqkgpG3Hn5M%3D"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=ACYeZg6jVUxFigbuY9vAD7T3SKjH2iZAzGTKDO4UgwIj634LyT4Oxfx7zUYXjnohCDJbYkGMUN%2FZUP3IsRLRECZyIP0xucpLz0iUtT3Lqs6PVWJMnB2kWcTcXHKNHGvDBhQ%3D"}]}'
       server:
       - cloudflare
       set-cookie:
-      - __cf_bm=lPiWFW6KO2SrHTR_awK3qLaljM2buQ57B.kbGJlAr.Q-1791548457.6302087-1.0.1.1-cSwJ3Kc69lbUqvlkId9XxQKaLcSUtHa5vNPiCoayXDHqG6gZksNOtKzKwEK7_12w8nIkjW4R2EnEtN_0JENAZgmdEw8mQ0dhjwPk2ACJ4SMYWVMaGgkwJHXQu90emKhz;
+      - __cf_bm=gokAqwiIZ1cZo2iQT7q1L8s9H.jKVc6ue8W1WFDo6l4-1791556667.40774-1.0.1.1-8WDoPMaBULiOYyKRkDkeaV.ALaayi7sadf.MkZgSve8TlBXkHVf.uOFphQmu8H86_1ixiIRPv.oPPx0jPSa6S1tArHDzt6sY_q5dFX9WMg6P5BPt1q5yRarwyYK0IEnU;
         HttpOnly; SameSite=None; Secure; Path=/; Domain=openrouter.ai; Expires=Fri,
-        09 Oct 2026 12:50:59 GMT
+        09 Oct 2026 15:07:49 GMT
       strict-transport-security:
       - max-age=31536000
       transfer-encoding:
@@ -484,11 +473,11 @@ interactions:
       x-content-type-options:
       - nosniff
       x-generation-id:
-      - gen-1791548457-2I1c3cpbOlbjYwsTtuAm
+      - gen-1791556667-dWHIUAjWZPgcZsFkwrtb
       x-new-api-version:
       - v1.0.0-rc.42
       x-oneapi-request-id:
-      - 202610091220576132083518268d9d6GK0zpObt
+      - 202610091437473747281848268d9d6obdzQTAd
     status:
       code: 200
       message: OK
@@ -498,67 +487,51 @@ interactions:
       per conditioned zone.\n\nWorkflow:\n1. FIRST call `list_schedules` to see the
       exact names of all Schedule:Compact\n   objects (you need these for setpoint
       + availability references).\n2. FIRST call `list_zones` to see the exact zone
-      names (you need these for\n   create_ideal_loads_system).\n3. Create one HVACTemplate:Thermostat
+      names (you need these for\n   create_ideal_loads_systems).\n3. Create one HVACTemplate:Thermostat
       via create_thermostat for each\n   distinct pair of heating and cooling setpoint
-      schedules, NOT one per\n   zone, using schedule names from step 1.\n4. For each
-      conditioned zone, create HVACTemplate:Zone:IdealLoadsAirSystem\n   via create_ideal_loads_system(zone_name=...,
-      template_thermostat_name=...).\n5. Call list_thermostats and list_ideal_loads_systems
-      once at the end.\n\nRules:\n- `zone_name`, `heating_setpoint_schedule_name`,
-      `cooling_setpoint_schedule_name`,\n  `template_thermostat_name`, `system_availability_schedule_name`
-      MUST all\n  appear verbatim in the respective list_* results.\n- If a needed
-      zone or schedule is missing, do NOT invent a name and do NOT\n  list again:
-      give your final answer at once, with it in `missing_inputs`.\n- Every zone with
-      the same setpoint schedules references the same\n  thermostat template. Each
-      zone is still controlled on its own: EnergyPlus\n  expands the template into
-      a separate ZoneControl:Thermostat per zone.\n- Use the thermostat names the
-      specification gives; otherwise name each\n  after its setpoint group, e.g. ''Office_Thermostat''.\n-
-      Setpoint values live in the schedules; this phase only references them.\n","role":"system"},{"content":"Create
-      exactly one thermostat named ''Office_Thermostat'' using heating setpoint schedule
-      ''Heating_Setpoint'' and cooling setpoint schedule ''Cooling_Setpoint'', then
-      one IdealLoadsAirSystem for zone ''F1_Office'' using that thermostat.","role":"user"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_45258","function":{"name":"list_schedules","arguments":"{}"}},{"type":"function","id":"call_45261","function":{"name":"list_zones","arguments":"{}"}}]},{"content":"{\"success\":
+      schedules, NOT one per\n   zone, using schedule names from step 1.\n4. Give
+      every conditioned zone an HVACTemplate:Zone:IdealLoadsAirSystem:\n   call `create_ideal_loads_systems`
+      once per thermostat, listing its zones\n   in `zone_names`. Its reply names
+      only zones that failed; the rest got\n   their system. Do not list afterwards.\n\nRules:\n-
+      Zone names, `heating_setpoint_schedule_name`, `cooling_setpoint_schedule_name`,\n  `template_thermostat_name`,
+      `system_availability_schedule_name` MUST all\n  appear verbatim in the respective
+      list_* results.\n- If a needed zone or schedule is missing, do NOT invent a
+      name and do NOT\n  list again: give your final answer at once, with it in `missing_inputs`.\n-
+      Every zone with the same setpoint schedules references the same\n  thermostat
+      template. Each zone is still controlled on its own: EnergyPlus\n  expands the
+      template into a separate ZoneControl:Thermostat per zone.\n- Use the thermostat
+      names the specification gives; otherwise name each\n  after its setpoint group,
+      e.g. ''Office_Thermostat''.\n- Setpoint values live in the schedules; this phase
+      only references them.\n","role":"system"},{"content":"Create exactly one thermostat
+      named ''Office_Thermostat'' using heating setpoint schedule ''Heating_Setpoint''
+      and cooling setpoint schedule ''Cooling_Setpoint'', then one IdealLoadsAirSystem
+      for zone ''F1_Office'' using that thermostat.","role":"user"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_124363","function":{"name":"list_schedules","arguments":"{}"}},{"type":"function","id":"call_124364","function":{"name":"list_zones","arguments":"{}"}}]},{"content":"{\"success\":
       true, \"message\": \"Listed 2 Schedule:Compact.\", \"data\": [{\"name\": \"Heating_Setpoint\",
-      \"schedule_type_limits_name\": \"Temperature\", \"data\": [{\"field\": \"Through:
-      12/31\"}, {\"field\": \"For: AllDays\"}, {\"field\": \"Until: 24:00\"}, {\"field\":
-      \"20.0\"}]}, {\"name\": \"Cooling_Setpoint\", \"schedule_type_limits_name\":
-      \"Temperature\", \"data\": [{\"field\": \"Through: 12/31\"}, {\"field\": \"For:
-      AllDays\"}, {\"field\": \"Until: 24:00\"}, {\"field\": \"24.0\"}]}]}","role":"tool","tool_call_id":"call_45258"},{"content":"{\"success\":
-      true, \"message\": \"Listed 1 Zone.\", \"data\": [{\"name\": \"F1_Office\",
-      \"direction_of_relative_north\": 0.0, \"x_origin\": 0.0, \"y_origin\": 0.0,
-      \"z_origin\": 0.0, \"type\": 1, \"multiplier\": 1, \"ceiling_height\": \"Autocalculate\",
-      \"volume\": \"Autocalculate\", \"floor_area\": \"Autocalculate\", \"part_of_total_floor_area\":
-      \"Yes\"}]}","role":"tool","tool_call_id":"call_45261"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_347503","function":{"name":"create_thermostat","arguments":"{\"cooling_setpoint_schedule_name\":
-      \"Cooling_Setpoint\", \"heating_setpoint_schedule_name\": \"Heating_Setpoint\",
-      \"name\": \"Office_Thermostat\"}"}}]},{"content":"{\"success\": true, \"message\":
-      \"Thermostat ''Office_Thermostat'' created.\", \"data\": {\"name\": \"Office_Thermostat\",
-      \"heating_setpoint_schedule_name\": \"Heating_Setpoint\", \"cooling_setpoint_schedule_name\":
-      \"Cooling_Setpoint\"}}","role":"tool","tool_call_id":"call_347503"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_313781","function":{"name":"create_ideal_loads_system","arguments":"{\"template_thermostat_name\":
-      \"Office_Thermostat\", \"zone_name\": \"F1_Office\"}"}}]},{"content":"{\"success\":
-      true, \"message\": \"IdealLoadsAirSystem for zone ''F1_Office'' created.\",
-      \"data\": {\"zone_name\": \"F1_Office\", \"template_thermostat_name\": \"Office_Thermostat\",
-      \"maximum_heating_supply_air_temperature\": 50.0, \"minimum_cooling_supply_air_temperature\":
-      13.0, \"maximum_heating_supply_air_humidity_ratio\": 0.0156, \"minimum_cooling_supply_air_humidity_ratio\":
-      0.0077, \"heating_limit\": \"NoLimit\", \"cooling_limit\": \"NoLimit\", \"dehumidification_control_type\":
-      \"ConstantSensibleHeatRatio\", \"cooling_sensible_heat_ratio\": 0.7, \"dehumidification_setpoint\":
-      60.0, \"humidification_control_type\": \"None\", \"humidification_setpoint\":
-      30.0, \"outdoor_air_method\": \"None\", \"outdoor_air_flow_rate_per_person\":
-      0.00944, \"outdoor_air_flow_rate_per_zone_floor_area\": 0.0, \"outdoor_air_flow_rate_per_zone\":
-      0.0, \"demand_controlled_ventilation_type\": \"None\", \"outdoor_air_economizer_type\":
-      \"NoEconomizer\", \"heat_recovery_type\": \"None\", \"sensible_heat_recovery_effectiveness\":
-      0.7, \"latent_heat_recovery_effectiveness\": 0.65}}","role":"tool","tool_call_id":"call_313781"}],"model":"google/gemini-3.8-flash","max_completion_tokens":16384,"parallel_tool_calls":false,"stream":false,"temperature":0.7,"tool_choice":"required","tools":[{"type":"function","function":{"name":"create_thermostat","description":"Create
+      \"schedule_type_limits_name\": \"Temperature\"}, {\"name\": \"Cooling_Setpoint\",
+      \"schedule_type_limits_name\": \"Temperature\"}]}","role":"tool","tool_call_id":"call_124363"},{"content":"{\"success\":
+      true, \"message\": \"Listed 1 zones.\", \"data\": [\"F1_Office\"]}","role":"tool","tool_call_id":"call_124364"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_141832","function":{"name":"create_thermostat","arguments":"{\"name\":
+      \"Office_Thermostat\", \"cooling_setpoint_schedule_name\": \"Cooling_Setpoint\",
+      \"heating_setpoint_schedule_name\": \"Heating_Setpoint\"}"}}]},{"content":"{\"success\":
+      true, \"message\": \"Thermostat ''Office_Thermostat'' created.\", \"data\":
+      null}","role":"tool","tool_call_id":"call_141832"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_156410","function":{"name":"create_ideal_loads_systems","arguments":"{\"zone_names\":
+      [\"F1_Office\"], \"template_thermostat_name\": \"Office_Thermostat\"}"}}]},{"content":"{\"success\":
+      true, \"message\": \"Created IdealLoadsAirSystem in 1 of 1 zones.\", \"data\":
+      null}","role":"tool","tool_call_id":"call_156410"}],"model":"google/gemini-3.8-flash","max_completion_tokens":16384,"parallel_tool_calls":false,"stream":false,"temperature":0.7,"tool_choice":"required","tools":[{"type":"function","function":{"name":"create_thermostat","description":"Create
       an HVACTemplate:Thermostat.\n\n        Args:\n            name: Unique thermostat
       name.\n            heating_setpoint_schedule_name: Existing Schedule:Compact
       for heating setpoints (C).\n            cooling_setpoint_schedule_name: Existing
-      Schedule:Compact for cooling setpoints (C).","parameters":{"properties":{"name":{"type":"string"},"heating_setpoint_schedule_name":{"type":"string"},"cooling_setpoint_schedule_name":{"type":"string"}},"required":["name","heating_setpoint_schedule_name","cooling_setpoint_schedule_name"],"type":"object"}}},{"type":"function","function":{"name":"create_ideal_loads_system","description":"Create
-      an HVACTemplate:Zone:IdealLoadsAirSystem (one per zone).\n\n        Args:\n            zone_name:
-      Existing Zone name; identifies the system.\n            template_thermostat_name:
+      Schedule:Compact for cooling setpoints (C).","parameters":{"properties":{"name":{"type":"string"},"heating_setpoint_schedule_name":{"type":"string"},"cooling_setpoint_schedule_name":{"type":"string"}},"required":["name","heating_setpoint_schedule_name","cooling_setpoint_schedule_name"],"type":"object"}}},{"type":"function","function":{"name":"create_ideal_loads_systems","description":"Create
+      an HVACTemplate:Zone:IdealLoadsAirSystem for each zone.\n\n        Call it once
+      per group of zones with the same thermostat.\n\n        Args:\n            zone_names:
+      Existing Zone names, each without a system yet.\n            template_thermostat_name:
       Existing HVACTemplate:Thermostat name.\n            system_availability_schedule_name:
-      Optional availability Schedule:Compact.","parameters":{"properties":{"zone_name":{"type":"string"},"template_thermostat_name":{"type":"string"},"system_availability_schedule_name":{"anyOf":[{"type":"string"},{"type":"null"}],"default":null}},"required":["zone_name","template_thermostat_name"],"type":"object"}}},{"type":"function","function":{"name":"list_thermostats","description":"List
+      Optional availability Schedule:Compact.","parameters":{"properties":{"zone_names":{"items":{"type":"string"},"type":"array"},"template_thermostat_name":{"type":"string"},"system_availability_schedule_name":{"anyOf":[{"type":"string"},{"type":"null"}],"default":null}},"required":["zone_names","template_thermostat_name"],"type":"object"}}},{"type":"function","function":{"name":"list_thermostats","description":"List
       all thermostats.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"list_ideal_loads_systems","description":"List
-      all IdealLoadsAirSystem entries (keyed by zone_name).","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"delete_thermostat","description":"Delete
+      IdealLoadsAirSystem entries: zone, thermostat, availability.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"delete_thermostat","description":"Delete
       a thermostat; refused while an IdealLoadsAirSystem uses it.","parameters":{"properties":{"name":{"type":"string"}},"required":["name"],"type":"object"}}},{"type":"function","function":{"name":"delete_ideal_loads_system","description":"Delete
       the IdealLoadsAirSystem of a zone.","parameters":{"properties":{"zone_name":{"type":"string"}},"required":["zone_name"],"type":"object"}}},{"type":"function","function":{"name":"list_zones","description":"List
-      zones that can get an HVAC system.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"list_schedules","description":"List
-      Schedule:Compact for setpoint and availability references.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"HVACResponse","description":"Structured
+      zone names that can get an HVAC system.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"list_schedules","description":"List
+      Schedule:Compact names and type limits, for setpoint and availability references.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"HVACResponse","description":"Structured
       summary returned by the HVAC phase agent.","parameters":{"properties":{"missing_inputs":{"description":"Needed
       objects that do not exist; empty when none","items":{"description":"An upstream
       object a phase needed but did not find.","properties":{"kind":{"description":"Kind
@@ -576,7 +549,7 @@ interactions:
       connection:
       - keep-alive
       content-length:
-      - '8835'
+      - '7353'
       content-type:
       - application/json
       host:
@@ -608,17 +581,19 @@ interactions:
   response:
     body:
       string: !!binary |
-        KLUv/QBYBBMABmd1JvCSVgdAlfEFyZbnTGZf4Hqng8RexV1FO5kGIYXfYcQ3F9lE6jDQbQBhAG4A
-        EpWRo7gv5569ymh1JsABIYDh7Zaj3FRbnX26b0YRA8kkIqmkWBLgKdUqvX1yrNRZe+R+bOHZaZXN
-        s6IqlPSb4NsbcgdHPXsFCAaTmSw0IMTLZqKg8OBAExQRS4ViQKlAlgIoQll6e5TvAAQABO9oNIlK
-        Wu+b71oRW25a6esr731v51ntO+0svXuZOvsERpNxvJH96NnvnA+6WWu/ndb72LrpSiqjy1FtJdV5
-        9rSDcKTyHY32y1DWCZ69p/UijrIdQ7mxfM/mtGh7U2krywGVi0ZiWlxEyEmDqTyZDOohQaIxEjI6
-        LDQREwWGS4iUIMGpYHiAwJAKb3/94tkjd8WxkLJEvuboNtyNr043H0dJgdh1/eq8/TZlypLsO/vt
-        17dSlqd2feV8O1OPvtPYIQplYELg5nwQUit6O1ecDtd1SY+SZ1fFAj2XMgCxigWaTJ5H4hhSthxR
-        6ajHtm9lXRzlpspoPW5pPxx7Ik/wwXfYst3uUTkc7sq+FZ5ZHmi+rn1GcDYxeAbaL2WP2q4rqtrK
-        Otu4ro3r0CbSj7I1OvvBwcelY3ZgcKAmIzYgUMJShnb4WRW/YYEFfMQBnSb1NNzhzVqN28CrGTig
-        52g3PrgBPNiNTOO0jpfawMkKb7BjywX+pf1EE6e4mXmHALOZOoTfTgSp/mm+apDKARR2vqz+8dH5
-        4bVDNjxmdpZBX4CvmghjN6CFXLvMopAtbaN6SQRsH8/RgyAq8X0bkG1LSWB8LxYBAAA=
+        KLUv/QBY5RUAxq2IJuC0VAdQWGrUbEvSG7ImEAJSmo06aawUwxAs3sCCYoZUYoyxCCG8fAB0AHwA
+        /eBt7aCntv2KsZrsd8JK1Z4mlJrsaz/26xS+6l5EDgcRw9lrP+ihlfp6x3KUJhnKwAROKHsK6DhR
+        Op099qPyi/315a7u65PC25GS1FEud9zZr+sQEPr1AUsR4qiPB6Jig5ZUEpKJ6EAnGgwGc7lYNAWW
+        yezp7A8eBBABBLKaKn+97aSUbQuEg4yGs7fkeRBb1xBoMplMi5Gdm5V09qY+9yAPNk04qeXItpK6
+        9p108rXQWj57R1oPYu+JrW359QqKzUVrD7w8v25jZNcipffsk1ru2joWTihZEFqpicavCjtJvwkP
+        8mC37SDtuK/fWLEUEiVTwsQHg+EBggMqnJ0vv6+/vtSnutkUyLdf+wiFHvq4FTVhmya0Fsp7zvo4
+        5xwPdo5tybP1pCXNPqaxRe4Hz1nnUJplIepJSyJ6o4sKD+xjGhG5n0M0OXo9J2gtR29ydPlaKmt3
+        Nq0dlCSKCOEcds6nspSVPQd0dntnB6FQaGIJv0IXDUHFEmgGliaTEahUKK3d7NrShE1y12upKtQP
+        eih8FfeFdaStyuuOY3dQV/Wyi9APSLPwWuq+BDAYS+RL7xcG84XRXCzsdrYIve1Sklaq+gjd4plc
+        lpVKXzcwGJEIiSEcH7fpuEhsJmKGRgTsbCgulYsO+ZAwcTkSOkIyNhEDCgwBOyAwgsWY8QH2WQ19
+        Q4IU0JkDOCTlMrzxm/2fpgGXM2BE+dFufOUGgMFuZBqndbzUBk4uvIEdmxbAKu2Li0DlcuwCZt3N
+        Q0LX9kVkiLBKf5Cv4qZywMIyIYsVsZgqHmqIyDMgcECzGDnLI5oUll9YtB/Qcl8VLYxDQAtXe+Mi
+        vi2ERgVIIqDweEIPQqjE121AtS0lCeN7sQ==
     headers:
       access-control-allow-origin:
       - '*'
@@ -629,7 +604,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a47d57af8bdbd2fd-NRT
+      - a47e2020efc9af28-NRT
       connection:
       - keep-alive
       content-encoding:
@@ -637,7 +612,7 @@ interactions:
       content-type:
       - application/json
       date:
-      - Fri, 09 Oct 2026 12:21:01 GMT
+      - Fri, 09 Oct 2026 14:37:51 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       permissions-policy:
@@ -646,13 +621,13 @@ interactions:
       referrer-policy:
       - no-referrer, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=rYKH6ua8yF6raRDATMhiONXb%2Fno2Gr%2F6NyzP7jWMCtbiRAuF7gDswp%2ByqWMxt9bOpV%2F17ZHfnjeKx3%2BS56pytv3DuGw%2BRzXiGue0uhCieQooPrpH%2BN5WjSda074kToi3HZw%3D"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=VoTy45wPd%2FZu950ubpQ7ZLUjPFNsIycLec6XrUdF%2BAE3kTLBMwDJHCX67RHhlqQqtkyk0Dn8K7DiJ6ODA6nuVMzjarMo4EZOaeOsevXDime8z2S2tZ62aVM1lQz7cz9kB6Y%3D"}]}'
       server:
       - cloudflare
       set-cookie:
-      - __cf_bm=zozYvJwKucafFJSiAsnHVcVfVJJdUjxEwkHvgjYUDvw-1791548459.6064596-1.0.1.1-DJT515j4oAWcP.TFucKqxR7kL3KLj1f81K5.41GEZ2kiziiZ6gfNlFGowmxIuvoFNPCxQSi.uk8whnWDRlJuRIMS_2dMeQmzlf4wEEqNXuIPRpdSoRaPda.YShK53pEh;
+      - __cf_bm=Qq1nuyfVVwpPElMweQSU6sQMj8HKJ0WjwMdU1zptQ0o-1791556669.7539887-1.0.1.1-lmGHIwZJrdlnMlm3BWUMAh3KMVhr6Zn5amP5c7El03k2VJZyfEQwegqecAesI970QfqhQTVkP2dDBLMyVwVqYWlIIgIZlUwbgkOibTm_0bRqtj1kWK4.aTJ0Cl6g8MoK;
         HttpOnly; SameSite=None; Secure; Path=/; Domain=openrouter.ai; Expires=Fri,
-        09 Oct 2026 12:51:01 GMT
+        09 Oct 2026 15:07:51 GMT
       strict-transport-security:
       - max-age=31536000
       transfer-encoding:
@@ -662,206 +637,11 @@ interactions:
       x-content-type-options:
       - nosniff
       x-generation-id:
-      - gen-1791548459-RP1ykRRhvMdAHF3SOOxU
+      - gen-1791556669-oIlNxxrzoXPKvypcjOs3
       x-new-api-version:
       - v1.0.0-rc.42
       x-oneapi-request-id:
-      - 202610091220595903859398268d9d6SSdEczS2
-    status:
-      code: 200
-      message: OK
-- request:
-    body: '{"messages":[{"content":"You are an HVAC configuration expert for EnergyPlus.\nGiven
-      HVAC specifications, create thermostat templates and one\nIdealLoadsAirSystem
-      per conditioned zone.\n\nWorkflow:\n1. FIRST call `list_schedules` to see the
-      exact names of all Schedule:Compact\n   objects (you need these for setpoint
-      + availability references).\n2. FIRST call `list_zones` to see the exact zone
-      names (you need these for\n   create_ideal_loads_system).\n3. Create one HVACTemplate:Thermostat
-      via create_thermostat for each\n   distinct pair of heating and cooling setpoint
-      schedules, NOT one per\n   zone, using schedule names from step 1.\n4. For each
-      conditioned zone, create HVACTemplate:Zone:IdealLoadsAirSystem\n   via create_ideal_loads_system(zone_name=...,
-      template_thermostat_name=...).\n5. Call list_thermostats and list_ideal_loads_systems
-      once at the end.\n\nRules:\n- `zone_name`, `heating_setpoint_schedule_name`,
-      `cooling_setpoint_schedule_name`,\n  `template_thermostat_name`, `system_availability_schedule_name`
-      MUST all\n  appear verbatim in the respective list_* results.\n- If a needed
-      zone or schedule is missing, do NOT invent a name and do NOT\n  list again:
-      give your final answer at once, with it in `missing_inputs`.\n- Every zone with
-      the same setpoint schedules references the same\n  thermostat template. Each
-      zone is still controlled on its own: EnergyPlus\n  expands the template into
-      a separate ZoneControl:Thermostat per zone.\n- Use the thermostat names the
-      specification gives; otherwise name each\n  after its setpoint group, e.g. ''Office_Thermostat''.\n-
-      Setpoint values live in the schedules; this phase only references them.\n","role":"system"},{"content":"Create
-      exactly one thermostat named ''Office_Thermostat'' using heating setpoint schedule
-      ''Heating_Setpoint'' and cooling setpoint schedule ''Cooling_Setpoint'', then
-      one IdealLoadsAirSystem for zone ''F1_Office'' using that thermostat.","role":"user"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_45258","function":{"name":"list_schedules","arguments":"{}"}},{"type":"function","id":"call_45261","function":{"name":"list_zones","arguments":"{}"}}]},{"content":"{\"success\":
-      true, \"message\": \"Listed 2 Schedule:Compact.\", \"data\": [{\"name\": \"Heating_Setpoint\",
-      \"schedule_type_limits_name\": \"Temperature\", \"data\": [{\"field\": \"Through:
-      12/31\"}, {\"field\": \"For: AllDays\"}, {\"field\": \"Until: 24:00\"}, {\"field\":
-      \"20.0\"}]}, {\"name\": \"Cooling_Setpoint\", \"schedule_type_limits_name\":
-      \"Temperature\", \"data\": [{\"field\": \"Through: 12/31\"}, {\"field\": \"For:
-      AllDays\"}, {\"field\": \"Until: 24:00\"}, {\"field\": \"24.0\"}]}]}","role":"tool","tool_call_id":"call_45258"},{"content":"{\"success\":
-      true, \"message\": \"Listed 1 Zone.\", \"data\": [{\"name\": \"F1_Office\",
-      \"direction_of_relative_north\": 0.0, \"x_origin\": 0.0, \"y_origin\": 0.0,
-      \"z_origin\": 0.0, \"type\": 1, \"multiplier\": 1, \"ceiling_height\": \"Autocalculate\",
-      \"volume\": \"Autocalculate\", \"floor_area\": \"Autocalculate\", \"part_of_total_floor_area\":
-      \"Yes\"}]}","role":"tool","tool_call_id":"call_45261"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_347503","function":{"name":"create_thermostat","arguments":"{\"cooling_setpoint_schedule_name\":
-      \"Cooling_Setpoint\", \"heating_setpoint_schedule_name\": \"Heating_Setpoint\",
-      \"name\": \"Office_Thermostat\"}"}}]},{"content":"{\"success\": true, \"message\":
-      \"Thermostat ''Office_Thermostat'' created.\", \"data\": {\"name\": \"Office_Thermostat\",
-      \"heating_setpoint_schedule_name\": \"Heating_Setpoint\", \"cooling_setpoint_schedule_name\":
-      \"Cooling_Setpoint\"}}","role":"tool","tool_call_id":"call_347503"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_313781","function":{"name":"create_ideal_loads_system","arguments":"{\"template_thermostat_name\":
-      \"Office_Thermostat\", \"zone_name\": \"F1_Office\"}"}}]},{"content":"{\"success\":
-      true, \"message\": \"IdealLoadsAirSystem for zone ''F1_Office'' created.\",
-      \"data\": {\"zone_name\": \"F1_Office\", \"template_thermostat_name\": \"Office_Thermostat\",
-      \"maximum_heating_supply_air_temperature\": 50.0, \"minimum_cooling_supply_air_temperature\":
-      13.0, \"maximum_heating_supply_air_humidity_ratio\": 0.0156, \"minimum_cooling_supply_air_humidity_ratio\":
-      0.0077, \"heating_limit\": \"NoLimit\", \"cooling_limit\": \"NoLimit\", \"dehumidification_control_type\":
-      \"ConstantSensibleHeatRatio\", \"cooling_sensible_heat_ratio\": 0.7, \"dehumidification_setpoint\":
-      60.0, \"humidification_control_type\": \"None\", \"humidification_setpoint\":
-      30.0, \"outdoor_air_method\": \"None\", \"outdoor_air_flow_rate_per_person\":
-      0.00944, \"outdoor_air_flow_rate_per_zone_floor_area\": 0.0, \"outdoor_air_flow_rate_per_zone\":
-      0.0, \"demand_controlled_ventilation_type\": \"None\", \"outdoor_air_economizer_type\":
-      \"NoEconomizer\", \"heat_recovery_type\": \"None\", \"sensible_heat_recovery_effectiveness\":
-      0.7, \"latent_heat_recovery_effectiveness\": 0.65}}","role":"tool","tool_call_id":"call_313781"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_632441","function":{"name":"list_thermostats","arguments":"{}"}},{"type":"function","id":"call_632444","function":{"name":"list_ideal_loads_systems","arguments":"{}"}}]},{"content":"{\"success\":
-      true, \"message\": \"Listed 1 HVACTemplate:Thermostat.\", \"data\": [{\"name\":
-      \"Office_Thermostat\", \"heating_setpoint_schedule_name\": \"Heating_Setpoint\",
-      \"cooling_setpoint_schedule_name\": \"Cooling_Setpoint\"}]}","role":"tool","tool_call_id":"call_632441"},{"content":"{\"success\":
-      true, \"message\": \"Listed 1 HVACTemplate:Zone:IdealLoadsAirSystem.\", \"data\":
-      [{\"zone_name\": \"F1_Office\", \"template_thermostat_name\": \"Office_Thermostat\",
-      \"maximum_heating_supply_air_temperature\": 50.0, \"minimum_cooling_supply_air_temperature\":
-      13.0, \"maximum_heating_supply_air_humidity_ratio\": 0.0156, \"minimum_cooling_supply_air_humidity_ratio\":
-      0.0077, \"heating_limit\": \"NoLimit\", \"cooling_limit\": \"NoLimit\", \"dehumidification_control_type\":
-      \"ConstantSensibleHeatRatio\", \"cooling_sensible_heat_ratio\": 0.7, \"dehumidification_setpoint\":
-      60.0, \"humidification_control_type\": \"None\", \"humidification_setpoint\":
-      30.0, \"outdoor_air_method\": \"None\", \"outdoor_air_flow_rate_per_person\":
-      0.00944, \"outdoor_air_flow_rate_per_zone_floor_area\": 0.0, \"outdoor_air_flow_rate_per_zone\":
-      0.0, \"demand_controlled_ventilation_type\": \"None\", \"outdoor_air_economizer_type\":
-      \"NoEconomizer\", \"heat_recovery_type\": \"None\", \"sensible_heat_recovery_effectiveness\":
-      0.7, \"latent_heat_recovery_effectiveness\": 0.65}]}","role":"tool","tool_call_id":"call_632444"}],"model":"google/gemini-3.8-flash","max_completion_tokens":16384,"parallel_tool_calls":false,"stream":false,"temperature":0.7,"tool_choice":"required","tools":[{"type":"function","function":{"name":"create_thermostat","description":"Create
-      an HVACTemplate:Thermostat.\n\n        Args:\n            name: Unique thermostat
-      name.\n            heating_setpoint_schedule_name: Existing Schedule:Compact
-      for heating setpoints (C).\n            cooling_setpoint_schedule_name: Existing
-      Schedule:Compact for cooling setpoints (C).","parameters":{"properties":{"name":{"type":"string"},"heating_setpoint_schedule_name":{"type":"string"},"cooling_setpoint_schedule_name":{"type":"string"}},"required":["name","heating_setpoint_schedule_name","cooling_setpoint_schedule_name"],"type":"object"}}},{"type":"function","function":{"name":"create_ideal_loads_system","description":"Create
-      an HVACTemplate:Zone:IdealLoadsAirSystem (one per zone).\n\n        Args:\n            zone_name:
-      Existing Zone name; identifies the system.\n            template_thermostat_name:
-      Existing HVACTemplate:Thermostat name.\n            system_availability_schedule_name:
-      Optional availability Schedule:Compact.","parameters":{"properties":{"zone_name":{"type":"string"},"template_thermostat_name":{"type":"string"},"system_availability_schedule_name":{"anyOf":[{"type":"string"},{"type":"null"}],"default":null}},"required":["zone_name","template_thermostat_name"],"type":"object"}}},{"type":"function","function":{"name":"list_thermostats","description":"List
-      all thermostats.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"list_ideal_loads_systems","description":"List
-      all IdealLoadsAirSystem entries (keyed by zone_name).","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"delete_thermostat","description":"Delete
-      a thermostat; refused while an IdealLoadsAirSystem uses it.","parameters":{"properties":{"name":{"type":"string"}},"required":["name"],"type":"object"}}},{"type":"function","function":{"name":"delete_ideal_loads_system","description":"Delete
-      the IdealLoadsAirSystem of a zone.","parameters":{"properties":{"zone_name":{"type":"string"}},"required":["zone_name"],"type":"object"}}},{"type":"function","function":{"name":"list_zones","description":"List
-      zones that can get an HVAC system.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"list_schedules","description":"List
-      Schedule:Compact for setpoint and availability references.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"HVACResponse","description":"Structured
-      summary returned by the HVAC phase agent.","parameters":{"properties":{"missing_inputs":{"description":"Needed
-      objects that do not exist; empty when none","items":{"description":"An upstream
-      object a phase needed but did not find.","properties":{"kind":{"description":"Kind
-      of object; the phase of that name creates it","enum":["zone","material","construction","schedule","surface"],"type":"string"},"description":{"description":"What
-      is needed and for what, e.g. ''a window construction (kind window) for the office
-      windows''","type":"string"}},"required":["kind","description"],"type":"object"},"type":"array"},"thermostat_names":{"description":"Names
-      of all thermostats created","items":{"type":"string"},"type":"array"},"ideal_loads_zone_names":{"description":"Zone
-      names that received an IdealLoadsAirSystem","items":{"type":"string"},"type":"array"},"summary":{"description":"One-line
-      summary of the HVAC creation result","type":"string"}},"required":["thermostat_names","ideal_loads_zone_names","summary"],"type":"object"}}}],"max_thinking_budget":4096}'
-    headers:
-      accept:
-      - application/json
-      accept-encoding:
-      - gzip, deflate, zstd
-      connection:
-      - keep-alive
-      content-length:
-      - '10511'
-      content-type:
-      - application/json
-      host:
-      - one.chat-yu.net
-      user-agent:
-      - OpenAI/Python 2.52.0
-      x-stainless-arch:
-      - x64
-      x-stainless-async:
-      - 'false'
-      x-stainless-lang:
-      - python
-      x-stainless-os:
-      - Linux
-      x-stainless-package-version:
-      - 2.52.0
-      x-stainless-raw-response:
-      - 'true'
-      x-stainless-read-timeout:
-      - '120.0'
-      x-stainless-retry-count:
-      - '0'
-      x-stainless-runtime:
-      - CPython
-      x-stainless-runtime-version:
-      - 3.12.3
-    method: POST
-    uri: https://one.chat-yu.net/v1/chat/completions
-  response:
-    body:
-      string: !!binary |
-        KLUv/QBYNRYARm6KJtAUrQ5WxAMTsR5n+q+Nq8CfFIE38I4skBEpfF92mSUv8MUjvpgZfgB2AH8A
-        b+oos2soN7fx2ZxWbc9V3uo2VeXkaGfMwWe3MloZ43lAeBrefjvKjb3V2TX4zYlSULlQZJW0qYCe
-        lLXU22dHS8/aY+fXF569Wpl7VtTCSn4a+PYMOwTEnr3jLhAkYCD6oi8D04KjhISOZCgWgoGCgchi
-        gLFQalNvj/IdgAcgONemFnXf2RtXW+G+SEDQcHh701ffaeyYS4SBIjfng7Ba09u74uR3PBpVZbX4
-        zYetqW/nauvLWGL83t7T3nfam3oYNz27RUUGw/VG5lfPjud80E1r89urxa+v02BZ5YRB7K0oO8+g
-        dpKOVb7j0Y4bSquBZ8/TCg0TJZQCBSejASKCQy68/eUXzx47V5wLa1fkyx3dx3X9ulSZTJ6utuS5
-        dnowrkTA8VmJ+To+PLGvRcmpWvjE+p7J5HkSLrVLnPsotfAl9pGtqkpHVYmxpM7C0NWWOByfnW6+
-        jvIS+7iUcQ3lNFVc8miXcNNXXX4ZW3pbky913h7XdVGPyrMrwlgiCEcXAsyFWQoEBiCo4hrWvj1V
-        6ejrm3FlXR3lxspovc7yjjgGxdbAB99p6+Z2EcsBcVhmbOFZASYSmC/bfGZAcGYARQLtuLaIzS5X
-        1N7K+rhu2VDyo9dOZz84GJkImSEcHJjpiCYyFFNjQ0JqMhURhNFBIRQoModCR4hGRuKyEDwgMILl
-        2NkB+FkVuWFBBXzEAZ2k6maOgy04fG3ucDUDJsqP6MYnNwAPBiNTOa3lpRo4SeGN7Ni2wNm0Hy8C
-        lcuxC4g2m6VE16aL1yGCbv9Bvmod5cALuwVZyogHIfVDWOt2TCwMsiJAMEt7Jw75YbDlbQCLub6v
-        SgujIKAVV/viIr8tQqMyJBEsPJ6jB0Eq8b0NCG1LCcD4Xiw=
-    headers:
-      access-control-allow-origin:
-      - '*'
-      access-control-expose-headers:
-      - X-Generation-Id,X-Provider-Name,request-id,cf-ray
-      alt-svc:
-      - h3=":443"; ma=86400
-      cf-cache-status:
-      - DYNAMIC
-      cf-ray:
-      - a47d57bbcdc9d2fd-NRT
-      connection:
-      - keep-alive
-      content-encoding:
-      - zstd
-      content-type:
-      - application/json
-      date:
-      - Fri, 09 Oct 2026 12:21:04 GMT
-      nel:
-      - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
-      permissions-policy:
-      - payment=(self "https://checkout.stripe.com" "https://connect-js.stripe.com"
-        "https://js.stripe.com" "https://*.js.stripe.com" "https://hooks.stripe.com")
-      referrer-policy:
-      - no-referrer, strict-origin-when-cross-origin
-      report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=BebnXe1CiGyk66C%2FrL5owqTp2HPFXwETPbFhpV%2BIZKQ900Ka4aJBrml2vE8txVc8nMAjZIifH6xn3TaiFUp%2Fp7z7yiLD9hLupHbwmTo2CTGVBmiSe%2FLdeQp0CS6J7MRgfHo%3D"}]}'
-      server:
-      - cloudflare
-      set-cookie:
-      - __cf_bm=hH70xMjRXMhBg_B3PUkmlP8q2AtMnjZOyhvaQDuiLqE-1791548461.5708132-1.0.1.1-ovnCy9dzqvjJYJ0v_8mL59D0dq.8grWFxB7odhp3CNlb43FHs7NqeJ7maOlTr.2A.jtdPISs8tN3EC4aOi50iicWBkbweDABNJ3_i7rg9A6abyKuuxIsBfYj7YVufubk;
-        HttpOnly; SameSite=None; Secure; Path=/; Domain=openrouter.ai; Expires=Fri,
-        09 Oct 2026 12:51:04 GMT
-      strict-transport-security:
-      - max-age=31536000
-      transfer-encoding:
-      - chunked
-      via:
-      - 1.1 Caddy
-      x-content-type-options:
-      - nosniff
-      x-generation-id:
-      - gen-1791548461-TwmxzYPl43eReJ7C6ErZ
-      x-new-api-version:
-      - v1.0.0-rc.42
-      x-oneapi-request-id:
-      - 202610091221015506406948268d9d6VznAYQVc
+      - 202610091437497297974148268d9d69Fnmr7bq
     status:
       code: 200
       message: OK

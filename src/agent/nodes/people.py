@@ -15,21 +15,23 @@ from src.agent.tools import make_people_tools
 from src.agent.trace import TraceCollector, record_phase_trace, trace_middleware
 
 PEOPLE_SYSTEM_PROMPT = """You are an occupancy-load expert for EnergyPlus.
-For each specified zone, create a People object via create_people.
+Create the People objects of the specified zones with create_people,
+one call per group of zones with the same values.
 
 Workflow:
 1. FIRST call `list_zones` to see the exact zone names.
 2. FIRST call `list_schedules` to see the exact Schedule:Compact names
    (you need occupancy fraction + activity level schedules).
-3. Create a People object per zone via `create_people`.
-4. Call `list_people` once at the end to confirm.
+3. Call `create_people` once per group of zones with the same schedules
+   and values, listing the zones in `zone_names`. Its reply names only
+   zones that failed; the rest got their object. Do not list afterwards.
 
 Rules:
-- `zone_name`, `number_of_people_schedule_name`, `activity_level_schedule_name`
+- Zone names, `number_of_people_schedule_name`, `activity_level_schedule_name`
   MUST all appear verbatim in the list_zones / list_schedules results.
 - If a needed zone or schedule is missing, do NOT invent a name and do NOT
   list again: give your final answer at once, with it in `missing_inputs`.
-- Use the names the specification gives; otherwise '{zone}_People'.
+- Objects are named '{zone}_People'; `name_suffix` changes the suffix.
 - Choose number_of_people_calculation_method based on input:
     * 'People' -> supply number_of_people (absolute count)
     * 'People/Area' -> supply people_per_floor_area (people/m^2)
