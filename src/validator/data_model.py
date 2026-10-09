@@ -1,12 +1,10 @@
 import re
 from abc import abstractmethod
 from collections import defaultdict
-from pathlib import Path
 from typing import Any, ClassVar
 
 import numpy as np
 from dateutil.parser import parse
-from idfpy import IDF
 from pydantic import (
     BaseModel,
     ConfigDict,
@@ -35,19 +33,6 @@ class BaseSchema(BaseModel):
         extra="allow",  # 允许额外字段
     )
 
-    _idf: IDF | None = None
-
-    @classmethod
-    def set_idf(cls, idf_path: Path | None = None) -> None:
-        if idf_path:
-            cls._idf = IDF.load(idf_path)
-        else:
-            cls._idf = IDF()
-
-    @staticmethod
-    def _create_blank_idf() -> IDF:
-        return IDF()
-
     @staticmethod
     def validate_choice_field(value: str, valid_choices: list, field_name: str) -> str:
         choice_mapping = {choice.lower(): choice for choice in valid_choices}
@@ -73,14 +58,6 @@ class BaseSchema(BaseModel):
 
     @abstractmethod
     def to_yaml_dict(self) -> dict[str, Any]: ...
-
-    @classmethod
-    def get_idf(cls) -> IDF:
-        if cls._idf is None:
-            raise ValueError(
-                "IDF is not set. Please set the IDF using BaseSchema.set_idf."
-            )
-        return cls._idf
 
 
 class BuildingSchema(BaseSchema):

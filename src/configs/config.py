@@ -52,6 +52,14 @@ class LLMConfig(BaseModel):
     api_key: str | None = Field(
         default=None, description="The API key of the LLM model"
     )
-    max_thinking_budget: int | None = Field(
-        default=None, description="The maximum number of thinking budget to use"
+    reasoning_max_tokens: int | None = Field(
+        default=None,
+        gt=0,
+        description="Thinking budget, sent as OpenRouter's reasoning.max_tokens; "
+        "None sends none",
+    )
+    max_retries: int = Field(
+        default=2,
+        ge=0,
+        description="Retries the provider performs on transient API errors",
     )
