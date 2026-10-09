@@ -53,7 +53,9 @@ Report what the images show, and estimates with the cues behind them.
   core with few or no windows, wings. A tall block on a low wide one is a
   tower on a podium.
 - Estimate dimensions from scale cues: an office storey is about 3.5-4 m,
-  a door about 2.2 m, a car about 4.5 m; count the facade bays.
+  a door about 2.2 m, a car about 4.5 m; count the facade bays. Give the
+  ground storey's height and the other storeys' height: code stacks the
+  storeys from them and from each block's `bottom_storey` and `storeys`.
 - For each visible side of each block give the window type and an
   estimated window-to-wall ratio.
 - List in `assumptions` what the images do not show (back facades,

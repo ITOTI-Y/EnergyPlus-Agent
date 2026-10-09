@@ -6,16 +6,19 @@ from langchain_core.messages import HumanMessage
 from src.agent.llm import create_vision_llm
 from src.agent.nodes import intake as intake_module
 from src.agent.nodes import observe as observe_module
-from src.agent.nodes.intake import storeys_match_reading
+from src.agent.nodes.intake import with_reading_storeys
 from src.agent.nodes.observe import load_image_part, observe_node
-from src.agent.state import AgentState, IntakeOutput, PhotoReadingSchema
+from src.agent.state import AgentState, PhotoReadingSchema, ZonePlanSchema
+from src.agent.storeys import storeys_from_reading
 from src.configs.config import LLMConfig
-from tests.agent.intake_data import intake, layout, zone_spec
+from tests.agent.intake_data import intake, zone_spec
 
 READING = PhotoReadingSchema.model_validate(
     {
         "reading": "3 podium bands, 12 tower bands above",
         "total_storeys": 15,
+        "ground_storey_height_m": 4.5,
+        "storey_height_m": 3.8,
         "blocks": [
             {"name": "podium", "role": "podium", "storeys": 3, "bottom_storey": 1,
              "width_m": 60, "depth_m": 40, "position": "base"},
@@ -106,28 +109,96 @@ def test_intake_gets_the_reading_as_text_and_no_image(tmp_path):
     assert intake_module._brief(AgentState(user_input="brief")).content == "brief"
 
 
-def _storeys(*counts: tuple[str, int]) -> IntakeOutput:
-    plan = zone_spec("Office", [(0, 0), (20, 0), (20, 20), (0, 20)])
-    plans = layout(plan)["zone_plans"]
-    return intake(
-        zone_plans=plans,
-        storeys=[
-            {
-                "name": name,
-                "height": 3.5,
-                "multiplier": n,
-                "zones": [{"plan": "Office"}],
-            }
-            for name, n in counts
-        ],
+def _plan(key: str, block: str | None, corners: list) -> ZonePlanSchema:
+    plan = zone_spec(key, corners) | {"key": key, "block": block}
+    return ZonePlanSchema.model_validate(
+        {k: v for k, v in plan.items() if k not in ("name", "floor_z", "height")}
     )
 
 
-def test_intake_storeys_must_reach_the_top_of_the_highest_block():
-    # READING's tower runs from storey 4 for 12 storeys: up to storey 15.
-    whole = _storeys(("G", 1), ("L2", 2), ("T", 11), ("Top", 1))
+PODIUM = _plan("Podium", "podium", [(0, 0), (60, 0), (60, 40), (0, 40)])
+TOWER = _plan("Tower", "tower", [(0, 9), (50, 9), (50, 31), (0, 31)])
 
-    assert storeys_match_reading(whole, READING) is whole
-    assert storeys_match_reading(_storeys(("G", 1)), None) is not None
-    with pytest.raises(ValueError, match=r"ends on storey 15.*stand for 3"):
-        storeys_match_reading(_storeys(("G", 1), ("L2", 1), ("L3", 1)), READING)
+
+def test_storeys_follow_the_blocks_as_ground_typical_and_top():
+    storeys = storeys_from_reading([PODIUM, TOWER], READING)
+
+    # Podium storeys 1-3 (ground 4.5 m), tower 4-15 (3.8 m).
+    assert [
+        (s.name, s.height, s.multiplier, [z.plan for z in s.zones]) for s in storeys
+    ] == [
+        ("S1", 4.5, 1, ["Podium"]),
+        ("S2", 3.8, 1, ["Podium"]),
+        ("S3", 3.8, 1, ["Podium"]),
+        ("S4", 3.8, 1, ["Tower"]),
+        ("S5", 3.8, 10, ["Tower"]),
+        ("S15", 3.8, 1, ["Tower"]),
+    ]
+    assert sum(s.multiplier for s in storeys) == 15
+
+
+def test_a_core_beside_the_whole_height_shares_every_storey():
+    core = _plan("Core", "core", [(50, 9), (62, 9), (62, 31), (50, 31)])
+    reading = READING.model_copy(
+        update={
+            "blocks": [
+                *READING.blocks,
+                READING.blocks[0].model_copy(
+                    update={"name": "core", "role": "core", "storeys": 15}
+                ),
+            ]
+        }
+    )
+
+    storeys = storeys_from_reading([PODIUM, TOWER, core], reading)
+
+    assert [[z.plan for z in s.zones] for s in storeys][2:4] == [
+        ["Podium", "Core"],
+        ["Tower", "Core"],
+    ]
+
+
+def test_plans_and_blocks_that_do_not_match_go_back_to_intake():
+    with pytest.raises(ValueError, match="sets `block`"):
+        storeys_from_reading([PODIUM, _plan("Tower", None, TOWER_CORNERS)], READING)
+    with pytest.raises(ValueError, match="without a plan: \\['tower'\\]"):
+        storeys_from_reading([PODIUM], READING)
+
+
+TOWER_CORNERS = [(0, 9), (50, 9), (50, 31), (0, 31)]
+
+
+def test_a_gap_between_blocks_takes_the_plans_below():
+    gap = READING.model_copy(
+        update={
+            "blocks": [
+                READING.blocks[0],
+                READING.blocks[1].model_copy(update={"bottom_storey": 6}),
+            ]
+        }
+    )
+
+    storeys = storeys_from_reading([PODIUM, TOWER], gap)
+
+    # Podium 1-3, nothing on 4-5, tower 6-17: 4-5 extend the podium, whose
+    # storeys 2-5 are then one run (the ground storey is higher).
+    assert [(s.name, s.multiplier, s.zones[0].plan) for s in storeys][:4] == [
+        ("S1", 1, "Podium"),
+        ("S2", 1, "Podium"),
+        ("S3", 2, "Podium"),
+        ("S5", 1, "Podium"),
+    ]
+    assert sum(s.multiplier for s in storeys) == 17
+
+
+def test_intake_output_gets_the_storeys_built_from_the_reading():
+    without = intake(
+        zone_plans=[PODIUM.model_dump(by_alias=True), TOWER.model_dump(by_alias=True)],
+        storeys=[],
+    )
+
+    built = with_reading_storeys(without, READING)
+
+    assert len(built.zones) == 6
+    assert built.zones[0].name == "S1_Podium"
+    assert with_reading_storeys(without, None) is without

@@ -16,6 +16,7 @@ from src.agent.state import (
     PhotoReadingSchema,
     SimContext,
 )
+from src.agent.storeys import storeys_from_reading
 
 INTAKE_SYSTEM_PROMPT = """You are an EnergyPlus building-simulation intake specialist.
 Given a building description in text, and optionally a reading of its
@@ -118,19 +119,23 @@ Rules:
 
 PHOTO_READING_INTRO = """Photo reading (a vision model's reading of the attached photos or
 drawings; counts and dimensions are estimates). Build the zones from it:
-- each block is ONE rectangular plan placed where `position` says, side by
-  side or on top of the others, never overlapping another plan on the same
-  storey: a core beside the tower is next to the tower's plan, not inside
-  it;
-- a block's plan is on the storeys `bottom_storey` to `bottom_storey +
-  storeys - 1`, with a typical storey and a multiplier for repeated
-  floors;
+- give each block ONE rectangular plan, placed where `position` says, side
+  by side or on top of the others, never overlapping another plan of a
+  block on the same storeys: a core beside the tower is next to the
+  tower's plan, not inside it;
+- set each plan's `block` to its block's `name` exactly; every block gets
+  a plan;
+- give `storeys` as an empty list: code builds them from the blocks'
+  storeys and the reading's storey heights, named 'S<n>' by their first
+  storey (a typical storey stands for the ones above it), so zones are
+  named like 'S5_Tower_N'. In the other fields name zones by plan, e.g.
+  "all zones of plan Tower", not by storey;
 - office, podium and tower plans of at least 12.14 m by 12.14 m take
   `zoning` 'perimeter_core'; a service core and narrow blocks take
   'single';
 - the facade window types and window-to-wall ratios go into
   `fenestration_specs`.
-Values the text gives take precedence over the reading."""
+Other values the text gives take precedence over the reading."""
 
 REVISION_PROMPT = """The specifications below were built and checked. Fix
 the problems listed after them by returning an IntakePatch:
@@ -161,31 +166,21 @@ def _brief(state: AgentState) -> HumanMessage:
     )
 
 
-def storeys_match_reading(
+def with_reading_storeys(
     output: IntakeOutput, reading: PhotoReadingSchema | None
 ) -> IntakeOutput:
-    """The output, if its storeys reach as high as the photo reading's blocks.
-
-    With a reading of 13 storeys, Haiku once modelled 3 and dropped the
-    tower; the count is the one fact the reading gives exactly, so it is
-    checked in code and a mismatch goes back to the LLM.
+    """The output with its storeys built from the photo reading, if any.
 
     Raises:
-        ValueError: If the storeys, counted with their multipliers, differ
-            from the top of the reading's highest block.
+        ValueError: If the plans and the reading's blocks do not match (see
+            ``storeys_from_reading``); intake gets the reason and corrects it.
     """
-    if reading is None or not reading.blocks:
+    if reading is None:
         return output
-    expected = max(b.bottom_storey + b.storeys - 1 for b in reading.blocks)
-    given = sum(s.multiplier for s in output.storeys)
-    if given != expected:
-        raise ValueError(
-            f"the photo reading's highest block ends on storey {expected}, but "
-            f"`storeys` stand for {given} (multipliers summed); give every "
-            "block its storeys, the repeated ones as one typical storey with a "
-            "multiplier"
-        )
-    return output
+    storeys = storeys_from_reading(output.zone_plans, reading)
+    return IntakeOutput.model_validate(
+        output.model_dump() | {"storeys": [s.model_dump() for s in storeys]}
+    )
 
 
 def _revision(state: AgentState, previous: IntakeOutput) -> HumanMessage:
@@ -229,14 +224,17 @@ def intake_node(state: AgentState, runtime: Runtime[SimContext]) -> AgentStateUp
             create_llm(),
             IntakeOutput,
             [system, _brief(state)],
-            lambda o: storeys_match_reading(o, state.photo_reading),
+            lambda o: with_reading_storeys(o, state.photo_reading),
         )
         rerun: set[Phase] = set(PHASE_TYPES)
     else:
 
         def apply(patch: IntakePatch) -> tuple[IntakeOutput, set[Phase]]:
+            if state.photo_reading is not None:
+                # Storeys follow from the plans and the reading alone.
+                patch = patch.model_copy(update={"storeys": None})
             patched, changed = patch.apply(previous)
-            return storeys_match_reading(patched, state.photo_reading), changed
+            return with_reading_storeys(patched, state.photo_reading), changed
 
         patch, (output, changed) = structured(
             create_llm(),

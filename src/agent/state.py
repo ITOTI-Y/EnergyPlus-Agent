@@ -41,6 +41,11 @@ class ZonePlanSchema(BaseModel):
         "perimeter zones and a core zone, '<storey>_<key>_N', '_E', '_S', "
         "'_W' and '_Core' (needs both sides of at least 12.14 m)",
     )
+    block: str | None = Field(
+        default=None,
+        description="Only with a photo reading: the name of the reading's "
+        "block this plan belongs to; code then builds the storeys",
+    )
     exterior_wall_construction: str
     roof_construction: str
     ground_floor_construction: str = Field(
@@ -199,7 +204,7 @@ class IntakeOutput(BaseModel):
                         floor_z=floor_z,
                         height=entry.height or storey.height,
                         multiplier=storey.multiplier,
-                        **plan.model_dump(exclude={"key", "plan", "zoning"}),
+                        **plan.model_dump(exclude={"key", "plan", "zoning", "block"}),
                     )
                     for part_name, corners in parts
                 ]
@@ -371,12 +376,26 @@ class PhotoReadingSchema(BaseModel):
         "(doors, people, cars, bays) behind the dimensions"
     )
     total_storeys: int = Field(ge=1)
+    ground_storey_height_m: float = Field(
+        gt=0, description="Estimated floor-to-floor height of the ground storey"
+    )
+    storey_height_m: float = Field(
+        gt=0, description="Estimated floor-to-floor height of the other storeys"
+    )
     blocks: list[MassingBlockSchema]
     facades: list[FacadeSchema]
     assumptions: list[str] = Field(
         description="What the images do not show and was assumed, e.g. the "
         "back facades or the depth"
     )
+
+    @model_validator(mode="after")
+    def _block_names_are_unique(self) -> Self:
+        # Intake tags each plan with a block name; storeys follow from it.
+        names = [b.name for b in self.blocks]
+        if repeated := sorted({n for n in names if names.count(n) > 1}):
+            raise ValueError(f"block names must be unique, repeated: {repeated}")
+        return self
 
 
 class AgentState(BaseModel):
