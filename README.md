@@ -70,6 +70,7 @@ EnergyPlus-Agent/
 │   │   ├── graph.py                  # build_graph(): topology + in-memory checkpointer
 │   │   ├── state.py                  # AgentState, IntakeOutput, SimContext, merge_config_state
 │   │   ├── phases.py                 # Phase -> owned object types, issue routing
+│   │   ├── storeys.py                # Storeys of a photo-read building from its blocks
 │   │   ├── react.py                  # 3-node ReAct subgraph (llm -> tools -> llm)
 │   │   ├── runner.py                 # run_session(), interactive_approval(), auto_approval()
 │   │   ├── llm.py                    # create_llm(), create_vision_llm() from src/configs/llm.yaml
