@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Final
 
 from qdrant_client import QdrantClient
 
@@ -7,6 +8,11 @@ from src.reference.climate import Climate, from_epw
 from src.reference.extract import Kind
 from src.reference.index import Embedder, Hit, search
 from src.reference.settings import ReferenceSettings
+
+QDRANT_TIMEOUT_S: Final = 30
+"""Per-request timeout. The client's 5 s default failed whole agent runs
+when the link to the server dropped to about 300 KB/s with 1 s connects: a
+search sends a 4096-value query vector as JSON."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -35,6 +41,7 @@ class ReferenceSearch:
             api_key=settings.qdrant_api_key.get_secret_value()
             if settings.qdrant_api_key
             else None,
+            timeout=QDRANT_TIMEOUT_S,
         )
         if not client.collection_exists(settings.collection):
             raise RuntimeError(
