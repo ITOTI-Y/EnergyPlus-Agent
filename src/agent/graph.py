@@ -15,6 +15,7 @@ from src.agent.nodes import (
     intake_node,
     lights_agent,
     material_agent,
+    observe_node,
     people_agent,
     plan_rerun_node,
     schedule_agent,
@@ -54,7 +55,7 @@ def build_graph() -> CompiledStateGraph[AgentState, SimContext, AgentState, Agen
     """Build and compile the multi-phase agent graph.
 
     Topology:
-        intake -> plan_rerun
+        observe -> intake -> plan_rerun    observe reads the images, if any
           -> phase 1 [zone, material, schedule] (parallel)
           -> cross_ref_foundations -> construction -> surface -> fenestration
           -> phase 3 [hvac, people, lights, equipment] (parallel)
@@ -69,6 +70,7 @@ def build_graph() -> CompiledStateGraph[AgentState, SimContext, AgentState, Agen
     """
     builder = StateGraph(AgentState, context_schema=SimContext)
 
+    builder.add_node("observe", observe_node)
     builder.add_node("intake", intake_node)
 
     builder.add_node("plan_rerun", plan_rerun_node)
@@ -90,7 +92,9 @@ def build_graph() -> CompiledStateGraph[AgentState, SimContext, AgentState, Agen
     builder.add_node("validate", validate_node)
     builder.add_node("simulate", simulate_node)
 
-    builder.add_edge(START, "intake")
+    # Images are read once; validate sends revisions to intake, past this.
+    builder.add_edge(START, "observe")
+    builder.add_edge("observe", "intake")
 
     builder.add_edge("intake", "plan_rerun")
     builder.add_edge("plan_rerun", "zone")

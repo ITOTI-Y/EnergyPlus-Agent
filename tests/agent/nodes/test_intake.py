@@ -1,13 +1,13 @@
 import json
 
-from src.agent.nodes.intake import _tool, unpack_leaked_fields
+from src.agent.nodes._share import strict_tool, unpack_leaked_fields
 from src.agent.state import IntakeOutput, IntakePatch
 
 
 def test_intake_tools_offer_no_empty_choices():
     # Gemini rejects "" in tool enums; idfpy uses it for blank fields.
     for schema in (IntakeOutput, IntakePatch):
-        tool = json.dumps(_tool(schema))
+        tool = json.dumps(strict_tool(schema))
 
         assert '"enum"' in tool
         assert '""' not in tool

@@ -37,7 +37,7 @@ from src.configs.config import LLMConfig
 load_dotenv()
 
 
-def _load_config() -> LLMConfig:
+def load_llm_config() -> LLMConfig:
     raw = OmegaConf.load(
         Path(__file__).resolve().parent.parent / "configs" / "llm.yaml"
     )
@@ -54,7 +54,7 @@ def create_llm(config: LLMConfig | None = None) -> BaseChatModel:
         A BaseChatModel routed to the configured provider.
     """
     if config is None:
-        config = _load_config()
+        config = load_llm_config()
 
     kwargs: dict[str, Any] = {
         "max_tokens": config.max_tokens,
@@ -72,6 +72,29 @@ def create_llm(config: LLMConfig | None = None) -> BaseChatModel:
     if config.api_key:
         kwargs["api_key"] = config.api_key
     return init_chat_model(config.model_name, model_provider=config.provider, **kwargs)
+
+
+def create_vision_llm(config: LLMConfig | None = None) -> BaseChatModel:
+    """The chat model that reads input images: the configured one, renamed.
+
+    It sends no temperature: Claude 5.5 models reject any, and reading a
+    photo needs no sampling setting of its own.
+
+    Raises:
+        ValueError: If no vision model is configured (LLM_VISION_MODEL).
+    """
+    if config is None:
+        config = load_llm_config()
+    if config.vision_model_name is None:
+        raise ValueError(
+            "images need a vision model; set LLM_VISION_MODEL, or give the "
+            "building in text only"
+        )
+    return create_llm(
+        config.model_copy(
+            update={"model_name": config.vision_model_name, "temperature": None}
+        )
+    )
 
 
 @wrap_model_call

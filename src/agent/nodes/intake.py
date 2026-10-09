@@ -1,19 +1,12 @@
 from __future__ import annotations
 
-import base64
-import re
-from collections.abc import Callable, Iterable
-from pathlib import Path
-from typing import Any, Final, Literal, TypedDict, cast
-
-from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
-from langchain_core.utils.function_calling import convert_to_openai_tool
+from langchain_core.messages import HumanMessage, SystemMessage
 from langgraph.runtime import Runtime
 from loguru import logger
-from pydantic import BaseModel
 
 from src.agent._share import language_directive
 from src.agent.llm import create_llm
+from src.agent.nodes._share import structured
 from src.agent.phases import DEPENDS_ON, PHASE_TYPES, Phase, owner, rerun_closure
 from src.agent.state import (
     AgentState,
@@ -23,29 +16,10 @@ from src.agent.state import (
     SimContext,
 )
 
-
-class TextContentPart(TypedDict):
-    """LangChain multimodal text content part."""
-
-    type: Literal["text"]
-    text: str
-
-
-class ImageContentPart(TypedDict):
-    """LangChain multimodal image content part (base64-encoded)."""
-
-    type: Literal["image"]
-    source_type: Literal["base64"]
-    mime_type: str
-    data: str
-
-
-ContentPart = TextContentPart | ImageContentPart
-
 INTAKE_SYSTEM_PROMPT = """You are an EnergyPlus building-simulation intake specialist.
-Given a building description (text and optional architectural drawings —
-floorplan, elevation, section, axonometric, perspective, etc.), extract
-structured specifications for every subsystem.
+Given a building description in text, and optionally a reading of its
+photos or drawings by a vision model, extract structured specifications
+for every subsystem.
 
 You MUST invoke the IntakeOutput tool to return the structured JSON.
 Do NOT respond with a text/JSON message — always use the tool call.
@@ -135,27 +109,16 @@ Rules:
    default ~120 W/person for seated office work.
 """
 
-_IMAGE_SUFFIX_TO_MIME = {
-    ".png": "image/png",
-    ".jpg": "image/jpeg",
-    ".jpeg": "image/jpeg",
-    ".webp": "image/webp",
-    ".gif": "image/gif",
-}
-
-
-def _load_image_part(path: str) -> ImageContentPart:
-    """Load an image file and return a multimodal content part."""
-    p = Path(path)
-    mime = _IMAGE_SUFFIX_TO_MIME.get(p.suffix.lower(), "image/png")
-    data = base64.b64encode(p.read_bytes()).decode("ascii")
-    return ImageContentPart(
-        type="image",
-        source_type="base64",
-        mime_type=mime,
-        data=data,
-    )
-
+PHOTO_READING_INTRO = """Photo reading (a vision model's reading of the attached photos or
+drawings; counts and dimensions are estimates). Build the zones from it:
+give each block its own zone plans placed where `position` says, on the
+storeys `bottom_storey` to `bottom_storey + storeys - 1`; split each
+block's plan into perimeter zones about 4.5 m deep along its exterior
+walls and an interior zone when it is deeper than about 12 m, and a core
+block into its own zone. Use its storey count, a typical storey with a
+multiplier for the repeated floors, and the facade window types and
+window-to-wall ratios for `fenestration_specs`. Values the text gives take
+precedence over the reading."""
 
 REVISION_PROMPT = """The specifications below were built and checked. Fix
 the problems listed after them by returning an IntakePatch:
@@ -171,127 +134,19 @@ A problem in an object a phase built from an unchanged, correct
 specification may need no change here: that phase gets the problem as
 feedback and builds again."""
 
-MAX_STRUCTURED_ATTEMPTS: Final = 2
-"""A model replying with text instead of the tool call usually complies
-when told so once."""
-
-
-def _without_empty_choices(node: Any) -> Any:
-    """The schema with "" removed from enums.
-
-    idfpy allows "" (leave blank) in many choices; Gemini rejects empty enum
-    values in tool declarations. Replies are still validated by the model.
-    """
-    if isinstance(node, dict):
-        return {
-            key: [v for v in value if v != ""]
-            if key == "enum" and isinstance(value, list)
-            else _without_empty_choices(value)
-            for key, value in node.items()
-        }
-    if isinstance(node, list):
-        return [_without_empty_choices(v) for v in node]
-    return node
-
-
-def _tool(schema: type[BaseModel]) -> dict[str, Any]:
-    """The schema as a strict tool: every field required, no extra keys.
-
-    Without strict mode Haiku now and then left out required specs (e.g.
-    construction_specs) and repeated the omission when told.
-    """
-    return _without_empty_choices(convert_to_openai_tool(schema, strict=True))
-
-
-_LEAKED_FIELD_START = re.compile(r'<(?:parameter name="(\w+)"|(\w+))>')
-
-
-def unpack_leaked_fields(args: dict[str, Any], fields: Iterable[str]) -> list[str]:
-    """Move fields written as XML into a string field back to their own keys.
-
-    Haiku sometimes ends a string argument with its closing tag and writes
-    the following arguments in its native tool format inside it, e.g.
-    ``'...</lights_specs>\n<parameter name="equipment_specs">...'``, leaving
-    those fields missing. The text after the closing tag is cut off; each
-    field opened there runs to the next field's opening tag or the end, less
-    its closing tag, and fills its key unless the key is set (the first of
-    repeated fields wins).
-
-    Returns:
-        The fields filled, in ``args``, which is changed in place.
-    """
-    known = set(fields)
-    filled: list[str] = []
-    for key in list(args):
-        value = args[key]
-        if not isinstance(value, str) or f"</{key}>" not in value:
-            continue
-        own, _, rest = value.partition(f"</{key}>")
-        args[key] = own.strip()
-        starts = [
-            (m, name)
-            for m in _LEAKED_FIELD_START.finditer(rest)
-            if (name := m[1] or m[2]) in known
-        ]
-        for i, (match, name) in enumerate(starts):
-            stop = starts[i + 1][0].start() if i + 1 < len(starts) else len(rest)
-            text = rest[match.end() : stop].partition(f"</{name}>")[0]
-            if name not in args:
-                args[name] = text.strip()
-                filled.append(name)
-    return filled
-
-
-def _structured[T: BaseModel, R](
-    schema: type[T], messages: list[BaseMessage], check: Callable[[T], R]
-) -> tuple[T, R]:
-    """Call the LLM for ``schema`` as a forced tool call, retrying once.
-
-    The tool is the schema without empty enum values (see
-    ``_without_empty_choices``); the arguments are validated with the full
-    model. ``check`` turns the parsed reply into the result the caller
-    needs; a ValueError from it, like invalid arguments, is sent back to the
-    LLM for one more attempt.
-
-    Raises:
-        RuntimeError: If no attempt gives a usable reply.
-    """
-    llm = create_llm().with_structured_output(
-        _tool(schema), method="function_calling", include_raw=True, strict=True
-    )
-    problem = ""
-    for _ in range(MAX_STRUCTURED_ATTEMPTS):
-        result = cast(dict[str, Any], llm.invoke(messages))
-        try:
-            if result.get("parsed") is None:
-                raw: BaseMessage | None = result.get("raw")
-                raise ValueError(
-                    f"no {schema.__name__} tool call (parsing error "
-                    f"{result.get('parsing_error')!r}; reply "
-                    f"{repr(raw.content if raw is not None else raw)[:300]})"
-                )
-            args = dict(result["parsed"])
-            if filled := unpack_leaked_fields(args, schema.model_fields):
-                logger.warning("intake: fields written inside others: {}", filled)
-            parsed = schema.model_validate(args)
-            return parsed, check(parsed)
-        except ValueError as e:  # pydantic.ValidationError is a ValueError
-            problem = str(e)
-        logger.warning("intake: unusable reply: {}", problem)
-        messages = [
-            *messages,
-            HumanMessage(
-                content=f"Your reply was unusable: {problem}. Call the "
-                f"{schema.__name__} tool again with a corrected argument."
-            ),
-        ]
-    raise RuntimeError(f"intake gave no usable {schema.__name__}: {problem}")
-
 
 def _brief(state: AgentState) -> HumanMessage:
-    parts: list[ContentPart] = [TextContentPart(type="text", text=state.user_input)]
-    parts += [_load_image_part(path) for path in state.image_paths]
-    return HumanMessage(content=cast("list[str | dict[str, Any]]", parts))
+    """The brief, with the photo reading when images were given.
+
+    Intake sees the reading, not the images: the vision model read them in
+    its own call, and revisions resend no image.
+    """
+    if state.photo_reading is None:
+        return HumanMessage(content=state.user_input)
+    reading = state.photo_reading.model_dump_json(indent=1)
+    return HumanMessage(
+        content=f"{state.user_input}\n\n{PHOTO_READING_INTRO}\n{reading}"
+    )
 
 
 def _revision(state: AgentState, previous: IntakeOutput) -> HumanMessage:
@@ -331,10 +186,13 @@ def intake_node(state: AgentState, runtime: Runtime[SimContext]) -> AgentStateUp
     system = SystemMessage(content=rules + language_directive())
     previous = state.intake_output
     if previous is None:
-        output, _ = _structured(IntakeOutput, [system, _brief(state)], lambda o: o)
+        output, _ = structured(
+            create_llm(), IntakeOutput, [system, _brief(state)], lambda o: o
+        )
         rerun: set[Phase] = set(PHASE_TYPES)
     else:
-        patch, (output, changed) = _structured(
+        patch, (output, changed) = structured(
+            create_llm(),
             IntakePatch,
             [system, _brief(state), _revision(state, previous)],
             lambda p: p.apply(previous),
