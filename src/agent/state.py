@@ -35,6 +35,12 @@ class ZoneGeometrySchema(BaseModel):
     )
     floor_z: float = Field(description="Floor level in meters; 0 on the ground")
     height: float = Field(gt=0, description="Floor-to-ceiling height in meters")
+    multiplier: int = Field(
+        default=1,
+        ge=1,
+        description="Identical storeys this zone stands for: N for a typical "
+        "floor modelled once at its lowest storey; 1 otherwise",
+    )
     exterior_wall_construction: str
     roof_construction: str
     ground_floor_construction: str = Field(

@@ -247,6 +247,8 @@ class _Face:
     plane: _Plane
     remainder: Polygon
     pairs: list[tuple[Polygon, BuildingSurfaceDetailed]] = field(default_factory=list)
+    selves: list[Polygon] = field(default_factory=list)
+    """Overlaps with zones of another multiplier: they face themselves."""
 
 
 def _zone_faces(
@@ -266,8 +268,17 @@ def _zone_faces(
     ]
 
 
+def multiplier(idf: IDF, zone_name: str) -> int:
+    zone = idf.get(Zone, zone_name)
+    return int(zone.multiplier or 1) if zone is not None else 1
+
+
 def _zone_extents(idf: IDF) -> dict[str, tuple[Polygon, float, float]]:
-    """Plan and height range of every zone that has floors."""
+    """Plan and the height range each zone stands for.
+
+    A zone with multiplier N models one storey of N identical ones stacked
+    above it, so it stands for N times its height.
+    """
     floors: dict[str, list[Polygon]] = {}
     heights: dict[str, list[float]] = {}
     for surface in idf.all_of_type(BuildingSurfaceDetailed).values():
@@ -277,10 +288,15 @@ def _zone_extents(idf: IDF) -> dict[str, tuple[Polygon, float, float]]:
             floors.setdefault(surface.zone_name, []).append(
                 Polygon([(x, y) for x, y, _ in points]).buffer(0)
             )
-    return {
-        zone: (union_all(plans), min(heights[zone]), max(heights[zone]))
-        for zone, plans in floors.items()
-    }
+    extents = {}
+    for zone, plans in floors.items():
+        low, high = min(heights[zone]), max(heights[zone])
+        extents[zone] = (
+            union_all(plans),
+            low,
+            low + multiplier(idf, zone) * (high - low),
+        )
+    return extents
 
 
 def _check_inputs(
@@ -291,6 +307,7 @@ def _check_inputs(
     z1: float,
     constructions: ZoneConstructions,
 ) -> None:
+    """Raises on invalid inputs; ``z1`` is the top the zone stands for."""
     objects.get(idf, Zone, zone_name)
     if not footprint.is_valid or footprint.area < MIN_AREA_M2:
         raise ValueError(
@@ -378,7 +395,9 @@ def _plan(
     faces: list[_Face],
     replaced: list[BuildingSurfaceDetailed],
     left: dict[str, tuple[_Plane, Polygon]],
+    others_selves: dict[str, list[Polygon]],
     names: _Names,
+    stacked: bool,
 ) -> list[_Planned]:
     """Surfaces replacing the split ones, and the faces of the new zone.
 
@@ -387,6 +406,24 @@ def _plan(
     planned: list[_Planned] = []
     for surface in replaced:
         plane, shape = left[surface.name]
+        for name, piece in zip(
+            names.take(
+                f"{surface.name}_Self", len(others_selves.get(surface.name, []))
+            ),
+            others_selves.get(surface.name, []),
+            strict=True,
+        ):
+            kind = "Ceiling" if surface.surface_type == "Roof" else surface.surface_type
+            planned.append(
+                _self_paired(
+                    idf,
+                    name,
+                    kind,
+                    surface.zone_name,
+                    constructions,
+                    plane.lift(piece, facing=-1),
+                )
+            )
         pieces = _polygons(shape)
         for name, piece in zip(
             names.take(surface.name, len(pieces)), pieces, strict=True
@@ -405,8 +442,29 @@ def _plan(
         own_type, boundary, construction = _own_side(
             face.surface_type, z0, constructions
         )
-        pieces = _polygons(face.remainder)
         base = f"{zone_name}_{face.role}"
+        # In a stack of identical storeys, the faces between storeys face
+        # identical ones: they refer to themselves, as in the DOE prototypes.
+        stack_face = stacked and (
+            face.surface_type == "Roof"
+            or (face.surface_type == "Floor" and boundary != "Ground")
+        )
+        selves = [*face.selves, *(_polygons(face.remainder) if stack_face else [])]
+        kind = "Ceiling" if face.surface_type == "Roof" else face.surface_type
+        for name, piece in zip(
+            names.take(f"{base}_Self", len(selves)), selves, strict=True
+        ):
+            planned.append(
+                _self_paired(
+                    idf,
+                    name,
+                    kind,
+                    zone_name,
+                    constructions,
+                    face.plane.lift(piece, facing=1),
+                )
+            )
+        pieces = [] if stack_face else _polygons(face.remainder)
         for name, piece in zip(names.take(base, len(pieces)), pieces, strict=True):
             planned.append(
                 _Planned(
@@ -459,6 +517,33 @@ def _plan(
     return planned
 
 
+def _self_paired(
+    idf: IDF,
+    name: str,
+    kind: SurfaceType,
+    zone: str,
+    constructions: ZoneConstructions,
+    points: list[Point],
+) -> _Planned:
+    """A face whose outside sees conditions equal to its inside."""
+    if kind == "Wall":
+        construction = constructions.interior_wall
+    elif kind == "Ceiling":
+        construction = reversed_construction(idf, constructions.interior_floor)
+    else:
+        construction = constructions.interior_floor
+    return _Planned(name, kind, zone, construction, "Surface", points, name)
+
+
+def _stacks(idf: IDF, zone_name: str) -> list[tuple[Polygon, float, float]]:
+    """Plan, floor level and represented top of the other multiplied zones."""
+    return [
+        (plan, low, top)
+        for other, (plan, low, top) in _zone_extents(idf).items()
+        if other != zone_name and multiplier(idf, other) > 1
+    ]
+
+
 def create_zone_geometry(
     idf: IDF,
     zone_name: str,
@@ -473,9 +558,16 @@ def create_zone_geometry(
     becomes an interzone pair: walls with the interior wall construction;
     floors and ceilings with the interior floor construction, a roof under
     the overlap turning into a ceiling. The ceiling, or the wall of the
-    zone already there, gets the construction with its layers reversed. Elsewhere walls are outdoors, the
-    floor is on the ground at z <= 0 and outdoors above it, and the top is
-    a flat roof.
+    zone already there, gets the construction with its layers reversed.
+    Elsewhere walls are outdoors, the floor is on the ground at z <= 0 and
+    outdoors above it, and the top is a flat roof.
+
+    A zone whose multiplier is N models one storey of N identical ones, as
+    the DOE prototypes model typical floors: its floor (above ground) and
+    top refer to themselves, faces shared with zones of another multiplier
+    refer to themselves on both sides, and a floor resting on the top such
+    a stack stands for (N storeys up) refers to itself too. Zones with the
+    same multiplier pair as usual.
 
     Raises:
         ObjectNotFoundError: If the zone does not exist.
@@ -485,7 +577,9 @@ def create_zone_geometry(
     """
     footprint = Polygon([(p.x, p.y) for p in plan])
     z0, z1 = floor_z, floor_z + height
-    _check_inputs(idf, zone_name, footprint, z0, z1, constructions)
+    count = multiplier(idf, zone_name)
+    represented_top = z0 + count * height
+    _check_inputs(idf, zone_name, footprint, z0, represented_top, constructions)
 
     others = [
         s
@@ -496,24 +590,60 @@ def create_zone_geometry(
     ]
     # Shape left of each touched surface, in the plane of the face touching it.
     left: dict[str, tuple[_Plane, Polygon]] = {}
+    others_selves: dict[str, list[Polygon]] = {}
+
+    def meet(face: _Face, other: BuildingSurfaceDetailed, emit: bool) -> None:
+        """Split ``face`` and ``other`` where they overlap.
+
+        Zones with the same multiplier pair; otherwise both overlaps face
+        themselves. A virtual face (``emit`` False) only splits ``other``.
+        """
+        _, shape = left.get(
+            other.name, (face.plane, face.plane.flat(other.vertices_as_tuples))
+        )
+        for overlap in _polygons(face.remainder.intersection(shape)):
+            if multiplier(idf, other.zone_name) == count and emit:
+                face.pairs.append((overlap, other))
+            else:
+                face.selves.append(overlap)
+                others_selves.setdefault(other.name, []).append(overlap)
+            face.remainder = face.remainder.difference(overlap)
+            shape = shape.difference(overlap)
+        left[other.name] = (face.plane, shape)
+
     faces: list[_Face] = []
     for role, surface_type, points in _zone_faces(footprint, z0, z1):
         face = _Face(role, surface_type, _Plane.of(points), Polygon())
         face.remainder = face.plane.flat(points)
         for other in others:
-            if not face.plane.faces(_Plane.of(other.vertices_as_tuples)):
-                continue
-            _, shape = left.get(
-                other.name, (face.plane, face.plane.flat(other.vertices_as_tuples))
-            )
-            for overlap in _polygons(face.remainder.intersection(shape)):
-                face.pairs.append((overlap, other))
-                face.remainder = face.remainder.difference(overlap)
-                shape = shape.difference(overlap)
-            left[other.name] = (face.plane, shape)
+            if face.plane.faces(_Plane.of(other.vertices_as_tuples)):
+                meet(face, other, emit=True)
+        if surface_type in ("Floor", "Roof"):
+            # A floor resting on the top a stack of storeys stands for, or a
+            # top under a stack's floor; the stack's own faces already refer
+            # to themselves, whichever zone came first.
+            level = z0 if surface_type == "Floor" else z1
+            for stack_plan, stack_low, stack_top in _stacks(idf, zone_name):
+                touching = stack_top if surface_type == "Floor" else stack_low
+                if abs(touching - level) <= TOLERANCE_M:
+                    for overlap in _polygons(face.remainder.intersection(stack_plan)):
+                        face.selves.append(overlap)
+                        face.remainder = face.remainder.difference(overlap)
         faces.append(face)
+    if count > 1:
+        # Floors of other zones resting on the top this stack stands for.
+        _, _, top_points = _zone_faces(footprint, represented_top, represented_top)[-1]
+        top = _Face("StackTop", "Roof", _Plane.of(top_points), Polygon())
+        top.remainder = top.plane.flat(top_points)
+        for other in others:
+            if top.plane.faces(_Plane.of(other.vertices_as_tuples)):
+                meet(top, other, emit=False)
 
-    replaced = [s for s in others if any(o is s for f in faces for _, o in f.pairs)]
+    replaced = [
+        s
+        for s in others
+        if s.name in others_selves or any(o is s for f in faces for _, o in f.pairs)
+    ]
     for surface in replaced:
         if referrers := surface.referencing():
             raise ReferencedObjectError(
@@ -525,7 +655,18 @@ def create_zone_geometry(
     names = _Names(idf, {s.name for s in replaced})
     constructions_before = set(idf.all_of_type(Construction))
     try:
-        planned = _plan(idf, zone_name, z0, constructions, faces, replaced, left, names)
+        planned = _plan(
+            idf,
+            zone_name,
+            z0,
+            constructions,
+            faces,
+            replaced,
+            left,
+            others_selves,
+            names,
+            stacked=count > 1,
+        )
         _apply(idf, replaced, planned)
     except (ModelingError, ValueError):
         for name in set(idf.all_of_type(Construction)) - constructions_before:

@@ -461,3 +461,101 @@ def test_complex_layouts_simulate(layout, tmp_path):
     )
 
     assert result.succeeded, result.errors
+
+
+def _stacked_building(order: list[str]) -> IDF:
+    """Ground storey, a typical storey standing for 8, and a top storey.
+
+    Office and atrium share each storey; the ground atrium is two storeys
+    high, so its top meets the typical storey's floor.
+    """
+    idf = _model()
+    office, atrium = _rect(0, 0, 10, 8), _rect(10, 0, 16, 8)
+    zones = {
+        "Office_G": (office, 0.0, 4.0, 1),
+        "Office_2": (office, 4.0, 3.5, 1),
+        "Atrium_G": (atrium, 0.0, 7.5, 1),
+        "Office_T": (office, 7.5, 3.5, 8),
+        "Atrium_T": (atrium, 7.5, 3.5, 8),
+        "Office_Top": (office, 7.5 + 8 * 3.5, 3.5, 1),
+        "Atrium_Top": (atrium, 7.5 + 8 * 3.5, 3.5, 1),
+    }
+    for name in order:
+        plan, z, height, count = zones[name]
+        idf.add(Zone(name=name, multiplier=count))
+        create_zone_geometry(idf, name, plan, z, height, CONSTRUCTIONS)
+    return idf
+
+
+STACK_ORDERS = [
+    [
+        "Office_G",
+        "Office_2",
+        "Atrium_G",
+        "Office_T",
+        "Atrium_T",
+        "Office_Top",
+        "Atrium_Top",
+    ],
+    [
+        "Atrium_Top",
+        "Office_T",
+        "Office_Top",
+        "Atrium_T",
+        "Office_2",
+        "Office_G",
+        "Atrium_G",
+    ],
+]
+
+
+@pytest.mark.parametrize("order", STACK_ORDERS, ids=["bottom_up", "shuffled"])
+def test_typical_storeys_face_themselves_like_the_doe_prototypes(order):
+    idf = _stacked_building(order)
+    surfaces = list(idf.all_of_type(BuildingSurfaceDetailed).values())
+
+    def faces(zone: str, *types: str) -> set[str]:
+        return {
+            "self"
+            if s.outside_boundary_condition_object == s.name
+            else s.outside_boundary_condition
+            for s in surfaces
+            if s.zone_name == zone and s.surface_type in types
+        }
+
+    assert model_issues(idf) == []
+    # The typical storey refers to itself above and below.
+    assert faces("Office_T", "Floor", "Ceiling") == {"self"}
+    assert faces("Atrium_T", "Floor", "Ceiling") == {"self"}
+    # Groups do not exchange heat vertically: the storey below the stack
+    # and the top storey, resting on the 8 storeys it stands for.
+    assert faces("Office_2", "Ceiling") == {"self"}
+    assert faces("Atrium_G", "Ceiling") == {"self"}
+    assert faces("Office_Top", "Floor") == {"self"}
+    # Only real outdoor and ground faces remain, and walls within a group pair.
+    assert faces("Office_G", "Floor") == {"Ground"}
+    assert faces("Office_Top", "Roof") == {"Outdoors"}
+    assert faces("Office_T", "Wall") == {"Outdoors", "Surface"}
+    assert faces("Atrium_G", "Wall") == {"Outdoors", "Surface"}
+
+
+def test_zone_inside_the_storeys_a_stack_stands_for_is_rejected():
+    idf = _model()
+    idf.add(Zone(name="Typical", multiplier=8))
+    create_zone_geometry(idf, "Typical", _rect(0, 0, 10, 8), 4.0, 3.5, CONSTRUCTIONS)
+
+    with pytest.raises(ValueError, match="overlap zone 'Typical'"):
+        _zone(idf, "Storey_5", _rect(0, 0, 10, 8), 4.0 + 4 * 3.5, 3.5)
+
+
+@pytest.mark.skipif(shutil.which("energyplus") is None, reason="EnergyPlus not on PATH")
+def test_stacked_building_simulates(tmp_path):
+    idf = _stacked_building(STACK_ORDERS[0])
+    add_design_days(idf, DATA / "weather" / "Shenzhen.ddy")
+    idf.save(tmp_path / "in.idf")
+
+    result = run_energyplus(
+        tmp_path / "in.idf", DATA / "weather" / "Shenzhen.epw", tmp_path
+    )
+
+    assert result.succeeded, result.errors

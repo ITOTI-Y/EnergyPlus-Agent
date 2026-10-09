@@ -17,7 +17,7 @@ def zone_node(state: AgentState) -> AgentStateUpdate:
     local = state.config_state.model_copy(deep=True)
     zones = state.intake_output.zones
     for zone in zones:
-        objects.create(local.idf, Zone(name=zone.name))
+        objects.create(local.idf, Zone(name=zone.name, multiplier=zone.multiplier))
     return AgentStateUpdate(
         config_state=local,
         messages=[AIMessage(content=f"[zone] Created {len(zones)} zones.")],
