@@ -38,6 +38,12 @@ Fields:
   and the zones are named by plan key. Code builds walls, floors and flat
   roofs from this and pairs faces shared by two zones. Zones must not
   overlap.
+  When the brief gives no internal layout for a rectangular block of at
+  least 12.14 m by 12.14 m (e.g. an office floor), give it ONE plan with
+  `zoning` 'perimeter_core': code splits it into the standard 4.57 m
+  perimeter zones and a core, named '<storey>_<key>_N', '_E', '_S', '_W'
+  and '_Core'; use these names in the other fields. Plans the brief lays
+  out, and narrow or non-rectangular blocks, keep `zoning` 'single'.
   Repeated typical floors are modelled once, as the DOE prototypes do:
   the ground storey and the top storey with multiplier 1, and between
   them ONE typical storey with `multiplier` = the number of typical
@@ -111,14 +117,19 @@ Rules:
 
 PHOTO_READING_INTRO = """Photo reading (a vision model's reading of the attached photos or
 drawings; counts and dimensions are estimates). Build the zones from it:
-give each block its own zone plans placed where `position` says, on the
-storeys `bottom_storey` to `bottom_storey + storeys - 1`; split each
-block's plan into perimeter zones about 4.5 m deep along its exterior
-walls and an interior zone when it is deeper than about 12 m, and a core
-block into its own zone. Use its storey count, a typical storey with a
-multiplier for the repeated floors, and the facade window types and
-window-to-wall ratios for `fenestration_specs`. Values the text gives take
-precedence over the reading."""
+- each block is ONE rectangular plan placed where `position` says, side by
+  side or on top of the others, never overlapping another plan on the same
+  storey: a core beside the tower is next to the tower's plan, not inside
+  it;
+- a block's plan is on the storeys `bottom_storey` to `bottom_storey +
+  storeys - 1`, with a typical storey and a multiplier for repeated
+  floors;
+- office, podium and tower plans of at least 12.14 m by 12.14 m take
+  `zoning` 'perimeter_core'; a service core and narrow blocks take
+  'single';
+- the facade window types and window-to-wall ratios go into
+  `fenestration_specs`.
+Values the text gives take precedence over the reading."""
 
 REVISION_PROMPT = """The specifications below were built and checked. Fix
 the problems listed after them by returning an IntakePatch:

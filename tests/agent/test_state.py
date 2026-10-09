@@ -216,3 +216,13 @@ def test_copied_and_checkpointed_models_resolve_references_in_themselves():
         # Phase nodes work on copies, and checkpoints pickle the state; a
         # lookup must not reach back into the original model.
         assert wall.outside_layer_ref is copy.idf.get(Material, "Brick")
+
+
+def test_a_plan_too_narrow_for_perimeter_core_is_sent_back_to_intake():
+    narrow = zone_spec("Wing", [(0, 0), (40, 0), (40, 10), (0, 10)])
+    plans = layout(narrow)
+    plans["zone_plans"][0]["zoning"] = "perimeter_core"
+
+    # A validation error is what intake's structured call returns to the LLM.
+    with pytest.raises(ValidationError, match="too short for perimeter_core"):
+        intake(**plans)

@@ -19,6 +19,7 @@ from src.agent._share import DEFAULT_OUTPUT_DIR, MAX_GLOBAL_RETRIES
 from src.agent.phases import Phase
 from src.modeling.geometry import PlanPointSchema
 from src.modeling.validation import ModelIssue
+from src.modeling.zoning import perimeter_core
 from src.reference.search import ReferenceSearch
 from src.state.config_state import ConfigState
 
@@ -32,6 +33,13 @@ class ZonePlanSchema(BaseModel):
     )
     plan: list[PlanPointSchema] = Field(
         description="Floor plan corners (X, Y in meters) in order around the zone"
+    )
+    zoning: Literal["single", "perimeter_core"] = Field(
+        default="single",
+        description="'single': the plan is one zone '<storey>_<key>'. "
+        "'perimeter_core': code splits the rectangle into four 4.57 m deep "
+        "perimeter zones and a core zone, '<storey>_<key>_N', '_E', '_S', "
+        "'_W' and '_Core' (needs both sides of at least 12.14 m)",
     )
     exterior_wall_construction: str
     roof_construction: str
@@ -155,24 +163,47 @@ class IntakeOutput(BaseModel):
     @property
     def zones(self) -> list[ZoneGeometrySchema]:
         """Every zone: each plan on each storey, named '<storey>_<plan key>'
-        (the plan key alone on a storey named ''), at its storey's level."""
+        (the plan key alone on a storey named ''), at its storey's level; a
+        'perimeter_core' plan gives five zones with the side as a suffix.
+
+        Raises:
+            ValueError: If a 'perimeter_core' plan cannot be split.
+        """
         plans = {p.key: p for p in self.zone_plans}
         # One more bottom than storeys: the last is the top of the building.
         bottoms = accumulate(
             (s.height * s.multiplier for s in self.storeys), initial=0.0
         )
-        return [
-            ZoneGeometrySchema(
-                name=f"{storey.name}_{entry.plan}" if storey.name else entry.plan,
-                plan=plans[entry.plan].plan,
-                floor_z=floor_z,
-                height=entry.height or storey.height,
-                multiplier=storey.multiplier,
-                **plans[entry.plan].model_dump(exclude={"key", "plan"}),
-            )
-            for storey, floor_z in zip(self.storeys, bottoms, strict=False)
-            for entry in storey.zones
-        ]
+        zones = []
+        for storey, floor_z in zip(self.storeys, bottoms, strict=False):
+            for entry in storey.zones:
+                plan = plans[entry.plan]
+                name = f"{storey.name}_{entry.plan}" if storey.name else entry.plan
+                parts = (
+                    [(name, plan.plan)]
+                    if plan.zoning == "single"
+                    else [
+                        (
+                            f"{name}_{side}",
+                            [PlanPointSchema(x=x, y=y) for x, y in corners],
+                        )
+                        for side, corners in perimeter_core(
+                            [(q.x, q.y) for q in plan.plan]
+                        )
+                    ]
+                )
+                zones += [
+                    ZoneGeometrySchema(
+                        name=part_name,
+                        plan=corners,
+                        floor_z=floor_z,
+                        height=entry.height or storey.height,
+                        multiplier=storey.multiplier,
+                        **plan.model_dump(exclude={"key", "plan", "zoning"}),
+                    )
+                    for part_name, corners in parts
+                ]
+        return zones
 
     @model_validator(mode="after")
     def _plans_exist_and_names_are_unique(self) -> Self:
