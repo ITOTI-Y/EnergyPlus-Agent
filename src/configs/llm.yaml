@@ -2,6 +2,7 @@ provider: "openai"
 base_url: ${oc.env:LLM_BASE_URL,null}
 api_key: ${oc.env:LLM_API_KEY,null}
 model_name: ${oc.env:LLM_MODEL,null}
+vision_model_name: ${oc.env:LLM_VISION_MODEL,null}
 temperature: ${oc.decode:${oc.env:LLM_TEMPERATURE,0.7}}
 max_tokens: 16384
 timeout: 120

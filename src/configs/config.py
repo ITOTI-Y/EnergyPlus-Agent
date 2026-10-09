@@ -18,6 +18,10 @@ class LLMConfig(BaseModel):
         default=None, description="The base URL of the LLM model"
     )
     model_name: str = Field(..., description="The name of the LLM model to use")
+    vision_model_name: str | None = Field(
+        default=None,
+        description="Model that reads input images; without one, images are refused",
+    )
     temperature: float | None = Field(
         default=None,
         ge=0.0,
