@@ -15,8 +15,10 @@ from src.agent.state import (
     AgentStateUpdate,
     IntakeOutput,
     IntakePatch,
+    PhotoReadingSchema,
     SimContext,
 )
+from src.agent.storeys import storeys_from_reading
 
 INTAKE_SYSTEM_PROMPT = """You are an EnergyPlus building-simulation intake specialist.
 Given a building description in text, and optionally a reading of its
@@ -122,19 +124,23 @@ Rules:
 
 PHOTO_READING_INTRO = """Photo reading (a vision model's reading of the attached photos or
 drawings; counts and dimensions are estimates). Build the zones from it:
-- each block is ONE rectangular plan placed where `position` says, side by
-  side or on top of the others, never overlapping another plan on the same
-  storey: a core beside the tower is next to the tower's plan, not inside
-  it;
-- a block's plan is on the storeys `bottom_storey` to `bottom_storey +
-  storeys - 1`, with a typical storey and a multiplier for repeated
-  floors;
+- give each block ONE rectangular plan, placed where `position` says, side
+  by side or on top of the others, never overlapping another plan of a
+  block on the same storeys: a core beside the tower is next to the
+  tower's plan, not inside it;
+- set each plan's `block` to its block's `name` exactly; every block gets
+  a plan;
+- give `storeys` as an empty list: code builds them from the blocks'
+  storeys and the reading's storey heights, named 'S<n>' by their first
+  storey (a typical storey stands for the ones above it), so zones are
+  named like 'S5_Tower_N'. In the other fields name zones by plan, e.g.
+  "all zones of plan Tower", not by storey;
 - office, podium and tower plans of at least 12.14 m by 12.14 m take
   `zoning` 'perimeter_core'; a service core and narrow blocks take
   'single';
 - the facade window types and window-to-wall ratios go into
   `fenestration_specs`.
-Values the text gives take precedence over the reading."""
+Other values the text gives take precedence over the reading."""
 
 REVISION_PROMPT = """The specifications below were built and checked. Fix
 the problems listed after them by returning an IntakePatch:
@@ -162,6 +168,23 @@ def _brief(state: AgentState) -> HumanMessage:
     reading = state.photo_reading.model_dump_json(indent=1)
     return HumanMessage(
         content=f"{state.user_input}\n\n{PHOTO_READING_INTRO}\n{reading}"
+    )
+
+
+def with_reading_storeys(
+    output: IntakeOutput, reading: PhotoReadingSchema | None
+) -> IntakeOutput:
+    """The output with its storeys built from the photo reading, if any.
+
+    Raises:
+        ValueError: If the plans and the reading's blocks do not match (see
+            ``storeys_from_reading``); intake gets the reason and corrects it.
+    """
+    if reading is None:
+        return output
+    storeys = storeys_from_reading(output.zone_plans, reading)
+    return IntakeOutput.model_validate(
+        output.model_dump() | {"storeys": [s.model_dump() for s in storeys]}
     )
 
 
@@ -202,16 +225,34 @@ def intake_node(state: AgentState, runtime: Runtime[SimContext]) -> AgentStateUp
     system = SystemMessage(content=rules + language_directive())
     previous = state.intake_output
     if previous is None:
-        output, _ = structured(
-            create_llm(), IntakeOutput, [system, _brief(state)], lambda o: o
+        # The checked result, not the reply: with a reading it has the storeys.
+        _, output = structured(
+            create_llm(),
+            IntakeOutput,
+            [system, _brief(state)],
+            lambda o: with_reading_storeys(o, state.photo_reading),
         )
         rerun: set[Phase] = set(PHASE_TYPES)
     else:
+
+        def apply(patch: IntakePatch) -> tuple[IntakeOutput, set[Phase]]:
+            if state.photo_reading is not None:
+                # Storeys follow from the plans and the reading alone; built
+                # first, they are checked and compared like any patch field.
+                plans = (
+                    previous.zone_plans
+                    if patch.zone_plans is None
+                    else patch.zone_plans
+                )
+                storeys = storeys_from_reading(plans, state.photo_reading)
+                patch = patch.model_copy(update={"storeys": storeys})
+            return patch.apply(previous)
+
         patch, (output, changed) = structured(
             create_llm(),
             IntakePatch,
             [system, _brief(state), _revision(state, previous)],
-            lambda p: p.apply(previous),
+            apply,
         )
         logger.info(
             "intake revision sets {}, changing {}: {}",
