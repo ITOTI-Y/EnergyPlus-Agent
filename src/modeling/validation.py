@@ -109,6 +109,8 @@ def interzone_issues(idf: IDF) -> list[ModelIssue]:
         )
         if partner is None:
             continue  # reported by reference_issues
+        if partner is surface:
+            continue  # faces itself: a storey between identical ones
         if partner.outside_boundary_condition_object != surface.name:
             problem = (
                 f"partner '{partner.name}' does not name it back "

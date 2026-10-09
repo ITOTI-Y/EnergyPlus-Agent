@@ -58,6 +58,14 @@ Fields:
   walls and interior floors. Code builds the walls, floor and flat roof
   from these, and pairs faces shared by two zones. Zones must not
   overlap; zones on upper storeys start at the sum of the heights below.
+  Repeated typical floors are modelled once, as the DOE prototypes do:
+  the ground storey and the top storey with multiplier 1, and between
+  them one typical storey at its real level with `multiplier` = the
+  number of typical storeys (e.g. 19 for storeys 2-20 of 21). Zones on
+  one storey share the multiplier of that storey. A space through
+  several storeys (atrium) is split the same way into a ground, a
+  typical (same multiplier) and a top part; its horizontal faces between
+  parts are modelled as interior floors.
 - `*_specs`: one natural-language instruction string per subsystem agent.
   `surface_specs` is only for sloped or pitched roofs and sloped walls;
   leave it empty when every zone has vertical walls and a flat roof.
