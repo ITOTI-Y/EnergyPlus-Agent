@@ -1,10 +1,12 @@
 from langchain_core.messages import AIMessage
-from pydantic import BaseModel, Field
+from pydantic import Field
 
 from src.agent.llm import build_agent
 from src.agent.nodes._share import (
+    PhaseReport,
     invoke_with_self_repair,
     last_message_text,
+    missing_input_issues,
     skipped,
     with_feedback,
 )
@@ -32,7 +34,8 @@ Rules:
 - `zone_name`, `heating_setpoint_schedule_name`, `cooling_setpoint_schedule_name`,
   `template_thermostat_name`, `system_availability_schedule_name` MUST all
   appear verbatim in the respective list_* results.
-- If a needed zone or schedule is missing, STOP and report; do NOT invent names.
+- If a needed zone or schedule is missing, do NOT invent a name and do NOT
+  list again: give your final answer at once, with it in `missing_inputs`.
 - Every zone with the same setpoint schedules references the same
   thermostat template. Each zone is still controlled on its own: EnergyPlus
   expands the template into a separate ZoneControl:Thermostat per zone.
@@ -42,7 +45,7 @@ Rules:
 """
 
 
-class HVACResponse(BaseModel):
+class HVACResponse(PhaseReport):
     """Structured summary returned by the HVAC phase agent."""
 
     thermostat_names: list[str] = Field(description="Names of all thermostats created")
@@ -77,5 +80,6 @@ def hvac_agent(state: AgentState) -> AgentStateUpdate:
     record_phase_trace("hvac", collector.export())
     return AgentStateUpdate(
         config_state=local,
+        build_issues=missing_input_issues("hvac", response),
         messages=[AIMessage(content=f"[hvac] {summary}")],
     )

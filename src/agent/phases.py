@@ -18,7 +18,7 @@ from idfpy.models.thermal_zones import (
     Zone,
 )
 
-from src.modeling.envelope import MATERIAL_TYPES
+from src.modeling.envelope import MATERIAL_TYPES, construction_kind
 from src.modeling.validation import ModelIssue
 
 if TYPE_CHECKING:
@@ -103,6 +103,33 @@ def missing_output_issues(
                 )
             )
     return issues
+
+
+def window_construction_issues(idf: IDF, intake: IntakeOutput) -> list[ModelIssue]:
+    """Windows asked for, none built, and no window construction to build them.
+
+    The fenestration phase cannot make constructions; blaming the
+    construction phase reruns it, then fenestration after it.
+    """
+    glazed = any(
+        f.surface_type in ("Window", "GlassDoor")
+        for f in idf.all_of_type(FenestrationSurfaceDetailed).values()
+    )
+    windows = any(
+        construction_kind(c) == "window" for c in idf.all_of_type(Construction).values()
+    )
+    if not has_task(intake, "fenestration") or glazed or windows:
+        return []
+    return [
+        ModelIssue(
+            Construction.idf_object_type(),
+            None,
+            None,
+            "The fenestration specification asks for windows, but no "
+            "construction is a window construction (glazing layers only); "
+            "create the window constructions it needs.",
+        )
+    ]
 
 
 def rerun_closure(phases: set[Phase]) -> set[Phase]:

@@ -1,10 +1,12 @@
 from langchain_core.messages import AIMessage
-from pydantic import BaseModel, Field
+from pydantic import Field
 
 from src.agent.llm import build_agent
 from src.agent.nodes._share import (
+    PhaseReport,
     invoke_with_self_repair,
     last_message_text,
+    missing_input_issues,
     skipped,
     with_feedback,
 )
@@ -31,7 +33,9 @@ Workflow:
 
 Rules:
 - Construction names MUST appear verbatim in the list_constructions
-  result; if one is missing, STOP and report; do NOT invent names.
+  result. If one is missing (e.g. no construction of kind `window`), do
+  NOT invent a name and do NOT list again: give your final answer at once,
+  with it in `missing_inputs`.
 - Window and GlassDoor need a construction of kind `window`; Door needs
   kind `opaque`.
 - For create_fenestration: 3 or 4 vertices as dicts with X / Y / Z keys,
@@ -43,7 +47,7 @@ Rules:
 """
 
 
-class FenestrationResponse(BaseModel):
+class FenestrationResponse(PhaseReport):
     """Structured summary returned by the fenestration phase agent."""
 
     fenestration_names: list[str] = Field(
@@ -83,5 +87,6 @@ def fenestration_agent(state: AgentState) -> AgentStateUpdate:
     record_phase_trace("fenestration", collector.export())
     return AgentStateUpdate(
         config_state=local,
+        build_issues=missing_input_issues("fenestration", response),
         messages=[AIMessage(content=f"[fenestration] {summary}")],
     )

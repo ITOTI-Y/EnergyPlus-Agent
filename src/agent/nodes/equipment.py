@@ -1,10 +1,12 @@
 from langchain_core.messages import AIMessage
-from pydantic import BaseModel, Field
+from pydantic import Field
 
 from src.agent.llm import build_agent
 from src.agent.nodes._share import (
+    PhaseReport,
     invoke_with_self_repair,
     last_message_text,
+    missing_input_issues,
     skipped,
     with_feedback,
 )
@@ -26,7 +28,8 @@ Workflow:
 Rules:
 - `zone_name` and `schedule_name` MUST appear verbatim in the list_zones /
   list_schedules results.
-- If a needed zone or schedule is missing, STOP and report; do NOT invent names.
+- If a needed zone or schedule is missing, do NOT invent a name and do NOT
+  list again: give your final answer at once, with it in `missing_inputs`.
 - Use the names the specification gives; otherwise '{zone}_Equipment'.
 - design_level_calculation_method:
     * 'EquipmentLevel' -> supply design_level (W, absolute)
@@ -38,7 +41,7 @@ Rules:
 """
 
 
-class EquipmentResponse(BaseModel):
+class EquipmentResponse(PhaseReport):
     """Structured summary returned by the equipment phase agent."""
 
     equipment_names: list[str] = Field(
@@ -76,5 +79,6 @@ def equipment_agent(state: AgentState) -> AgentStateUpdate:
     record_phase_trace("equipment", collector.export())
     return AgentStateUpdate(
         config_state=local,
+        build_issues=missing_input_issues("equipment", response),
         messages=[AIMessage(content=f"[equipment] {summary}")],
     )

@@ -115,3 +115,13 @@ def test_delete_allowed_once_the_reference_moved_away():
     objects.delete(idf, objects.get(idf, Material, "Brick"), "Brick")
 
     assert idf.get(Material, "Brick") is None
+
+
+@pytest.mark.parametrize("name", ["None", "null", " NONE "])
+def test_create_rejects_placeholder_names(name):
+    idf = IDF()
+
+    with pytest.raises(ValueError, match="is not a name"):
+        objects.create(idf, _brick(name))
+
+    assert not idf.all_of_type(Material)

@@ -3,6 +3,7 @@ from src.agent.phases import (
     PHASE_TYPES,
     Phase,
     missing_output_issues,
+    window_construction_issues,
 )
 from src.agent.state import AgentState, AgentStateUpdate
 from src.modeling.validation import ModelIssue, completeness_issues, model_issues
@@ -34,4 +35,6 @@ def cross_ref_complete_node(state: AgentState) -> AgentStateUpdate:
     """Full check after every phase has run."""
     idf = state.config_state.idf
     issues = check_state(state, tuple(PHASE_TYPES)) + completeness_issues(idf)
+    if state.intake_output is not None:
+        issues += window_construction_issues(idf, state.intake_output)
     return AgentStateUpdate(validation_errors=issues)

@@ -4,12 +4,14 @@ from idfpy import IDF
 from idfpy.models.constructions import Construction
 from idfpy.models.thermal_zones import BuildingSurfaceDetailed, Zone
 from langchain_core.messages import AIMessage
-from pydantic import BaseModel, Field
+from pydantic import Field
 
 from src.agent.llm import build_agent
 from src.agent.nodes._share import (
+    PhaseReport,
     invoke_with_self_repair,
     last_message_text,
+    missing_input_issues,
     skipped,
     with_feedback,
 )
@@ -40,7 +42,8 @@ Workflow:
 
 Rules:
 - `zone_name` and construction names MUST appear verbatim in the
-  list results. If one is missing, STOP and report; do NOT invent names.
+  list results. If one is missing, do NOT invent a name and do NOT list
+  again: give your final answer at once, with it in `missing_inputs`.
 - A zone must stay closed: the new surfaces must cover exactly the
   opening left by the deleted faces.
 - Vertices are dicts with X / Y / Z keys in meters, counter-clockwise
@@ -48,7 +51,7 @@ Rules:
 """
 
 
-class SurfaceResponse(BaseModel):
+class SurfaceResponse(PhaseReport):
     """Structured summary returned by the surface phase agent."""
 
     surface_names: list[str] = Field(description="Names of all surfaces created")
@@ -126,9 +129,10 @@ def surface_agent(state: AgentState) -> AgentStateUpdate:
     summary = f"Extruded {len(state.intake_output.zones)} zones into {count} surfaces."
     specs = state.intake_output.surface_specs
     if specs.strip() and not issues:
-        summary += " " + _add_sloped_surfaces(
+        sloped, issues = _add_sloped_surfaces(
             local, with_feedback(specs, state, "surface")
         )
+        summary += " " + sloped
     return AgentStateUpdate(
         config_state=local,
         build_issues=issues,
@@ -136,7 +140,9 @@ def surface_agent(state: AgentState) -> AgentStateUpdate:
     )
 
 
-def _add_sloped_surfaces(local: ConfigState, specs: str) -> str:
+def _add_sloped_surfaces(
+    local: ConfigState, specs: str
+) -> tuple[str, list[ModelIssue]]:
     collector = TraceCollector(phase="surface")
     agent = build_agent(
         tools=make_surface_tools(local),
@@ -147,4 +153,5 @@ def _add_sloped_surfaces(local: ConfigState, specs: str) -> str:
     result = invoke_with_self_repair(agent, local, specs, phase="surface")
     record_phase_trace("surface", collector.export())
     response: SurfaceResponse | None = result.get("structured_response")
-    return response.summary if response else last_message_text(result)
+    summary = response.summary if response else last_message_text(result)
+    return summary, missing_input_issues("surface", response)

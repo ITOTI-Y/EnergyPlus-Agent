@@ -1,10 +1,12 @@
 from langchain_core.messages import AIMessage
-from pydantic import BaseModel, Field
+from pydantic import Field
 
 from src.agent.llm import build_agent
 from src.agent.nodes._share import (
+    PhaseReport,
     invoke_with_self_repair,
     last_message_text,
+    missing_input_issues,
     skipped,
     with_feedback,
 )
@@ -25,7 +27,8 @@ Workflow:
 Rules:
 - `zone_name`, `number_of_people_schedule_name`, `activity_level_schedule_name`
   MUST all appear verbatim in the list_zones / list_schedules results.
-- If a needed zone or schedule is missing, STOP and report; do NOT invent names.
+- If a needed zone or schedule is missing, do NOT invent a name and do NOT
+  list again: give your final answer at once, with it in `missing_inputs`.
 - Use the names the specification gives; otherwise '{zone}_People'.
 - Choose number_of_people_calculation_method based on input:
     * 'People' -> supply number_of_people (absolute count)
@@ -36,7 +39,7 @@ Rules:
 """
 
 
-class PeopleResponse(BaseModel):
+class PeopleResponse(PhaseReport):
     """Structured summary returned by the people phase agent."""
 
     people_names: list[str] = Field(description="Names of all People objects created")
@@ -70,5 +73,6 @@ def people_agent(state: AgentState) -> AgentStateUpdate:
     record_phase_trace("people", collector.export())
     return AgentStateUpdate(
         config_state=local,
+        build_issues=missing_input_issues("people", response),
         messages=[AIMessage(content=f"[people] {summary}")],
     )
