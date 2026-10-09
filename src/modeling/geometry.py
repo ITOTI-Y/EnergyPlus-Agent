@@ -273,6 +273,16 @@ def multiplier(idf: IDF, zone_name: str) -> int:
     return int(zone.multiplier or 1) if zone is not None else 1
 
 
+def storeys_below_geometry(count: int, floor_z: float) -> int:
+    """Storeys of a stack below the one its geometry is modelled at.
+
+    EnergyPlus advises modelling multiplied floors about halfway up, since
+    exterior convection depends on height; a stack on the ground stays
+    there to keep its ground contact.
+    """
+    return 0 if floor_z <= GROUND_Z + TOLERANCE_M else (count - 1) // 2
+
+
 def _zone_extents(idf: IDF) -> dict[str, tuple[Polygon, float, float]]:
     """Plan and the height range each zone stands for.
 
@@ -291,11 +301,9 @@ def _zone_extents(idf: IDF) -> dict[str, tuple[Polygon, float, float]]:
     extents = {}
     for zone, plans in floors.items():
         low, high = min(heights[zone]), max(heights[zone])
-        extents[zone] = (
-            union_all(plans),
-            low,
-            low + multiplier(idf, zone) * (high - low),
-        )
+        count = multiplier(idf, zone)
+        bottom = low - storeys_below_geometry(count, low) * (high - low)
+        extents[zone] = (union_all(plans), bottom, bottom + count * (high - low))
     return extents
 
 
@@ -563,7 +571,9 @@ def create_zone_geometry(
     outdoors above it, and the top is a flat roof.
 
     A zone whose multiplier is N models one storey of N identical ones, as
-    the DOE prototypes model typical floors: its floor (above ground) and
+    the DOE prototypes model typical floors; ``floor_z`` is the lowest of
+    them, and the geometry is placed at the middle one (see
+    ``storeys_below_geometry``). Its floor (above ground) and
     top refer to themselves, faces shared with zones of another multiplier
     refer to themselves on both sides, and a floor resting on the top such
     a stack stands for (N storeys up) refers to itself too. Zones with the
@@ -576,10 +586,11 @@ def create_zone_geometry(
         ReferencedObjectError: If a face to split carries openings.
     """
     footprint = Polygon([(p.x, p.y) for p in plan])
-    z0, z1 = floor_z, floor_z + height
     count = multiplier(idf, zone_name)
-    represented_top = z0 + count * height
-    _check_inputs(idf, zone_name, footprint, z0, represented_top, constructions)
+    represented_top = floor_z + count * height
+    _check_inputs(idf, zone_name, footprint, floor_z, represented_top, constructions)
+    z0 = floor_z + storeys_below_geometry(count, floor_z) * height
+    z1 = z0 + height
 
     others = [
         s
@@ -631,13 +642,15 @@ def create_zone_geometry(
                         face.remainder = face.remainder.difference(overlap)
         faces.append(face)
     if count > 1:
-        # Floors of other zones resting on the top this stack stands for.
-        _, _, top_points = _zone_faces(footprint, represented_top, represented_top)[-1]
-        top = _Face("StackTop", "Roof", _Plane.of(top_points), Polygon())
-        top.remainder = top.plane.flat(top_points)
-        for other in others:
-            if top.plane.faces(_Plane.of(other.vertices_as_tuples)):
-                meet(top, other, emit=False)
+        # Faces of other zones at the bottom and top this stack stands for:
+        # tops of the storey below, floors of the storey above.
+        for level, index in ((floor_z, -2), (represented_top, -1)):
+            role, kind, points = _zone_faces(footprint, level, level)[index]
+            bound = _Face(f"Stack{role}", kind, _Plane.of(points), Polygon())
+            bound.remainder = bound.plane.flat(points)
+            for other in others:
+                if bound.plane.faces(_Plane.of(other.vertices_as_tuples)):
+                    meet(bound, other, emit=False)
 
     replaced = [
         s

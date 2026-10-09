@@ -537,6 +537,15 @@ def test_typical_storeys_face_themselves_like_the_doe_prototypes(order):
     assert faces("Office_Top", "Roof") == {"Outdoors"}
     assert faces("Office_T", "Wall") == {"Outdoors", "Surface"}
     assert faces("Atrium_G", "Wall") == {"Outdoors", "Surface"}
+    # The typical storey's geometry sits at the middle of the 8 it stands
+    # for: 3 storeys above its lowest level, as EnergyPlus advises.
+    typical_floor_z = {
+        z
+        for s in surfaces
+        if s.zone_name == "Office_T"
+        for *_, z in s.vertices_as_tuples
+    }
+    assert min(typical_floor_z) == pytest.approx(7.5 + 3 * 3.5)
 
 
 def test_zone_inside_the_storeys_a_stack_stands_for_is_rejected():
