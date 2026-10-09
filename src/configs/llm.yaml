@@ -4,3 +4,8 @@ api_key: ${oc.env:LLM_API_KEY,null}
 model_name: ${oc.env:LLM_MODEL,null}
 temperature: 0.7
 max_tokens: 64000
+# Thinking budget of reasoning models (OpenRouter reasoning.max_tokens).
+# Without one, qwen/qwen3.8-27b spent all of an 8,000-token reply on
+# thinking; Gemini 3 maps it to a thinking level, and Claude does not think
+# under a forced tool call either way.
+reasoning_max_tokens: ${oc.decode:${oc.env:LLM_REASONING_MAX_TOKENS,4096}}

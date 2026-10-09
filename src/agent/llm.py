@@ -50,8 +50,11 @@ def create_llm(config: LLMConfig | None = None) -> BaseChatModel:
         "temperature": config.temperature,
         "max_tokens": config.max_tokens,
         "max_retries": config.max_retries,
-        "extra_body": {"max_thinking_budget": config.max_thinking_budget or 4096},
     }
+    if config.reasoning_max_tokens is not None:
+        kwargs["extra_body"] = {
+            "reasoning": {"max_tokens": config.reasoning_max_tokens}
+        }
     if config.base_url:
         kwargs["base_url"] = config.base_url
     if config.api_key:
