@@ -13,6 +13,7 @@ from src.agent.state import (
     AgentStateUpdate,
     IntakeOutput,
     IntakePatch,
+    PhotoReadingSchema,
     SimContext,
 )
 
@@ -160,6 +161,33 @@ def _brief(state: AgentState) -> HumanMessage:
     )
 
 
+def storeys_match_reading(
+    output: IntakeOutput, reading: PhotoReadingSchema | None
+) -> IntakeOutput:
+    """The output, if its storeys reach as high as the photo reading's blocks.
+
+    With a reading of 13 storeys, Haiku once modelled 3 and dropped the
+    tower; the count is the one fact the reading gives exactly, so it is
+    checked in code and a mismatch goes back to the LLM.
+
+    Raises:
+        ValueError: If the storeys, counted with their multipliers, differ
+            from the top of the reading's highest block.
+    """
+    if reading is None or not reading.blocks:
+        return output
+    expected = max(b.bottom_storey + b.storeys - 1 for b in reading.blocks)
+    given = sum(s.multiplier for s in output.storeys)
+    if given != expected:
+        raise ValueError(
+            f"the photo reading's highest block ends on storey {expected}, but "
+            f"`storeys` stand for {given} (multipliers summed); give every "
+            "block its storeys, the repeated ones as one typical storey with a "
+            "multiplier"
+        )
+    return output
+
+
 def _revision(state: AgentState, previous: IntakeOutput) -> HumanMessage:
     problems = [str(e) for e in state.validation_errors]
     if state.review_feedback:
@@ -198,15 +226,23 @@ def intake_node(state: AgentState, runtime: Runtime[SimContext]) -> AgentStateUp
     previous = state.intake_output
     if previous is None:
         output, _ = structured(
-            create_llm(), IntakeOutput, [system, _brief(state)], lambda o: o
+            create_llm(),
+            IntakeOutput,
+            [system, _brief(state)],
+            lambda o: storeys_match_reading(o, state.photo_reading),
         )
         rerun: set[Phase] = set(PHASE_TYPES)
     else:
+
+        def apply(patch: IntakePatch) -> tuple[IntakeOutput, set[Phase]]:
+            patched, changed = patch.apply(previous)
+            return storeys_match_reading(patched, state.photo_reading), changed
+
         patch, (output, changed) = structured(
             create_llm(),
             IntakePatch,
             [system, _brief(state), _revision(state, previous)],
-            lambda p: p.apply(previous),
+            apply,
         )
         logger.info(
             "intake revision sets {}, changing {}: {}",

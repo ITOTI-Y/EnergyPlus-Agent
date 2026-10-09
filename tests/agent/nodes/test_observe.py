@@ -6,9 +6,11 @@ from langchain_core.messages import HumanMessage
 from src.agent.llm import create_vision_llm
 from src.agent.nodes import intake as intake_module
 from src.agent.nodes import observe as observe_module
+from src.agent.nodes.intake import storeys_match_reading
 from src.agent.nodes.observe import load_image_part, observe_node
-from src.agent.state import AgentState, PhotoReadingSchema
+from src.agent.state import AgentState, IntakeOutput, PhotoReadingSchema
 from src.configs.config import LLMConfig
+from tests.agent.intake_data import intake, layout, zone_spec
 
 READING = PhotoReadingSchema.model_validate(
     {
@@ -102,3 +104,30 @@ def test_intake_gets_the_reading_as_text_and_no_image(tmp_path):
     assert brief.content.startswith("An office in Tokyo.")
     assert '"total_storeys": 15' in brief.content
     assert intake_module._brief(AgentState(user_input="brief")).content == "brief"
+
+
+def _storeys(*counts: tuple[str, int]) -> IntakeOutput:
+    plan = zone_spec("Office", [(0, 0), (20, 0), (20, 20), (0, 20)])
+    plans = layout(plan)["zone_plans"]
+    return intake(
+        zone_plans=plans,
+        storeys=[
+            {
+                "name": name,
+                "height": 3.5,
+                "multiplier": n,
+                "zones": [{"plan": "Office"}],
+            }
+            for name, n in counts
+        ],
+    )
+
+
+def test_intake_storeys_must_reach_the_top_of_the_highest_block():
+    # READING's tower runs from storey 4 for 12 storeys: up to storey 15.
+    whole = _storeys(("G", 1), ("L2", 2), ("T", 11), ("Top", 1))
+
+    assert storeys_match_reading(whole, READING) is whole
+    assert storeys_match_reading(_storeys(("G", 1)), None) is not None
+    with pytest.raises(ValueError, match=r"ends on storey 15.*stand for 3"):
+        storeys_match_reading(_storeys(("G", 1), ("L2", 1), ("L3", 1)), READING)
