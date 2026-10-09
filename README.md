@@ -105,6 +105,7 @@ EnergyPlus-Agent/
 │   │   ├── ground.py                 # Kiva slab foundations and exposed perimeters
 │   │   ├── surfaces.py               # Base surfaces, interzone pairs, batch creation
 │   │   ├── geometry.py               # Zone extrusion and pairing of shared faces
+│   │   ├── zoning.py                 # Perimeter and core zones of a rectangular plan
 │   │   ├── fenestration.py           # Opening placement, orientation and partners
 │   │   └── errors.py                 # Rejections reported to tool callers
 │   ├── runner/
