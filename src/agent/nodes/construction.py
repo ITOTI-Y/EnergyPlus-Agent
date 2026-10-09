@@ -20,9 +20,8 @@ CONSTRUCTION_SYSTEM_PROMPT = """You are a construction-assembly expert for Energ
 Given construction specifications, create all required Construction objects.
 
 Workflow:
-1. FIRST call `list_materials` to discover which materials are already
-   defined and their full properties (thickness, conductivity, U-Factor
-   for glazing, etc.). DO NOT skip this step — the materials phase uses
+1. FIRST call `list_materials` to discover the names and types of the
+   materials already defined. DO NOT skip this step — the materials phase uses
    names that may differ from what the intake spec suggested.
 2. Pick the correct layer composition for each construction using the
    material names returned by list_materials, verbatim.

@@ -12,20 +12,24 @@ from src.agent.trace import TraceCollector, record_phase_trace, trace_middleware
 MATERIAL_SYSTEM_PROMPT = """You are a building material expert for EnergyPlus.
 Given material specifications, create all required materials.
 
-Choose the correct material type:
-- create_standard_material for solid opaque layers with thermal mass
-  (brick, concrete, insulation board, gypsum). Requires thickness,
-  conductivity (W/m-K), density (kg/m^3), specific heat (J/kg-K).
-- create_nomass_material when only R-value is known (thin finishes, membranes).
-- create_airgap_material for enclosed air cavities in OPAQUE wall/roof
-  assemblies only. Never use it in a window.
+Create them with ONE `create_materials` call holding every material, each
+in the list of its type:
+- standard: solid opaque layers with thermal mass (brick, concrete,
+  insulation board, gypsum): thickness (m), conductivity (W/m-K), density
+  (kg/m^3), specific heat (J/kg-K).
+- nomass: when only the R-value is known (thin finishes, membranes).
+- airgap: enclosed air cavities in OPAQUE wall/roof assemblies only, never
+  in a window.
 - Windows, either:
-  * create_glazing_material for a simplified window given as a whole:
-    u_factor (W/m^2-K), solar_heat_gain_coefficient (0-1), optional
-    visible_transmittance (0-1). It is used as the only layer.
-  * or, for an explicit multi-pane window, create_window_glazing_material
-    for each glass pane (thickness in m) and create_window_gas_material for
-    the gap between panes (Air / Argon / Krypton / Xenon, thickness in m).
+  * simple_glazing for a window given as a whole: u_factor (W/m^2-K),
+    solar_heat_gain_coefficient (0-1), optional visible_transmittance
+    (0-1). It is used as the only layer.
+  * or, for an explicit multi-pane window, glass_panes for each pane
+    (thickness in m) and window_gases for the gap between panes (Air /
+    Argon / Krypton / Xenon, thickness in m).
+The reply of `create_materials` is final: it gives the counts and names
+only the materials that failed. Do NOT call list_materials to check; call
+`create_materials` again only for the failed ones, then give your answer.
 
 Rules:
 - Use the material names the specification gives, verbatim; constructions
@@ -34,7 +38,6 @@ Rules:
   'Window_U1p8_SHGC0p4').
 - Roughness options: VeryRough, Rough, MediumRough, MediumSmooth, Smooth, VerySmooth.
 - Use typical ASHRAE values when the description is vague.
-- Call list_materials once at the end to verify.
 """
 
 
