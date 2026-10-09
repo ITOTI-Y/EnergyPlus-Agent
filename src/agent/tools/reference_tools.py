@@ -45,9 +45,10 @@ def make_reference_tools(
     descriptions: dict[Kind, str] = {
         "material": """Find prototype materials similar to a description.
 
-        Each result's `data` holds the fields of create_* material tools
-        (WindowMaterial:Glazing calls solar transmittance
-        `solar_transmittance_at_normal_incidence`).
+        Each result's `data` holds the material's fields, as in the lists
+        of create_materials (WindowMaterial:Glazing calls solar
+        transmittance `solar_transmittance_at_normal_incidence`; a glass
+        pane's `solar_transmittance`).
 
         Args:
             query: What the material is for, in words.
