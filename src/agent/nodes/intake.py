@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import base64
-from collections.abc import Callable
+import re
+from collections.abc import Callable, Iterable
 from pathlib import Path
 from typing import Any, Final, Literal, TypedDict, cast
 
@@ -56,8 +57,7 @@ Fields:
   storeys. Give each distinct plan ONCE in `zone_plans` (key, corners X, Y
   in meters in order around the zone, and the constructions of its
   exterior walls, roof, ground floor, interior walls and interior floors),
-  then list EVERY storey bottom up in `storeys` (name, floor level =
-  the floor level below + its height x its multiplier,
+  then list EVERY storey bottom up in `storeys` (name, floor-to-floor
   height, multiplier, and the plan keys on it). Every zone is named
   '<storey name>_<plan key>' (e.g. 'L2_S1'); use exactly these names in
   every other field. For a single-storey building, name the storey ''
@@ -66,9 +66,9 @@ Fields:
   overlap.
   Repeated typical floors are modelled once, as the DOE prototypes do:
   the ground storey and the top storey with multiplier 1, and between
-  them ONE typical storey at the floor level of the first typical floor
-  with `multiplier` = the number of typical floors (e.g. 18 for storeys
-  3-20). A space through several storeys (atrium) is a plan on each of
+  them ONE typical storey with `multiplier` = the number of typical
+  floors (e.g. 18 for storeys 3-20). Floor levels are computed from the
+  heights and multipliers of the storeys below. A space through several storeys (atrium) is a plan on each of
   the ground, typical and top storeys. A zone taller than its storey
   (e.g. an 8 m lobby through storeys 1-2) sets `height` on its storey
   entry and is left out of the storey it reaches into.
@@ -203,6 +203,45 @@ def _tool(schema: type[BaseModel]) -> dict[str, Any]:
     return _without_empty_choices(convert_to_openai_tool(schema, strict=True))
 
 
+_LEAKED_FIELD_START = re.compile(r'<(?:parameter name="(\w+)"|(\w+))>')
+
+
+def unpack_leaked_fields(args: dict[str, Any], fields: Iterable[str]) -> list[str]:
+    """Move fields written as XML into a string field back to their own keys.
+
+    Haiku sometimes ends a string argument with its closing tag and writes
+    the following arguments in its native tool format inside it, e.g.
+    ``'...</lights_specs>\n<parameter name="equipment_specs">...'``, leaving
+    those fields missing. The text after the closing tag is cut off; each
+    field opened there runs to the next field's opening tag or the end, less
+    its closing tag, and fills its key unless the key is set (the first of
+    repeated fields wins).
+
+    Returns:
+        The fields filled, in ``args``, which is changed in place.
+    """
+    known = set(fields)
+    filled: list[str] = []
+    for key in list(args):
+        value = args[key]
+        if not isinstance(value, str) or f"</{key}>" not in value:
+            continue
+        own, _, rest = value.partition(f"</{key}>")
+        args[key] = own.strip()
+        starts = [
+            (m, name)
+            for m in _LEAKED_FIELD_START.finditer(rest)
+            if (name := m[1] or m[2]) in known
+        ]
+        for i, (match, name) in enumerate(starts):
+            stop = starts[i + 1][0].start() if i + 1 < len(starts) else len(rest)
+            text = rest[match.end() : stop].partition(f"</{name}>")[0]
+            if name not in args:
+                args[name] = text.strip()
+                filled.append(name)
+    return filled
+
+
 def _structured[T: BaseModel, R](
     schema: type[T], messages: list[BaseMessage], check: Callable[[T], R]
 ) -> tuple[T, R]:
@@ -231,7 +270,10 @@ def _structured[T: BaseModel, R](
                     f"{result.get('parsing_error')!r}; reply "
                     f"{repr(raw.content if raw is not None else raw)[:300]})"
                 )
-            parsed = schema.model_validate(result["parsed"])
+            args = dict(result["parsed"])
+            if filled := unpack_leaked_fields(args, schema.model_fields):
+                logger.warning("intake: fields written inside others: {}", filled)
+            parsed = schema.model_validate(args)
             return parsed, check(parsed)
         except ValueError as e:  # pydantic.ValidationError is a ValueError
             problem = str(e)

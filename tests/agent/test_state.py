@@ -152,10 +152,11 @@ def test_storeys_name_zones_and_carry_level_height_and_multiplier():
     output = intake(
         zone_plans=[plan | {"key": "Office"}, plan | {"key": "Lobby"}],
         storeys=[
-            {"name": "G", "floor_z": 0, "height": 4, "zones": [
+            {"name": "G", "height": 4, "zones": [
                 {"plan": "Office"}, {"plan": "Lobby", "height": 7.5}]},
-            {"name": "T", "floor_z": 4, "height": 3.5, "multiplier": 18,
+            {"name": "T", "height": 3.5, "multiplier": 18,
              "zones": [{"plan": "Office"}]},
+            {"name": "Top", "height": 3.5, "zones": [{"plan": "Office"}]},
         ],
     )  # fmt: skip
 
@@ -163,15 +164,10 @@ def test_storeys_name_zones_and_carry_level_height_and_multiplier():
         ("G_Office", 0, 4, 1),
         ("G_Lobby", 0, 7.5, 1),
         ("T_Office", 4, 3.5, 18),
+        ("Top_Office", 4 + 18 * 3.5, 3.5, 1),
     ]
-    with pytest.raises(ValidationError, match=r"8.0 \+ 18 x 3.5 = 71 m"):
-        intake(zone_plans=[plan | {"key": "Office"}], storeys=[
-            {"name": "T", "floor_z": 8, "height": 3.5, "multiplier": 18,
-             "zones": [{"plan": "Office"}]},
-            {"name": "Top", "floor_z": 70.5, "height": 3.5, "zones": [{"plan": "Office"}]},
-        ])  # fmt: skip
     with pytest.raises(ValidationError, match="not defined"):
-        intake(zone_plans=[], storeys=[{"name": "G", "floor_z": 0, "height": 3,
+        intake(zone_plans=[], storeys=[{"name": "G", "height": 3,
                                         "zones": [{"plan": "Office"}]}])  # fmt: skip
 
 

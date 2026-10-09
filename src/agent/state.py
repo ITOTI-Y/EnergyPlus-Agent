@@ -3,7 +3,7 @@ from __future__ import annotations
 import operator
 from collections.abc import Sequence
 from dataclasses import dataclass
-from itertools import pairwise
+from itertools import accumulate
 from pathlib import Path
 from typing import Annotated, Any, Final, Self
 
@@ -59,19 +59,22 @@ class StoreyZoneSchema(BaseModel):
 
 
 class StoreySchema(BaseModel):
-    """One storey, or a run of identical storeys modelled once."""
+    """One storey, or a run of identical storeys modelled once.
+
+    Storeys stack from the ground up: each starts where the one below ends,
+    so levels are computed, not given (Haiku got 8 + 18 x 3.5 wrong).
+    """
 
     name: str = Field(
         description="Short id, e.g. 'G', 'L2', 'T' or 'Top'; '' for a "
         "single-storey building, whose zones are then named by plan key"
     )
-    floor_z: float = Field(description="Floor level in meters; 0 on the ground")
     height: float = Field(gt=0, description="Floor-to-floor height in meters")
     multiplier: int = Field(
         default=1,
         ge=1,
-        description="Number of identical storeys this one stands for, from "
-        "floor_z up (e.g. 18 for storeys 3-20); 1 otherwise",
+        description="Number of identical storeys this one stands for "
+        "(e.g. 18 for storeys 3-20); 1 otherwise",
     )
     zones: list[StoreyZoneSchema] = Field(description="Plans on this storey")
 
@@ -152,18 +155,22 @@ class IntakeOutput(BaseModel):
     @property
     def zones(self) -> list[ZoneGeometrySchema]:
         """Every zone: each plan on each storey, named '<storey>_<plan key>'
-        (the plan key alone on a storey named '')."""
+        (the plan key alone on a storey named ''), at its storey's level."""
         plans = {p.key: p for p in self.zone_plans}
+        # One more bottom than storeys: the last is the top of the building.
+        bottoms = accumulate(
+            (s.height * s.multiplier for s in self.storeys), initial=0.0
+        )
         return [
             ZoneGeometrySchema(
                 name=f"{storey.name}_{entry.plan}" if storey.name else entry.plan,
                 plan=plans[entry.plan].plan,
-                floor_z=storey.floor_z,
+                floor_z=floor_z,
                 height=entry.height or storey.height,
                 multiplier=storey.multiplier,
                 **plans[entry.plan].model_dump(exclude={"key", "plan"}),
             )
-            for storey in self.storeys
+            for storey, floor_z in zip(self.storeys, bottoms, strict=False)
             for entry in storey.zones
         ]
 
@@ -178,15 +185,6 @@ class IntakeOutput(BaseModel):
         names = [z.name for z in self.zones]
         if repeated := sorted({n for n in names if names.count(n) > 1}):
             raise ValueError(f"zone names must be unique, repeated: {repeated}")
-        named = [s for s in self.storeys if s.name]
-        for below, above in pairwise(named):
-            expected = below.floor_z + below.multiplier * below.height
-            if abs(above.floor_z - expected) > 1e-3:
-                raise ValueError(
-                    f"storey '{above.name}' starts at {above.floor_z} m, but "
-                    f"'{below.name}' below it ends at {below.floor_z} + "
-                    f"{below.multiplier} x {below.height} = {expected:g} m"
-                )
         return self
 
 

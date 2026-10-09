@@ -9,29 +9,20 @@ _LAYOUT_FIELDS = ("zone_plans", "storeys")
 
 
 def layout(*zones: dict[str, Any]) -> dict[str, list[dict[str, Any]]]:
-    """``zone_plans`` and ``storeys`` holding the given zones.
+    """``zone_plans`` and ``storeys`` holding the given ground-level zones.
 
-    Each zone gets its own plan keyed by its name, on an unnamed storey per
-    level, so the zone keeps its name.
+    Each zone gets its own plan keyed by its name, all on one unnamed
+    storey, so every zone keeps its name.
     """
+    assert all(z["floor_z"] == 0 for z in zones), "zones must be on the ground"
     plans = [
-        {k: v for k, v in z.items() if k not in ("floor_z", "height", "multiplier")}
+        {k: v for k, v in z.items() if k not in ("name", "floor_z", "height")}
         | {"key": z["name"]}
         for z in zones
     ]
-    storeys: dict[tuple[float, float, int], list[dict[str, str]]] = {}
-    for z in zones:
-        level = (z["floor_z"], z["height"], z.get("multiplier", 1))
-        storeys.setdefault(level, []).append({"plan": z["name"]})
-    for plan in plans:
-        del plan["name"]
-    return {
-        "zone_plans": plans,
-        "storeys": [
-            {"name": "", "floor_z": z, "height": h, "multiplier": m, "zones": entries}
-            for (z, h, m), entries in storeys.items()
-        ],
-    }
+    entries = [{"plan": z["name"], "height": z["height"]} for z in zones]
+    storeys = [{"name": "", "height": 3.0, "zones": entries}] if zones else []
+    return {"zone_plans": plans, "storeys": storeys}
 
 
 def intake(zones: Sequence[dict[str, Any]] = (), **fields: Any) -> IntakeOutput:
