@@ -19,6 +19,7 @@ from langchain.agents.middleware import (
     wrap_model_call,
     wrap_tool_call,
 )
+from langchain.agents.structured_output import ToolStrategy
 from langchain.chat_models import init_chat_model
 from langchain.tools import BaseTool
 from langchain_core.language_models import BaseChatModel
@@ -28,6 +29,7 @@ from langgraph.runtime import Runtime
 from langgraph.types import Command
 from loguru import logger
 from omegaconf import OmegaConf
+from pydantic import BaseModel
 
 from src.agent._share import language_directive
 from src.configs.config import LLMConfig
@@ -212,16 +214,11 @@ class FailureLoopGuard(AgentMiddleware):
         }
 
 
-SUMMARY_DIRECTIVE: Final = (
-    "\n\nWhen done, reply with one line summarising what you created or "
-    "what is missing; that line is the phase summary."
-)
-
-
 def build_agent(
     config: LLMConfig | None = None,
     system_prompt: str | None = None,
     tools: list[BaseTool] | None = None,
+    response_format: type[BaseModel] | None = None,
     middleware: Sequence[AgentMiddleware] = (),
 ):
     """Build a tool-calling agent with optional structured final output.
@@ -231,6 +228,8 @@ def build_agent(
         system_prompt: Phase prompt; `language_directive()` is appended here
             so per-phase prompts stay free of language boilerplate.
         tools: Tools bound to the agent.
+        response_format: Pydantic schema for the final structured answer,
+            surfaced as `result["structured_response"]`.
         middleware: Extra middleware, e.g. `trace_middleware(collector)`.
 
     Returns:
@@ -239,7 +238,11 @@ def build_agent(
     return create_agent(
         model=create_llm(config),
         tools=tools or [],
-        system_prompt=(system_prompt or "") + SUMMARY_DIRECTIVE + language_directive(),
+        system_prompt=(system_prompt or "") + language_directive(),
+        # The final answer as a validated tool call, not free text. ToolStrategy
+        # over the provider's JSON-schema mode: Claude's structured outputs
+        # reject the idfpy schema keywords (note, units) that gateways pass on.
+        response_format=ToolStrategy(response_format) if response_format else None,
         middleware=[
             FailureLoopGuard(),
             # Phase agents resend their whole history on every call; this caps
