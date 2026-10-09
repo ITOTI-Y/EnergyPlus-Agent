@@ -12,8 +12,10 @@ from langgraph.prebuilt.tool_node import ToolCallRequest
 
 from src.agent.llm import (
     MAX_CONSECUTIVE_FAILURES,
+    MAX_REPEATED_CALLS,
     MAX_REPEATED_FAILURES,
     MAX_TOTAL_FAILURES,
+    REPEAT_NOTICE_AFTER,
     FailureLoopGuard,
     create_llm,
     serial_write_tools_middleware,
@@ -155,6 +157,19 @@ def test_guard_stops_identical_failing_calls():
     assert "with kwargs" not in str(tool_messages[0].content)
     assert guard.reason is not None
     assert messages[-1].content.startswith("Stopped: create_surface failed")
+
+
+def test_guard_notices_then_stops_a_repeated_successful_call():
+    # The reported loop: list_constructions re-called while a needed
+    # construction did not exist.
+    guard, messages = _run_guarded(_repeating_call("list_surfaces", lambda i: {}))
+
+    tool_messages = [m for m in messages if isinstance(m, ToolMessage)]
+    assert len(tool_messages) == MAX_REPEATED_CALLS
+    noticed = ["will not change" in str(m.content) for m in tool_messages]
+    assert noticed == [i + 1 >= REPEAT_NOTICE_AFTER for i in range(len(noticed))]
+    assert guard.reason is not None
+    assert messages[-1].content.startswith("Stopped: list_surfaces was called 6")
 
 
 def test_guard_stops_consecutive_failures_with_varying_arguments():
