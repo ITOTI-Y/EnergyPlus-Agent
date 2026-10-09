@@ -135,8 +135,11 @@ REPEAT_NOTICE_AFTER: Final = 3
 MAX_REPEATED_CALLS: Final = 6
 """Identical calls in a row, failing or not, before the run stops."""
 
-CONTEXT_TRIGGER_TOKENS: Final = 40_000
-"""Prompt size above which older tool outputs are replaced by a placeholder."""
+CONTEXT_TRIGGER_TOKENS: Final = 20_000
+"""Estimated history size above which older tool outputs become a placeholder.
+
+The middleware estimates 4 characters per token; the JSON tool traffic of
+the phases takes about 2, so this is about 40,000 real tokens."""
 
 _ARGUMENT_ECHO: Final = re.compile(
     r"^Error invoking tool '[^']+' with kwargs .*? with error:\s*", re.DOTALL
