@@ -9,7 +9,7 @@ from pydantic import ValidationError
 from src.agent import build_graph
 from src.agent.state import IntakePatch, merge_config_state
 from src.state.config_state import ConfigState
-from tests.agent.intake_data import intake, zone_spec
+from tests.agent.intake_data import intake, layout, zone_spec
 
 
 def test_config_states_stay_isolated_after_graph_build():
@@ -115,7 +115,9 @@ def test_patch_reports_phases_whose_input_changed():
     patch = IntakePatch.model_validate(
         {
             "reason": "r",
-            "zones": before.model_dump()["zones"],  # given but unchanged
+            # Layout given but unchanged.
+            "zone_plans": before.model_dump()["zone_plans"],
+            "storeys": before.model_dump()["storeys"],
             "hvac_specs": "ideal loads, 20/26 C",
         }
     )
@@ -127,14 +129,50 @@ def test_patch_reports_phases_whose_input_changed():
     assert after.zones == before.zones
 
 
-def test_patch_repeating_a_zone_name_is_rejected():
+def test_patch_repeating_a_plan_key_is_rejected():
     square = [(0, 0), (5, 0), (5, 5), (0, 5)]
     patch = IntakePatch.model_validate(
-        {"reason": "r", "zones": [zone_spec("A", square), zone_spec("A", square)]}
+        {"reason": "r", **layout(zone_spec("A", square), zone_spec("A", square))}
     )
 
     with pytest.raises(ValidationError, match="repeated"):
         patch.apply(intake())
+
+
+def test_storeys_name_zones_and_carry_level_height_and_multiplier():
+    square = [{"X": x, "Y": y} for x, y in [(0, 0), (5, 0), (5, 5), (0, 5)]]
+    plan = {
+        "plan": square,
+        "exterior_wall_construction": "Wall",
+        "roof_construction": "Wall",
+        "ground_floor_construction": "Slab",
+        "interior_wall_construction": "Wall",
+        "interior_floor_construction": "Slab",
+    }
+    output = intake(
+        zone_plans=[plan | {"key": "Office"}, plan | {"key": "Lobby"}],
+        storeys=[
+            {"name": "G", "floor_z": 0, "height": 4, "zones": [
+                {"plan": "Office"}, {"plan": "Lobby", "height": 7.5}]},
+            {"name": "T", "floor_z": 4, "height": 3.5, "multiplier": 18,
+             "zones": [{"plan": "Office"}]},
+        ],
+    )  # fmt: skip
+
+    assert [(z.name, z.floor_z, z.height, z.multiplier) for z in output.zones] == [
+        ("G_Office", 0, 4, 1),
+        ("G_Lobby", 0, 7.5, 1),
+        ("T_Office", 4, 3.5, 18),
+    ]
+    with pytest.raises(ValidationError, match=r"8.0 \+ 18 x 3.5 = 71 m"):
+        intake(zone_plans=[plan | {"key": "Office"}], storeys=[
+            {"name": "T", "floor_z": 8, "height": 3.5, "multiplier": 18,
+             "zones": [{"plan": "Office"}]},
+            {"name": "Top", "floor_z": 70.5, "height": 3.5, "zones": [{"plan": "Office"}]},
+        ])  # fmt: skip
+    with pytest.raises(ValidationError, match="not defined"):
+        intake(zone_plans=[], storeys=[{"name": "G", "floor_z": 0, "height": 3,
+                                        "zones": [{"plan": "Office"}]}])  # fmt: skip
 
 
 @pytest.mark.parametrize(
@@ -151,7 +189,7 @@ def test_zone_patch_rebuilds_zones_only_when_names_change(second, phases):
     )
     moved = zone_spec(second, [(5, 0), (10, 0), (10, 5), (5, 5)])
     patch = IntakePatch.model_validate(
-        {"reason": "r", "zones": [zone_spec("A", square), moved]}
+        {"reason": "r", **layout(zone_spec("A", square), moved)}
     )
 
     _, changed = patch.apply(before)

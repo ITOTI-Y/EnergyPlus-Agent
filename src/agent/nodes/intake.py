@@ -52,20 +52,26 @@ Fields:
 - `building`: EnergyPlus Building object (name, terrain, convergence tolerances)
 - `site_location`: EnergyPlus Site:Location object (latitude, longitude,
   time_zone, elevation)
-- `zones`: every thermal zone as a prism: name, floor plan corners
-  (X, Y in meters, in order around the zone), floor level, height, and
-  the constructions of its exterior walls, roof, ground floor, interior
-  walls and interior floors. Code builds the walls, floor and flat roof
-  from these, and pairs faces shared by two zones. Zones must not
-  overlap; zones on upper storeys start at the sum of the heights below.
+- `zone_plans` and `storeys`: the zones, as floor plans placed on
+  storeys. Give each distinct plan ONCE in `zone_plans` (key, corners X, Y
+  in meters in order around the zone, and the constructions of its
+  exterior walls, roof, ground floor, interior walls and interior floors),
+  then list EVERY storey bottom up in `storeys` (name, floor level =
+  the floor level below + its height x its multiplier,
+  height, multiplier, and the plan keys on it). Every zone is named
+  '<storey name>_<plan key>' (e.g. 'L2_S1'); use exactly these names in
+  every other field. For a single-storey building, name the storey ''
+  and the zones are named by plan key. Code builds walls, floors and flat
+  roofs from this and pairs faces shared by two zones. Zones must not
+  overlap.
   Repeated typical floors are modelled once, as the DOE prototypes do:
   the ground storey and the top storey with multiplier 1, and between
-  them one typical storey at its real level with `multiplier` = the
-  number of typical storeys (e.g. 19 for storeys 2-20 of 21). Zones on
-  one storey share the multiplier of that storey. A space through
-  several storeys (atrium) is split the same way into a ground, a
-  typical (same multiplier) and a top part; its horizontal faces between
-  parts are modelled as interior floors.
+  them ONE typical storey at the floor level of the first typical floor
+  with `multiplier` = the number of typical floors (e.g. 18 for storeys
+  3-20). A space through several storeys (atrium) is a plan on each of
+  the ground, typical and top storeys. A zone taller than its storey
+  (e.g. an 8 m lobby through storeys 1-2) sets `height` on its storey
+  entry and is left out of the storey it reaches into.
 - `*_specs`: one natural-language instruction string per subsystem agent.
   `surface_specs` is only for sloped or pitched roofs and sloped walls;
   leave it empty when every zone has vertical walls and a flat roof.
@@ -79,7 +85,7 @@ Rules:
 4. Internal consistency is CRITICAL — the phase agents work from your
    specs. Names referenced across subsystems must MATCH EXACTLY
    (case, underscores, everything):
-   - Constructions named in `zones` / `surface_specs` /
+   - Constructions named in `zone_plans` / `surface_specs` /
      `fenestration_specs` must be defined in `construction_specs` with
      the IDENTICAL name, opaque for walls, roofs and floors. Give the
      interior floor layers from the ceiling below up to the floor above;
@@ -89,7 +95,8 @@ Rules:
      must be defined in `schedule_specs` with the IDENTICAL name.
    - Zones named in `surface_specs` / `fenestration_specs` /
      `people_specs` / `lights_specs` / `equipment_specs` / `hvac_specs`
-     must appear in `zones` with the IDENTICAL name.
+     must be zones of `storeys` and `zone_plans`, named
+     '<storey>_<plan key>' exactly.
    Pick names once, reuse them verbatim. No synonyms, no pluralization.
 5. Name format — EVERY Name field (building.name, site_location.name,
    zone / material / construction / surface / fenestration / schedule /
@@ -154,7 +161,8 @@ REVISION_PROMPT = """The specifications below were built and checked. Fix
 the problems listed after them by returning an IntakePatch:
 - set ONLY the fields that must change and omit all others: an omitted
   field keeps its value, and resending an unchanged field only costs time;
-- `zones` replaces the whole zone list, so give every zone when you set it;
+- `zone_plans` and `storeys` each replace the whole list, so give every
+  plan or storey when you set one;
 - a phase whose field you change is rebuilt from scratch together with
   the phases that depend on it; keep other fields unchanged so their
   objects are kept;
