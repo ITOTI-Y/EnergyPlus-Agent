@@ -1,11 +1,13 @@
 from langchain_core.messages import AIMessage
 from langgraph.runtime import Runtime
-from pydantic import BaseModel, Field
+from pydantic import Field
 
 from src.agent.llm import build_agent
 from src.agent.nodes._share import (
+    PhaseReport,
     invoke_with_self_repair,
     last_message_text,
+    missing_input_issues,
     skipped,
     with_feedback,
 )
@@ -30,8 +32,9 @@ Workflow:
 Rules:
 - Layer names passed to `create_construction` MUST appear verbatim in
   the list_materials result (exact case, underscores, dashes, numbers).
-- If a needed material is missing from list_materials, STOP and report
-  the gap; do NOT invent names or call create with a broken reference.
+- If a needed material is missing from list_materials, do NOT invent a
+  name, do NOT call create with a broken reference and do NOT list
+  again: give your final answer at once, with it in `missing_inputs`.
 - Use the construction names the specification gives, verbatim: zones and
   openings reference them. Only for constructions it does not name, use
   separate ones per surface type when thermal properties differ (e.g.,
@@ -49,7 +52,7 @@ Rules:
 """
 
 
-class ConstructionResponse(BaseModel):
+class ConstructionResponse(PhaseReport):
     """Structured summary returned by the construction phase agent."""
 
     construction_names: list[str] = Field(
@@ -95,5 +98,6 @@ def construction_agent(
     record_phase_trace("construction", collector.export())
     return AgentStateUpdate(
         config_state=local,
+        build_issues=missing_input_issues("construction", response),
         messages=[AIMessage(content=f"[construction] {summary}")],
     )

@@ -1,6 +1,6 @@
 import json
 
-from idfpy.models.constructions import Material
+from idfpy.models import Material
 from langchain_core.messages import ToolCall
 from langchain_core.tools import BaseTool
 

@@ -5,7 +5,7 @@ them from ``IDF.validate()``; these operations reject them at the call
 instead, so a tool caller learns about a typo when it makes it.
 """
 
-from typing import Any
+from typing import Any, Final
 
 from idfpy import IDF, IDFBaseModel, RefError
 
@@ -35,15 +35,22 @@ def missing_references(idf: IDF, obj: IDFBaseModel, name: str) -> list[str]:
     return [f"{err.field_name}: {err.detail}" for err in errors]
 
 
+PLACEHOLDER_NAMES: Final = frozenset({"none", "null", "undefined", "nan"})
+
+
 def create[T: IDFBaseModel](idf: IDF, obj: T) -> T:
     """Add ``obj`` after checking its name is free and its references exist.
 
     Raises:
+        ValueError: If the name is a placeholder such as 'None'.
         DuplicateNameError: If an object of the same type has the name.
         MissingReferenceError: If a reference names no existing object.
     """
     object_type = obj.idf_object_type()
     name = getattr(obj, "name", None) or object_type
+    if name.strip().lower() in PLACEHOLDER_NAMES:
+        # A model that lost track of a name sends the string of a null.
+        raise ValueError(f"'{name}' is not a name; give the {object_type} a real one.")
     if hasattr(obj, "name") and idf.has(type(obj), name):
         raise DuplicateNameError(object_type, name)
     if missing := missing_references(idf, obj, name):
