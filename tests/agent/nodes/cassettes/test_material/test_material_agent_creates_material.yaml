@@ -1,52 +1,58 @@
 interactions:
 - request:
     body: '{"messages":[{"content":"You are a building material expert for EnergyPlus.\nGiven
-      material specifications, create all required materials.\n\nChoose the correct
-      material type:\n- create_standard_material for solid opaque layers with thermal
-      mass\n  (brick, concrete, insulation board, gypsum). Requires thickness,\n  conductivity
-      (W/m-K), density (kg/m^3), specific heat (J/kg-K).\n- create_nomass_material
-      when only R-value is known (thin finishes, membranes).\n- create_airgap_material
-      for enclosed air cavities in OPAQUE wall/roof\n  assemblies only. Never use
-      it in a window.\n- Windows, either:\n  * create_glazing_material for a simplified
-      window given as a whole:\n    u_factor (W/m^2-K), solar_heat_gain_coefficient
-      (0-1), optional\n    visible_transmittance (0-1). It is used as the only layer.\n  *
-      or, for an explicit multi-pane window, create_window_glazing_material\n    for
-      each glass pane (thickness in m) and create_window_gas_material for\n    the
-      gap between panes (Air / Argon / Krypton / Xenon, thickness in m).\n\nRules:\n-
-      Use the material names the specification gives, verbatim; constructions\n  reference
-      them. Name other materials uniquely and self-describing with\n  letters, digits
-      and ''_'' only (e.g., ''Brick_100mm'', ''EPS_Insulation_R5'',\n  ''Window_U1p8_SHGC0p4'').\n-
-      Roughness options: VeryRough, Rough, MediumRough, MediumSmooth, Smooth, VerySmooth.\n-
-      Use typical ASHRAE values when the description is vague.\n- Call list_materials
-      once at the end to verify.\n","role":"system"},{"content":"Create exactly one
-      standard material named ''Brick_100mm'': thickness 0.1 m, conductivity 0.89
-      W/m-K, density 1920 kg/m3, specific heat 790 J/kg-K, roughness MediumRough.","role":"user"}],"model":"google/gemini-3.8-flash","max_completion_tokens":16384,"parallel_tool_calls":false,"stream":false,"temperature":0.7,"tool_choice":"required","tools":[{"type":"function","function":{"name":"create_standard_material","description":"Create
-      a Standard material (solid layer with thermal mass).\n\n        Args:\n            name:
-      Unique material name.\n            roughness: Surface roughness.\n            thickness:
-      Meters, > 0.\n            conductivity: W/(m*K), > 0.\n            density:
-      kg/m^3, > 0.\n            specific_heat: J/(kg*K), > 0.","parameters":{"properties":{"name":{"type":"string"},"roughness":{"enum":["VeryRough","Rough","MediumRough","MediumSmooth","Smooth","VerySmooth"],"type":"string"},"thickness":{"type":"number"},"conductivity":{"type":"number"},"density":{"type":"number"},"specific_heat":{"type":"number"}},"required":["name","roughness","thickness","conductivity","density","specific_heat"],"type":"object"}}},{"type":"function","function":{"name":"create_nomass_material","description":"Create
-      a NoMass material (R-value only).\n\n        Args:\n            name: Unique
-      material name.\n            roughness: Surface roughness.\n            thermal_resistance:
-      R-value, m^2*K/W, > 0.","parameters":{"properties":{"name":{"type":"string"},"roughness":{"enum":["VeryRough","Rough","MediumRough","MediumSmooth","Smooth","VerySmooth"],"type":"string"},"thermal_resistance":{"type":"number"}},"required":["name","roughness","thermal_resistance"],"type":"object"}}},{"type":"function","function":{"name":"create_airgap_material","description":"Create
-      an AirGap material for opaque walls, roofs and floors.\n\n        Not for windows:
-      separate glass panes with create_window_gas_material.\n\n        Args:\n            name:
-      Unique material name.\n            thermal_resistance: Air cavity resistance,
-      m^2*K/W.","parameters":{"properties":{"name":{"type":"string"},"thermal_resistance":{"type":"number"}},"required":["name","thermal_resistance"],"type":"object"}}},{"type":"function","function":{"name":"create_glazing_material","description":"Create
-      a Glazing material (simplified window).\n\n        Args:\n            name:
-      Unique material name.\n            u_factor: Overall U-value, W/(m^2*K), > 0.\n            solar_heat_gain_coefficient:
-      SHGC, 0-1.\n            visible_transmittance: Optional VT, 0-1.","parameters":{"properties":{"name":{"type":"string"},"u_factor":{"type":"number"},"solar_heat_gain_coefficient":{"type":"number"},"visible_transmittance":{"anyOf":[{"type":"number"},{"type":"null"}],"default":null}},"required":["name","u_factor","solar_heat_gain_coefficient"],"type":"object"}}},{"type":"function","function":{"name":"create_window_glazing_material","description":"Create
-      one glass pane for a multi-pane window (WindowMaterial:Glazing).\n\n        Defaults
-      describe clear float glass; both faces share the reflectances.\n\n        Args:\n            name:
-      Unique material name.\n            thickness: Pane thickness in meters, e.g.
-      0.006.\n            solar_transmittance: At normal incidence, 0-1.\n            solar_reflectance:
-      At normal incidence, 0-1.\n            visible_transmittance: At normal incidence,
-      0-1.\n            visible_reflectance: At normal incidence, 0-1.\n            conductivity:
-      W/(m*K).","parameters":{"properties":{"name":{"type":"string"},"thickness":{"type":"number"},"solar_transmittance":{"default":0.775,"type":"number"},"solar_reflectance":{"default":0.071,"type":"number"},"visible_transmittance":{"default":0.881,"type":"number"},"visible_reflectance":{"default":0.08,"type":"number"},"conductivity":{"default":0.9,"type":"number"}},"required":["name","thickness"],"type":"object"}}},{"type":"function","function":{"name":"create_window_gas_material","description":"Create
-      the gas layer between two glass panes (WindowMaterial:Gas).\n\n        Args:\n            name:
-      Unique material name.\n            thickness: Gap width in meters, e.g. 0.012.\n            gas_type:
-      Fill gas.","parameters":{"properties":{"name":{"type":"string"},"thickness":{"type":"number"},"gas_type":{"default":"Air","enum":["Air","Argon","Krypton","Xenon"],"type":"string"}},"required":["name","thickness"],"type":"object"}}},{"type":"function","function":{"name":"list_materials","description":"List
-      all materials, with their EnergyPlus type.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"get_material","description":"Read
-      a material by name.","parameters":{"properties":{"name":{"type":"string"}},"required":["name"],"type":"object"}}},{"type":"function","function":{"name":"delete_material","description":"Delete
+      material specifications, create all required materials.\n\nCreate them with
+      ONE `create_materials` call holding every material, each\nin the list of its
+      type:\n- standard: solid opaque layers with thermal mass (brick, concrete,\n  insulation
+      board, gypsum): thickness (m), conductivity (W/m-K), density\n  (kg/m^3), specific
+      heat (J/kg-K).\n- nomass: when only the R-value is known (thin finishes, membranes).\n-
+      airgap: enclosed air cavities in OPAQUE wall/roof assemblies only, never\n  in
+      a window.\n- Windows, either:\n  * simple_glazing for a window given as a whole:
+      u_factor (W/m^2-K),\n    solar_heat_gain_coefficient (0-1), optional visible_transmittance\n    (0-1).
+      It is used as the only layer.\n  * or, for an explicit multi-pane window, glass_panes
+      for each pane\n    (thickness in m) and window_gases for the gap between panes
+      (Air /\n    Argon / Krypton / Xenon, thickness in m).\nThe reply of `create_materials`
+      is final: it gives the counts and names\nonly the materials that failed. Do
+      NOT call list_materials to check; call\n`create_materials` again only for the
+      failed ones, then give your answer.\n\nRules:\n- Use the material names the
+      specification gives, verbatim; constructions\n  reference them. Name other materials
+      uniquely and self-describing with\n  letters, digits and ''_'' only (e.g., ''Brick_100mm'',
+      ''EPS_Insulation_R5'',\n  ''Window_U1p8_SHGC0p4'').\n- Roughness options: VeryRough,
+      Rough, MediumRough, MediumSmooth, Smooth, VerySmooth.\n- Use typical ASHRAE
+      values when the description is vague.\n","role":"system"},{"content":"Create
+      exactly one standard material named ''Brick_100mm'': thickness 0.1 m, conductivity
+      0.89 W/m-K, density 1920 kg/m3, specific heat 790 J/kg-K, roughness MediumRough.","role":"user"}],"model":"google/gemini-3.8-flash","max_completion_tokens":16384,"parallel_tool_calls":false,"stream":false,"temperature":0.7,"tool_choice":"required","tools":[{"type":"function","function":{"name":"create_materials","description":"Create
+      materials of any types in one call; give all you need at once.\n\n        Each
+      material succeeds or fails alone. One that exists with the same\n        values
+      is kept; one that exists with other values fails. The reply\n        is final:
+      it names only the failures, so there is no need to list\n        materials afterwards.\n\n        Args:\n            standard:
+      Solid layers with thermal mass (Material).\n            nomass: Layers known
+      by R-value only (Material:NoMass).\n            airgap: Air cavities in opaque
+      walls or roofs (Material:AirGap).\n            simple_glazing: Whole windows
+      as one layer\n                (WindowMaterial:SimpleGlazingSystem).\n            glass_panes:
+      Panes of multi-pane windows (WindowMaterial:Glazing).\n            window_gases:
+      Gas layers between panes (WindowMaterial:Gas).","parameters":{"properties":{"standard":{"anyOf":[{"items":{"description":"Solid
+      layer with thermal mass.","properties":{"name":{"title":"Name","type":"string"},"roughness":{"enum":["VeryRough","Rough","MediumRough","MediumSmooth","Smooth","VerySmooth"],"type":"string"},"thickness":{"description":"m","exclusiveMinimum":0,"title":"Thickness","type":"number"},"conductivity":{"description":"W/(m*K)","exclusiveMinimum":0,"title":"Conductivity","type":"number"},"density":{"description":"kg/m^3","exclusiveMinimum":0,"title":"Density","type":"number"},"specific_heat":{"description":"J/(kg*K)","exclusiveMinimum":0,"title":"Specific
+      Heat","type":"number"}},"required":["name","roughness","thickness","conductivity","density","specific_heat"],"title":"StandardMaterialSchema","type":"object"},"type":"array"},{"type":"null"}],"default":null},"nomass":{"anyOf":[{"items":{"description":"Layer
+      known by its R-value only.","properties":{"name":{"title":"Name","type":"string"},"roughness":{"enum":["VeryRough","Rough","MediumRough","MediumSmooth","Smooth","VerySmooth"],"type":"string"},"thermal_resistance":{"description":"m^2*K/W","exclusiveMinimum":0,"title":"Thermal
+      Resistance","type":"number"}},"required":["name","roughness","thermal_resistance"],"title":"NoMassMaterialSchema","type":"object"},"type":"array"},{"type":"null"}],"default":null},"airgap":{"anyOf":[{"items":{"description":"Air
+      cavity of an opaque wall or roof; never in a window.","properties":{"name":{"title":"Name","type":"string"},"thermal_resistance":{"description":"m^2*K/W","exclusiveMinimum":0,"title":"Thermal
+      Resistance","type":"number"}},"required":["name","thermal_resistance"],"title":"AirGapMaterialSchema","type":"object"},"type":"array"},{"type":"null"}],"default":null},"simple_glazing":{"anyOf":[{"items":{"description":"A
+      whole window as one layer (WindowMaterial:SimpleGlazingSystem).","properties":{"name":{"title":"Name","type":"string"},"u_factor":{"description":"W/(m^2*K)","exclusiveMinimum":0,"title":"U
+      Factor","type":"number"},"solar_heat_gain_coefficient":{"exclusiveMaximum":1,"exclusiveMinimum":0,"title":"Solar
+      Heat Gain Coefficient","type":"number"},"visible_transmittance":{"anyOf":[{"exclusiveMaximum":1,"exclusiveMinimum":0,"type":"number"},{"type":"null"}],"default":null,"title":"Visible
+      Transmittance"}},"required":["name","u_factor","solar_heat_gain_coefficient"],"title":"SimpleGlazingSchema","type":"object"},"type":"array"},{"type":"null"}],"default":null},"glass_panes":{"anyOf":[{"items":{"description":"One
+      glass pane of a multi-pane window; defaults are clear float glass.","properties":{"name":{"title":"Name","type":"string"},"thickness":{"description":"m,
+      e.g. 0.006","exclusiveMinimum":0,"title":"Thickness","type":"number"},"solar_transmittance":{"default":0.775,"description":"at
+      normal incidence","title":"Solar Transmittance","type":"number"},"solar_reflectance":{"default":0.071,"description":"both
+      faces","title":"Solar Reflectance","type":"number"},"visible_transmittance":{"default":0.881,"title":"Visible
+      Transmittance","type":"number"},"visible_reflectance":{"default":0.08,"description":"both
+      faces","title":"Visible Reflectance","type":"number"},"conductivity":{"default":0.9,"description":"W/(m*K)","title":"Conductivity","type":"number"}},"required":["name","thickness"],"title":"GlassPaneSchema","type":"object"},"type":"array"},{"type":"null"}],"default":null},"window_gases":{"anyOf":[{"items":{"description":"Gas
+      layer between two panes.","properties":{"name":{"title":"Name","type":"string"},"thickness":{"description":"m,
+      e.g. 0.012","exclusiveMinimum":0,"title":"Thickness","type":"number"},"gas_type":{"default":"Air","enum":["Air","Argon","Krypton","Xenon"],"title":"Gas
+      Type","type":"string"}},"required":["name","thickness"],"title":"WindowGasSchema","type":"object"},"type":"array"},{"type":"null"}],"default":null}},"type":"object"}}},{"type":"function","function":{"name":"list_materials","description":"List
+      material names with their EnergyPlus type.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"get_material","description":"Read
+      a material by name, with all its values.","parameters":{"properties":{"name":{"type":"string"}},"required":["name"],"type":"object"}}},{"type":"function","function":{"name":"delete_material","description":"Delete
       a material; refused while a construction uses it.","parameters":{"properties":{"name":{"type":"string"}},"required":["name"],"type":"object"}}},{"type":"function","function":{"name":"MaterialResponse","description":"Structured
       summary returned by the material phase agent.","parameters":{"properties":{"material_names":{"description":"Names
       of all materials created","items":{"type":"string"},"type":"array"},"summary":{"description":"One-line
@@ -59,7 +65,7 @@ interactions:
       connection:
       - keep-alive
       content-length:
-      - '6938'
+      - '7809'
       content-type:
       - application/json
       host:
@@ -91,34 +97,28 @@ interactions:
   response:
     body:
       string: !!binary |
-        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
-        IFcO
+        KLUv/QBYXSUAKlNMECjQZPI2eGNIXOEEvEJI27VUsiXhqkXJBDUAwKHwtyihnCByNYPKwcEL6QD2
+        AAoBlYWwKk5ZVmszKn7290z7HwjIxoyz5rWsHBXvvj3rXDvHnNfP/pZ6/0H2d6ycX/Onr1AwF84N
+        4V7zT8/LslpOqXX/7LPm9W4OyXHGIu/ofY66/InKfnTDjP9AQPb8WqxJ+9P3Eq3iDXHnXItD+/Kf
+        yhLN2feM97nvmLHIMW/nKf/pNQ7RfglQoAjw+Oz3DXFI7/OnJ3ktxYEEgWEAZ2zekXDLUevxsy9v
+        qM2fsg9vr3fbnz5r3G95mtoS9Eraz77b6+non75zJwNtVJGxWTKaTY1SwEEDlgGBOBwqDFEN5Dt+
+        9iH+AwABAATbYGmUKoMAYUamImEsjQze0u3xeVxF0WkiIXGEdVM07aUzGiMzshMSi4iQSbnybk5R
+        HQP3TO4ZWkaZeHQeWb9cQXocIYxrc7dCO9x005x37kgoc7FCo+1tyAi9NG/D7e+zwRRQLKL3ySga
+        H5TREKHaZ197DX/68PYz3TZfAlz7DTkDSqUvDSg9aJoUVXE+Fu/Fg9mD4PQgOaLaYqI4vJIHyRHV
+        +8GJwhDZg71ekmOxiO09+YMTVcAqnm/44IQl0o5DuFs0zNo+OFUEVPYg5zd/LCb7gwcCsgfDXcNc
+        O3/w4LPnPV8THXeteN9eTU7216z5D7LpEQEFU9OQudxEKhrqeSy4Za0PK5AgaIeAiVwK2HJxhUfi
+        enk0mMVhQaHkQ46iSopdSadizyIguVTVxNDp+OjTyR3CIAU8V4SZ3EPkURGNd7J5QAqwUcITGRVE
+        OkSIEyqT/FBomuVhxvDEJNKtcZAQGqhAum7kKr3OwOBQNyjXIDMWU5KOAhEQELtI6EPomsU2cgbN
+        ZnEUgZGjSJDFuSkdi636rMk1ciNeYB5fPcPD4RQ1+Rs327PIG3KD8rzBBp4DvhCXPr8swUZa4ZHx
+        PL4jiE2S0s5ztUp/j44/tMQ7U9isUbddPM3CVybkkKSgkawHJ8wFxqikGM9jYQw2nRE2cNyHhayO
+        wlGpkJnNF6VSaawm/gmjqtIBcRUqXh0QhemQqCiLogg41+a7r5gxx6x3d36ipRvikMYhWm/HW8SZ
+        qPCStto/uOju2X902uFw3Lm2PxkoqlDWrvtP2PWTZUhU2fN8P7pz+mnqfaIDSl+FBno1txZ/+oLB
+        qIJAqk3AGnVGmlo4NMngKTjGdQ7DxegXnSMGCaVjqXTaZ/E2rSGEafeJFURpOaErq+DjngLFKWG0
+        ISvTNarxdZynw2x2y2wgx6TWUUXpd6IQaBR0G49DQ9s47IMBWl0Hm6C2vEOzgaAYFk94Kkr5FdI0
+        GqKLh+xQFO5zmFsEcuhUhIYS/lBczcBw6IobFnEHOCAwgsbY1Q762RVZAI0V8DkHdpCqk7kObKH1
+        yWHD6wyc0nO0G1+4AW4wjEzjtIqXauAkC+PtDk4LBCbtLxSBrHLMGwwsm9dYuhL7InwiwnT6g3zF
+        IkglgQuLAVkSSRxRCyCJmZBGMnZb2hYV7eRl+KqIMGoDWs+1wywS2dI2qi6J4PbxAD0IoBLf24Da
+        tpQAjO/FAg==
     headers:
       access-control-allow-origin:
       - '*'
@@ -129,7 +129,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a47ab13d18952044-NRT
+      - a47e3a1bee55ea74-NRT
       connection:
       - keep-alive
       content-encoding:
@@ -137,7 +137,7 @@ interactions:
       content-type:
       - application/json
       date:
-      - Fri, 09 Oct 2026 04:37:53 GMT
+      - Fri, 09 Oct 2026 14:55:37 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       permissions-policy:
@@ -146,13 +146,13 @@ interactions:
       referrer-policy:
       - no-referrer, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=21RzRyReqsplUF0mNv6331kjbyjb7i64MeXil6Lf9nTs0U2qlq8eedoGIDwbWDVFByH4UN8kUmjVoJy3yUSHYfXntjRZFTYwdxYH29nm770gJB9YsXLfD4lKq8xyeuOQtjY%3D"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=KwkYo29LWbXdMfQooeKwD9bz0U98A0H2obo0IuC7Q1ON9aIuoKfkaFa7vCNFv2WUcukQ4AB5kQMqd%2FVzTJedFpiAElAV56avkhHOcqiDVAa4zc2M3dKAlF9MnweSzYTJlsM%3D"}]}'
       server:
       - cloudflare
       set-cookie:
-      - __cf_bm=zrpEeUTfZipGV58EsVa18Sdrj.qveg.ulixTcUITnHc-1791520670.4124513-1.0.1.1-zba28PzOt1Lm2ArJ7K1_YZB6U3FCdTmY2En9MaeIKZSlOlSBWqC4O.Zw1dW5jbJe6XDdSPYLkl9urO57MFL5lh44E6A5_1B4yZk8MNpKeqJZhDq4PtrrsjBm53z0G7dJ;
+      - __cf_bm=sCuMoQPEQE6IdVrj2C0MyOYX0oSA_DJ0JWWXd7hqZ5I-1791557734.709762-1.0.1.1-SOYseKD6owhUCsk8yOA7DcptLzQ6lBQqXfX8nXWWwRW7CqKE7xNTmakbKcZmXEsyLSjN2gFWxVDzdpTLahHbnb7CmWWk9VCnfSSTg7w7ZKmAdkOaXw4OZIrCJupWqvdx;
         HttpOnly; SameSite=None; Secure; Path=/; Domain=openrouter.ai; Expires=Fri,
-        09 Oct 2026 05:07:52 GMT
+        09 Oct 2026 15:25:37 GMT
       strict-transport-security:
       - max-age=31536000
       transfer-encoding:
@@ -162,69 +162,71 @@ interactions:
       x-content-type-options:
       - nosniff
       x-generation-id:
-      - gen-1791520670-1GnJMi6SNk5UIcqWWlfn
+      - gen-1791557734-qsIOEmnunRHCfaDuCpKt
       x-new-api-version:
       - v1.0.0-rc.42
       x-oneapi-request-id:
-      - 202610090437503996571718268d9d6t0Cm6cHn
+      - 202610091455346569264968268d9d6HBoKKebE
     status:
       code: 200
       message: OK
 - request:
     body: '{"messages":[{"content":"You are a building material expert for EnergyPlus.\nGiven
-      material specifications, create all required materials.\n\nChoose the correct
-      material type:\n- create_standard_material for solid opaque layers with thermal
-      mass\n  (brick, concrete, insulation board, gypsum). Requires thickness,\n  conductivity
-      (W/m-K), density (kg/m^3), specific heat (J/kg-K).\n- create_nomass_material
-      when only R-value is known (thin finishes, membranes).\n- create_airgap_material
-      for enclosed air cavities in OPAQUE wall/roof\n  assemblies only. Never use
-      it in a window.\n- Windows, either:\n  * create_glazing_material for a simplified
-      window given as a whole:\n    u_factor (W/m^2-K), solar_heat_gain_coefficient
-      (0-1), optional\n    visible_transmittance (0-1). It is used as the only layer.\n  *
-      or, for an explicit multi-pane window, create_window_glazing_material\n    for
-      each glass pane (thickness in m) and create_window_gas_material for\n    the
-      gap between panes (Air / Argon / Krypton / Xenon, thickness in m).\n\nRules:\n-
-      Use the material names the specification gives, verbatim; constructions\n  reference
-      them. Name other materials uniquely and self-describing with\n  letters, digits
-      and ''_'' only (e.g., ''Brick_100mm'', ''EPS_Insulation_R5'',\n  ''Window_U1p8_SHGC0p4'').\n-
-      Roughness options: VeryRough, Rough, MediumRough, MediumSmooth, Smooth, VerySmooth.\n-
-      Use typical ASHRAE values when the description is vague.\n- Call list_materials
-      once at the end to verify.\n","role":"system"},{"content":"Create exactly one
-      standard material named ''Brick_100mm'': thickness 0.1 m, conductivity 0.89
-      W/m-K, density 1920 kg/m3, specific heat 790 J/kg-K, roughness MediumRough.","role":"user"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_155825","function":{"name":"create_standard_material","arguments":"{\"name\":
-      \"Brick_100mm\", \"conductivity\": 0.89, \"roughness\": \"MediumRough\", \"thickness\":
-      0.1, \"specific_heat\": 790, \"density\": 1920}"}}]},{"content":"{\"success\":
-      true, \"message\": \"Material ''Brick_100mm'' created.\", \"data\": {\"type\":
-      \"Material\", \"name\": \"Brick_100mm\", \"roughness\": \"MediumRough\", \"thickness\":
-      0.1, \"conductivity\": 0.89, \"density\": 1920.0, \"specific_heat\": 790.0,
-      \"thermal_absorptance\": 0.9, \"solar_absorptance\": 0.7, \"visible_absorptance\":
-      0.7}}","role":"tool","tool_call_id":"call_155825"}],"model":"google/gemini-3.8-flash","max_completion_tokens":16384,"parallel_tool_calls":false,"stream":false,"temperature":0.7,"tool_choice":"required","tools":[{"type":"function","function":{"name":"create_standard_material","description":"Create
-      a Standard material (solid layer with thermal mass).\n\n        Args:\n            name:
-      Unique material name.\n            roughness: Surface roughness.\n            thickness:
-      Meters, > 0.\n            conductivity: W/(m*K), > 0.\n            density:
-      kg/m^3, > 0.\n            specific_heat: J/(kg*K), > 0.","parameters":{"properties":{"name":{"type":"string"},"roughness":{"enum":["VeryRough","Rough","MediumRough","MediumSmooth","Smooth","VerySmooth"],"type":"string"},"thickness":{"type":"number"},"conductivity":{"type":"number"},"density":{"type":"number"},"specific_heat":{"type":"number"}},"required":["name","roughness","thickness","conductivity","density","specific_heat"],"type":"object"}}},{"type":"function","function":{"name":"create_nomass_material","description":"Create
-      a NoMass material (R-value only).\n\n        Args:\n            name: Unique
-      material name.\n            roughness: Surface roughness.\n            thermal_resistance:
-      R-value, m^2*K/W, > 0.","parameters":{"properties":{"name":{"type":"string"},"roughness":{"enum":["VeryRough","Rough","MediumRough","MediumSmooth","Smooth","VerySmooth"],"type":"string"},"thermal_resistance":{"type":"number"}},"required":["name","roughness","thermal_resistance"],"type":"object"}}},{"type":"function","function":{"name":"create_airgap_material","description":"Create
-      an AirGap material for opaque walls, roofs and floors.\n\n        Not for windows:
-      separate glass panes with create_window_gas_material.\n\n        Args:\n            name:
-      Unique material name.\n            thermal_resistance: Air cavity resistance,
-      m^2*K/W.","parameters":{"properties":{"name":{"type":"string"},"thermal_resistance":{"type":"number"}},"required":["name","thermal_resistance"],"type":"object"}}},{"type":"function","function":{"name":"create_glazing_material","description":"Create
-      a Glazing material (simplified window).\n\n        Args:\n            name:
-      Unique material name.\n            u_factor: Overall U-value, W/(m^2*K), > 0.\n            solar_heat_gain_coefficient:
-      SHGC, 0-1.\n            visible_transmittance: Optional VT, 0-1.","parameters":{"properties":{"name":{"type":"string"},"u_factor":{"type":"number"},"solar_heat_gain_coefficient":{"type":"number"},"visible_transmittance":{"anyOf":[{"type":"number"},{"type":"null"}],"default":null}},"required":["name","u_factor","solar_heat_gain_coefficient"],"type":"object"}}},{"type":"function","function":{"name":"create_window_glazing_material","description":"Create
-      one glass pane for a multi-pane window (WindowMaterial:Glazing).\n\n        Defaults
-      describe clear float glass; both faces share the reflectances.\n\n        Args:\n            name:
-      Unique material name.\n            thickness: Pane thickness in meters, e.g.
-      0.006.\n            solar_transmittance: At normal incidence, 0-1.\n            solar_reflectance:
-      At normal incidence, 0-1.\n            visible_transmittance: At normal incidence,
-      0-1.\n            visible_reflectance: At normal incidence, 0-1.\n            conductivity:
-      W/(m*K).","parameters":{"properties":{"name":{"type":"string"},"thickness":{"type":"number"},"solar_transmittance":{"default":0.775,"type":"number"},"solar_reflectance":{"default":0.071,"type":"number"},"visible_transmittance":{"default":0.881,"type":"number"},"visible_reflectance":{"default":0.08,"type":"number"},"conductivity":{"default":0.9,"type":"number"}},"required":["name","thickness"],"type":"object"}}},{"type":"function","function":{"name":"create_window_gas_material","description":"Create
-      the gas layer between two glass panes (WindowMaterial:Gas).\n\n        Args:\n            name:
-      Unique material name.\n            thickness: Gap width in meters, e.g. 0.012.\n            gas_type:
-      Fill gas.","parameters":{"properties":{"name":{"type":"string"},"thickness":{"type":"number"},"gas_type":{"default":"Air","enum":["Air","Argon","Krypton","Xenon"],"type":"string"}},"required":["name","thickness"],"type":"object"}}},{"type":"function","function":{"name":"list_materials","description":"List
-      all materials, with their EnergyPlus type.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"get_material","description":"Read
-      a material by name.","parameters":{"properties":{"name":{"type":"string"}},"required":["name"],"type":"object"}}},{"type":"function","function":{"name":"delete_material","description":"Delete
+      material specifications, create all required materials.\n\nCreate them with
+      ONE `create_materials` call holding every material, each\nin the list of its
+      type:\n- standard: solid opaque layers with thermal mass (brick, concrete,\n  insulation
+      board, gypsum): thickness (m), conductivity (W/m-K), density\n  (kg/m^3), specific
+      heat (J/kg-K).\n- nomass: when only the R-value is known (thin finishes, membranes).\n-
+      airgap: enclosed air cavities in OPAQUE wall/roof assemblies only, never\n  in
+      a window.\n- Windows, either:\n  * simple_glazing for a window given as a whole:
+      u_factor (W/m^2-K),\n    solar_heat_gain_coefficient (0-1), optional visible_transmittance\n    (0-1).
+      It is used as the only layer.\n  * or, for an explicit multi-pane window, glass_panes
+      for each pane\n    (thickness in m) and window_gases for the gap between panes
+      (Air /\n    Argon / Krypton / Xenon, thickness in m).\nThe reply of `create_materials`
+      is final: it gives the counts and names\nonly the materials that failed. Do
+      NOT call list_materials to check; call\n`create_materials` again only for the
+      failed ones, then give your answer.\n\nRules:\n- Use the material names the
+      specification gives, verbatim; constructions\n  reference them. Name other materials
+      uniquely and self-describing with\n  letters, digits and ''_'' only (e.g., ''Brick_100mm'',
+      ''EPS_Insulation_R5'',\n  ''Window_U1p8_SHGC0p4'').\n- Roughness options: VeryRough,
+      Rough, MediumRough, MediumSmooth, Smooth, VerySmooth.\n- Use typical ASHRAE
+      values when the description is vague.\n","role":"system"},{"content":"Create
+      exactly one standard material named ''Brick_100mm'': thickness 0.1 m, conductivity
+      0.89 W/m-K, density 1920 kg/m3, specific heat 790 J/kg-K, roughness MediumRough.","role":"user"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_147417","function":{"name":"create_materials","arguments":"{\"standard\":
+      [{\"thickness\": 0.1, \"conductivity\": 0.89, \"density\": 1920, \"specific_heat\":
+      790, \"roughness\": \"MediumRough\", \"name\": \"Brick_100mm\"}]}"}}]},{"content":"{\"success\":
+      true, \"message\": \"Created 1 materials.\", \"data\": null}","role":"tool","tool_call_id":"call_147417"}],"model":"google/gemini-3.8-flash","max_completion_tokens":16384,"parallel_tool_calls":false,"stream":false,"temperature":0.7,"tool_choice":"required","tools":[{"type":"function","function":{"name":"create_materials","description":"Create
+      materials of any types in one call; give all you need at once.\n\n        Each
+      material succeeds or fails alone. One that exists with the same\n        values
+      is kept; one that exists with other values fails. The reply\n        is final:
+      it names only the failures, so there is no need to list\n        materials afterwards.\n\n        Args:\n            standard:
+      Solid layers with thermal mass (Material).\n            nomass: Layers known
+      by R-value only (Material:NoMass).\n            airgap: Air cavities in opaque
+      walls or roofs (Material:AirGap).\n            simple_glazing: Whole windows
+      as one layer\n                (WindowMaterial:SimpleGlazingSystem).\n            glass_panes:
+      Panes of multi-pane windows (WindowMaterial:Glazing).\n            window_gases:
+      Gas layers between panes (WindowMaterial:Gas).","parameters":{"properties":{"standard":{"anyOf":[{"items":{"description":"Solid
+      layer with thermal mass.","properties":{"name":{"title":"Name","type":"string"},"roughness":{"enum":["VeryRough","Rough","MediumRough","MediumSmooth","Smooth","VerySmooth"],"type":"string"},"thickness":{"description":"m","exclusiveMinimum":0,"title":"Thickness","type":"number"},"conductivity":{"description":"W/(m*K)","exclusiveMinimum":0,"title":"Conductivity","type":"number"},"density":{"description":"kg/m^3","exclusiveMinimum":0,"title":"Density","type":"number"},"specific_heat":{"description":"J/(kg*K)","exclusiveMinimum":0,"title":"Specific
+      Heat","type":"number"}},"required":["name","roughness","thickness","conductivity","density","specific_heat"],"title":"StandardMaterialSchema","type":"object"},"type":"array"},{"type":"null"}],"default":null},"nomass":{"anyOf":[{"items":{"description":"Layer
+      known by its R-value only.","properties":{"name":{"title":"Name","type":"string"},"roughness":{"enum":["VeryRough","Rough","MediumRough","MediumSmooth","Smooth","VerySmooth"],"type":"string"},"thermal_resistance":{"description":"m^2*K/W","exclusiveMinimum":0,"title":"Thermal
+      Resistance","type":"number"}},"required":["name","roughness","thermal_resistance"],"title":"NoMassMaterialSchema","type":"object"},"type":"array"},{"type":"null"}],"default":null},"airgap":{"anyOf":[{"items":{"description":"Air
+      cavity of an opaque wall or roof; never in a window.","properties":{"name":{"title":"Name","type":"string"},"thermal_resistance":{"description":"m^2*K/W","exclusiveMinimum":0,"title":"Thermal
+      Resistance","type":"number"}},"required":["name","thermal_resistance"],"title":"AirGapMaterialSchema","type":"object"},"type":"array"},{"type":"null"}],"default":null},"simple_glazing":{"anyOf":[{"items":{"description":"A
+      whole window as one layer (WindowMaterial:SimpleGlazingSystem).","properties":{"name":{"title":"Name","type":"string"},"u_factor":{"description":"W/(m^2*K)","exclusiveMinimum":0,"title":"U
+      Factor","type":"number"},"solar_heat_gain_coefficient":{"exclusiveMaximum":1,"exclusiveMinimum":0,"title":"Solar
+      Heat Gain Coefficient","type":"number"},"visible_transmittance":{"anyOf":[{"exclusiveMaximum":1,"exclusiveMinimum":0,"type":"number"},{"type":"null"}],"default":null,"title":"Visible
+      Transmittance"}},"required":["name","u_factor","solar_heat_gain_coefficient"],"title":"SimpleGlazingSchema","type":"object"},"type":"array"},{"type":"null"}],"default":null},"glass_panes":{"anyOf":[{"items":{"description":"One
+      glass pane of a multi-pane window; defaults are clear float glass.","properties":{"name":{"title":"Name","type":"string"},"thickness":{"description":"m,
+      e.g. 0.006","exclusiveMinimum":0,"title":"Thickness","type":"number"},"solar_transmittance":{"default":0.775,"description":"at
+      normal incidence","title":"Solar Transmittance","type":"number"},"solar_reflectance":{"default":0.071,"description":"both
+      faces","title":"Solar Reflectance","type":"number"},"visible_transmittance":{"default":0.881,"title":"Visible
+      Transmittance","type":"number"},"visible_reflectance":{"default":0.08,"description":"both
+      faces","title":"Visible Reflectance","type":"number"},"conductivity":{"default":0.9,"description":"W/(m*K)","title":"Conductivity","type":"number"}},"required":["name","thickness"],"title":"GlassPaneSchema","type":"object"},"type":"array"},{"type":"null"}],"default":null},"window_gases":{"anyOf":[{"items":{"description":"Gas
+      layer between two panes.","properties":{"name":{"title":"Name","type":"string"},"thickness":{"description":"m,
+      e.g. 0.012","exclusiveMinimum":0,"title":"Thickness","type":"number"},"gas_type":{"default":"Air","enum":["Air","Argon","Krypton","Xenon"],"title":"Gas
+      Type","type":"string"}},"required":["name","thickness"],"title":"WindowGasSchema","type":"object"},"type":"array"},{"type":"null"}],"default":null}},"type":"object"}}},{"type":"function","function":{"name":"list_materials","description":"List
+      material names with their EnergyPlus type.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"get_material","description":"Read
+      a material by name, with all its values.","parameters":{"properties":{"name":{"type":"string"}},"required":["name"],"type":"object"}}},{"type":"function","function":{"name":"delete_material","description":"Delete
       a material; refused while a construction uses it.","parameters":{"properties":{"name":{"type":"string"}},"required":["name"],"type":"object"}}},{"type":"function","function":{"name":"MaterialResponse","description":"Structured
       summary returned by the material phase agent.","parameters":{"properties":{"material_names":{"description":"Names
       of all materials created","items":{"type":"string"},"type":"array"},"summary":{"description":"One-line
@@ -237,7 +239,7 @@ interactions:
       connection:
       - keep-alive
       content-length:
-      - '7637'
+      - '8249'
       content-type:
       - application/json
       host:
@@ -269,18 +271,22 @@ interactions:
   response:
     body:
       string: !!binary |
-        KLUv/QBYjRQAdiqCJ+DQ6AF8hv9hx5Wyybdmj8uqPcVL9B9nfZ0F1P0s4I+xggkzrEE+HHUAbgCB
-        AI7SrML+OvHFbtVZTZh/BuV2bafMXhPAYBCg0LCxy6lZfNv1lSOtHhXIwGPWibkVcWpZazVs6tJi
-        7WBL/+iYatfVznd6MUtBPl5Uw37KNTq2XW/uR7odE69yr+aSOg7a9YF4DFAInmQSWSjRo7rVsOXs
-        EEAAQLVD0HWFElFeNFEaKapmVcP2C/oOYUCrzmpzpDFnlWP/amv8PHOODdupxR2C7VbM2bF2nZHY
-        aCbX5sfarjOlkZqotd+wq83R8XTlWWeVOxZfy9J2DzaHyzo7hAE7OzXtRbXrp1msXM6fnJoa9twB
-        G25dEFRAj0N7DRzOuwBVEwcXE5sjlumQzIjOuxeNSpTMogMj8Imw23kDTwWVGC4UB1NCkBhrSVna
-        cEDXaxeFTGYjSSyxLCw0HDoijwQ2GDZvAXMxH46DB0to2PGjbNfS/4IwVR0y47ucMratt1DDzl8d
-        yywc48T+EZs+T9qwHYsB27ZZEZvttgnlvfwkbjKxWCTvQSanqmOv6pyw6PjzzTaXU7NTZtF/4s/k
-        nvSLilSHPMMP22NBnSnPzxMLjW+/3WtHkSwR7FzdY3/6i1l8s4ytI+3xEcO2atcFlkevgUBwwVg2
-        suORKIlsODQaxIPMKSTQA5UjmjQgQILFVNoB+FkVt2GMBXzCAR0k9Wa4g5u1gi4erzNwoOdIbnxx
-        A+hgMDKV01peqgMnFp7zjo0WIJf23Uyw+8Wlzawdltvm59J14CLViXDTP5dvC02KgIoAWBaKYwBd
-        iAv7qrUwAgJacLUvLtLbIjQqIIkAwuMxehCkEh+3Ab1tKRmM78UC
+        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
+        1LalBGB8LxY=
     headers:
       access-control-allow-origin:
       - '*'
@@ -291,7 +297,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a47ab15019422044-NRT
+      - a47e3a368f11ea74-NRT
       connection:
       - keep-alive
       content-encoding:
@@ -299,7 +305,7 @@ interactions:
       content-type:
       - application/json
       date:
-      - Fri, 09 Oct 2026 04:37:55 GMT
+      - Fri, 09 Oct 2026 14:55:40 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       permissions-policy:
@@ -308,13 +314,13 @@ interactions:
       referrer-policy:
       - no-referrer, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=MtE6eisGAVv8egB41Ik6v36t%2B4VeilMKpplldNuO2%2B%2FQ6K%2F4CKfDJXpxdVeVtoBuw1hW61D%2BfS0mZRbyvN3P42iTlUV90JojucQcpw5P13GLLPz7CSQ39cXWEjROINW2IGE%3D"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=njiTg3QJyZ9Wv4kfq88A%2BuhlJT5vjr2cTBKqVT3UpS%2B7z63luXm6x%2BnOIwIldScMJYYKBzbvV71y7XBR2b2fpwcKUj8U5JQ26mrHdLjSAXBoqjO9UOS2FoUcYukqfaSVv8U%3D"}]}'
       server:
       - cloudflare
       set-cookie:
-      - __cf_bm=kpdWYvWaDMpyFKXlqJaA5VDfAF7CUsDO_qCqUA3xYRo-1791520673.4460413-1.0.1.1-QcDWuzbWRRGtb2CrfUvwn8.BUn5Anh0UQpMXtGPyF81oiplxf0QPADCtr81OkzIekPsQe5.KeMe8UwXqpq1crA249JBiqHeHRzaeD6AEL1MrZ8x_mlT0zSZM4vsPQNhV;
+      - __cf_bm=rhKmNl53n7tpGrPQ86CgNXmrkMBdGtFYGfFW51aD6y4-1791557738.4120538-1.0.1.1-9qyJr03qfB8fl81Ns64SDf0E71Q8k2aSvhDuRrnDgF1eGcVj0FdbUPGSlvj59K8x_Bp77OBZkJ4Q0iVY4n8Yk56Z35ydO5hbq4BrS8.zMzeAYXpsku.nIDNnTw6TuENv;
         HttpOnly; SameSite=None; Secure; Path=/; Domain=openrouter.ai; Expires=Fri,
-        09 Oct 2026 05:07:55 GMT
+        09 Oct 2026 15:25:40 GMT
       strict-transport-security:
       - max-age=31536000
       transfer-encoding:
@@ -324,178 +330,11 @@ interactions:
       x-content-type-options:
       - nosniff
       x-generation-id:
-      - gen-1791520673-MwhvKb4hSpp80Rzp4wpT
+      - gen-1791557738-S9lKJuOxdNJcMQNxLSJv
       x-new-api-version:
       - v1.0.0-rc.42
       x-oneapi-request-id:
-      - 202610090437534327592698268d9d61Iu6Zi6m
-    status:
-      code: 200
-      message: OK
-- request:
-    body: '{"messages":[{"content":"You are a building material expert for EnergyPlus.\nGiven
-      material specifications, create all required materials.\n\nChoose the correct
-      material type:\n- create_standard_material for solid opaque layers with thermal
-      mass\n  (brick, concrete, insulation board, gypsum). Requires thickness,\n  conductivity
-      (W/m-K), density (kg/m^3), specific heat (J/kg-K).\n- create_nomass_material
-      when only R-value is known (thin finishes, membranes).\n- create_airgap_material
-      for enclosed air cavities in OPAQUE wall/roof\n  assemblies only. Never use
-      it in a window.\n- Windows, either:\n  * create_glazing_material for a simplified
-      window given as a whole:\n    u_factor (W/m^2-K), solar_heat_gain_coefficient
-      (0-1), optional\n    visible_transmittance (0-1). It is used as the only layer.\n  *
-      or, for an explicit multi-pane window, create_window_glazing_material\n    for
-      each glass pane (thickness in m) and create_window_gas_material for\n    the
-      gap between panes (Air / Argon / Krypton / Xenon, thickness in m).\n\nRules:\n-
-      Use the material names the specification gives, verbatim; constructions\n  reference
-      them. Name other materials uniquely and self-describing with\n  letters, digits
-      and ''_'' only (e.g., ''Brick_100mm'', ''EPS_Insulation_R5'',\n  ''Window_U1p8_SHGC0p4'').\n-
-      Roughness options: VeryRough, Rough, MediumRough, MediumSmooth, Smooth, VerySmooth.\n-
-      Use typical ASHRAE values when the description is vague.\n- Call list_materials
-      once at the end to verify.\n","role":"system"},{"content":"Create exactly one
-      standard material named ''Brick_100mm'': thickness 0.1 m, conductivity 0.89
-      W/m-K, density 1920 kg/m3, specific heat 790 J/kg-K, roughness MediumRough.","role":"user"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_155825","function":{"name":"create_standard_material","arguments":"{\"name\":
-      \"Brick_100mm\", \"conductivity\": 0.89, \"roughness\": \"MediumRough\", \"thickness\":
-      0.1, \"specific_heat\": 790, \"density\": 1920}"}}]},{"content":"{\"success\":
-      true, \"message\": \"Material ''Brick_100mm'' created.\", \"data\": {\"type\":
-      \"Material\", \"name\": \"Brick_100mm\", \"roughness\": \"MediumRough\", \"thickness\":
-      0.1, \"conductivity\": 0.89, \"density\": 1920.0, \"specific_heat\": 790.0,
-      \"thermal_absorptance\": 0.9, \"solar_absorptance\": 0.7, \"visible_absorptance\":
-      0.7}}","role":"tool","tool_call_id":"call_155825"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_107178","function":{"name":"list_materials","arguments":"{}"}}]},{"content":"{\"success\":
-      true, \"message\": \"Listed 1 materials.\", \"data\": [{\"type\": \"Material\",
-      \"name\": \"Brick_100mm\", \"roughness\": \"MediumRough\", \"thickness\": 0.1,
-      \"conductivity\": 0.89, \"density\": 1920.0, \"specific_heat\": 790.0, \"thermal_absorptance\":
-      0.9, \"solar_absorptance\": 0.7, \"visible_absorptance\": 0.7}]}","role":"tool","tool_call_id":"call_107178"}],"model":"google/gemini-3.8-flash","max_completion_tokens":16384,"parallel_tool_calls":false,"stream":false,"temperature":0.7,"tool_choice":"required","tools":[{"type":"function","function":{"name":"create_standard_material","description":"Create
-      a Standard material (solid layer with thermal mass).\n\n        Args:\n            name:
-      Unique material name.\n            roughness: Surface roughness.\n            thickness:
-      Meters, > 0.\n            conductivity: W/(m*K), > 0.\n            density:
-      kg/m^3, > 0.\n            specific_heat: J/(kg*K), > 0.","parameters":{"properties":{"name":{"type":"string"},"roughness":{"enum":["VeryRough","Rough","MediumRough","MediumSmooth","Smooth","VerySmooth"],"type":"string"},"thickness":{"type":"number"},"conductivity":{"type":"number"},"density":{"type":"number"},"specific_heat":{"type":"number"}},"required":["name","roughness","thickness","conductivity","density","specific_heat"],"type":"object"}}},{"type":"function","function":{"name":"create_nomass_material","description":"Create
-      a NoMass material (R-value only).\n\n        Args:\n            name: Unique
-      material name.\n            roughness: Surface roughness.\n            thermal_resistance:
-      R-value, m^2*K/W, > 0.","parameters":{"properties":{"name":{"type":"string"},"roughness":{"enum":["VeryRough","Rough","MediumRough","MediumSmooth","Smooth","VerySmooth"],"type":"string"},"thermal_resistance":{"type":"number"}},"required":["name","roughness","thermal_resistance"],"type":"object"}}},{"type":"function","function":{"name":"create_airgap_material","description":"Create
-      an AirGap material for opaque walls, roofs and floors.\n\n        Not for windows:
-      separate glass panes with create_window_gas_material.\n\n        Args:\n            name:
-      Unique material name.\n            thermal_resistance: Air cavity resistance,
-      m^2*K/W.","parameters":{"properties":{"name":{"type":"string"},"thermal_resistance":{"type":"number"}},"required":["name","thermal_resistance"],"type":"object"}}},{"type":"function","function":{"name":"create_glazing_material","description":"Create
-      a Glazing material (simplified window).\n\n        Args:\n            name:
-      Unique material name.\n            u_factor: Overall U-value, W/(m^2*K), > 0.\n            solar_heat_gain_coefficient:
-      SHGC, 0-1.\n            visible_transmittance: Optional VT, 0-1.","parameters":{"properties":{"name":{"type":"string"},"u_factor":{"type":"number"},"solar_heat_gain_coefficient":{"type":"number"},"visible_transmittance":{"anyOf":[{"type":"number"},{"type":"null"}],"default":null}},"required":["name","u_factor","solar_heat_gain_coefficient"],"type":"object"}}},{"type":"function","function":{"name":"create_window_glazing_material","description":"Create
-      one glass pane for a multi-pane window (WindowMaterial:Glazing).\n\n        Defaults
-      describe clear float glass; both faces share the reflectances.\n\n        Args:\n            name:
-      Unique material name.\n            thickness: Pane thickness in meters, e.g.
-      0.006.\n            solar_transmittance: At normal incidence, 0-1.\n            solar_reflectance:
-      At normal incidence, 0-1.\n            visible_transmittance: At normal incidence,
-      0-1.\n            visible_reflectance: At normal incidence, 0-1.\n            conductivity:
-      W/(m*K).","parameters":{"properties":{"name":{"type":"string"},"thickness":{"type":"number"},"solar_transmittance":{"default":0.775,"type":"number"},"solar_reflectance":{"default":0.071,"type":"number"},"visible_transmittance":{"default":0.881,"type":"number"},"visible_reflectance":{"default":0.08,"type":"number"},"conductivity":{"default":0.9,"type":"number"}},"required":["name","thickness"],"type":"object"}}},{"type":"function","function":{"name":"create_window_gas_material","description":"Create
-      the gas layer between two glass panes (WindowMaterial:Gas).\n\n        Args:\n            name:
-      Unique material name.\n            thickness: Gap width in meters, e.g. 0.012.\n            gas_type:
-      Fill gas.","parameters":{"properties":{"name":{"type":"string"},"thickness":{"type":"number"},"gas_type":{"default":"Air","enum":["Air","Argon","Krypton","Xenon"],"type":"string"}},"required":["name","thickness"],"type":"object"}}},{"type":"function","function":{"name":"list_materials","description":"List
-      all materials, with their EnergyPlus type.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"get_material","description":"Read
-      a material by name.","parameters":{"properties":{"name":{"type":"string"}},"required":["name"],"type":"object"}}},{"type":"function","function":{"name":"delete_material","description":"Delete
-      a material; refused while a construction uses it.","parameters":{"properties":{"name":{"type":"string"}},"required":["name"],"type":"object"}}},{"type":"function","function":{"name":"MaterialResponse","description":"Structured
-      summary returned by the material phase agent.","parameters":{"properties":{"material_names":{"description":"Names
-      of all materials created","items":{"type":"string"},"type":"array"},"summary":{"description":"One-line
-      summary of the material creation result","type":"string"}},"required":["material_names","summary"],"type":"object"}}}],"max_thinking_budget":4096}'
-    headers:
-      accept:
-      - application/json
-      accept-encoding:
-      - gzip, deflate, zstd
-      connection:
-      - keep-alive
-      content-length:
-      - '8172'
-      content-type:
-      - application/json
-      host:
-      - one.chat-yu.net
-      user-agent:
-      - OpenAI/Python 2.52.0
-      x-stainless-arch:
-      - x64
-      x-stainless-async:
-      - 'false'
-      x-stainless-lang:
-      - python
-      x-stainless-os:
-      - Linux
-      x-stainless-package-version:
-      - 2.52.0
-      x-stainless-raw-response:
-      - 'true'
-      x-stainless-read-timeout:
-      - '120.0'
-      x-stainless-retry-count:
-      - '0'
-      x-stainless-runtime:
-      - CPython
-      x-stainless-runtime-version:
-      - 3.12.3
-    method: POST
-    uri: https://one.chat-yu.net/v1/chat/completions
-  response:
-    body:
-      string: !!binary |
-        KLUv/QBYVRYApi+PJ9CyVgfMJQMTsS7B/r929ouIqupdyVRxAPY9zYBR0Aci9DBKvRlUCYEAeQCH
-        AG/P83pTR5mlhpJzG7/NeVX3XOW1blNVThLtjDv47VbGK1MwBgO2cPfbUXLstd5e4TenCIGEEpFV
-        0qYEelLWUnefHS19c4+dX1/49mpl7mlRCyX5VfDuGbZHh317CMjFx4UDRkRnopCDjBlBcSgIkcrF
-        Ak0qEeYSRWpTd4/yHgAGEPTC13jujnNtelH3vb1xtRbuifnk7fwyd2/66j2uneBiwVikOR+E9Zru
-        3lYn37PhqCqrxW8+fE19O1dbX8YS43f3nvbe497Uw7jp2yUiKiik5sj86tvxnA9K09p892rx6ytV
-        WFY54Q57LcrON8gdpGOV92y444bSVjAdi4UGhwypcPeXX3x77Gx1LqwtkS93lDg+n384rrlmw12D
-        m74qXdOukThEqI1AA4MwF5ZfVwzKScK2MIv1sUahAtSGQRNMxDpZ4tqRNYcIFcBgGAIJxDpZcmSG
-        V6wWskZZJIEYxl03UFaZVVl+sABKISiSNlDegwBGWbwv1pcxQ7jGXdO5jwafz4d6VL59KpEFwhcM
-        1CqT6EKBIInUsPbtqUqJvr4ZW9eno+RYGa/XWd4PqUGxK/jgPX3d7L6xnQ4Jy4wtfLsMRJP5ss1v
-        E4K3igWauOPaG5ulbFF7rYvj84gTyY9eO729oOAj4zE9MjqwQqOSqYCYFxgPsqqIqEAUGrQhASJn
-        JGh4XFQ8UBQWMiFUAkQ2IDCCpRjeAfhZFb9BAQV84IDOk3ob7tDNXo3bwKsZONNzVDc+uQF4MBiZ
-        ymktL9XASQtrdMemBZKy/WkUqFqOW0Cl3EwDujUu5p4InU0H7ipn1AcqrE9kQSLyBGLSv88IdTNv
-        i7dySVVtjUNLK652x0V9W4JGBSQRVHg8Rw+CqMTPbUC1LSUE43ux
-    headers:
-      access-control-allow-origin:
-      - '*'
-      access-control-expose-headers:
-      - X-Generation-Id,X-Provider-Name,request-id,cf-ray
-      alt-svc:
-      - h3=":443"; ma=86400
-      cf-cache-status:
-      - DYNAMIC
-      cf-ray:
-      - a47ab15c29f52044-NRT
-      connection:
-      - keep-alive
-      content-encoding:
-      - zstd
-      content-type:
-      - application/json
-      date:
-      - Fri, 09 Oct 2026 04:37:57 GMT
-      nel:
-      - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
-      permissions-policy:
-      - payment=(self "https://checkout.stripe.com" "https://connect-js.stripe.com"
-        "https://js.stripe.com" "https://*.js.stripe.com" "https://hooks.stripe.com")
-      referrer-policy:
-      - no-referrer, strict-origin-when-cross-origin
-      report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=DgdQdH7IkZqftGWB%2FB8RK4zKEz%2Fcy6LESr7S8SaKjbZ9WSArgUmVFW%2BmaVN%2B90VqCK008vivs7xyhxSrc%2FtwDWJbR%2B4mTZ7D371Sw3MLsl1VSveJs47QCdnwxZh7zgTn8H8%3D"}]}'
-      server:
-      - cloudflare
-      set-cookie:
-      - __cf_bm=pUW5vauPG2CrBwkVxAHIYS1NFkAjd4tH35ae7f_N2gY-1791520675.3730018-1.0.1.1-briyj8d4pRyAfu6uS_cagcOaTU_ZlehpkHu8pDdUOW4Hj9rML.n8cBsTtl.P0UHm0qil3NyE7w_5EAHSQwiHP9V.HabFyIRnPQXIvzsTdBEGfuVJUiY24PhSCY4sSIRH;
-        HttpOnly; SameSite=None; Secure; Path=/; Domain=openrouter.ai; Expires=Fri,
-        09 Oct 2026 05:07:57 GMT
-      strict-transport-security:
-      - max-age=31536000
-      transfer-encoding:
-      - chunked
-      via:
-      - 1.1 Caddy
-      x-content-type-options:
-      - nosniff
-      x-generation-id:
-      - gen-1791520675-C3vgOlYBz1MeOWKVwVxz
-      x-new-api-version:
-      - v1.0.0-rc.42
-      x-oneapi-request-id:
-      - 202610090437553592765578268d9d6fhZR9NBE
+      - 202610091455381500596378268d9d6fD0aevVQ
     status:
       code: 200
       message: OK
