@@ -17,7 +17,7 @@ A reference library of materials, constructions and schedules from the DOE proto
 
 ### Multi-phase agent (LangGraph)
 
-- **Intake**: one structured LLM call parses text and images into `IntakeOutput`, which carries the `Building` and `Site:Location` objects, every zone as a prism (floor plan, floor level, height and the constructions of its faces), and natural-language task specs for the other phases.
+- **Intake**: one structured LLM call parses text and images into `IntakeOutput`, which carries the `Building` and `Site:Location` objects, zone plans (each with the constructions of its faces) placed on storeys, whose levels follow from the storey heights and multipliers, and natural-language task specs for the other phases.
 - **Phased construction with parallelism**: independent object types are built by separate ReAct sub-agents; zones and their surfaces are built in code from the intake output. Zone, material and schedule run in parallel; construction, surface and fenestration run sequentially because of their dependencies; HVAC, people, lights and equipment run in parallel again.
 - **Parallel-safe state**: a reducer (`merge_config_state`) unions the idfpy models written by concurrent phases; on a name conflict the later branch wins.
 - **Shared model operations**: agent tools and MCP tools are thin adapters over `src/modeling`, which rejects missing references and duplicate names at the call, applies updates atomically, renames references along with an object, and refuses to delete an object that others still reference. Tool arguments are typed models with declared fields, so a rejected call names the exact field (for example `vertices.0.X: Field required`).

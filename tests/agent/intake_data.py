@@ -5,19 +5,38 @@ from typing import Any
 
 from src.agent.state import SPEC_PHASES, IntakeOutput
 
+_LAYOUT_FIELDS = ("zone_plans", "storeys")
 
-def intake(**fields: Any) -> IntakeOutput:
-    """An intake output with no zones and empty specs, plus the given fields.
+
+def layout(*zones: dict[str, Any]) -> dict[str, list[dict[str, Any]]]:
+    """``zone_plans`` and ``storeys`` holding the given ground-level zones.
+
+    Each zone gets its own plan keyed by its name, all on one unnamed
+    storey, so every zone keeps its name.
+    """
+    assert all(z["floor_z"] == 0 for z in zones), "zones must be on the ground"
+    plans = [
+        {k: v for k, v in z.items() if k not in ("name", "floor_z", "height")}
+        | {"key": z["name"]}
+        for z in zones
+    ]
+    entries = [{"plan": z["name"], "height": z["height"]} for z in zones]
+    storeys = [{"name": "", "height": 3.0, "zones": entries}] if zones else []
+    return {"zone_plans": plans, "storeys": storeys}
+
+
+def intake(zones: Sequence[dict[str, Any]] = (), **fields: Any) -> IntakeOutput:
+    """An intake output with the given zones, empty specs and other fields.
 
     ``equipment_specs``, which may not be empty, asks for 10 W/m2 everywhere.
     """
-    empty = {field: "" for field in SPEC_PHASES if field != "zones"}
+    empty = {field: "" for field in SPEC_PHASES if field not in _LAYOUT_FIELDS}
     empty["equipment_specs"] = "10 W/m2 in every zone"
     return IntakeOutput.model_validate(
         {
             "building": {"name": "B"},
             "site_location": {"name": "S"},
-            "zones": [],
+            **layout(*zones),
             **empty,
             **fields,
         }
@@ -27,7 +46,7 @@ def intake(**fields: Any) -> IntakeOutput:
 def zone_spec(
     name: str, plan: Sequence[tuple[float, float]], **fields: Any
 ) -> dict[str, Any]:
-    """A zone entry using the 'Wall' and 'Slab' constructions."""
+    """A zone on the ground using the 'Wall' and 'Slab' constructions."""
     return {
         "name": name,
         "plan": [{"X": x, "Y": y} for x, y in plan],
