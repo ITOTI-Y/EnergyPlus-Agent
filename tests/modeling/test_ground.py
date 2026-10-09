@@ -1,11 +1,21 @@
 import pytest
 from idfpy import IDF
-from idfpy.models.advanced_construction import SurfacePropertyExposedFoundationPerimeter
+from idfpy.models.advanced_construction import (
+    FoundationKiva,
+    SurfacePropertyExposedFoundationPerimeter,
+)
+from idfpy.models.constructions import Construction, Material
 from idfpy.models.location import SiteGroundTemperatureBuildingSurface
 from idfpy.models.thermal_zones import (
     BuildingSurfaceDetailed,
+    Zone,
 )
 
+from src.modeling.geometry import (
+    PlanPointSchema,
+    ZoneConstructions,
+    create_zone_geometry,
+)
 from src.modeling.ground import FOUNDATION_NAME, exposed_perimeter, use_kiva_foundations
 
 type XY = tuple[float, float]
@@ -105,3 +115,40 @@ def test_explicit_ground_temperature_keeps_ground_boundary():
 
     assert use_kiva_foundations(idf) == []
     assert _floor(idf).outside_boundary_condition == "Ground"
+
+
+def test_a_zone_with_two_ground_floors_puts_them_on_two_foundations():
+    # An L-shaped plan is extruded as two convex floors; EnergyPlus allows
+    # one floor per zone on a Foundation:Kiva.
+    idf = IDF()
+    idf.add(Zone(name="L"))
+    idf.add(
+        Material(
+            name="Slab",
+            roughness="Rough",
+            thickness=0.1,
+            conductivity=1.4,
+            density=2100.0,
+            specific_heat=900.0,
+        )
+    )
+    idf.add(Construction(name="C", outside_layer="Slab"))
+    plan = [(0, 0), (6, 0), (6, 3), (3, 3), (3, 6), (0, 6)]
+    create_zone_geometry(
+        idf,
+        "L",
+        [PlanPointSchema(X=x, Y=y) for x, y in plan],
+        0.0,
+        3.0,
+        ZoneConstructions("C", "C", "C", "C", "C"),
+    )
+
+    floors = use_kiva_foundations(idf)
+
+    assert len(floors) == 2
+    surfaces = idf.all_of_type(BuildingSurfaceDetailed)
+    assert {surfaces[f].outside_boundary_condition_object for f in floors} == {
+        FOUNDATION_NAME,
+        f"{FOUNDATION_NAME}_2",
+    }
+    assert len(idf.all_of_type(FoundationKiva)) == 2

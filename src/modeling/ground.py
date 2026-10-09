@@ -8,6 +8,7 @@ heat flow in the soil around each floor from the weather file, so it needs
 only the length of the floor edge that faces outdoors.
 """
 
+from collections import Counter
 from collections.abc import Iterator
 from typing import Final
 
@@ -134,11 +135,30 @@ def _kiva_construction(idf: IDF, name: str) -> str:
     return copy
 
 
-def use_kiva_foundations(idf: IDF) -> list[str]:
-    """Move ground-contact floors onto one uninsulated Kiva slab foundation.
+def _add_foundation(idf: IDF, name: str) -> None:
+    if idf.has(FoundationKiva, name):
+        return
+    # idfpy writes schema defaults explicitly; EnergyPlus then warns that
+    # depths are set for insulation and footings that do not exist.
+    idf.add(
+        FoundationKiva(
+            name=name,
+            interior_horizontal_insulation_depth=None,
+            exterior_horizontal_insulation_width=None,
+            footing_depth=None,
+        )
+    )
 
-    Floors whose construction has resistance-only layers get a Kiva-ready
-    copy of it (see ``_kiva_construction``).
+
+def use_kiva_foundations(idf: IDF) -> list[str]:
+    """Move ground-contact floors onto uninsulated Kiva slab foundations.
+
+    Zones share the foundation ``Slab_On_Grade``. EnergyPlus allows one floor
+    per zone on a foundation, so a zone with several ground floors (a
+    non-convex plan split into convex pieces) puts its k-th floor on
+    ``Slab_On_Grade_k``, which has the same definition. Floors whose
+    construction has resistance-only layers get a Kiva-ready copy of it (see
+    ``_kiva_construction``).
 
     Leaves the model alone when it sets its own ground temperature, since the
     author then chose the fixed-temperature boundary deliberately.
@@ -156,22 +176,16 @@ def use_kiva_foundations(idf: IDF) -> list[str]:
     ]
     if not floors:
         return []
-    if not idf.has(FoundationKiva, FOUNDATION_NAME):
-        # idfpy writes schema defaults explicitly; EnergyPlus then warns that
-        # depths are set for insulation and footings that do not exist.
-        idf.add(
-            FoundationKiva(
-                name=FOUNDATION_NAME,
-                interior_horizontal_insulation_depth=None,
-                exterior_horizontal_insulation_width=None,
-                footing_depth=None,
-            )
-        )
+    per_zone: Counter[str] = Counter()
     for floor in floors:
+        per_zone[floor.zone_name] += 1
+        k = per_zone[floor.zone_name]
+        foundation = FOUNDATION_NAME if k == 1 else f"{FOUNDATION_NAME}_{k}"
+        _add_foundation(idf, foundation)
         perimeter = exposed_perimeter(idf, floor)
         floor.construction_name = _kiva_construction(idf, floor.construction_name)
         floor.outside_boundary_condition = "Foundation"
-        floor.outside_boundary_condition_object = FOUNDATION_NAME
+        floor.outside_boundary_condition_object = foundation
         idf.add(
             SurfacePropertyExposedFoundationPerimeter(
                 surface_name=floor.name,
