@@ -1,3 +1,4 @@
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -202,3 +203,26 @@ def test_intake_output_gets_the_storeys_built_from_the_reading():
     assert len(built.zones) == 6
     assert built.zones[0].name == "S1_Podium"
     assert with_reading_storeys(without, None) is without
+
+
+def test_intake_node_keeps_the_storeys_built_from_the_reading(monkeypatch):
+    reply = intake(
+        zone_plans=[PODIUM.model_dump(by_alias=True), TOWER.model_dump(by_alias=True)],
+        storeys=[],
+    )
+
+    def structured(llm, schema, messages, check):
+        return reply, check(reply)
+
+    monkeypatch.setattr(intake_module, "create_llm", lambda: None)
+    monkeypatch.setattr(intake_module, "structured", structured)
+    runtime: Any = SimpleNamespace(context=SimpleNamespace(reference=None))
+
+    update = intake_module.intake_node(
+        AgentState(user_input="brief", photo_reading=READING), runtime
+    )
+
+    # The reply had no storeys; the node's output has those built in code.
+    output = update["intake_output"]
+    assert output is not None
+    assert [s.name for s in output.storeys] == ["S1", "S2", "S3", "S4", "S5", "S15"]

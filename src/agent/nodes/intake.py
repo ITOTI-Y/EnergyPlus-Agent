@@ -220,7 +220,8 @@ def intake_node(state: AgentState, runtime: Runtime[SimContext]) -> AgentStateUp
     system = SystemMessage(content=rules + language_directive())
     previous = state.intake_output
     if previous is None:
-        output, _ = structured(
+        # The checked result, not the reply: with a reading it has the storeys.
+        _, output = structured(
             create_llm(),
             IntakeOutput,
             [system, _brief(state)],
