@@ -1,5 +1,7 @@
 import json
 
+from idfpy.models.constructions import Material
+from langchain_core.messages import ToolCall
 from langchain_core.tools import BaseTool
 
 from src.agent.tools import make_material_tools
@@ -54,3 +56,30 @@ def test_get_material_missing_returns_error():
     got = json.loads(tools["get_material"].invoke({"name": "Nope"}))
 
     assert not got["success"]
+
+
+def test_same_material_twice_is_accepted_and_a_different_one_refused():
+    config, tools = _tools()
+    brick = {
+        "name": "Brick",
+        "roughness": "Rough",
+        "thickness": 0.1,
+        "conductivity": 0.9,
+        "density": 1900.0,
+        "specific_heat": 800.0,
+    }
+    tools["create_standard_material"].invoke(brick)
+
+    again = json.loads(tools["create_standard_material"].invoke(brick))
+    different = tools["create_standard_material"].invoke(
+        ToolCall(
+            name="create_standard_material",
+            args={**brick, "thickness": 0.2},
+            id="1",
+            type="tool_call",
+        )
+    )
+
+    assert "already exists, unchanged" in again["message"]
+    assert different.status == "error"
+    assert len(config.idf.all_of_type(Material)) == 1
