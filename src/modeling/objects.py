@@ -52,6 +52,27 @@ def create[T: IDFBaseModel](idf: IDF, obj: T) -> T:
     return obj
 
 
+def create_or_same[T: IDFBaseModel](idf: IDF, obj: T) -> tuple[T, bool]:
+    """Like ``create``, but an equal object already present is accepted.
+
+    Reference data repeats objects: two prototype constructions share a
+    layer, and a phase that creates each construction's materials meets the
+    same material twice.
+
+    Returns:
+        The object in the model, and whether it was created now.
+
+    Raises:
+        DuplicateNameError: If an object of the same name differs.
+        MissingReferenceError: If a reference names no existing object.
+    """
+    name = getattr(obj, "name", None)
+    existing = idf.get(type(obj), name) if name else None
+    if existing is not None and existing.model_dump() == obj.model_dump():
+        return existing, False
+    return create(idf, obj), True
+
+
 def get[T: IDFBaseModel](idf: IDF, object_type: type[T], name: str) -> T:
     """Raises: ObjectNotFoundError: If no such object exists."""
     obj = idf.get(object_type, name)

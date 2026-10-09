@@ -24,6 +24,10 @@ def _material_dump(material: IDFBaseModel) -> dict[str, Any]:
     }
 
 
+def _created(label: str, created: bool) -> str:
+    return f"{label} created." if created else f"{label} already exists, unchanged."
+
+
 def list_materials_tool(config: ConfigState) -> BaseTool:
     @tool
     def list_materials() -> str:
@@ -56,7 +60,7 @@ def make_material_tools(config: ConfigState) -> list[BaseTool]:
             density: kg/m^3, > 0.
             specific_heat: J/(kg*K), > 0.
         """
-        material = objects.create(
+        material, created = objects.create_or_same(
             idf,
             Material(
                 name=name,
@@ -67,7 +71,7 @@ def make_material_tools(config: ConfigState) -> list[BaseTool]:
                 specific_heat=specific_heat,
             ),
         )
-        return ok(f"Material '{name}' created.", _material_dump(material))
+        return ok(_created(f"Material '{name}'", created), _material_dump(material))
 
     @model_tool
     def create_nomass_material(
@@ -80,13 +84,15 @@ def make_material_tools(config: ConfigState) -> list[BaseTool]:
             roughness: Surface roughness.
             thermal_resistance: R-value, m^2*K/W, > 0.
         """
-        material = objects.create(
+        material, created = objects.create_or_same(
             idf,
             MaterialNoMass(
                 name=name, roughness=roughness, thermal_resistance=thermal_resistance
             ),
         )
-        return ok(f"Material:NoMass '{name}' created.", _material_dump(material))
+        return ok(
+            _created(f"Material:NoMass '{name}'", created), _material_dump(material)
+        )
 
     @model_tool
     def create_airgap_material(name: str, thermal_resistance: float) -> str:
@@ -98,10 +104,12 @@ def make_material_tools(config: ConfigState) -> list[BaseTool]:
             name: Unique material name.
             thermal_resistance: Air cavity resistance, m^2*K/W.
         """
-        material = objects.create(
+        material, created = objects.create_or_same(
             idf, MaterialAirGap(name=name, thermal_resistance=thermal_resistance)
         )
-        return ok(f"Material:AirGap '{name}' created.", _material_dump(material))
+        return ok(
+            _created(f"Material:AirGap '{name}'", created), _material_dump(material)
+        )
 
     @model_tool
     def create_glazing_material(
@@ -118,7 +126,7 @@ def make_material_tools(config: ConfigState) -> list[BaseTool]:
             solar_heat_gain_coefficient: SHGC, 0-1.
             visible_transmittance: Optional VT, 0-1.
         """
-        material = objects.create(
+        material, created = objects.create_or_same(
             idf,
             WindowMaterialSimpleGlazingSystem(
                 name=name,
@@ -128,7 +136,7 @@ def make_material_tools(config: ConfigState) -> list[BaseTool]:
             ),
         )
         return ok(
-            f"WindowMaterial:SimpleGlazingSystem '{name}' created.",
+            _created(f"WindowMaterial:SimpleGlazingSystem '{name}'", created),
             _material_dump(material),
         )
 
@@ -155,7 +163,7 @@ def make_material_tools(config: ConfigState) -> list[BaseTool]:
             visible_reflectance: At normal incidence, 0-1.
             conductivity: W/(m*K).
         """
-        material = objects.create(
+        material, created = objects.create_or_same(
             idf,
             WindowMaterialGlazing(
                 name=name,
@@ -170,7 +178,10 @@ def make_material_tools(config: ConfigState) -> list[BaseTool]:
                 conductivity=conductivity,
             ),
         )
-        return ok(f"WindowMaterial:Glazing '{name}' created.", _material_dump(material))
+        return ok(
+            _created(f"WindowMaterial:Glazing '{name}'", created),
+            _material_dump(material),
+        )
 
     @model_tool
     def create_window_gas_material(
@@ -185,10 +196,12 @@ def make_material_tools(config: ConfigState) -> list[BaseTool]:
             thickness: Gap width in meters, e.g. 0.012.
             gas_type: Fill gas.
         """
-        material = objects.create(
+        material, created = objects.create_or_same(
             idf, WindowMaterialGas(name=name, gas_type=gas_type, thickness=thickness)
         )
-        return ok(f"WindowMaterial:Gas '{name}' created.", _material_dump(material))
+        return ok(
+            _created(f"WindowMaterial:Gas '{name}'", created), _material_dump(material)
+        )
 
     @model_tool
     def get_material(name: str) -> str:
