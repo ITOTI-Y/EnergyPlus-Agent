@@ -1,5 +1,6 @@
 from langchain_core.messages import AIMessage
 from langgraph.runtime import Runtime
+from pydantic import BaseModel, Field
 
 from src.agent.llm import build_agent
 from src.agent.nodes._share import (
@@ -111,6 +112,15 @@ Rules:
 """
 
 
+class ScheduleResponse(BaseModel):
+    """Structured summary returned by the schedule phase agent."""
+
+    schedule_names: list[str] = Field(
+        description="Names of all Schedule:Compact objects created"
+    )
+    summary: str = Field(description="One-line summary of the schedule creation result")
+
+
 def schedule_agent(state: AgentState, runtime: Runtime[SimContext]) -> AgentStateUpdate:
     if skipped(state, "schedule"):
         return AgentStateUpdate()
@@ -125,6 +135,7 @@ def schedule_agent(state: AgentState, runtime: Runtime[SimContext]) -> AgentStat
     agent = build_agent(
         tools=tools,
         system_prompt=prompt,
+        response_format=ScheduleResponse,
         middleware=[trace_middleware(collector)],
     )
 
@@ -146,7 +157,8 @@ def schedule_agent(state: AgentState, runtime: Runtime[SimContext]) -> AgentStat
         agent, local, with_feedback(specs, state, "schedule"), phase="schedule"
     )
 
-    summary = last_message_text(result)
+    response: ScheduleResponse | None = result.get("structured_response")
+    summary = response.summary if response else last_message_text(result)
 
     record_phase_trace("schedule", collector.export())
     return AgentStateUpdate(

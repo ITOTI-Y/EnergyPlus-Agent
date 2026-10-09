@@ -1,4 +1,5 @@
 from langchain_core.messages import AIMessage
+from pydantic import BaseModel, Field
 
 from src.agent.llm import build_agent
 from src.agent.nodes._share import (
@@ -35,6 +36,13 @@ Rules:
 """
 
 
+class PeopleResponse(BaseModel):
+    """Structured summary returned by the people phase agent."""
+
+    people_names: list[str] = Field(description="Names of all People objects created")
+    summary: str = Field(description="One-line summary of the people creation result")
+
+
 def people_agent(state: AgentState) -> AgentStateUpdate:
     if skipped(state, "people"):
         return AgentStateUpdate()
@@ -45,6 +53,7 @@ def people_agent(state: AgentState) -> AgentStateUpdate:
     agent = build_agent(
         tools=tools,
         system_prompt=PEOPLE_SYSTEM_PROMPT,
+        response_format=PeopleResponse,
         middleware=[trace_middleware(collector)],
     )
 
@@ -55,7 +64,8 @@ def people_agent(state: AgentState) -> AgentStateUpdate:
         agent, local, with_feedback(specs, state, "people"), phase="people"
     )
 
-    summary = last_message_text(result)
+    response: PeopleResponse | None = result.get("structured_response")
+    summary = response.summary if response else last_message_text(result)
 
     record_phase_trace("people", collector.export())
     return AgentStateUpdate(

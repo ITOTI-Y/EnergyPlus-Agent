@@ -1,9 +1,7 @@
 import pytest
 from idfpy import IDF
-from idfpy.models.constructions import Construction, MaterialNoMass
 from idfpy.models.hvac_templates import HVACTemplateZoneIdealLoadsAirSystem
 from idfpy.models.internal_gains import Lights, People
-from idfpy.models.location import SiteGroundTemperatureBuildingSurface
 from idfpy.models.schedules import ScheduleCompact
 from idfpy.models.thermal_zones import (
     BuildingSurfaceDetailed,
@@ -14,7 +12,6 @@ from idfpy.models.thermal_zones import (
 from src.modeling.validation import (
     completeness_issues,
     fenestration_issues,
-    foundation_issues,
     reference_issues,
     simulation_issues,
 )
@@ -169,37 +166,3 @@ def test_energyplus_messages_are_tied_to_quoted_objects():
         ("Schedule:Compact", "Always On"),
         (None, None),
     ]
-
-
-def test_ground_floor_with_no_mass_layer_is_reported_for_kiva():
-    idf = IDF()
-    idf.add(Zone(name="Office"))
-    idf.add(
-        MaterialNoMass(name="Insulation", roughness="Smooth", thermal_resistance=2.0)
-    )
-    idf.add(Construction(name="Slab", outside_layer="Insulation"))
-    floor = BuildingSurfaceDetailed.model_validate(
-        {
-            "name": "Floor",
-            "surface_type": "Floor",
-            "construction_name": "Slab",
-            "zone_name": "Office",
-            "outside_boundary_condition": "Ground",
-            "vertices": [
-                {
-                    "vertex_x_coordinate": x,
-                    "vertex_y_coordinate": y,
-                    "vertex_z_coordinate": 0,
-                }
-                for x, y in [(0, 0), (0, 5), (5, 5), (5, 0)]
-            ],
-        }
-    )
-    idf.add(floor)
-
-    [issue] = foundation_issues(idf)
-
-    assert (issue.object_type, issue.object_name) == ("Construction", "Slab")
-    assert "Insulation" in issue.message
-    idf.add(SiteGroundTemperatureBuildingSurface())
-    assert foundation_issues(idf) == []

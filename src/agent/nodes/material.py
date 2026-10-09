@@ -1,5 +1,6 @@
 from langchain_core.messages import AIMessage, HumanMessage
 from langgraph.runtime import Runtime
+from pydantic import BaseModel, Field
 
 from src.agent.llm import build_agent
 from src.agent.nodes._share import last_message_text, skipped, with_feedback
@@ -37,6 +38,13 @@ Rules:
 """
 
 
+class MaterialResponse(BaseModel):
+    """Structured summary returned by the material phase agent."""
+
+    material_names: list[str] = Field(description="Names of all materials created")
+    summary: str = Field(description="One-line summary of the material creation result")
+
+
 def material_agent(state: AgentState, runtime: Runtime[SimContext]) -> AgentStateUpdate:
     if skipped(state, "material"):
         return AgentStateUpdate()
@@ -51,6 +59,7 @@ def material_agent(state: AgentState, runtime: Runtime[SimContext]) -> AgentStat
     agent = build_agent(
         tools=tools,
         system_prompt=prompt,
+        response_format=MaterialResponse,
         middleware=[trace_middleware(collector)],
     )
 
@@ -61,7 +70,8 @@ def material_agent(state: AgentState, runtime: Runtime[SimContext]) -> AgentStat
         {"messages": [HumanMessage(content=with_feedback(specs, state, "material"))]}
     )
 
-    summary = last_message_text(result)
+    response: MaterialResponse | None = result.get("structured_response")
+    summary = response.summary if response else last_message_text(result)
 
     record_phase_trace("material", collector.export())
     return AgentStateUpdate(

@@ -4,6 +4,7 @@ from idfpy import IDF
 from idfpy.models.constructions import Construction
 from idfpy.models.thermal_zones import BuildingSurfaceDetailed, Zone
 from langchain_core.messages import AIMessage
+from pydantic import BaseModel, Field
 
 from src.agent.llm import build_agent
 from src.agent.nodes._share import (
@@ -45,6 +46,13 @@ Rules:
 - Vertices are dicts with X / Y / Z keys in meters, counter-clockwise
   seen from OUTSIDE the zone.
 """
+
+
+class SurfaceResponse(BaseModel):
+    """Structured summary returned by the surface phase agent."""
+
+    surface_names: list[str] = Field(description="Names of all surfaces created")
+    summary: str = Field(description="One-line summary of the surface creation result")
 
 
 _ROLES: Final = (
@@ -133,8 +141,10 @@ def _add_sloped_surfaces(local: ConfigState, specs: str) -> str:
     agent = build_agent(
         tools=make_surface_tools(local),
         system_prompt=SURFACE_SYSTEM_PROMPT,
+        response_format=SurfaceResponse,
         middleware=[trace_middleware(collector)],
     )
     result = invoke_with_self_repair(agent, local, specs, phase="surface")
     record_phase_trace("surface", collector.export())
-    return last_message_text(result)
+    response: SurfaceResponse | None = result.get("structured_response")
+    return response.summary if response else last_message_text(result)

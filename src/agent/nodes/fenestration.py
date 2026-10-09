@@ -1,4 +1,5 @@
 from langchain_core.messages import AIMessage
+from pydantic import BaseModel, Field
 
 from src.agent.llm import build_agent
 from src.agent.nodes._share import (
@@ -55,6 +56,17 @@ Rules:
 """
 
 
+class FenestrationResponse(BaseModel):
+    """Structured summary returned by the fenestration phase agent."""
+
+    fenestration_names: list[str] = Field(
+        description="Names of all fenestration surfaces created"
+    )
+    summary: str = Field(
+        description="One-line summary of the fenestration creation result"
+    )
+
+
 def fenestration_agent(state: AgentState) -> AgentStateUpdate:
     if skipped(state, "fenestration"):
         return AgentStateUpdate()
@@ -65,6 +77,7 @@ def fenestration_agent(state: AgentState) -> AgentStateUpdate:
     agent = build_agent(
         tools=tools,
         system_prompt=FENESTRATION_SYSTEM_PROMPT,
+        response_format=FenestrationResponse,
         middleware=[trace_middleware(collector)],
     )
 
@@ -77,7 +90,8 @@ def fenestration_agent(state: AgentState) -> AgentStateUpdate:
         agent, local, with_feedback(specs, state, "fenestration"), phase="fenestration"
     )
 
-    summary = last_message_text(result)
+    response: FenestrationResponse | None = result.get("structured_response")
+    summary = response.summary if response else last_message_text(result)
 
     record_phase_trace("fenestration", collector.export())
     return AgentStateUpdate(
