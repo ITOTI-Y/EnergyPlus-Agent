@@ -22,16 +22,17 @@ Workflow:
 1. FIRST call `list_schedules` to see the exact names of all Schedule:Compact
    objects (you need these for setpoint + availability references).
 2. FIRST call `list_zones` to see the exact zone names (you need these for
-   create_ideal_loads_system).
+   create_ideal_loads_systems).
 3. Create one HVACTemplate:Thermostat via create_thermostat for each
    distinct pair of heating and cooling setpoint schedules, NOT one per
    zone, using schedule names from step 1.
-4. For each conditioned zone, create HVACTemplate:Zone:IdealLoadsAirSystem
-   via create_ideal_loads_system(zone_name=..., template_thermostat_name=...).
-5. Call list_thermostats and list_ideal_loads_systems once at the end.
+4. Give every conditioned zone an HVACTemplate:Zone:IdealLoadsAirSystem:
+   call `create_ideal_loads_systems` once per thermostat, listing its zones
+   in `zone_names`. Its reply names only zones that failed; the rest got
+   their system. Do not list afterwards.
 
 Rules:
-- `zone_name`, `heating_setpoint_schedule_name`, `cooling_setpoint_schedule_name`,
+- Zone names, `heating_setpoint_schedule_name`, `cooling_setpoint_schedule_name`,
   `template_thermostat_name`, `system_availability_schedule_name` MUST all
   appear verbatim in the respective list_* results.
 - If a needed zone or schedule is missing, do NOT invent a name and do NOT
