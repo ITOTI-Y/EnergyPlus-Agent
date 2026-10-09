@@ -179,7 +179,12 @@ def _without_empty_choices(node: Any) -> Any:
 
 
 def _tool(schema: type[BaseModel]) -> dict[str, Any]:
-    return _without_empty_choices(convert_to_openai_tool(schema))
+    """The schema as a strict tool: every field required, no extra keys.
+
+    Without strict mode Haiku now and then left out required specs (e.g.
+    construction_specs) and repeated the omission when told.
+    """
+    return _without_empty_choices(convert_to_openai_tool(schema, strict=True))
 
 
 def _structured[T: BaseModel, R](
@@ -197,7 +202,7 @@ def _structured[T: BaseModel, R](
         RuntimeError: If no attempt gives a usable reply.
     """
     llm = create_llm().with_structured_output(
-        _tool(schema), method="function_calling", include_raw=True
+        _tool(schema), method="function_calling", include_raw=True, strict=True
     )
     problem = ""
     for _ in range(MAX_STRUCTURED_ATTEMPTS):
