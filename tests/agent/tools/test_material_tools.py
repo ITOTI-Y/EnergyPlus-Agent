@@ -103,3 +103,18 @@ def test_a_call_where_every_material_fails_is_an_error():
 
     assert reply.status == "error"
     assert "Brick_100mm" in str(reply.content)
+
+
+def test_absorptances_given_are_kept_and_others_default():
+    config, tools = _tools()
+
+    _create(
+        tools,
+        standard=[{**BRICK, "solar_absorptance": 0.45}],
+        nomass=[{"name": "Pad", "roughness": "Smooth", "thermal_resistance": 0.2}],
+    )
+
+    brick = config.idf.all_of_type(Material)["Brick_100mm"]
+    pad = config.idf.all_of_type(MaterialNoMass)["Pad"]
+    assert (brick.solar_absorptance, brick.thermal_absorptance) == (0.45, 0.9)
+    assert pad.solar_absorptance == 0.7

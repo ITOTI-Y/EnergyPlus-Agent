@@ -6,9 +6,13 @@ import pytest
 from pydantic import ValidationError
 from qdrant_client import QdrantClient
 
-from src.agent.tools.reference_tools import make_reference_tools, reference_prompt
+from src.agent.tools.reference_tools import (
+    compact_hit,
+    make_reference_tools,
+    reference_prompt,
+)
 from src.reference.climate import Climate
-from src.reference.index import Embedder
+from src.reference.index import Embedder, Hit
 from src.reference.search import ReferenceSearch
 from src.reference.settings import ReferenceSettings
 
@@ -62,3 +66,51 @@ def test_settings_need_both_services_or_neither(monkeypatch: pytest.MonkeyPatch)
 
     with pytest.raises(ValidationError, match="neither"):
         ReferenceSettings(_env_file=None)
+
+
+WALL = Hit(
+    score=0.63218,
+    kind="construction",
+    object_type="Construction",
+    name="nonres_ext_wall_mid",
+    data={
+        "name": "nonres_ext_wall_mid",
+        "layers": ["F07 Stucco", "Wall Insulation"],
+        "materials": [
+            {"object_type": "Material", "name": "F07 Stucco", "thickness": 0.025,
+             "thermal_absorptance": 0.9, "solar_absorptance": 0.92,
+             "visible_absorptance": 0.7},
+            {"object_type": "Material:NoMass", "name": "Wall Insulation",
+             "thermal_resistance": 0.53, "thermal_absorptance": 0.9,
+             "solar_absorptance": 0.7, "visible_absorptance": 0.7},
+        ],
+    },
+    climate_zones=["1A"],
+    building_types=["OfficeLarge"],
+    standards=["ASHRAE 90.1-2022"],
+    roles=["Wall, Outdoors"],
+)  # fmt: skip
+
+
+def test_construction_result_keeps_only_non_default_absorptances():
+    entry = compact_hit(WALL, with_material_values=True)
+
+    assert entry["score"] == 0.63
+    assert "kind" not in entry and "object_type" not in entry
+    assert entry["data"] == {
+        "layers": ["F07 Stucco", "Wall Insulation"],
+        "materials": [
+            {"object_type": "Material", "name": "F07 Stucco", "thickness": 0.025,
+             "solar_absorptance": 0.92},
+            {"object_type": "Material:NoMass", "name": "Wall Insulation",
+             "thermal_resistance": 0.53},
+        ],
+    }  # fmt: skip
+    assert entry["building_types"] == ["OfficeLarge"]
+    assert entry["roles"] == ["Wall, Outdoors"]
+
+
+def test_construction_phase_gets_layer_names_without_material_values():
+    entry = compact_hit(WALL, with_material_values=False)
+
+    assert entry["data"] == {"layers": ["F07 Stucco", "Wall Insulation"]}

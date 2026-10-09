@@ -31,7 +31,17 @@ def _material_dump(material: IDFBaseModel) -> dict[str, Any]:
     }
 
 
-class StandardMaterialSchema(BaseModel):
+class AbsorptanceSchema(BaseModel):
+    """Surface absorptances; left out, EnergyPlus uses 0.9 / 0.7 / 0.7."""
+
+    thermal_absorptance: float | None = Field(
+        default=None, gt=0, le=0.99999, description="Long-wave emittance"
+    )
+    solar_absorptance: float | None = Field(default=None, ge=0, le=1)
+    visible_absorptance: float | None = Field(default=None, ge=0, le=1)
+
+
+class StandardMaterialSchema(AbsorptanceSchema):
     """Solid layer with thermal mass."""
 
     name: str
@@ -42,7 +52,7 @@ class StandardMaterialSchema(BaseModel):
     specific_heat: float = Field(gt=0, description="J/(kg*K)")
 
 
-class NoMassMaterialSchema(BaseModel):
+class NoMassMaterialSchema(AbsorptanceSchema):
     """Layer known by its R-value only."""
 
     name: str
@@ -146,8 +156,10 @@ def make_material_tools(config: ConfigState) -> list[BaseTool]:
         materials afterwards.
 
         Args:
-            standard: Solid layers with thermal mass (Material).
-            nomass: Layers known by R-value only (Material:NoMass).
+            standard: Solid layers with thermal mass (Material). Give the
+                absorptances a reference result has; leave them out otherwise.
+            nomass: Layers known by R-value only (Material:NoMass), with
+                absorptances as for standard.
             airgap: Air cavities in opaque walls or roofs (Material:AirGap).
             simple_glazing: Whole windows as one layer
                 (WindowMaterial:SimpleGlazingSystem).
@@ -155,8 +167,8 @@ def make_material_tools(config: ConfigState) -> list[BaseTool]:
             window_gases: Gas layers between panes (WindowMaterial:Gas).
         """
         materials: list[IDFBaseModel] = [
-            *(Material(**m.model_dump()) for m in standard or []),
-            *(MaterialNoMass(**m.model_dump()) for m in nomass or []),
+            *(Material(**m.model_dump(exclude_none=True)) for m in standard or []),
+            *(MaterialNoMass(**m.model_dump(exclude_none=True)) for m in nomass or []),
             *(MaterialAirGap(**m.model_dump()) for m in airgap or []),
             *(
                 WindowMaterialSimpleGlazingSystem(**m.model_dump())

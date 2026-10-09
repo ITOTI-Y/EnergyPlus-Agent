@@ -26,15 +26,22 @@ interactions:
       material succeeds or fails alone. One that exists with the same\n        values
       is kept; one that exists with other values fails. The reply\n        is final:
       it names only the failures, so there is no need to list\n        materials afterwards.\n\n        Args:\n            standard:
-      Solid layers with thermal mass (Material).\n            nomass: Layers known
-      by R-value only (Material:NoMass).\n            airgap: Air cavities in opaque
-      walls or roofs (Material:AirGap).\n            simple_glazing: Whole windows
-      as one layer\n                (WindowMaterial:SimpleGlazingSystem).\n            glass_panes:
+      Solid layers with thermal mass (Material). Give the\n                absorptances
+      a reference result has; leave them out otherwise.\n            nomass: Layers
+      known by R-value only (Material:NoMass), with\n                absorptances
+      as for standard.\n            airgap: Air cavities in opaque walls or roofs
+      (Material:AirGap).\n            simple_glazing: Whole windows as one layer\n                (WindowMaterial:SimpleGlazingSystem).\n            glass_panes:
       Panes of multi-pane windows (WindowMaterial:Glazing).\n            window_gases:
       Gas layers between panes (WindowMaterial:Gas).","parameters":{"properties":{"standard":{"anyOf":[{"items":{"description":"Solid
-      layer with thermal mass.","properties":{"name":{"title":"Name","type":"string"},"roughness":{"enum":["VeryRough","Rough","MediumRough","MediumSmooth","Smooth","VerySmooth"],"type":"string"},"thickness":{"description":"m","exclusiveMinimum":0,"title":"Thickness","type":"number"},"conductivity":{"description":"W/(m*K)","exclusiveMinimum":0,"title":"Conductivity","type":"number"},"density":{"description":"kg/m^3","exclusiveMinimum":0,"title":"Density","type":"number"},"specific_heat":{"description":"J/(kg*K)","exclusiveMinimum":0,"title":"Specific
+      layer with thermal mass.","properties":{"thermal_absorptance":{"anyOf":[{"exclusiveMinimum":0,"maximum":0.99999,"type":"number"},{"type":"null"}],"default":null,"description":"Long-wave
+      emittance","title":"Thermal Absorptance"},"solar_absorptance":{"anyOf":[{"maximum":1,"minimum":0,"type":"number"},{"type":"null"}],"default":null,"title":"Solar
+      Absorptance"},"visible_absorptance":{"anyOf":[{"maximum":1,"minimum":0,"type":"number"},{"type":"null"}],"default":null,"title":"Visible
+      Absorptance"},"name":{"title":"Name","type":"string"},"roughness":{"enum":["VeryRough","Rough","MediumRough","MediumSmooth","Smooth","VerySmooth"],"type":"string"},"thickness":{"description":"m","exclusiveMinimum":0,"title":"Thickness","type":"number"},"conductivity":{"description":"W/(m*K)","exclusiveMinimum":0,"title":"Conductivity","type":"number"},"density":{"description":"kg/m^3","exclusiveMinimum":0,"title":"Density","type":"number"},"specific_heat":{"description":"J/(kg*K)","exclusiveMinimum":0,"title":"Specific
       Heat","type":"number"}},"required":["name","roughness","thickness","conductivity","density","specific_heat"],"title":"StandardMaterialSchema","type":"object"},"type":"array"},{"type":"null"}],"default":null},"nomass":{"anyOf":[{"items":{"description":"Layer
-      known by its R-value only.","properties":{"name":{"title":"Name","type":"string"},"roughness":{"enum":["VeryRough","Rough","MediumRough","MediumSmooth","Smooth","VerySmooth"],"type":"string"},"thermal_resistance":{"description":"m^2*K/W","exclusiveMinimum":0,"title":"Thermal
+      known by its R-value only.","properties":{"thermal_absorptance":{"anyOf":[{"exclusiveMinimum":0,"maximum":0.99999,"type":"number"},{"type":"null"}],"default":null,"description":"Long-wave
+      emittance","title":"Thermal Absorptance"},"solar_absorptance":{"anyOf":[{"maximum":1,"minimum":0,"type":"number"},{"type":"null"}],"default":null,"title":"Solar
+      Absorptance"},"visible_absorptance":{"anyOf":[{"maximum":1,"minimum":0,"type":"number"},{"type":"null"}],"default":null,"title":"Visible
+      Absorptance"},"name":{"title":"Name","type":"string"},"roughness":{"enum":["VeryRough","Rough","MediumRough","MediumSmooth","Smooth","VerySmooth"],"type":"string"},"thermal_resistance":{"description":"m^2*K/W","exclusiveMinimum":0,"title":"Thermal
       Resistance","type":"number"}},"required":["name","roughness","thermal_resistance"],"title":"NoMassMaterialSchema","type":"object"},"type":"array"},{"type":"null"}],"default":null},"airgap":{"anyOf":[{"items":{"description":"Air
       cavity of an opaque wall or roof; never in a window.","properties":{"name":{"title":"Name","type":"string"},"thermal_resistance":{"description":"m^2*K/W","exclusiveMinimum":0,"title":"Thermal
       Resistance","type":"number"}},"required":["name","thermal_resistance"],"title":"AirGapMaterialSchema","type":"object"},"type":"array"},{"type":"null"}],"default":null},"simple_glazing":{"anyOf":[{"items":{"description":"A
@@ -65,7 +72,7 @@ interactions:
       connection:
       - keep-alive
       content-length:
-      - '7809'
+      - '8866'
       content-type:
       - application/json
       host:
@@ -97,28 +104,31 @@ interactions:
   response:
     body:
       string: !!binary |
-        KLUv/QBYXSUAKlNMECjQZPI2eGNIXOEEvEJI27VUsiXhqkXJBDUAwKHwtyihnCByNYPKwcEL6QD2
-        AAoBlYWwKk5ZVmszKn7290z7HwjIxoyz5rWsHBXvvj3rXDvHnNfP/pZ6/0H2d6ycX/Onr1AwF84N
-        4V7zT8/LslpOqXX/7LPm9W4OyXHGIu/ofY66/InKfnTDjP9AQPb8WqxJ+9P3Eq3iDXHnXItD+/Kf
-        yhLN2feM97nvmLHIMW/nKf/pNQ7RfglQoAjw+Oz3DXFI7/OnJ3ktxYEEgWEAZ2zekXDLUevxsy9v
-        qM2fsg9vr3fbnz5r3G95mtoS9Eraz77b6+non75zJwNtVJGxWTKaTY1SwEEDlgGBOBwqDFEN5Dt+
-        9iH+AwABAATbYGmUKoMAYUamImEsjQze0u3xeVxF0WkiIXGEdVM07aUzGiMzshMSi4iQSbnybk5R
-        HQP3TO4ZWkaZeHQeWb9cQXocIYxrc7dCO9x005x37kgoc7FCo+1tyAi9NG/D7e+zwRRQLKL3ySga
-        H5TREKHaZ197DX/68PYz3TZfAlz7DTkDSqUvDSg9aJoUVXE+Fu/Fg9mD4PQgOaLaYqI4vJIHyRHV
-        +8GJwhDZg71ekmOxiO09+YMTVcAqnm/44IQl0o5DuFs0zNo+OFUEVPYg5zd/LCb7gwcCsgfDXcNc
-        O3/w4LPnPV8THXeteN9eTU7216z5D7LpEQEFU9OQudxEKhrqeSy4Za0PK5AgaIeAiVwK2HJxhUfi
-        enk0mMVhQaHkQ46iSopdSadizyIguVTVxNDp+OjTyR3CIAU8V4SZ3EPkURGNd7J5QAqwUcITGRVE
-        OkSIEyqT/FBomuVhxvDEJNKtcZAQGqhAum7kKr3OwOBQNyjXIDMWU5KOAhEQELtI6EPomsU2cgbN
-        ZnEUgZGjSJDFuSkdi636rMk1ciNeYB5fPcPD4RQ1+Rs327PIG3KD8rzBBp4DvhCXPr8swUZa4ZHx
-        PL4jiE2S0s5ztUp/j44/tMQ7U9isUbddPM3CVybkkKSgkawHJ8wFxqikGM9jYQw2nRE2cNyHhayO
-        wlGpkJnNF6VSaawm/gmjqtIBcRUqXh0QhemQqCiLogg41+a7r5gxx6x3d36ipRvikMYhWm/HW8SZ
-        qPCStto/uOju2X902uFw3Lm2PxkoqlDWrvtP2PWTZUhU2fN8P7pz+mnqfaIDSl+FBno1txZ/+oLB
-        qIJAqk3AGnVGmlo4NMngKTjGdQ7DxegXnSMGCaVjqXTaZ/E2rSGEafeJFURpOaErq+DjngLFKWG0
-        ISvTNarxdZynw2x2y2wgx6TWUUXpd6IQaBR0G49DQ9s47IMBWl0Hm6C2vEOzgaAYFk94Kkr5FdI0
-        GqKLh+xQFO5zmFsEcuhUhIYS/lBczcBw6IobFnEHOCAwgsbY1Q762RVZAI0V8DkHdpCqk7kObKH1
-        yWHD6wyc0nO0G1+4AW4wjEzjtIqXauAkC+PtDk4LBCbtLxSBrHLMGwwsm9dYuhL7InwiwnT6g3zF
-        IkglgQuLAVkSSRxRCyCJmZBGMnZb2hYV7eRl+KqIMGoDWs+1wywS2dI2qi6J4PbxAD0IoBLf24Da
-        tpQAjO/FAg==
+        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
     headers:
       access-control-allow-origin:
       - '*'
@@ -129,7 +139,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a47e3a1bee55ea74-NRT
+      - a47e5b711e73b006-NRT
       connection:
       - keep-alive
       content-encoding:
@@ -137,7 +147,7 @@ interactions:
       content-type:
       - application/json
       date:
-      - Fri, 09 Oct 2026 14:55:37 GMT
+      - Fri, 09 Oct 2026 15:18:24 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       permissions-policy:
@@ -146,13 +156,13 @@ interactions:
       referrer-policy:
       - no-referrer, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=KwkYo29LWbXdMfQooeKwD9bz0U98A0H2obo0IuC7Q1ON9aIuoKfkaFa7vCNFv2WUcukQ4AB5kQMqd%2FVzTJedFpiAElAV56avkhHOcqiDVAa4zc2M3dKAlF9MnweSzYTJlsM%3D"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=ctajnuiID%2BQlluZLKyIIZ6l7IWrqdHrg9gvQWNQldiLt559IkaA2PohugreTxUML4Z0oYQQIDKWQv3T4H7rcVzsITG8CS3UVrTuBc%2Bvo4hQPtR7N1%2FPDNuOCW71lRV4ee5E%3D"}]}'
       server:
       - cloudflare
       set-cookie:
-      - __cf_bm=sCuMoQPEQE6IdVrj2C0MyOYX0oSA_DJ0JWWXd7hqZ5I-1791557734.709762-1.0.1.1-SOYseKD6owhUCsk8yOA7DcptLzQ6lBQqXfX8nXWWwRW7CqKE7xNTmakbKcZmXEsyLSjN2gFWxVDzdpTLahHbnb7CmWWk9VCnfSSTg7w7ZKmAdkOaXw4OZIrCJupWqvdx;
+      - __cf_bm=C6Fqz_W37nSGKzF0uEnGydnIJfp76DYjp1Y1AHqn7Jo-1791559100.0812902-1.0.1.1-9So4MfXYVT03XHnyKXgVZ4hjLMugKezkyqdVqF6L1B7MGMsjiOOU2ZHRp6TIZKxjWnkHoUHh9yoKbGly5NL7M4z3_Pp2thG56DHmbuVyruRb.7BWoBgMrbBkFEcgvScP;
         HttpOnly; SameSite=None; Secure; Path=/; Domain=openrouter.ai; Expires=Fri,
-        09 Oct 2026 15:25:37 GMT
+        09 Oct 2026 15:48:24 GMT
       strict-transport-security:
       - max-age=31536000
       transfer-encoding:
@@ -162,11 +172,11 @@ interactions:
       x-content-type-options:
       - nosniff
       x-generation-id:
-      - gen-1791557734-qsIOEmnunRHCfaDuCpKt
+      - gen-1791559100-cFFVzKZn20ILIWWSzpzU
       x-new-api-version:
       - v1.0.0-rc.42
       x-oneapi-request-id:
-      - 202610091455346569264968268d9d6HBoKKebE
+      - 202610091518200325080898268d9d68mtgTKIx
     status:
       code: 200
       message: OK
@@ -192,23 +202,30 @@ interactions:
       Rough, MediumRough, MediumSmooth, Smooth, VerySmooth.\n- Use typical ASHRAE
       values when the description is vague.\n","role":"system"},{"content":"Create
       exactly one standard material named ''Brick_100mm'': thickness 0.1 m, conductivity
-      0.89 W/m-K, density 1920 kg/m3, specific heat 790 J/kg-K, roughness MediumRough.","role":"user"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_147417","function":{"name":"create_materials","arguments":"{\"standard\":
-      [{\"thickness\": 0.1, \"conductivity\": 0.89, \"density\": 1920, \"specific_heat\":
-      790, \"roughness\": \"MediumRough\", \"name\": \"Brick_100mm\"}]}"}}]},{"content":"{\"success\":
-      true, \"message\": \"Created 1 materials.\", \"data\": null}","role":"tool","tool_call_id":"call_147417"}],"model":"google/gemini-3.8-flash","max_completion_tokens":16384,"parallel_tool_calls":false,"stream":false,"temperature":0.7,"tool_choice":"required","tools":[{"type":"function","function":{"name":"create_materials","description":"Create
+      0.89 W/m-K, density 1920 kg/m3, specific heat 790 J/kg-K, roughness MediumRough.","role":"user"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_156646","function":{"name":"create_materials","arguments":"{\"standard\":
+      [{\"name\": \"Brick_100mm\", \"conductivity\": 0.89, \"density\": 1920, \"thickness\":
+      0.1, \"roughness\": \"MediumRough\", \"specific_heat\": 790}]}"}}]},{"content":"{\"success\":
+      true, \"message\": \"Created 1 materials.\", \"data\": null}","role":"tool","tool_call_id":"call_156646"}],"model":"google/gemini-3.8-flash","max_completion_tokens":16384,"parallel_tool_calls":false,"stream":false,"temperature":0.7,"tool_choice":"required","tools":[{"type":"function","function":{"name":"create_materials","description":"Create
       materials of any types in one call; give all you need at once.\n\n        Each
       material succeeds or fails alone. One that exists with the same\n        values
       is kept; one that exists with other values fails. The reply\n        is final:
       it names only the failures, so there is no need to list\n        materials afterwards.\n\n        Args:\n            standard:
-      Solid layers with thermal mass (Material).\n            nomass: Layers known
-      by R-value only (Material:NoMass).\n            airgap: Air cavities in opaque
-      walls or roofs (Material:AirGap).\n            simple_glazing: Whole windows
-      as one layer\n                (WindowMaterial:SimpleGlazingSystem).\n            glass_panes:
+      Solid layers with thermal mass (Material). Give the\n                absorptances
+      a reference result has; leave them out otherwise.\n            nomass: Layers
+      known by R-value only (Material:NoMass), with\n                absorptances
+      as for standard.\n            airgap: Air cavities in opaque walls or roofs
+      (Material:AirGap).\n            simple_glazing: Whole windows as one layer\n                (WindowMaterial:SimpleGlazingSystem).\n            glass_panes:
       Panes of multi-pane windows (WindowMaterial:Glazing).\n            window_gases:
       Gas layers between panes (WindowMaterial:Gas).","parameters":{"properties":{"standard":{"anyOf":[{"items":{"description":"Solid
-      layer with thermal mass.","properties":{"name":{"title":"Name","type":"string"},"roughness":{"enum":["VeryRough","Rough","MediumRough","MediumSmooth","Smooth","VerySmooth"],"type":"string"},"thickness":{"description":"m","exclusiveMinimum":0,"title":"Thickness","type":"number"},"conductivity":{"description":"W/(m*K)","exclusiveMinimum":0,"title":"Conductivity","type":"number"},"density":{"description":"kg/m^3","exclusiveMinimum":0,"title":"Density","type":"number"},"specific_heat":{"description":"J/(kg*K)","exclusiveMinimum":0,"title":"Specific
+      layer with thermal mass.","properties":{"thermal_absorptance":{"anyOf":[{"exclusiveMinimum":0,"maximum":0.99999,"type":"number"},{"type":"null"}],"default":null,"description":"Long-wave
+      emittance","title":"Thermal Absorptance"},"solar_absorptance":{"anyOf":[{"maximum":1,"minimum":0,"type":"number"},{"type":"null"}],"default":null,"title":"Solar
+      Absorptance"},"visible_absorptance":{"anyOf":[{"maximum":1,"minimum":0,"type":"number"},{"type":"null"}],"default":null,"title":"Visible
+      Absorptance"},"name":{"title":"Name","type":"string"},"roughness":{"enum":["VeryRough","Rough","MediumRough","MediumSmooth","Smooth","VerySmooth"],"type":"string"},"thickness":{"description":"m","exclusiveMinimum":0,"title":"Thickness","type":"number"},"conductivity":{"description":"W/(m*K)","exclusiveMinimum":0,"title":"Conductivity","type":"number"},"density":{"description":"kg/m^3","exclusiveMinimum":0,"title":"Density","type":"number"},"specific_heat":{"description":"J/(kg*K)","exclusiveMinimum":0,"title":"Specific
       Heat","type":"number"}},"required":["name","roughness","thickness","conductivity","density","specific_heat"],"title":"StandardMaterialSchema","type":"object"},"type":"array"},{"type":"null"}],"default":null},"nomass":{"anyOf":[{"items":{"description":"Layer
-      known by its R-value only.","properties":{"name":{"title":"Name","type":"string"},"roughness":{"enum":["VeryRough","Rough","MediumRough","MediumSmooth","Smooth","VerySmooth"],"type":"string"},"thermal_resistance":{"description":"m^2*K/W","exclusiveMinimum":0,"title":"Thermal
+      known by its R-value only.","properties":{"thermal_absorptance":{"anyOf":[{"exclusiveMinimum":0,"maximum":0.99999,"type":"number"},{"type":"null"}],"default":null,"description":"Long-wave
+      emittance","title":"Thermal Absorptance"},"solar_absorptance":{"anyOf":[{"maximum":1,"minimum":0,"type":"number"},{"type":"null"}],"default":null,"title":"Solar
+      Absorptance"},"visible_absorptance":{"anyOf":[{"maximum":1,"minimum":0,"type":"number"},{"type":"null"}],"default":null,"title":"Visible
+      Absorptance"},"name":{"title":"Name","type":"string"},"roughness":{"enum":["VeryRough","Rough","MediumRough","MediumSmooth","Smooth","VerySmooth"],"type":"string"},"thermal_resistance":{"description":"m^2*K/W","exclusiveMinimum":0,"title":"Thermal
       Resistance","type":"number"}},"required":["name","roughness","thermal_resistance"],"title":"NoMassMaterialSchema","type":"object"},"type":"array"},{"type":"null"}],"default":null},"airgap":{"anyOf":[{"items":{"description":"Air
       cavity of an opaque wall or roof; never in a window.","properties":{"name":{"title":"Name","type":"string"},"thermal_resistance":{"description":"m^2*K/W","exclusiveMinimum":0,"title":"Thermal
       Resistance","type":"number"}},"required":["name","thermal_resistance"],"title":"AirGapMaterialSchema","type":"object"},"type":"array"},{"type":"null"}],"default":null},"simple_glazing":{"anyOf":[{"items":{"description":"A
@@ -239,7 +256,7 @@ interactions:
       connection:
       - keep-alive
       content-length:
-      - '8249'
+      - '9306'
       content-type:
       - application/json
       host:
@@ -271,22 +288,21 @@ interactions:
   response:
     body:
       string: !!binary |
-        KLUv/QBYtRoA9vixKNAO6QE8kZaTVxbI/db8JlYu+sFs5nKDqIQSsx98v0EoWxilHo7A7wWdAJgA
-        uABYp+mlm85w9jhcHVLRSa9d6qaJ6Ponxd106Lt+cnuNbuwnHeXXDmv9bvR9afbyc5dumP2tS9qh
-        Y6p9m8NQKGAgePT8Gh3h7Dn0Tsu6CVgDDwF6qX2O4CuHMefR62vYOoyu/Zafp0O/mO6vnsVzYMtu
-        evQ9P5Rhhz5a4DSQMA6XuYDRSJlvgaFSOALWYzKJRCrKpBK4z3l0jboJgAEQFKeTnygc5KCJ6CD9
-        Vl7MQdBBAwHWUlSFiSbNVwDDMrQstSu3ZjBKtX6b1j/nx3FQdFApS2s/7SCTR9f7vv24LB3664s9
-        /Zsqaf4tLx79rbxuitAj1QRCVVitcs77bR79vdJ200TkLr1Yyyr1t33+ffGVW1OtpUf/irOboj8n
-        tX7r0DWZBw72I7rldei6VjmxivH26Bdr+TmUw9tlIRgbcWBxGy2o8+IoDqs+JBquyqX4g1yCCwKn
-        Qy0sBKWIpsoeIo9WNBbdpcHhwjK6NLbJVREssrOJTDYEhTfe46p0mYsQqg5GmgsLp4BUUR1S9OBc
-        qq88FOJpdNO7YPBBVtHJRg7eRbYTvOuiIboQdY4sBPGpfNqn8iFLNh1EFgoEVEMDYzcKncMveBap
-        knjw2E5D4h3UrNlsHZGn4LK0waWwKx5dbqk5dO23V8rz/gCV+zUsp9OJk5Y6lFSniKOCUBoysRww
-        IrEcD4oawH7ez79diln5eWvvO71GR5hqn/xNswUGKe27Kaeb/ss7ugiXMkzTrfF0WE0oVZUbb4eR
-        iENJRami6/sivLHtWZy9j+Lk1UhgS5vx5tA1Bq7zsbrJcEk+nwpLRocakgYDjriyh4dKBUGm4mkc
-        w4LMEjBGIpNAqXgghWyGDW6oszqOZkPy6ImFCFJwt5Lna1QWHwUZNiAwgsbY1QH5GRdZ4h0FfMoB
-        HafqZo4jW2h+ct3wOgOn9BztxhdugBsMI9M4reKlGjhJ4f/v2LAA97RvFoGK5dgF7M7mY6Or+YtM
-        SoQX9Id85YBVGWAR2JXFfuQJMXk/9sh5UQx3rsBXRYRRG9B6rh1mkciWtlF1SQS3jwfoQQCV+N4G
-        1LalBGB8LxY=
+        KLUv/QBYHRoAhresKODu6AE8UXTHmxDFpP1wJWs2k3K+2al9JANU31bt/6EBT2GMMYYREwKYAJMA
+        sgA4cxuu/iboGD8vdVIFdP2SYo/057t2UftJN/aShvJrf7V2F/q+NHP5t0s1zP7WI+3PMZ3dzjQo
+        koaCQ88/aQhnzp97dKxaAETACqCX2t8Gvm4Ybw69/sTWH/T5O36W/vxiur9yFkuBHT3SoW/5nwz7
+        cw2EIeO67POgkEwgI8pIdE0ccE1U5LqoyIMKuL859EmdBNAAAGgABPptvJh3nncERrV2mtYvZacb
+        1k4ThYEkzZOGbcwc541bNwy8A70zytHaTnuH5ND1vm+7LUd//vpiTj9EjTT/jhaH/jZeJ8HnkCkC
+        iUCwWqOUt9Mc+nOj7aQKuF16sY416k77/PviG7emWkeH/hVnJ0H/LWr91p87YDQZ7EN0x+vPda1R
+        YhXj7dAv1vEz5tH0Uk1nARn1uFguCJyMTBWB94Tns7kbAiypPGDk1FF8aLRx0AeVhMTko5miiMRa
+        GQOChpEBxQII4zLI5ybSYSOCGMAP6ysN0kAoDwqWS5V56Ichm5eiKDnByShyQzApMs2nUo52XOxT
+        ngDUYRomPJRO4VKZHFAlk3qbWMwC/ewSZSQoQpju4IM1VqXCZExT5QKhbUAcyURng4kjIzj0uOP0
+        5/M3N8ryvgCN+ydmUSp5ycI73qmA3gmlUmmLlvqjqNL1ILAmfUWq6j0ilzVNAtjL+/m1SzEbP2/N
+        daWfNITp7OJvmkXYm+Z7ZJRO+i5v6CA8yjBNt8bSXzVVVY0bb38Rhz/roiro+j4Ib2xzFmeusyg5
+        FQrY0Was+fOCgofHgs6oWKKFQSHiMnCIPA5WJnNcdJudXbYEW0GahQSLFbrIcIja0jmmrj4Tm0ii
+        RVyHxuLMiIdCJeMQQUwEzsYBNyAwguXY1QH5GRdZ4hoFfMoBHafqZo4jW3B9ahpwKQNGyo/qxjc3
+        gA52I9M4reOlNnCywufZsW0B4bTPdAIVyzELOLybW5GuIC7KgAgV9s/zFWK0MgBFUC8LvZHXYlrp
+        OUHOJy4YWthXfQvjIaAFV7vior4tQaMqJBEsPB6hB0Eq8b0NCG1LCcB4b7wXCw==
     headers:
       access-control-allow-origin:
       - '*'
@@ -297,7 +313,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a47e3a368f11ea74-NRT
+      - a47e5b93cd71b006-NRT
       connection:
       - keep-alive
       content-encoding:
@@ -305,7 +321,7 @@ interactions:
       content-type:
       - application/json
       date:
-      - Fri, 09 Oct 2026 14:55:40 GMT
+      - Fri, 09 Oct 2026 15:18:29 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       permissions-policy:
@@ -314,13 +330,13 @@ interactions:
       referrer-policy:
       - no-referrer, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=njiTg3QJyZ9Wv4kfq88A%2BuhlJT5vjr2cTBKqVT3UpS%2B7z63luXm6x%2BnOIwIldScMJYYKBzbvV71y7XBR2b2fpwcKUj8U5JQ26mrHdLjSAXBoqjO9UOS2FoUcYukqfaSVv8U%3D"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=vQ8Ux9rWjtDh6Nz3IGuoqUrFj7eaB%2BlxDr0KsqVTPSnP411zDJg2H2UZgvkTxPIkqqfOC69xU3NeQYptwwuP9ujMfUI49TyIT1dosgfQeIxsRYrcOdCSiqnghoWqhK3%2FD%2Fg%3D"}]}'
       server:
       - cloudflare
       set-cookie:
-      - __cf_bm=rhKmNl53n7tpGrPQ86CgNXmrkMBdGtFYGfFW51aD6y4-1791557738.4120538-1.0.1.1-9qyJr03qfB8fl81Ns64SDf0E71Q8k2aSvhDuRrnDgF1eGcVj0FdbUPGSlvj59K8x_Bp77OBZkJ4Q0iVY4n8Yk56Z35ydO5hbq4BrS8.zMzeAYXpsku.nIDNnTw6TuENv;
+      - __cf_bm=kNcqpsvbcWNt_dqqLNHPmGdRX3L6hOoEqmlZUZNQQlk-1791559105.580839-1.0.1.1-P6uovKsCgPtEU22fXdzg5vxAjdL78PNLZ0IFmLpYpo64maJDdlMCLwwPIfnLvGlww4N6iulgx0Pcz_GkLvVBKacnNb.6s9QQxibvKRbL5KtaytwY28C7LbJ6nHGBskw3;
         HttpOnly; SameSite=None; Secure; Path=/; Domain=openrouter.ai; Expires=Fri,
-        09 Oct 2026 15:25:40 GMT
+        09 Oct 2026 15:48:29 GMT
       strict-transport-security:
       - max-age=31536000
       transfer-encoding:
@@ -330,11 +346,11 @@ interactions:
       x-content-type-options:
       - nosniff
       x-generation-id:
-      - gen-1791557738-S9lKJuOxdNJcMQNxLSJv
+      - gen-1791559105-od5wyIy8BAZ7jbupbK8T
       x-new-api-version:
       - v1.0.0-rc.42
       x-oneapi-request-id:
-      - 202610091455381500596378268d9d6fD0aevVQ
+      - 202610091518255554260138268d9d6nDgK83G4
     status:
       code: 200
       message: OK
