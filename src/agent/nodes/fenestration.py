@@ -14,45 +14,32 @@ from src.agent.trace import TraceCollector, record_phase_trace, trace_middleware
 
 FENESTRATION_SYSTEM_PROMPT = """You are a window/door geometry expert for EnergyPlus.
 Given fenestration specifications, create FenestrationSurface:Detailed
-objects (windows, doors, skylights) that lie on existing parent surfaces.
-
-Vertices MUST be a list of dicts with explicit X / Y / Z keys (not a
-bare [x, y, z] list). Example: a 1.5m x 1.2m window centered on a south
-wall that spans x=0..5 at y=0, window sill at 0.8m:
-
-    [
-      {"X": 1.75, "Y": 0.0, "Z": 0.8},
-      {"X": 3.25, "Y": 0.0, "Z": 0.8},
-      {"X": 3.25, "Y": 0.0, "Z": 2.0},
-      {"X": 1.75, "Y": 0.0, "Z": 2.0}
-    ]
+objects (windows, doors) on existing parent surfaces.
 
 Workflow:
-1. FIRST call `list_surfaces` to see parent surface names AND their
-   vertex geometry — you need the parent surface's plane to place the
-   fenestration's coplanar vertices correctly.
-2. THEN call `list_constructions`; each entry has a `kind`.
-3. Create each fenestration via `create_fenestration`.
+1. Call `list_constructions`; each entry has a `kind`.
+2. Windows given by window-to-wall ratio (the usual case): call
+   `create_windows_by_ratio` once per ratio, with the facings and zones it
+   applies to. It sizes and places a strip window on every matching
+   exterior wall; walls it reports in `not_created` (too small for the
+   ratio) get no window, which is acceptable.
+3. Only for openings with given sizes or positions (doors, a specific
+   window): call `list_surfaces` FILTERED to the zone and type you need
+   (never unfiltered: large buildings have hundreds of surfaces), then
+   `create_fenestration` with corners on that surface.
 4. Call `list_fenestrations` once at the end to confirm.
 
 Rules:
-- `building_surface_name` and `construction_name` MUST appear verbatim
-  in the list_surfaces / list_constructions results.
-- If a needed surface or construction is missing after list, STOP and
-  report; do NOT invent names.
+- Construction names MUST appear verbatim in the list_constructions
+  result; if one is missing, STOP and report; do NOT invent names.
 - Window and GlassDoor need a construction of kind `window`; Door needs
   kind `opaque`.
-- 3 or 4 vertices that MUST lie on the parent surface's plane (coplanar —
-  share one coordinate for walls) and inside its outline. The vertex order
-  is corrected to match the parent surface automatically.
-- On a wall between two zones, create the opening once; the matching
-  opening in the adjacent zone is added automatically.
-- surface_type is Window, Door, or GlassDoor.
-- Use the sizes and positions the specification gives. Only when it gives
-  none, use a window-to-wall ratio of 0.3-0.4 on facade walls and derive
-  the vertices from the parent wall's corners.
-- Use the names the specification gives; otherwise
-  '{parent_surface}_Window' or '{zone}_{direction}_Window_{index}'.
+- For create_fenestration: 3 or 4 vertices as dicts with X / Y / Z keys,
+  on the parent surface's plane and inside its outline; the order is
+  corrected automatically. On a wall between two zones, create the opening
+  once; the matching opening in the adjacent zone is added automatically.
+- Use the ratios, sizes and names the specification gives. Without a
+  ratio, use 0.3-0.4 on facade walls.
 """
 
 
