@@ -1,14 +1,13 @@
 from typing import Literal
 
-from idfpy.models.simulation import Building
 from idfpy.models.thermal_zones import (
-    BuildingSurfaceDetailed,
     FenestrationSurfaceDetailed,
 )
 from langchain_core.tools import BaseTool
 
 from src.agent.tools._share import (
     list_constructions_tool,
+    list_surfaces_tool,
     list_tool,
     model_tool,
     ok,
@@ -19,7 +18,6 @@ from src.modeling.fenestration import (
     Facing,
     add_fenestration,
     add_windows_by_ratio,
-    facing,
     remove_fenestration,
 )
 from src.state.config_state import ConfigState
@@ -118,47 +116,6 @@ def make_fenestration_tools(config: ConfigState) -> list[BaseTool]:
         return ok(message + ".", {"created": created, "not_created": problems})
 
     @model_tool
-    def list_surfaces(
-        zone_names: list[str] | None = None,
-        surface_type: Literal["Wall", "Floor", "Ceiling", "Roof"] | None = None,
-        outside_boundary_condition: Literal["Outdoors", "Surface", "Ground"]
-        | None = None,
-    ) -> str:
-        """List surfaces windows and doors can attach to, filtered.
-
-        Each entry gives name, zone, type, boundary, construction, facing,
-        area and corner coordinates. Filter by zone and type: a large
-        building has hundreds of surfaces.
-
-        Args:
-            zone_names: Only these zones.
-            surface_type: Only this surface type.
-            outside_boundary_condition: Only surfaces with this boundary.
-        """
-        buildings = list(idf.all_of_type(Building).values())
-        north = float(buildings[0].north_axis or 0.0) if buildings else 0.0
-        items = [
-            {
-                "name": s.name,
-                "zone": s.zone_name,
-                "type": s.surface_type,
-                "boundary": s.outside_boundary_condition,
-                "construction": s.construction_name,
-                "facing": facing(s, north) if s.surface_type == "Wall" else None,
-                "area": round(s.area, 2),
-                "corners": [[round(c, 3) for c in p] for p in s.vertices_as_tuples],
-            }
-            for s in idf.all_of_type(BuildingSurfaceDetailed).values()
-            if (zone_names is None or s.zone_name in zone_names)
-            and (surface_type is None or s.surface_type == surface_type)
-            and (
-                outside_boundary_condition is None
-                or s.outside_boundary_condition == outside_boundary_condition
-            )
-        ]
-        return ok(f"Listed {len(items)} surfaces.", items)
-
-    @model_tool
     def get_fenestration(name: str) -> str:
         """Read a fenestration by name."""
         fenestration = objects.get(idf, FenestrationSurfaceDetailed, name)
@@ -179,11 +136,24 @@ def make_fenestration_tools(config: ConfigState) -> list[BaseTool]:
             idf,
             "list_fenestrations",
             FenestrationSurfaceDetailed,
-            "List all fenestration surfaces.",
+            "List fenestration surfaces: name, type, parent surface, "
+            "construction, partner and multiplier.",
+            (
+                "name",
+                "surface_type",
+                "building_surface_name",
+                "construction_name",
+                "outside_boundary_condition_object",
+                "multiplier",
+            ),
         ),
         get_fenestration,
         delete_fenestration,
-        list_surfaces,
+        list_surfaces_tool(
+            idf,
+            "List surfaces windows and doors can attach to, filtered by zone, "
+            "type and boundary: a large building has hundreds of surfaces.",
+        ),
         list_constructions_tool(
             idf,
             "List constructions with their kind: window constructions for "

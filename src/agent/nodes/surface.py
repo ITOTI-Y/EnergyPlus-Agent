@@ -32,13 +32,14 @@ task is only the geometry an extrusion cannot express: sloped or pitched
 roofs and sloped walls.
 
 Workflow:
-1. Call `list_surfaces` to see the extruded faces, `list_constructions`
-   for the opaque constructions you may use.
+1. Call `list_surfaces` FILTERED to the zones the sloped geometry
+   changes (never unfiltered: large buildings have hundreds of surfaces),
+   and `list_constructions` for the opaque constructions you may use.
 2. `delete_surface` each flat face the sloped geometry replaces, e.g. the
    flat roof under a pitched roof.
 3. Call `create_surfaces` once with all new surfaces (roof planes, gable
-   walls); resend only entries reported as failed.
-4. Call `list_surfaces` once at the end to confirm.
+   walls); resend only entries reported as failed. Its reply is final: do
+   not list the surfaces again.
 
 Rules:
 - `zone_name` and construction names MUST appear verbatim in the

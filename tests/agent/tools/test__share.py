@@ -1,13 +1,16 @@
 import json
 from collections.abc import Iterator
+from pathlib import Path
 from typing import Any
 
 import pytest
+from idfpy import IDF
 from langchain_core.messages import ToolCall
 from langchain_core.tools import BaseTool
 from langchain_core.utils.function_calling import convert_to_openai_tool
 
 import src.agent.tools as agent_tools
+from src.agent.tools._share import list_surfaces_tool
 from src.state.config_state import ConfigState
 
 
@@ -50,3 +53,25 @@ def test_rejected_operation_returns_error_status_with_details():
 
     assert message.status == "error"
     assert json.loads(message.content)["message"] == "Lights 'Nowhere' not found."
+
+
+def test_surface_list_is_filtered_and_compact():
+    idf = IDF.from_dict(
+        json.loads(
+            (
+                Path(__file__).parents[3] / "data/schemas/building_schema.epJSON"
+            ).read_text()
+        )
+    )
+    list_surfaces = list_surfaces_tool(idf, "List surfaces.")
+
+    listed = json.loads(
+        list_surfaces.invoke({"zone_names": ["Zone_East"], "surface_type": "Wall"})
+    )["data"]
+
+    assert listed and {s["zone"] for s in listed} == {"Zone_East"}
+    assert {s["type"] for s in listed} == {"Wall"}
+    assert set(listed[0]) == {
+        "name", "zone", "type", "boundary", "construction", "facing", "area",
+        "corners",
+    }  # fmt: skip

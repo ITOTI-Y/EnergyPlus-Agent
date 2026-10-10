@@ -3,16 +3,18 @@
 import functools
 import json
 from collections.abc import Callable
-from typing import Any
+from typing import Any, Literal
 
 from idfpy import IDF, IDFBaseModel
 from idfpy.models.constructions import Construction
-from idfpy.models.thermal_zones import Zone
+from idfpy.models.simulation import Building
+from idfpy.models.thermal_zones import BuildingSurfaceDetailed, Zone
 from langchain_core.tools import BaseTool, ToolException, tool
 
 from src.modeling import objects
 from src.modeling.envelope import ConstructionKind, construction_kind
 from src.modeling.errors import ModelingError, describe_error
+from src.modeling.fenestration import facing
 from src.modeling.objects import dumps
 
 
@@ -119,3 +121,51 @@ def list_constructions_tool(
 
     list_constructions.__doc__ = description
     return tool(list_constructions)
+
+
+def list_surfaces_tool(idf: IDF, description: str) -> BaseTool:
+    """Read-only, filtered surface list with compact entries.
+
+    The full records of a 21-storey tower's 502 surfaces were 346,351
+    characters, resent with every later call of the phase.
+    """
+
+    def list_surfaces(
+        zone_names: list[str] | None = None,
+        surface_type: Literal["Wall", "Floor", "Ceiling", "Roof"] | None = None,
+        outside_boundary_condition: Literal["Outdoors", "Surface", "Ground"]
+        | None = None,
+    ) -> str:
+        """Entries give name, zone, type, boundary, construction, facing,
+        area and corner coordinates.
+
+        Args:
+            zone_names: Only these zones.
+            surface_type: Only this surface type.
+            outside_boundary_condition: Only surfaces with this boundary.
+        """
+        buildings = list(idf.all_of_type(Building).values())
+        north = float(buildings[0].north_axis or 0.0) if buildings else 0.0
+        items = [
+            {
+                "name": s.name,
+                "zone": s.zone_name,
+                "type": s.surface_type,
+                "boundary": s.outside_boundary_condition,
+                "construction": s.construction_name,
+                "facing": facing(s, north) if s.surface_type == "Wall" else None,
+                "area": round(s.area, 2),
+                "corners": [[round(c, 3) for c in p] for p in s.vertices_as_tuples],
+            }
+            for s in idf.all_of_type(BuildingSurfaceDetailed).values()
+            if (zone_names is None or s.zone_name in zone_names)
+            and (surface_type is None or s.surface_type == surface_type)
+            and (
+                outside_boundary_condition is None
+                or s.outside_boundary_condition == outside_boundary_condition
+            )
+        ]
+        return ok(f"Listed {len(items)} surfaces.", items)
+
+    list_surfaces.__doc__ = f"{description}\n\n{list_surfaces.__doc__}"
+    return tool(list_surfaces)
