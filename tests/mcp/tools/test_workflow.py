@@ -3,6 +3,7 @@ from pathlib import Path
 
 import pytest
 from idfpy.models.location import SizingPeriodDesignDay
+from idfpy.models.thermal_zones import BuildingSurfaceDetailed
 
 from src.mcp.tools.workflow import WorkflowTool
 from src.state.config_state import ConfigState
@@ -22,7 +23,7 @@ def test_run_simulation_requires_ddy_beside_epw(tmp_path):
 
 
 @pytest.mark.skipif(shutil.which("energyplus") is None, reason="EnergyPlus not on PATH")
-def test_run_simulation_adds_design_days_and_succeeds(tmp_path):
+def test_run_simulation_adds_design_days_and_kiva_and_succeeds(tmp_path):
     state = ConfigState()
     state.load_model(DATA_DIR / "schemas" / "building_schema.epJSON")
 
@@ -32,3 +33,9 @@ def test_run_simulation_adds_design_days_and_succeeds(tmp_path):
 
     assert response.success, response.data
     assert len(state.idf.all_of_type(SizingPeriodDesignDay)) == 2
+    floors = [
+        s
+        for s in state.idf.all_of_type(BuildingSurfaceDetailed).values()
+        if s.surface_type == "Floor"
+    ]
+    assert {f.outside_boundary_condition for f in floors} == {"Foundation"}
