@@ -17,8 +17,8 @@ dependencies = [
     "pydantic>=2.11.7",
     "qdrant-client>=1.17.1",
     "tqdm>=4.67.3",
-    "trimesh>=4.9.0",
     "typer>=0.20.1",
+    "shapely>=2.2.0",
 ]
 
 [project.scripts]

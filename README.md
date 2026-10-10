@@ -21,6 +21,7 @@ A RAG knowledge base (Gemini Embedding + Qdrant) and SQLite data tools for stand
 - **Parallel-safe state**: a reducer (`merge_config_state`) unions the idfpy models written by concurrent phases; on a name conflict the later branch wins.
 - **Shared model operations**: agent tools and MCP tools are thin adapters over `src/modeling`, which rejects missing references and duplicate names at the call, applies updates atomically, renames references along with an object, and refuses to delete an object that others still reference. Tool arguments are typed models with declared fields, so a rejected call names the exact field (for example `vertices.0.X: Field required`).
 - **Envelope rules at the tool boundary**: constructions are checked as they are created. Opaque layers never mix with window layers, a SimpleGlazingSystem stands alone, and multi-pane glazing alternates glass and `WindowMaterial:Gas`. Each surface and opening accepts only a construction of the matching kind, and the list tools show the kind. Openings get their vertex order corrected, are rejected when off their wall, and on an interzone wall get a mirrored partner in the adjacent zone. The two faces of an interzone wall can be created in either order and are linked to each other.
+- **Zone geometry by extrusion**: `create_zone_geometry` builds a zone's walls, floor and flat roof from its floor plan, floor level and height. Faces touching another zone's faces become interzone pairs in any creation order, also for zones of different height and storeys whose plans do not line up (overlaps computed with shapely). Concave faces are cut into convex parts, and a concave zone switches solar distribution to `FullExterior`. Sloped roofs and walls go through `create_surfaces`, where each entry succeeds or fails on its own.
 - **Failure-loop guard**: every phase agent stops when the same tool call fails three times or ten calls fail in a row, logs each failure, and reports the last error as the phase summary instead of retrying until the LLM budget runs out.
 - **Structured validation**: `src/modeling/validation.py` reports each problem as a `ModelIssue` tied to an object type, name and field. Sources are idfpy's reference check, geometric checks (fenestration reversed, off its parent surface's plane or outside its outline, which EnergyPlus would only warn about), empty models, phases that created nothing, and EnergyPlus Severe and Fatal messages, which are tied to the first object they quote. `src/agent/phases.py` maps object types to the phase that owns them; after its run each phase repairs the problems in its own objects, and every phase agent also receives read-only `list_*` tools to inspect what earlier phases created.
 - **Human-in-the-loop approval**: the validate node raises a LangGraph `interrupt()` with a configuration summary and any errors. Approval continues to simulation; free-text feedback loops back to intake.
@@ -92,7 +93,8 @@ EnergyPlus-Agent/
 │   │   ├── hvac.py                   # Ideal loads systems keyed by zone
 │   │   ├── validation.py             # ModelIssue from references, geometry and EnergyPlus
 │   │   ├── ground.py                 # Kiva slab foundations and exposed perimeters
-│   │   ├── surfaces.py               # Base surfaces and interzone pairs
+│   │   ├── surfaces.py               # Base surfaces, interzone pairs, batch creation
+│   │   ├── geometry.py               # Zone extrusion and pairing of shared faces
 │   │   ├── fenestration.py           # Opening placement, orientation and partners
 │   │   └── errors.py                 # Rejections reported to tool callers
 │   ├── runner/
@@ -140,7 +142,7 @@ EnergyPlus-Agent/
 | **qdrant-client** | >=1.17.1 | Vector database client |
 | **omegaconf** | >=2.3.0 | LLM and embedding settings with env interpolation |
 | **typer** | >=0.20.1 | CLI |
-| **numpy** / **trimesh** | — | Geometry helpers |
+| **shapely** | >=2.2.0 | Polygon overlap and splitting for zone geometry |
 | **loguru** | >=0.7.3 | Logging |
 
 Development extras: `pytest`, `pytest-recording`, `ruff`, `ty`, `pre-commit`, `langsmith`, `grandalf`.
@@ -301,6 +303,8 @@ START -> intake
 | `create_standard_material` / `create_no_mass_material` / `create_air_gap_material` / `create_glazing_material` / `create_window_glazing_material` / `create_window_gas_material` | Create materials by type; the last two build multi-pane windows |
 | `get_material` / `update_*_material` / `delete_material` / `list_materials` | Material read, update, delete, list |
 | `create_construction` / `get_construction` / `update_construction` / `delete_construction` / `list_constructions` | Construction CRUD |
+| `create_zone_geometry` | Extrude a zone from its floor plan and pair faces shared with other zones |
+| `create_surfaces` | Create several surfaces, each succeeding or failing on its own |
 | `create_surface` / `get_surface` / `update_surface` / `delete_surface` / `list_surfaces` | Building surface CRUD |
 | `create_fenestration_surface` / `get_fenestration_surface` / `update_fenestration_surface` / `delete_fenestration_surface` / `list_fenestration_surfaces` | Window and door CRUD |
 

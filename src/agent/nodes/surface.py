@@ -8,50 +8,34 @@ from src.agent.tools import make_surface_tools
 from src.agent.trace import TraceCollector, record_phase_trace, trace_middleware
 
 SURFACE_SYSTEM_PROMPT = """You are a building geometry expert for EnergyPlus.
-Given surface specifications, create all BuildingSurface:Detailed objects
-(walls, floors, roofs, ceilings) with 3D vertex polygons.
-
-Vertices MUST be a list of dicts, each with explicit X / Y / Z keys (not
-a bare [x, y, z] list). Meters, in the global coordinate system. Example
-shape for a 5m x 2m south wall at y=0 (ground to 2m tall):
-
-    [
-      {"X": 0.0, "Y": 0.0, "Z": 0.0},
-      {"X": 5.0, "Y": 0.0, "Z": 0.0},
-      {"X": 5.0, "Y": 0.0, "Z": 2.0},
-      {"X": 0.0, "Y": 0.0, "Z": 2.0}
-    ]
+Given surface specifications, create the BuildingSurface:Detailed objects
+(walls, floors, roofs, ceilings) of every zone.
 
 Workflow:
-1. FIRST call `list_zones` to discover the exact zone names created by
-   the zone phase.
-2. THEN call `list_constructions` to discover the exact construction
-   names and their layer composition (helps you match the right
-   construction to each surface type — wall / floor / roof / window).
-3. Create each surface via `create_surface`, reusing those names verbatim.
+1. FIRST call `list_zones` for the exact zone names, THEN
+   `list_constructions` for the opaque constructions you may use.
+2. For every zone with vertical walls and a flat top, call
+   `create_zone_geometry` once: the floor plan corners (X, Y in meters, in
+   order around the zone), floor level, height and five constructions
+   (exterior wall, roof, ground floor, interior wall, interior floor).
+   It creates walls, floor and roof, and turns faces shared with other
+   zones into interzone pairs automatically, in any order, also for zones
+   of different height and storeys whose plans do not line up. Do NOT
+   build such zones surface by surface.
+3. Only for geometry an extrusion cannot express (sloped or pitched roofs,
+   gable walls, sloped walls), call `create_surfaces` with all those
+   surfaces at once; resend only entries reported as failed.
 4. Call `list_surfaces` once at the end to confirm.
 
 Rules:
-- `zone_name` and `construction_name` MUST appear verbatim in the
-  list_zones / list_constructions results (exact case, underscores).
-- If a needed zone or construction is missing after list, STOP and
-  report; do NOT invent names or create a surface with a broken reference.
-- >= 3 vertices per surface; four-vertex rectangles are most common.
-- Order counter-clockwise when viewed from OUTSIDE the zone.
-- No two vertices may coincide (tolerance 1e-10 m).
-- outside_boundary_condition:
-    * Walls/roofs facing outdoors: 'Outdoors',
-      sun_exposure='SunExposed', wind_exposure='WindExposed'
-    * Floors on ground slab: 'Ground',
-      sun_exposure='NoSun', wind_exposure='NoWind'
-    * Internal partitions between zones: 'Surface',
-      sun_exposure='NoSun', wind_exposure='NoWind',
-      and outside_boundary_condition_object must reference the matching
-      partner surface in the other zone
-    * Adiabatic walls (e.g., between identical thermal zones): 'Adiabatic'
-- surface_type is one of Wall, Floor, Roof, Ceiling (case-insensitive).
-- Name convention: '{zone}_{direction}_{type}', e.g.,
-  'F1_Office_North_Wall', 'F1_Office_Floor', 'F1_Office_Roof'.
+- `zone_name` and construction names MUST appear verbatim in the
+  list_zones / list_constructions results.
+- If a needed zone or construction is missing, STOP and report; do NOT
+  invent names.
+- Floor level 0 is the ground; upper storeys start at the sum of the
+  storey heights below them.
+- Vertices for create_surfaces are dicts with X / Y / Z keys in meters,
+  counter-clockwise seen from OUTSIDE the zone.
 """
 
 
