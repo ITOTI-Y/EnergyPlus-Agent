@@ -18,10 +18,12 @@ from idfpy.models.thermal_zones import (
 from src.mcp.api.common import Outcome, dump, given, model_tool
 from src.modeling import geometry, objects
 from src.modeling.envelope import (
+    MaterialObject,
     Roughness,
     VertexSchema,
     all_materials,
     check_construction_fits,
+    check_material_name_free,
     checked_construction,
     construction_kind,
     fenestration_from_vertices,
@@ -50,6 +52,12 @@ def _register_materials(mcp: FastMCP, state: ConfigState) -> None:
     idf = state.idf
     tool = model_tool(mcp)
 
+    def create(material: MaterialObject) -> Outcome:
+        check_material_name_free(idf, material)
+        return f"Material '{material.name}' created.", dump(
+            objects.create(idf, material)
+        )
+
     @tool
     def create_standard_material(
         name: str,
@@ -58,16 +66,22 @@ def _register_materials(mcp: FastMCP, state: ConfigState) -> None:
         conductivity: float,
         density: float,
         specific_heat: float,
+        thermal_absorptance: float | None = None,
+        solar_absorptance: float | None = None,
+        visible_absorptance: float | None = None,
     ) -> Outcome:
         """Create a Material with thermal mass.
 
         Args:
-            name: Unique material name.
+            name: Unique material name, of any material type.
             roughness: Surface roughness.
             thickness: Meters.
             conductivity: W/(m*K).
             density: kg/m^3.
             specific_heat: J/(kg*K).
+            thermal_absorptance: Long-wave emittance; EnergyPlus default 0.9.
+            solar_absorptance: Default 0.7.
+            visible_absorptance: Default 0.7.
         """
         material = Material(
             name=name,
@@ -76,18 +90,38 @@ def _register_materials(mcp: FastMCP, state: ConfigState) -> None:
             conductivity=conductivity,
             density=density,
             specific_heat=specific_heat,
+            **given(
+                thermal_absorptance=thermal_absorptance,
+                solar_absorptance=solar_absorptance,
+                visible_absorptance=visible_absorptance,
+            ),
         )
-        return f"Material '{name}' created.", dump(objects.create(idf, material))
+        return create(material)
 
     @tool
     def create_no_mass_material(
-        name: str, roughness: Roughness, thermal_resistance: float
+        name: str,
+        roughness: Roughness,
+        thermal_resistance: float,
+        thermal_absorptance: float | None = None,
+        solar_absorptance: float | None = None,
+        visible_absorptance: float | None = None,
     ) -> Outcome:
-        """Create a Material:NoMass defined by its thermal resistance (m^2*K/W)."""
+        """Create a Material:NoMass defined by its thermal resistance (m^2*K/W).
+
+        Absorptances left out take the EnergyPlus defaults 0.9 / 0.7 / 0.7.
+        """
         material = MaterialNoMass(
-            name=name, roughness=roughness, thermal_resistance=thermal_resistance
+            name=name,
+            roughness=roughness,
+            thermal_resistance=thermal_resistance,
+            **given(
+                thermal_absorptance=thermal_absorptance,
+                solar_absorptance=solar_absorptance,
+                visible_absorptance=visible_absorptance,
+            ),
         )
-        return f"Material '{name}' created.", dump(objects.create(idf, material))
+        return create(material)
 
     @tool
     def create_air_gap_material(name: str, thermal_resistance: float) -> Outcome:
@@ -96,7 +130,7 @@ def _register_materials(mcp: FastMCP, state: ConfigState) -> None:
         Not for windows: separate panes with create_window_gas_material.
         """
         material = MaterialAirGap(name=name, thermal_resistance=thermal_resistance)
-        return f"Material '{name}' created.", dump(objects.create(idf, material))
+        return create(material)
 
     @tool
     def create_glazing_material(
@@ -119,7 +153,7 @@ def _register_materials(mcp: FastMCP, state: ConfigState) -> None:
             solar_heat_gain_coefficient=solar_heat_gain_coefficient,
             visible_transmittance=visible_transmittance,
         )
-        return f"Material '{name}' created.", dump(objects.create(idf, material))
+        return create(material)
 
     @tool
     def create_window_glazing_material(
@@ -154,7 +188,7 @@ def _register_materials(mcp: FastMCP, state: ConfigState) -> None:
             back_side_visible_reflectance_at_normal_incidence=visible_reflectance,
             conductivity=conductivity,
         )
-        return f"Material '{name}' created.", dump(objects.create(idf, material))
+        return create(material)
 
     @tool
     def create_window_gas_material(
@@ -162,7 +196,7 @@ def _register_materials(mcp: FastMCP, state: ConfigState) -> None:
     ) -> Outcome:
         """Create the gas layer between two panes (WindowMaterial:Gas), thickness in m."""
         material = WindowMaterialGas(name=name, gas_type=gas_type, thickness=thickness)
-        return f"Material '{name}' created.", dump(objects.create(idf, material))
+        return create(material)
 
     @tool
     def get_material(name: str) -> Outcome:

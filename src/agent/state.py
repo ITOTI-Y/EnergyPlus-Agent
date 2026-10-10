@@ -3,37 +3,36 @@ from __future__ import annotations
 import operator
 from collections.abc import Sequence
 from dataclasses import dataclass
+from itertools import accumulate
 from pathlib import Path
-from typing import Annotated, Any, Final
+from typing import Annotated, Any, Final, Self
 
 from idfpy import IDF
 from idfpy.models.location import SiteLocation
 from idfpy.models.simulation import Building
 from langchain_core.messages import AnyMessage
 from langgraph.graph.message import add_messages
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, model_validator
 from typing_extensions import TypedDict
 
 from src.agent._share import DEFAULT_OUTPUT_DIR, MAX_GLOBAL_RETRIES
 from src.agent.phases import Phase
 from src.modeling.geometry import PlanPointSchema
 from src.modeling.validation import ModelIssue
+from src.reference.search import ReferenceSearch
 from src.state.config_state import ConfigState
 
 
-class ZoneGeometrySchema(BaseModel):
-    """One thermal zone as a prism: floor plan, floor level and height.
+class ZonePlanSchema(BaseModel):
+    """A floor plan used on one or more storeys, with its constructions."""
 
-    Code creates the zone and extrudes its walls, floor and flat roof from
-    this; faces shared with other zones become interzone pairs.
-    """
-
-    name: str = Field(description="Zone name, word characters and '_' only")
+    key: str = Field(
+        description="Short id, word characters and '_' only, e.g. 'S1' or "
+        "'Corridor'; a zone is named '<storey>_<key>'"
+    )
     plan: list[PlanPointSchema] = Field(
         description="Floor plan corners (X, Y in meters) in order around the zone"
     )
-    floor_z: float = Field(description="Floor level in meters; 0 on the ground")
-    height: float = Field(gt=0, description="Floor-to-ceiling height in meters")
     exterior_wall_construction: str
     roof_construction: str
     ground_floor_construction: str = Field(
@@ -45,6 +44,54 @@ class ZoneGeometrySchema(BaseModel):
     interior_floor_construction: str = Field(
         description="Floors and ceilings shared with another zone"
     )
+
+
+class StoreyZoneSchema(BaseModel):
+    """A plan placed on a storey."""
+
+    plan: str = Field(description="Key of a zone plan")
+    height: float | None = Field(
+        default=None,
+        gt=0,
+        description="Only for a zone taller than its storey (e.g. an 8 m "
+        "lobby through two storeys); the storey height otherwise",
+    )
+
+
+class StoreySchema(BaseModel):
+    """One storey, or a run of identical storeys modelled once.
+
+    Storeys stack from the ground up: each starts where the one below ends,
+    so levels are computed, not given (Haiku got 8 + 18 x 3.5 wrong).
+    """
+
+    name: str = Field(
+        description="Short id, e.g. 'G', 'L2', 'T' or 'Top'; '' for a "
+        "single-storey building, whose zones are then named by plan key"
+    )
+    height: float = Field(gt=0, description="Floor-to-floor height in meters")
+    multiplier: int = Field(
+        default=1,
+        ge=1,
+        description="Number of identical storeys this one stands for "
+        "(e.g. 18 for storeys 3-20); 1 otherwise",
+    )
+    zones: list[StoreyZoneSchema] = Field(description="Plans on this storey")
+
+
+class ZoneGeometrySchema(BaseModel):
+    """One thermal zone as a prism, derived from a storey and a plan."""
+
+    name: str
+    plan: list[PlanPointSchema]
+    floor_z: float
+    height: float
+    multiplier: int
+    exterior_wall_construction: str
+    roof_construction: str
+    ground_floor_construction: str
+    interior_wall_construction: str
+    interior_floor_construction: str
 
 
 class IntakeOutput(BaseModel):
@@ -64,8 +111,11 @@ class IntakeOutput(BaseModel):
     site_location: SiteLocation = Field(
         description="Site location (latitude, longitude, time zone, elevation)"
     )
-    zones: list[ZoneGeometrySchema] = Field(
-        description="Every thermal zone with its floor plan, level and height"
+    zone_plans: list[ZonePlanSchema] = Field(
+        description="Each distinct floor plan once, with its constructions"
+    )
+    storeys: list[StoreySchema] = Field(
+        description="Every storey, bottom up, with the plans on it"
     )
     material_specs: str = Field(
         description="Material definitions with thermal properties"
@@ -102,19 +152,46 @@ class IntakeOutput(BaseModel):
         "density, schedule per zone; empty if the brief has none"
     )
 
-    @field_validator("zones")
-    @classmethod
-    def _unique_zone_names(
-        cls, zones: list[ZoneGeometrySchema]
-    ) -> list[ZoneGeometrySchema]:
-        names = [z.name for z in zones]
+    @property
+    def zones(self) -> list[ZoneGeometrySchema]:
+        """Every zone: each plan on each storey, named '<storey>_<plan key>'
+        (the plan key alone on a storey named ''), at its storey's level."""
+        plans = {p.key: p for p in self.zone_plans}
+        # One more bottom than storeys: the last is the top of the building.
+        bottoms = accumulate(
+            (s.height * s.multiplier for s in self.storeys), initial=0.0
+        )
+        return [
+            ZoneGeometrySchema(
+                name=f"{storey.name}_{entry.plan}" if storey.name else entry.plan,
+                plan=plans[entry.plan].plan,
+                floor_z=floor_z,
+                height=entry.height or storey.height,
+                multiplier=storey.multiplier,
+                **plans[entry.plan].model_dump(exclude={"key", "plan"}),
+            )
+            for storey, floor_z in zip(self.storeys, bottoms, strict=False)
+            for entry in storey.zones
+        ]
+
+    @model_validator(mode="after")
+    def _plans_exist_and_names_are_unique(self) -> Self:
+        keys = [p.key for p in self.zone_plans]
+        if repeated := sorted({k for k in keys if keys.count(k) > 1}):
+            raise ValueError(f"zone plan keys must be unique, repeated: {repeated}")
+        unknown = sorted({e.plan for s in self.storeys for e in s.zones} - set(keys))
+        if unknown:
+            raise ValueError(f"storeys use plans that are not defined: {unknown}")
+        names = [z.name for z in self.zones]
         if repeated := sorted({n for n in names if names.count(n) > 1}):
             raise ValueError(f"zone names must be unique, repeated: {repeated}")
-        return zones
+        return self
 
 
 SPEC_PHASES: Final[dict[str, tuple[Phase, ...]]] = {
-    "zones": ("zone", "surface"),  # only "surface" if the zone names stay
+    # Zones change with plans or storeys; only "surface" if the names stay.
+    "zone_plans": ("zone", "surface"),
+    "storeys": ("zone", "surface"),
     "material_specs": ("material",),
     "schedule_specs": ("schedule",),
     "construction_specs": ("construction",),
@@ -135,8 +212,11 @@ class IntakePatch(BaseModel):
     reason: str = Field(description="Which errors the changes fix, and how")
     building: Building | None = None
     site_location: SiteLocation | None = None
-    zones: list[ZoneGeometrySchema] | None = Field(
-        default=None, description="The complete new zone list, if any zone changes"
+    zone_plans: list[ZonePlanSchema] | None = Field(
+        default=None, description="The complete new plan list, if a plan changes"
+    )
+    storeys: list[StoreySchema] | None = Field(
+        default=None, description="The complete new storey list, if one changes"
     )
     material_specs: str | None = None
     schedule_specs: str | None = None
@@ -186,6 +266,8 @@ class SimContext:
 
     epw_path: Path
     output_dir: Path = DEFAULT_OUTPUT_DIR
+    reference: ReferenceSearch | None = None
+    """Prototype reference search, when configured; phases add its tools."""
 
 
 def _merge_idf(old_idf: IDF, new_idf: IDF) -> IDF:

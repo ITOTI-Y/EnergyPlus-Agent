@@ -1,10 +1,12 @@
 from langchain_core.messages import AIMessage
-from pydantic import BaseModel, Field
+from pydantic import Field
 
 from src.agent.llm import build_agent
 from src.agent.nodes._share import (
+    PhaseReport,
     invoke_with_self_repair,
     last_message_text,
+    missing_input_issues,
     skipped,
     with_feedback,
 )
@@ -13,21 +15,24 @@ from src.agent.tools import make_equipment_tools
 from src.agent.trace import TraceCollector, record_phase_trace, trace_middleware
 
 EQUIPMENT_SYSTEM_PROMPT = """You are a plug-load expert for EnergyPlus.
-For each specified zone, create an ElectricEquipment object via
-create_equipment.
+Create the ElectricEquipment objects of the specified zones with
+create_equipment, one call per group of zones with the same values.
 
 Workflow:
 1. FIRST call `list_zones` to see the exact zone names.
 2. FIRST call `list_schedules` to see the exact Schedule:Compact names
    (you need an equipment fraction schedule).
-3. Create one ElectricEquipment object per zone via `create_equipment`.
-4. Call `list_equipment` once at the end to confirm.
+3. Call `create_equipment` once per group of zones with the same
+   schedule and values, listing the zones in `zone_names`. Its reply names
+   only zones that failed; the rest got their object. Do not list
+   afterwards.
 
 Rules:
-- `zone_name` and `schedule_name` MUST appear verbatim in the list_zones /
+- Zone names and `schedule_name` MUST appear verbatim in the list_zones /
   list_schedules results.
-- If a needed zone or schedule is missing, STOP and report; do NOT invent names.
-- Use the names the specification gives; otherwise '{zone}_Equipment'.
+- If a needed zone or schedule is missing, do NOT invent a name and do NOT
+  list again: give your final answer at once, with it in `missing_inputs`.
+- Objects are named '{zone}_Equipment'; `name_suffix` changes the suffix.
 - design_level_calculation_method:
     * 'EquipmentLevel' -> supply design_level (W, absolute)
     * 'Watts/Area' -> supply watts_per_floor_area (W/m^2)
@@ -38,7 +43,7 @@ Rules:
 """
 
 
-class EquipmentResponse(BaseModel):
+class EquipmentResponse(PhaseReport):
     """Structured summary returned by the equipment phase agent."""
 
     equipment_names: list[str] = Field(
@@ -76,5 +81,6 @@ def equipment_agent(state: AgentState) -> AgentStateUpdate:
     record_phase_trace("equipment", collector.export())
     return AgentStateUpdate(
         config_state=local,
+        build_issues=missing_input_issues("equipment", response),
         messages=[AIMessage(content=f"[equipment] {summary}")],
     )

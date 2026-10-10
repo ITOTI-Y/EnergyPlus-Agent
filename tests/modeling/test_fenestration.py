@@ -9,16 +9,30 @@ from idfpy.models.constructions import (
     Material,
     WindowMaterialGas,
     WindowMaterialGlazing,
+    WindowMaterialSimpleGlazingSystem,
 )
-from idfpy.models.thermal_zones import FenestrationSurfaceDetailed
+from idfpy.models.simulation import Building
+from idfpy.models.thermal_zones import (
+    BuildingSurfaceDetailed,
+    FenestrationSurfaceDetailed,
+    Zone,
+)
 
 from src.modeling.envelope import VertexSchema, fenestration_from_vertices
 from src.modeling.errors import DuplicateNameError
 from src.modeling.fenestration import (
     PARTNER_SUFFIX,
     add_fenestration,
+    add_windows_by_ratio,
+    facing,
+    placement_problem,
     remove_fenestration,
     update_fenestration,
+)
+from src.modeling.geometry import (
+    PlanPointSchema,
+    ZoneConstructions,
+    create_zone_geometry,
 )
 from src.runner.runner import run_energyplus
 from src.state.defaults import add_design_days
@@ -248,3 +262,85 @@ def test_asymmetric_paired_door_simulates_without_a_layer_order_warning(tmp_path
     # Without the reversed partner: "does not have the same materials in the
     # reverse order as the construction ... of adjacent surface".
     assert not [m for m in result.messages if "reverse order" in m.text]
+
+
+def _office(width: float = 10.0) -> IDF:
+    idf = IDF()
+    idf.add(Building(name="B"))
+    idf.add(Zone(name="Office"))
+    idf.add(
+        WindowMaterialSimpleGlazingSystem(
+            name="Glass", u_factor=2.0, solar_heat_gain_coefficient=0.4
+        )
+    )
+    idf.add(Construction(name="Window", outside_layer="Glass"))
+    idf.add(
+        Material(
+            name="Brick",
+            roughness="Rough",
+            thickness=0.2,
+            conductivity=0.9,
+            density=1900.0,
+            specific_heat=800.0,
+        )
+    )
+    idf.add(Construction(name="Ext", outside_layer="Brick"))
+    create_zone_geometry(
+        idf,
+        "Office",
+        [
+            PlanPointSchema(X=x, Y=y)
+            for x, y in [(0, 0), (width, 0), (width, 8), (0, 8)]
+        ],
+        3.0,
+        3.5,
+        ZoneConstructions("Ext", "Ext", "Ext", "Ext", "Ext"),
+    )
+    return idf
+
+
+def test_ratio_windows_cover_the_ratio_on_the_chosen_facings():
+    idf = _office()
+
+    created, problems = add_windows_by_ratio(
+        idf, None, ["South", "North"], 0.4, "Window", 0.8
+    )
+
+    assert problems == []
+    assert len(created) == 2
+    windows = idf.all_of_type(FenestrationSurfaceDetailed)
+    for name in created:
+        window = windows[name]
+        wall = idf.get(BuildingSurfaceDetailed, window.building_surface_name)
+        assert wall is not None
+        assert window.area / wall.area == pytest.approx(0.4)
+        assert placement_problem(window, wall) is None
+        assert facing(wall) in ("South", "North")
+        # Sill measured from the storey's floor at z = 3.0, window below the top.
+        heights = [z for *_, z in window.vertices_as_tuples]
+        assert min(heights) == pytest.approx(3.8)
+        assert max(heights) <= 6.5
+
+
+def test_ratio_too_large_for_a_wall_is_reported_not_raised():
+    idf = _office(width=1.0)
+
+    # The east wall is 8 m x 3.5 m: 99% leaves less than the edge clearance.
+    created, problems = add_windows_by_ratio(
+        idf, ["Office"], ["East"], 0.99, "Window", 0.8
+    )
+
+    assert created == []
+    assert len(problems) == 1 and "does not fit" in problems[0]
+
+
+def test_facing_follows_the_building_north_axis():
+    idf = _office()
+    south = next(
+        s
+        for s in idf.all_of_type(BuildingSurfaceDetailed).values()
+        if s.surface_type == "Wall" and s.azimuth == 180.0
+    )
+
+    assert facing(south) == "South"
+    assert facing(south, north_axis=90.0) == "West"

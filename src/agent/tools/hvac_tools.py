@@ -3,10 +3,15 @@ from idfpy.models.hvac_templates import (
     HVACTemplateZoneIdealLoadsAirSystem,
 )
 from idfpy.models.schedules import ScheduleCompact
-from idfpy.models.thermal_zones import Zone
 from langchain_core.tools import BaseTool
 
-from src.agent.tools._share import list_tool, model_tool, ok
+from src.agent.tools._share import (
+    create_in_zones,
+    list_tool,
+    list_zone_names_tool,
+    model_tool,
+    ok,
+)
 from src.modeling import objects
 from src.modeling.hvac import (
     check_setpoints_free,
@@ -46,36 +51,33 @@ def make_hvac_tools(config: ConfigState) -> list[BaseTool]:
                 cooling_setpoint_schedule_name=cooling_setpoint_schedule_name,
             ),
         )
-        return ok(
-            f"Thermostat '{name}' created.", thermostat.model_dump(exclude_none=True)
-        )
+        return ok(f"Thermostat '{thermostat.name}' created.")
 
     @model_tool
-    def create_ideal_loads_system(
-        zone_name: str,
+    def create_ideal_loads_systems(
+        zone_names: list[str],
         template_thermostat_name: str,
         system_availability_schedule_name: str | None = None,
     ) -> str:
-        """Create an HVACTemplate:Zone:IdealLoadsAirSystem (one per zone).
+        """Create an HVACTemplate:Zone:IdealLoadsAirSystem for each zone.
+
+        Call it once per group of zones with the same thermostat.
 
         Args:
-            zone_name: Existing Zone name; identifies the system.
+            zone_names: Existing Zone names, each without a system yet.
             template_thermostat_name: Existing HVACTemplate:Thermostat name.
             system_availability_schedule_name: Optional availability Schedule:Compact.
         """
-        check_zone_free(idf, zone_name)
-        system = objects.create(
-            idf,
-            HVACTemplateZoneIdealLoadsAirSystem(
-                zone_name=zone_name,
+
+        def system(zone: str) -> HVACTemplateZoneIdealLoadsAirSystem:
+            check_zone_free(idf, zone)
+            return HVACTemplateZoneIdealLoadsAirSystem(
+                zone_name=zone,
                 template_thermostat_name=template_thermostat_name,
                 system_availability_schedule_name=system_availability_schedule_name,
-            ),
-        )
-        return ok(
-            f"IdealLoadsAirSystem for zone '{zone_name}' created.",
-            system.model_dump(exclude_none=True),
-        )
+            )
+
+        return create_in_zones(idf, "IdealLoadsAirSystem", zone_names, system)
 
     @model_tool
     def delete_thermostat(name: str) -> str:
@@ -92,7 +94,7 @@ def make_hvac_tools(config: ConfigState) -> list[BaseTool]:
 
     return [
         create_thermostat,
-        create_ideal_loads_system,
+        create_ideal_loads_systems,
         list_tool(
             idf, "list_thermostats", HVACTemplateThermostat, "List all thermostats."
         ),
@@ -100,15 +102,22 @@ def make_hvac_tools(config: ConfigState) -> list[BaseTool]:
             idf,
             "list_ideal_loads_systems",
             HVACTemplateZoneIdealLoadsAirSystem,
-            "List all IdealLoadsAirSystem entries (keyed by zone_name).",
+            "List IdealLoadsAirSystem entries: zone, thermostat, availability.",
+            (
+                "zone_name",
+                "template_thermostat_name",
+                "system_availability_schedule_name",
+            ),
         ),
         delete_thermostat,
         delete_ideal_loads_system,
-        list_tool(idf, "list_zones", Zone, "List zones that can get an HVAC system."),
+        list_zone_names_tool(idf, "List zone names that can get an HVAC system."),
         list_tool(
             idf,
             "list_schedules",
             ScheduleCompact,
-            "List Schedule:Compact for setpoint and availability references.",
+            "List Schedule:Compact names and type limits, for setpoint and "
+            "availability references.",
+            ("name", "schedule_type_limits_name"),
         ),
     ]

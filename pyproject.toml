@@ -7,7 +7,6 @@ requires-python = ">=3.12"
 dependencies = [
     "idfpy==26.1.*,>=26.1.5",
     "fastmcp>=2.14.1",
-    "google-genai>=1.68.0",
     "langchain>=1.2.13",
     "langchain-anthropic>=1.4.0",
     "langchain-openai>=1.1.12",
@@ -16,9 +15,11 @@ dependencies = [
     "omegaconf>=2.3.0",
     "pydantic>=2.11.7",
     "qdrant-client>=1.17.1",
-    "tqdm>=4.67.3",
     "typer>=0.20.1",
     "shapely>=2.2.0",
+    "pydantic-settings>=2.11",
+    "huggingface-hub>=0.35",
+    "openai>=1.100",
 ]
 
 [project.scripts]

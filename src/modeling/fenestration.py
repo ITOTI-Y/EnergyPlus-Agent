@@ -7,10 +7,11 @@ then computes heat flows for that wrong geometry.
 """
 
 from collections.abc import Sequence
-from typing import Final
+from typing import Final, Literal
 
 from idfpy import IDF
 from idfpy.models.constructions import Construction
+from idfpy.models.simulation import Building
 from idfpy.models.thermal_zones import (
     BuildingSurfaceDetailed,
     FenestrationSurfaceDetailed,
@@ -239,3 +240,118 @@ def update_fenestration(
     rename = {} if new_name is None else {"name": new_name}
     objects.update(idf, opening, shared | rename)
     return updated
+
+
+EDGE_OFFSET_M: Final = 0.05
+"""Clearance between a ratio-sized window and the edges of its wall."""
+
+type Facing = Literal["North", "East", "South", "West"]
+
+
+def facing(surface: BuildingSurfaceDetailed, north_axis: float = 0.0) -> Facing:
+    """Compass quadrant an outward normal points to.
+
+    ``north_axis`` is the Building's rotation of the model's y axis from
+    true north, in degrees clockwise.
+    """
+    azimuth = (surface.azimuth + north_axis) % 360.0
+    return ("North", "East", "South", "West")[int(((azimuth + 45.0) % 360.0) // 90.0)]
+
+
+def window_for_ratio(
+    wall: BuildingSurfaceDetailed, ratio: float, sill_height: float
+) -> list[Point]:
+    """Corners of a strip window covering ``ratio`` of a vertical wall.
+
+    The window spans the wall's width less EDGE_OFFSET_M at each side and is
+    as high as the ratio needs, starting at ``sill_height`` above the wall's
+    bottom; a sill too high for that height is lowered.
+
+    Raises:
+        ValueError: If the wall is not a vertical rectangle, or the ratio
+            does not fit inside it.
+    """
+    points = wall.vertices_as_tuples
+    if abs(wall.tilt - 90.0) > 1.0 or len(points) != 4:
+        raise ValueError(f"'{wall.name}' is not a vertical rectangular wall")
+    bottom = min(z for *_, z in points)
+    top = max(z for *_, z in points)
+    low = [p for p in points if abs(p[2] - bottom) <= PLANE_TOLERANCE_M]
+    if len(low) != 2:
+        raise ValueError(f"'{wall.name}' is not a vertical rectangular wall")
+    (ax, ay, _), (bx, by, _) = low
+    length = ((bx - ax) ** 2 + (by - ay) ** 2) ** 0.5
+    width = length - 2 * EDGE_OFFSET_M
+    height = ratio * wall.area / width if width > 0 else float("inf")
+    room = top - bottom - 2 * EDGE_OFFSET_M
+    if not 0 < ratio < 1 or height > room:
+        raise ValueError(
+            f"a window-to-wall ratio of {ratio} does not fit on '{wall.name}' "
+            f"({length:.2f} m x {top - bottom:.2f} m)"
+        )
+    sill = min(max(sill_height, EDGE_OFFSET_M), top - bottom - EDGE_OFFSET_M - height)
+    ux, uy = (bx - ax) / length, (by - ay) / length
+    start = (ax + ux * EDGE_OFFSET_M, ay + uy * EDGE_OFFSET_M)
+    end = (bx - ux * EDGE_OFFSET_M, by - uy * EDGE_OFFSET_M)
+    z0, z1 = bottom + sill, bottom + sill + height
+    # add_fenestration orients the corners to match the wall.
+    return [
+        (start[0], start[1], z1),
+        (start[0], start[1], z0),
+        (end[0], end[1], z0),
+        (end[0], end[1], z1),
+    ]
+
+
+def add_windows_by_ratio(
+    idf: IDF,
+    zones: Sequence[str] | None,
+    facings: Sequence[Facing] | None,
+    ratio: float,
+    construction_name: str,
+    sill_height: float,
+) -> tuple[list[str], list[str]]:
+    """One strip window on every matching exterior wall.
+
+    Walls are the outdoor walls of ``zones`` (all zones when None) facing
+    one of ``facings`` (all when None). Each wall succeeds or fails on its
+    own, e.g. a wall too narrow for the ratio.
+
+    Returns:
+        Names of the created windows, and why other walls got none.
+    """
+    buildings = list(idf.all_of_type(Building).values())
+    north = float(buildings[0].north_axis or 0.0) if buildings else 0.0
+    created: list[str] = []
+    problems: list[str] = []
+    for wall in idf.all_of_type(BuildingSurfaceDetailed).values():
+        if (
+            wall.surface_type != "Wall"
+            or wall.outside_boundary_condition != "Outdoors"
+            or (zones is not None and wall.zone_name not in zones)
+            or (facings is not None and facing(wall, north) not in facings)
+        ):
+            continue
+        name = f"{wall.name}_Window"
+        try:
+            corners = window_for_ratio(wall, ratio, sill_height)
+            window = FenestrationSurfaceDetailed.model_validate(
+                {
+                    "name": name,
+                    "surface_type": "Window",
+                    "construction_name": construction_name,
+                    "building_surface_name": wall.name,
+                    "number_of_vertices": 4,
+                    **{
+                        f"vertex_{i}_{axis}_coordinate": point[j]
+                        for i, point in enumerate(corners, start=1)
+                        for j, axis in enumerate("xyz")
+                    },
+                }
+            )
+            add_fenestration(idf, window)
+        except (ModelingError, ValueError) as e:
+            problems.append(f"{wall.name}: {e}")
+            continue
+        created.append(name)
+    return created, problems

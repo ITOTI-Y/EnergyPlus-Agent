@@ -1,20 +1,25 @@
 from typing import Literal
 
 from idfpy.models.thermal_zones import (
-    BuildingSurfaceDetailed,
     FenestrationSurfaceDetailed,
 )
 from langchain_core.tools import BaseTool
 
 from src.agent.tools._share import (
     list_constructions_tool,
+    list_surfaces_tool,
     list_tool,
     model_tool,
     ok,
 )
 from src.modeling import objects
 from src.modeling.envelope import VertexSchema, fenestration_from_vertices
-from src.modeling.fenestration import add_fenestration, remove_fenestration
+from src.modeling.fenestration import (
+    Facing,
+    add_fenestration,
+    add_windows_by_ratio,
+    remove_fenestration,
+)
 from src.state.config_state import ConfigState
 
 
@@ -76,6 +81,41 @@ def make_fenestration_tools(config: ConfigState) -> list[BaseTool]:
         return ok(message, [f.model_dump(exclude_none=True) for f in created])
 
     @model_tool
+    def create_windows_by_ratio(
+        window_to_wall_ratio: float,
+        construction_name: str,
+        zone_names: list[str] | None = None,
+        facings: list[Facing] | None = None,
+        sill_height: float = 0.8,
+    ) -> str:
+        """Put one strip window on every matching exterior wall, sized by ratio.
+
+        The window spans the wall's width (5 cm clearance at each edge) at
+        the given sill height, as high as the ratio needs. Prefer this to
+        create_fenestration whenever the specification gives window-to-wall
+        ratios; call it once per ratio, facing and zone group.
+
+        Args:
+            window_to_wall_ratio: Window area over wall area, e.g. 0.4.
+            construction_name: Existing window construction.
+            zone_names: Zones whose outdoor walls get windows; all when omitted.
+            facings: Compass directions of the walls; all when omitted.
+            sill_height: Height of the window bottom above the floor, in m.
+        """
+        created, problems = add_windows_by_ratio(
+            idf,
+            zone_names,
+            facings,
+            window_to_wall_ratio,
+            construction_name,
+            sill_height,
+        )
+        message = f"Created {len(created)} windows"
+        if problems:
+            message += f"; {len(problems)} walls got none"
+        return ok(message + ".", {"created": created, "not_created": problems})
+
+    @model_tool
     def get_fenestration(name: str) -> str:
         """Read a fenestration by name."""
         fenestration = objects.get(idf, FenestrationSurfaceDetailed, name)
@@ -90,20 +130,29 @@ def make_fenestration_tools(config: ConfigState) -> list[BaseTool]:
         return ok(f"Deleted {', '.join(deleted)}.")
 
     return [
+        create_windows_by_ratio,
         create_fenestration,
         list_tool(
             idf,
             "list_fenestrations",
             FenestrationSurfaceDetailed,
-            "List all fenestration surfaces.",
+            "List fenestration surfaces: name, type, parent surface, "
+            "construction, partner and multiplier.",
+            (
+                "name",
+                "surface_type",
+                "building_surface_name",
+                "construction_name",
+                "outside_boundary_condition_object",
+                "multiplier",
+            ),
         ),
         get_fenestration,
         delete_fenestration,
-        list_tool(
+        list_surfaces_tool(
             idf,
-            "list_surfaces",
-            BuildingSurfaceDetailed,
-            "List parent surfaces a fenestration can attach to.",
+            "List surfaces windows and doors can attach to, filtered by zone, "
+            "type and boundary: a large building has hundreds of surfaces.",
         ),
         list_constructions_tool(
             idf,

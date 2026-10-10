@@ -19,6 +19,7 @@ from langchain.agents.middleware import (
     wrap_model_call,
     wrap_tool_call,
 )
+from langchain.agents.structured_output import ToolStrategy
 from langchain.chat_models import init_chat_model
 from langchain.tools import BaseTool
 from langchain_core.language_models import BaseChatModel
@@ -56,11 +57,12 @@ def create_llm(config: LLMConfig | None = None) -> BaseChatModel:
         config = _load_config()
 
     kwargs: dict[str, Any] = {
-        "temperature": config.temperature,
         "max_tokens": config.max_tokens,
         "max_retries": config.max_retries,
         "timeout": config.timeout,
     }
+    if config.temperature is not None:
+        kwargs["temperature"] = config.temperature
     if config.reasoning_max_tokens is not None:
         kwargs["extra_body"] = {
             "reasoning": {"max_tokens": config.reasoning_max_tokens}
@@ -127,8 +129,19 @@ MAX_CONSECUTIVE_FAILURES: Final = 10
 MAX_TOTAL_FAILURES: Final = 20
 """Failing calls in all, before the run stops; catches failures between successes."""
 
-CONTEXT_TRIGGER_TOKENS: Final = 40_000
-"""Prompt size above which older tool outputs are replaced by a placeholder."""
+REPEAT_NOTICE_AFTER: Final = 3
+"""Identical calls in a row after which the result carries a notice to move on."""
+
+MAX_REPEATED_CALLS: Final = 6
+"""Identical calls in a row, failing or not, before the run stops."""
+
+CONTEXT_TRIGGER_TOKENS: Final = 20_000
+"""Estimated history size above which older tool outputs become a placeholder.
+
+The middleware estimates 4 characters per token; the JSON tool traffic here
+takes about 2 per token (Haiku 5.5 on a 21-storey building), so this is
+about 40,000 real tokens. A 40,000 estimate never fired on that run, whose
+prompts reached 73,770 tokens."""
 
 _ARGUMENT_ECHO: Final = re.compile(
     r"^Error invoking tool '[^']+' with kwargs .*? with error:\s*", re.DOTALL
@@ -136,13 +149,18 @@ _ARGUMENT_ECHO: Final = re.compile(
 
 
 class FailureLoopGuard(AgentMiddleware):
-    """Stop the agent run once tool calls keep failing.
+    """Stop the agent run once tool calls keep failing or keep repeating.
 
     A model that cannot produce valid arguments tends to resend the same call
     indefinitely; LangGraph's default step limit is about ten thousand, so
     without this guard the loop only ends when the LLM budget does. Every
     failure is logged, and once tripped the guard ends this and any later run
     of the same agent with a message naming the failing call.
+
+    A successful call can loop too: with a needed object missing, a model
+    forced to call some tool re-listed the same objects 538 times. From the
+    REPEAT_NOTICE_AFTER-th identical call in a row the result says it will not
+    change; at MAX_REPEATED_CALLS the run stops.
 
     Argument errors from LangChain repeat the whole call before the field
     errors; the call is already in the model's own message, so the echo is cut
@@ -154,6 +172,8 @@ class FailureLoopGuard(AgentMiddleware):
         self._failures: Counter[str] = Counter()
         self._consecutive = 0
         self._total = 0
+        self._last_call: str | None = None
+        self._repeats = 0
         self.reason: str | None = None
 
     def wrap_tool_call(
@@ -164,14 +184,16 @@ class FailureLoopGuard(AgentMiddleware):
         result = handler(request)
         if not isinstance(result, ToolMessage):
             return result
+        call = request.tool_call
+        key = f"{call['name']}({json.dumps(call['args'], sort_keys=True)})"
+        self._repeats = self._repeats + 1 if key == self._last_call else 1
+        self._last_call = key
         if result.status != "error":
             self._consecutive = 0
-            return result
+            return self._repeated(result, call["name"])
         result = result.model_copy(
             update={"content": _ARGUMENT_ECHO.sub("", str(result.content))}
         )
-        call = request.tool_call
-        key = f"{call['name']}({json.dumps(call['args'], sort_keys=True)})"
         self._failures[key] += 1
         self._consecutive += 1
         self._total += 1
@@ -198,6 +220,22 @@ class FailureLoopGuard(AgentMiddleware):
                 f"last error from {call['name']}: {result.content}"
             )
         return result
+
+    def _repeated(self, result: ToolMessage, name: str) -> ToolMessage:
+        if self._repeats >= MAX_REPEATED_CALLS:
+            self.reason = (
+                f"{name} was called {self._repeats} times in a row with the "
+                "same arguments"
+            )
+        if self._repeats < REPEAT_NOTICE_AFTER:
+            return result
+        logger.warning("Tool {} called {} times in a row", name, self._repeats)
+        notice = (
+            f"\n\nNOTE: call {self._repeats} in a row of {name} with the same "
+            "arguments; the result will not change. Act on it, or give your "
+            "final answer now and list in it what is missing."
+        )
+        return result.model_copy(update={"content": f"{result.content}{notice}"})
 
     @hook_config(can_jump_to=["end"])
     def before_model(
@@ -237,7 +275,10 @@ def build_agent(
         model=create_llm(config),
         tools=tools or [],
         system_prompt=(system_prompt or "") + language_directive(),
-        response_format=response_format,
+        # The final answer as a validated tool call, not free text. ToolStrategy
+        # over the provider's JSON-schema mode: Claude's structured outputs
+        # reject the idfpy schema keywords (note, units) that gateways pass on.
+        response_format=ToolStrategy(response_format) if response_format else None,
         middleware=[
             FailureLoopGuard(),
             # Phase agents resend their whole history on every call; this caps

@@ -3,6 +3,7 @@ from typing import Literal
 
 from langchain_core.messages import RemoveMessage
 from langgraph.types import Command, interrupt
+from loguru import logger
 
 from src.agent.phases import DEPENDS_ON, Phase, owner, rerun_closure
 from src.agent.state import AgentState, IntakeOutput
@@ -55,6 +56,15 @@ def validate_node(state: AgentState) -> ValidateCommand:
     """
     errors = state.validation_errors
     feedback = _feedback(errors)
+    if errors:
+        # One line per problem: each retry costs a pass of LLM calls.
+        logger.warning(
+            "validate: {} problems (subgroup retried {}, intake revisions {}):\n{}",
+            len(errors),
+            state.subgroup_retried,
+            state.global_retries,
+            "\n".join(f"  - {e}" for e in errors),
+        )
 
     if errors:
         if not state.subgroup_retried and all(

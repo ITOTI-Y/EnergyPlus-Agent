@@ -8,6 +8,7 @@ heat flow in the soil around each floor from the weather file, so it needs
 only the length of the floor edge that faces outdoors.
 """
 
+from collections import Counter
 from collections.abc import Iterator
 from typing import Final
 
@@ -16,11 +17,21 @@ from idfpy.models.advanced_construction import (
     FoundationKiva,
     SurfacePropertyExposedFoundationPerimeter,
 )
+from idfpy.models.constructions import (
+    Construction,
+    Material,
+    MaterialAirGap,
+    MaterialNoMass,
+)
 from idfpy.models.location import SiteGroundTemperatureBuildingSurface
 from idfpy.models.thermal_zones import BuildingSurfaceDetailed
 
+from src.modeling.envelope import construction_from_layers, layer_names
+
 FOUNDATION_NAME: Final = "Slab_On_Grade"
 TOLERANCE_M: Final = 1e-3
+EQUIVALENT_THICKNESS_M: Final = 0.01
+"""Thickness of the regular layer that stands in for a resistance-only one."""
 
 type Point = tuple[float, float, float]
 type Segment = tuple[Point, Point]
@@ -79,8 +90,75 @@ def exposed_perimeter(idf: IDF, floor: BuildingSurfaceDetailed) -> float:
     return total
 
 
+def _kiva_construction(idf: IDF, name: str) -> str:
+    """A construction Kiva can model: resistance-only layers made regular.
+
+    Kiva needs every layer's thickness and conductivity, so Material:NoMass
+    and Material:AirGap layers, common in the DOE prototypes (e.g. a carpet
+    pad), end the run with a Fatal error. Each is replaced by a 1 cm layer
+    with the same thermal resistance and negligible heat capacity, in a
+    copy named ``<name>_Kiva``; the construction itself is left alone.
+
+    Returns:
+        The name to use for ground floors.
+    """
+    construction = idf.get(Construction, name)
+    if construction is None:
+        return name  # reported as a missing reference
+    layers = layer_names(construction)
+    if all(idf.get(Material, layer) is not None for layer in layers):
+        return name
+    regular = []
+    for layer in layers:
+        if idf.get(Material, layer) is not None:
+            regular.append(layer)
+            continue
+        source = idf.get(MaterialNoMass, layer) or idf.get(MaterialAirGap, layer)
+        if source is None:
+            return name  # a window or missing layer; reported elsewhere
+        equivalent = f"{layer}_Kiva"
+        if not idf.has(Material, equivalent):
+            idf.add(
+                Material(
+                    name=equivalent,
+                    roughness=getattr(source, "roughness", None) or "MediumRough",
+                    thickness=EQUIVALENT_THICKNESS_M,
+                    conductivity=EQUIVALENT_THICKNESS_M / source.thermal_resistance,
+                    density=1.0,
+                    specific_heat=100.0,
+                )
+            )
+        regular.append(equivalent)
+    copy = f"{name}_Kiva"
+    if not idf.has(Construction, copy):
+        idf.add(construction_from_layers(copy, regular))
+    return copy
+
+
+def _add_foundation(idf: IDF, name: str) -> None:
+    if idf.has(FoundationKiva, name):
+        return
+    # idfpy writes schema defaults explicitly; EnergyPlus then warns that
+    # depths are set for insulation and footings that do not exist.
+    idf.add(
+        FoundationKiva(
+            name=name,
+            interior_horizontal_insulation_depth=None,
+            exterior_horizontal_insulation_width=None,
+            footing_depth=None,
+        )
+    )
+
+
 def use_kiva_foundations(idf: IDF) -> list[str]:
-    """Move ground-contact floors onto one uninsulated Kiva slab foundation.
+    """Move ground-contact floors onto uninsulated Kiva slab foundations.
+
+    Zones share the foundation ``Slab_On_Grade``. EnergyPlus allows one floor
+    per zone on a foundation, so a zone with several ground floors (a
+    non-convex plan split into convex pieces) puts its k-th floor on
+    ``Slab_On_Grade_k``, which has the same definition. Floors whose
+    construction has resistance-only layers get a Kiva-ready copy of it (see
+    ``_kiva_construction``).
 
     Leaves the model alone when it sets its own ground temperature, since the
     author then chose the fixed-temperature boundary deliberately.
@@ -98,21 +176,16 @@ def use_kiva_foundations(idf: IDF) -> list[str]:
     ]
     if not floors:
         return []
-    if not idf.has(FoundationKiva, FOUNDATION_NAME):
-        # idfpy writes schema defaults explicitly; EnergyPlus then warns that
-        # depths are set for insulation and footings that do not exist.
-        idf.add(
-            FoundationKiva(
-                name=FOUNDATION_NAME,
-                interior_horizontal_insulation_depth=None,
-                exterior_horizontal_insulation_width=None,
-                footing_depth=None,
-            )
-        )
+    per_zone: Counter[str] = Counter()
     for floor in floors:
+        per_zone[floor.zone_name] += 1
+        k = per_zone[floor.zone_name]
+        foundation = FOUNDATION_NAME if k == 1 else f"{FOUNDATION_NAME}_{k}"
+        _add_foundation(idf, foundation)
         perimeter = exposed_perimeter(idf, floor)
+        floor.construction_name = _kiva_construction(idf, floor.construction_name)
         floor.outside_boundary_condition = "Foundation"
-        floor.outside_boundary_condition_object = FOUNDATION_NAME
+        floor.outside_boundary_condition_object = foundation
         idf.add(
             SurfacePropertyExposedFoundationPerimeter(
                 surface_name=floor.name,

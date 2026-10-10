@@ -2,6 +2,7 @@ import shutil
 from pathlib import Path
 
 import pytest
+from idfpy.models.constructions import Construction, Material, MaterialNoMass
 from idfpy.models.location import SizingPeriodDesignDay
 from idfpy.models.thermal_zones import BuildingSurfaceDetailed
 
@@ -42,3 +43,27 @@ def test_run_simulation_adds_design_days_and_kiva_and_succeeds(tmp_path):
         if s.surface_type == "Floor"
     ]
     assert {f.outside_boundary_condition for f in floors} == {"Foundation"}
+
+
+@pytest.mark.skipif(shutil.which("energyplus") is None, reason="EnergyPlus not on PATH")
+def test_ground_floor_with_a_no_mass_layer_simulates_with_kiva(tmp_path):
+    # DOE prototype slabs carry a Material:NoMass carpet pad, which Kiva
+    # rejects with a Fatal error unless it is replaced by a regular layer.
+    state = ConfigState()
+    state.load_model(DATA_DIR / "schemas" / "building_schema.epJSON")
+    state.idf.add(
+        MaterialNoMass(name="Carpet_Pad", roughness="Smooth", thermal_resistance=0.2)
+    )
+    floor = state.idf.get(Construction, "Floor_Const")
+    assert floor is not None
+    floor.layer_2 = "Carpet_Pad"
+
+    response = WorkflowTool(state).run_simulation(
+        str(DATA_DIR / "weather" / "Shenzhen.epw"), str(tmp_path)
+    )
+
+    assert response.success, response.data
+    equivalent = state.idf.get(Material, "Carpet_Pad_Kiva")
+    assert equivalent is not None
+    assert equivalent.thickness / equivalent.conductivity == pytest.approx(0.2)
+    assert floor.layer_2 == "Carpet_Pad"  # the original stays as written

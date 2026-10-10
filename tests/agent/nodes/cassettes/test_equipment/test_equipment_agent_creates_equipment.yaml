@@ -1,35 +1,46 @@
 interactions:
 - request:
-    body: '{"messages":[{"content":"You are a plug-load expert for EnergyPlus.\nFor
-      each specified zone, create an ElectricEquipment object via\ncreate_equipment.\n\nWorkflow:\n1.
-      FIRST call `list_zones` to see the exact zone names.\n2. FIRST call `list_schedules`
-      to see the exact Schedule:Compact names\n   (you need an equipment fraction
-      schedule).\n3. Create one ElectricEquipment object per zone via `create_equipment`.\n4.
-      Call `list_equipment` once at the end to confirm.\n\nRules:\n- `zone_name` and
-      `schedule_name` MUST appear verbatim in the list_zones /\n  list_schedules results.\n-
-      If a needed zone or schedule is missing, STOP and report; do NOT invent names.\n-
-      Use the names the specification gives; otherwise ''{zone}_Equipment''.\n- design_level_calculation_method:\n    *
-      ''EquipmentLevel'' -> supply design_level (W, absolute)\n    * ''Watts/Area''
-      -> supply watts_per_floor_area (W/m^2)\n    * ''Watts/Person'' -> supply watts_per_person
-      (W/person)\n- Typical office plug load: 8-15 W/m^2 (Watts/Area). Use 10 when
-      unspecified.\n- Office equipment: fraction_radiant 0.5, fraction_latent 0, fraction_lost
-      0,\n  unless the specification says otherwise.\n","role":"system"},{"content":"Create
-      exactly one ElectricEquipment object named ''F1_Office_Equipment'' for zone
-      ''F1_Office'': method Watts/Area at 12 W/m2, schedule ''Office_Equipment''.","role":"user"}],"model":"google/gemini-3.8-flash","max_completion_tokens":16384,"parallel_tool_calls":false,"stream":false,"temperature":0.7,"tool_choice":"required","tools":[{"type":"function","function":{"name":"create_equipment","description":"Create
-      an ElectricEquipment (plug load) object.\n\n        Args:\n            name:
-      Unique equipment object name.\n            zone_name: Existing Zone name.\n            schedule_name:
-      Existing Schedule:Compact (Fraction).\n            design_level_calculation_method:
+    body: '{"messages":[{"content":"You are a plug-load expert for EnergyPlus.\nCreate
+      the ElectricEquipment objects of the specified zones with\ncreate_equipment,
+      one call per group of zones with the same values.\n\nWorkflow:\n1. FIRST call
+      `list_zones` to see the exact zone names.\n2. FIRST call `list_schedules` to
+      see the exact Schedule:Compact names\n   (you need an equipment fraction schedule).\n3.
+      Call `create_equipment` once per group of zones with the same\n   schedule and
+      values, listing the zones in `zone_names`. Its reply names\n   only zones that
+      failed; the rest got their object. Do not list\n   afterwards.\n\nRules:\n-
+      Zone names and `schedule_name` MUST appear verbatim in the list_zones /\n  list_schedules
+      results.\n- If a needed zone or schedule is missing, do NOT invent a name and
+      do NOT\n  list again: give your final answer at once, with it in `missing_inputs`.\n-
+      Objects are named ''{zone}_Equipment''; `name_suffix` changes the suffix.\n-
+      design_level_calculation_method:\n    * ''EquipmentLevel'' -> supply design_level
+      (W, absolute)\n    * ''Watts/Area'' -> supply watts_per_floor_area (W/m^2)\n    *
+      ''Watts/Person'' -> supply watts_per_person (W/person)\n- Typical office plug
+      load: 8-15 W/m^2 (Watts/Area). Use 10 when unspecified.\n- Office equipment:
+      fraction_radiant 0.5, fraction_latent 0, fraction_lost 0,\n  unless the specification
+      says otherwise.\n","role":"system"},{"content":"Create exactly one ElectricEquipment
+      object named ''F1_Office_Equipment'' for zone ''F1_Office'': method Watts/Area
+      at 12 W/m2, schedule ''Office_Equipment''.","role":"user"}],"model":"google/gemini-3.8-flash","max_completion_tokens":16384,"parallel_tool_calls":false,"stream":false,"temperature":0.7,"tool_choice":"required","tools":[{"type":"function","function":{"name":"create_equipment","description":"Create
+      one ElectricEquipment, named ''<zone>_<name_suffix>'', per zone.\n\n        Call
+      it once per group of zones with the same values.\n\n        Args:\n            zone_names:
+      Existing Zone names.\n            schedule_name: Existing Schedule:Compact (Fraction).\n            design_level_calculation_method:
       EquipmentLevel / Watts/Area / Watts/Person.\n            design_level: Absolute
-      watts (when method=EquipmentLevel).\n            watts_per_floor_area: W/m^2
-      (when method=Watts/Area).\n            watts_per_person: W/person (when method=Watts/Person).\n            fraction_latent:
-      Latent fraction of the heat gain (0-1).\n            fraction_radiant: Radiant
-      fraction of the heat gain (0-1).\n            fraction_lost: Fraction leaving
-      the zone, e.g. exhausted (0-1).","parameters":{"properties":{"name":{"type":"string"},"zone_name":{"type":"string"},"schedule_name":{"type":"string"},"design_level_calculation_method":{"default":"Watts/Area","enum":["EquipmentLevel","Watts/Area","Watts/Person"],"type":"string"},"design_level":{"default":0.0,"type":"number"},"watts_per_floor_area":{"default":0.0,"type":"number"},"watts_per_person":{"default":0.0,"type":"number"},"fraction_latent":{"default":0.0,"type":"number"},"fraction_radiant":{"default":0.0,"type":"number"},"fraction_lost":{"default":0.0,"type":"number"}},"required":["name","zone_name","schedule_name"],"type":"object"}}},{"type":"function","function":{"name":"list_equipment","description":"List
-      all ElectricEquipment.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"delete_equipment","description":"Delete
+      watts per zone (when method=EquipmentLevel).\n            watts_per_floor_area:
+      W/m^2 (when method=Watts/Area).\n            watts_per_person: W/person (when
+      method=Watts/Person).\n            fraction_latent: Latent fraction of the heat
+      gain (0-1).\n            fraction_radiant: Radiant fraction of the heat gain
+      (0-1).\n            fraction_lost: Fraction leaving the zone, e.g. exhausted
+      (0-1).\n            name_suffix: Name suffix; give another one for a second\n                ElectricEquipment
+      in the same zones.","parameters":{"properties":{"zone_names":{"items":{"type":"string"},"type":"array"},"schedule_name":{"type":"string"},"design_level_calculation_method":{"default":"Watts/Area","enum":["EquipmentLevel","Watts/Area","Watts/Person"],"type":"string"},"design_level":{"default":0.0,"type":"number"},"watts_per_floor_area":{"default":0.0,"type":"number"},"watts_per_person":{"default":0.0,"type":"number"},"fraction_latent":{"default":0.0,"type":"number"},"fraction_radiant":{"default":0.0,"type":"number"},"fraction_lost":{"default":0.0,"type":"number"},"name_suffix":{"default":"Equipment","type":"string"}},"required":["zone_names","schedule_name"],"type":"object"}}},{"type":"function","function":{"name":"list_equipment","description":"List
+      ElectricEquipment: name, zone, schedule and level.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"delete_equipment","description":"Delete
       an ElectricEquipment object.","parameters":{"properties":{"name":{"type":"string"}},"required":["name"],"type":"object"}}},{"type":"function","function":{"name":"list_zones","description":"List
-      zones an equipment load can use.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"list_schedules","description":"List
-      Schedule:Compact objects.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"EquipmentResponse","description":"Structured
-      summary returned by the equipment phase agent.","parameters":{"properties":{"equipment_names":{"description":"Names
+      zone names an equipment load can use.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"list_schedules","description":"List
+      Schedule:Compact names and type limits.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"EquipmentResponse","description":"Structured
+      summary returned by the equipment phase agent.","parameters":{"properties":{"missing_inputs":{"description":"Needed
+      objects that do not exist; empty when none","items":{"description":"An upstream
+      object a phase needed but did not find.","properties":{"kind":{"description":"Kind
+      of object; the phase of that name creates it","enum":["zone","material","construction","schedule","surface"],"type":"string"},"description":{"description":"What
+      is needed and for what, e.g. ''a window construction (kind window) for the office
+      windows''","type":"string"}},"required":["kind","description"],"type":"object"},"type":"array"},"equipment_names":{"description":"Names
       of all ElectricEquipment objects created","items":{"type":"string"},"type":"array"},"summary":{"description":"One-line
       summary of the equipment creation result","type":"string"}},"required":["equipment_names","summary"],"type":"object"}}}],"max_thinking_budget":4096}'
     headers:
@@ -40,7 +51,7 @@ interactions:
       connection:
       - keep-alive
       content-length:
-      - '4065'
+      - '5094'
       content-type:
       - application/json
       host:
@@ -72,27 +83,27 @@ interactions:
   response:
     body:
       string: !!binary |
-        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
+        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
     headers:
       access-control-allow-origin:
       - '*'
@@ -103,7 +114,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a47657d20fbaa0ee-NRT
+      - a47e1fb1de6eaf28-NRT
       connection:
       - keep-alive
       content-encoding:
@@ -111,7 +122,7 @@ interactions:
       content-type:
       - application/json
       date:
-      - Thu, 08 Oct 2026 15:57:47 GMT
+      - Fri, 09 Oct 2026 14:37:34 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       permissions-policy:
@@ -120,13 +131,13 @@ interactions:
       referrer-policy:
       - no-referrer, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=bwmkTFm8vkHzBN%2BITOJHwU8XHdAFup9OQ6G8%2BBg1%2BjqpbWjuPCl2uk%2BHdpVzDMXY2h4ha0th%2B7G9AaI0YDkYIf6qP4Vb9kb%2FfLrJd3Y12kDv4gSocJy%2Fj7r%2Fi7Wx5TRVybs%3D"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=Eku8W0yThGRv0MnrpcYTH6FHfzRC8witfio37eJdxBXFwv03ck3OnSjtCXyrqfCIiV9ZFEMkualyoGVKcZ8tcvR3sQvjynX7CZLk3%2FEpfiU8e8400adb5RhV6zwLtQztC5w%3D"}]}'
       server:
       - cloudflare
       set-cookie:
-      - __cf_bm=YfKMVQHvK17p6eY0S5k29ZnRWhRexnxuwL5XjeG108E-1791475064.8079162-1.0.1.1-VnvGyGNdkK7kKI34hA8ELoG9sDqpU2lzWd0DjzdRNTSKMNJN8lHrqWGrNYNSABh1_7CjnadF9Y8wfdBczg7RpJAQya.yi9o2az2CkyGt46nMZiR4gCwF0i3J78TbnDrH;
-        HttpOnly; SameSite=None; Secure; Path=/; Domain=openrouter.ai; Expires=Thu,
-        08 Oct 2026 16:27:47 GMT
+      - __cf_bm=g7jtJLvJkBxu1PdJDOximARorKlM_UvwiR9WHEIwATM-1791556651.9641166-1.0.1.1-w1sLbd3JCWpC7hWjmste1DwIRpm9eDoEF1qlEyv5F6KRLMVmCmQ2KepYOsTzAVWJU7rWwBe1_GeLMXToAzzZEgxh5qVb1d0MruYHt1v4OH5Tp84CtXE1OGHA9S0ur5ci;
+        HttpOnly; SameSite=None; Secure; Path=/; Domain=openrouter.ai; Expires=Fri,
+        09 Oct 2026 15:07:33 GMT
       strict-transport-security:
       - max-age=31536000
       transfer-encoding:
@@ -136,54 +147,59 @@ interactions:
       x-content-type-options:
       - nosniff
       x-generation-id:
-      - gen-1791475064-cjKMKYswIphYBOiJ3TeN
+      - gen-1791556651-nTJ788kE2hkNYRtoeXqY
       x-new-api-version:
-      - v1.0.0-rc.41
+      - v1.0.0-rc.42
       x-oneapi-request-id:
-      - 202610081557447948746608268d9d6bkCE1qxQ
+      - 202610091437319487078918268d9d6Dc6mKTiu
     status:
       code: 200
       message: OK
 - request:
-    body: '{"messages":[{"content":"You are a plug-load expert for EnergyPlus.\nFor
-      each specified zone, create an ElectricEquipment object via\ncreate_equipment.\n\nWorkflow:\n1.
-      FIRST call `list_zones` to see the exact zone names.\n2. FIRST call `list_schedules`
-      to see the exact Schedule:Compact names\n   (you need an equipment fraction
-      schedule).\n3. Create one ElectricEquipment object per zone via `create_equipment`.\n4.
-      Call `list_equipment` once at the end to confirm.\n\nRules:\n- `zone_name` and
-      `schedule_name` MUST appear verbatim in the list_zones /\n  list_schedules results.\n-
-      If a needed zone or schedule is missing, STOP and report; do NOT invent names.\n-
-      Use the names the specification gives; otherwise ''{zone}_Equipment''.\n- design_level_calculation_method:\n    *
-      ''EquipmentLevel'' -> supply design_level (W, absolute)\n    * ''Watts/Area''
-      -> supply watts_per_floor_area (W/m^2)\n    * ''Watts/Person'' -> supply watts_per_person
-      (W/person)\n- Typical office plug load: 8-15 W/m^2 (Watts/Area). Use 10 when
-      unspecified.\n- Office equipment: fraction_radiant 0.5, fraction_latent 0, fraction_lost
-      0,\n  unless the specification says otherwise.\n","role":"system"},{"content":"Create
-      exactly one ElectricEquipment object named ''F1_Office_Equipment'' for zone
-      ''F1_Office'': method Watts/Area at 12 W/m2, schedule ''Office_Equipment''.","role":"user"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_780611","function":{"name":"list_zones","arguments":"{}"}},{"type":"function","id":"call_780612","function":{"name":"list_schedules","arguments":"{}"}}]},{"content":"{\"success\":
-      true, \"message\": \"Listed 1 Zone.\", \"data\": [{\"name\": \"F1_Office\",
-      \"direction_of_relative_north\": 0.0, \"x_origin\": 0.0, \"y_origin\": 0.0,
-      \"z_origin\": 0.0, \"type\": 1, \"multiplier\": 1, \"ceiling_height\": \"Autocalculate\",
-      \"volume\": \"Autocalculate\", \"floor_area\": \"Autocalculate\", \"part_of_total_floor_area\":
-      \"Yes\"}]}","role":"tool","tool_call_id":"call_780611"},{"content":"{\"success\":
+    body: '{"messages":[{"content":"You are a plug-load expert for EnergyPlus.\nCreate
+      the ElectricEquipment objects of the specified zones with\ncreate_equipment,
+      one call per group of zones with the same values.\n\nWorkflow:\n1. FIRST call
+      `list_zones` to see the exact zone names.\n2. FIRST call `list_schedules` to
+      see the exact Schedule:Compact names\n   (you need an equipment fraction schedule).\n3.
+      Call `create_equipment` once per group of zones with the same\n   schedule and
+      values, listing the zones in `zone_names`. Its reply names\n   only zones that
+      failed; the rest got their object. Do not list\n   afterwards.\n\nRules:\n-
+      Zone names and `schedule_name` MUST appear verbatim in the list_zones /\n  list_schedules
+      results.\n- If a needed zone or schedule is missing, do NOT invent a name and
+      do NOT\n  list again: give your final answer at once, with it in `missing_inputs`.\n-
+      Objects are named ''{zone}_Equipment''; `name_suffix` changes the suffix.\n-
+      design_level_calculation_method:\n    * ''EquipmentLevel'' -> supply design_level
+      (W, absolute)\n    * ''Watts/Area'' -> supply watts_per_floor_area (W/m^2)\n    *
+      ''Watts/Person'' -> supply watts_per_person (W/person)\n- Typical office plug
+      load: 8-15 W/m^2 (Watts/Area). Use 10 when unspecified.\n- Office equipment:
+      fraction_radiant 0.5, fraction_latent 0, fraction_lost 0,\n  unless the specification
+      says otherwise.\n","role":"system"},{"content":"Create exactly one ElectricEquipment
+      object named ''F1_Office_Equipment'' for zone ''F1_Office'': method Watts/Area
+      at 12 W/m2, schedule ''Office_Equipment''.","role":"user"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_160467","function":{"name":"list_zones","arguments":"{}"}},{"type":"function","id":"call_160468","function":{"name":"list_schedules","arguments":"{}"}}]},{"content":"{\"success\":
+      true, \"message\": \"Listed 1 zones.\", \"data\": [\"F1_Office\"]}","role":"tool","tool_call_id":"call_160467"},{"content":"{\"success\":
       true, \"message\": \"Listed 1 Schedule:Compact.\", \"data\": [{\"name\": \"Office_Equipment\",
-      \"schedule_type_limits_name\": \"Fraction\", \"data\": [{\"field\": \"Through:
-      12/31\"}, {\"field\": \"For: AllDays\"}, {\"field\": \"Until: 24:00\"}, {\"field\":
-      \"1.0\"}]}]}","role":"tool","tool_call_id":"call_780612"}],"model":"google/gemini-3.8-flash","max_completion_tokens":16384,"parallel_tool_calls":false,"stream":false,"temperature":0.7,"tool_choice":"required","tools":[{"type":"function","function":{"name":"create_equipment","description":"Create
-      an ElectricEquipment (plug load) object.\n\n        Args:\n            name:
-      Unique equipment object name.\n            zone_name: Existing Zone name.\n            schedule_name:
-      Existing Schedule:Compact (Fraction).\n            design_level_calculation_method:
+      \"schedule_type_limits_name\": \"Fraction\"}]}","role":"tool","tool_call_id":"call_160468"}],"model":"google/gemini-3.8-flash","max_completion_tokens":16384,"parallel_tool_calls":false,"stream":false,"temperature":0.7,"tool_choice":"required","tools":[{"type":"function","function":{"name":"create_equipment","description":"Create
+      one ElectricEquipment, named ''<zone>_<name_suffix>'', per zone.\n\n        Call
+      it once per group of zones with the same values.\n\n        Args:\n            zone_names:
+      Existing Zone names.\n            schedule_name: Existing Schedule:Compact (Fraction).\n            design_level_calculation_method:
       EquipmentLevel / Watts/Area / Watts/Person.\n            design_level: Absolute
-      watts (when method=EquipmentLevel).\n            watts_per_floor_area: W/m^2
-      (when method=Watts/Area).\n            watts_per_person: W/person (when method=Watts/Person).\n            fraction_latent:
-      Latent fraction of the heat gain (0-1).\n            fraction_radiant: Radiant
-      fraction of the heat gain (0-1).\n            fraction_lost: Fraction leaving
-      the zone, e.g. exhausted (0-1).","parameters":{"properties":{"name":{"type":"string"},"zone_name":{"type":"string"},"schedule_name":{"type":"string"},"design_level_calculation_method":{"default":"Watts/Area","enum":["EquipmentLevel","Watts/Area","Watts/Person"],"type":"string"},"design_level":{"default":0.0,"type":"number"},"watts_per_floor_area":{"default":0.0,"type":"number"},"watts_per_person":{"default":0.0,"type":"number"},"fraction_latent":{"default":0.0,"type":"number"},"fraction_radiant":{"default":0.0,"type":"number"},"fraction_lost":{"default":0.0,"type":"number"}},"required":["name","zone_name","schedule_name"],"type":"object"}}},{"type":"function","function":{"name":"list_equipment","description":"List
-      all ElectricEquipment.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"delete_equipment","description":"Delete
+      watts per zone (when method=EquipmentLevel).\n            watts_per_floor_area:
+      W/m^2 (when method=Watts/Area).\n            watts_per_person: W/person (when
+      method=Watts/Person).\n            fraction_latent: Latent fraction of the heat
+      gain (0-1).\n            fraction_radiant: Radiant fraction of the heat gain
+      (0-1).\n            fraction_lost: Fraction leaving the zone, e.g. exhausted
+      (0-1).\n            name_suffix: Name suffix; give another one for a second\n                ElectricEquipment
+      in the same zones.","parameters":{"properties":{"zone_names":{"items":{"type":"string"},"type":"array"},"schedule_name":{"type":"string"},"design_level_calculation_method":{"default":"Watts/Area","enum":["EquipmentLevel","Watts/Area","Watts/Person"],"type":"string"},"design_level":{"default":0.0,"type":"number"},"watts_per_floor_area":{"default":0.0,"type":"number"},"watts_per_person":{"default":0.0,"type":"number"},"fraction_latent":{"default":0.0,"type":"number"},"fraction_radiant":{"default":0.0,"type":"number"},"fraction_lost":{"default":0.0,"type":"number"},"name_suffix":{"default":"Equipment","type":"string"}},"required":["zone_names","schedule_name"],"type":"object"}}},{"type":"function","function":{"name":"list_equipment","description":"List
+      ElectricEquipment: name, zone, schedule and level.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"delete_equipment","description":"Delete
       an ElectricEquipment object.","parameters":{"properties":{"name":{"type":"string"}},"required":["name"],"type":"object"}}},{"type":"function","function":{"name":"list_zones","description":"List
-      zones an equipment load can use.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"list_schedules","description":"List
-      Schedule:Compact objects.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"EquipmentResponse","description":"Structured
-      summary returned by the equipment phase agent.","parameters":{"properties":{"equipment_names":{"description":"Names
+      zone names an equipment load can use.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"list_schedules","description":"List
+      Schedule:Compact names and type limits.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"EquipmentResponse","description":"Structured
+      summary returned by the equipment phase agent.","parameters":{"properties":{"missing_inputs":{"description":"Needed
+      objects that do not exist; empty when none","items":{"description":"An upstream
+      object a phase needed but did not find.","properties":{"kind":{"description":"Kind
+      of object; the phase of that name creates it","enum":["zone","material","construction","schedule","surface"],"type":"string"},"description":{"description":"What
+      is needed and for what, e.g. ''a window construction (kind window) for the office
+      windows''","type":"string"}},"required":["kind","description"],"type":"object"},"type":"array"},"equipment_names":{"description":"Names
       of all ElectricEquipment objects created","items":{"type":"string"},"type":"array"},"summary":{"description":"One-line
       summary of the equipment creation result","type":"string"}},"required":["equipment_names","summary"],"type":"object"}}}],"max_thinking_budget":4096}'
     headers:
@@ -194,7 +210,7 @@ interactions:
       connection:
       - keep-alive
       content-length:
-      - '5060'
+      - '5678'
       content-type:
       - application/json
       host:
@@ -226,34 +242,34 @@ interactions:
   response:
     body:
       string: !!binary |
-        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
-        +OFXAy8=
+        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
     headers:
       access-control-allow-origin:
       - '*'
@@ -264,7 +280,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a47657e3db7ca0ee-NRT
+      - a47e1fc03cf5af28-NRT
       connection:
       - keep-alive
       content-encoding:
@@ -272,7 +288,7 @@ interactions:
       content-type:
       - application/json
       date:
-      - Thu, 08 Oct 2026 15:57:51 GMT
+      - Fri, 09 Oct 2026 14:37:37 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       permissions-policy:
@@ -281,13 +297,13 @@ interactions:
       referrer-policy:
       - no-referrer, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=gU2pIf0MuFqm5326YXjJn1rTgaJ3XFv3zjMJXDGbhy7qyjBmkFl1Isw%2B%2FZzdtyY7l00ybzqyLsd%2FHfO8edqzWG8fO6isMNUpTukwLBSfGHxRNYbwO0Jw6QUfrSabcce%2FUhw%3D"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=mPJgXUL3Xx6luOuAvEyBAR5SG9qPfV%2BEmZ5d3myoK3lUYdgXyfZ8Vli%2B0gzJeB2iCxC%2FRPINF%2BFKSTDHscsKXpeb%2BMPLzRrVrL26psvUI9hwSwxll3loNhG%2BS%2Bh0KDqc10o%3D"}]}'
       server:
       - cloudflare
       set-cookie:
-      - __cf_bm=OYmvSakY3anlZGO13D8rnRmVrnmGhJVkdfljPDKuA4E-1791475067.6519542-1.0.1.1-Fetv1xQrS8EEbTRpfGDS0uV8FtPERqPiVBC_MFdw.uJO7dWDGRxT1RSBa_l0GkJiGcYYbEPXmrM4y1kZHpGbqEV2YvP5Sk5HZH4lHyl6VzEz72mowByxDThNJyxVokcw;
-        HttpOnly; SameSite=None; Secure; Path=/; Domain=openrouter.ai; Expires=Thu,
-        08 Oct 2026 16:27:51 GMT
+      - __cf_bm=c3l4wXSJkZDjrfO2gg4dZNmCX4cpBrDqcOv2P1t5zys-1791556654.2742693-1.0.1.1-b0fKFlxDSYoTt0b9WOnSvvlBTtB6hwvOfSc_xLVXkcQk0WISuN.Vd_zhzSvAyWaNRGewNJYxnCIwkaqdXv11OE.MH6XcXBb0owzHNCJlJ3geasi1P1JBILJ3PL5yURMq;
+        HttpOnly; SameSite=None; Secure; Path=/; Domain=openrouter.ai; Expires=Fri,
+        09 Oct 2026 15:07:37 GMT
       strict-transport-security:
       - max-age=31536000
       transfer-encoding:
@@ -297,63 +313,64 @@ interactions:
       x-content-type-options:
       - nosniff
       x-generation-id:
-      - gen-1791475067-RCpmHGzHsAIotRbf16HB
+      - gen-1791556654-nLaaXkJL8vZju7UwXb9K
       x-new-api-version:
-      - v1.0.0-rc.41
+      - v1.0.0-rc.42
       x-oneapi-request-id:
-      - 202610081557476380527408268d9d6HV7lCdM8
+      - 202610091437342562995948268d9d6H9UyJ6tB
     status:
       code: 200
       message: OK
 - request:
-    body: '{"messages":[{"content":"You are a plug-load expert for EnergyPlus.\nFor
-      each specified zone, create an ElectricEquipment object via\ncreate_equipment.\n\nWorkflow:\n1.
-      FIRST call `list_zones` to see the exact zone names.\n2. FIRST call `list_schedules`
-      to see the exact Schedule:Compact names\n   (you need an equipment fraction
-      schedule).\n3. Create one ElectricEquipment object per zone via `create_equipment`.\n4.
-      Call `list_equipment` once at the end to confirm.\n\nRules:\n- `zone_name` and
-      `schedule_name` MUST appear verbatim in the list_zones /\n  list_schedules results.\n-
-      If a needed zone or schedule is missing, STOP and report; do NOT invent names.\n-
-      Use the names the specification gives; otherwise ''{zone}_Equipment''.\n- design_level_calculation_method:\n    *
-      ''EquipmentLevel'' -> supply design_level (W, absolute)\n    * ''Watts/Area''
-      -> supply watts_per_floor_area (W/m^2)\n    * ''Watts/Person'' -> supply watts_per_person
-      (W/person)\n- Typical office plug load: 8-15 W/m^2 (Watts/Area). Use 10 when
-      unspecified.\n- Office equipment: fraction_radiant 0.5, fraction_latent 0, fraction_lost
-      0,\n  unless the specification says otherwise.\n","role":"system"},{"content":"Create
-      exactly one ElectricEquipment object named ''F1_Office_Equipment'' for zone
-      ''F1_Office'': method Watts/Area at 12 W/m2, schedule ''Office_Equipment''.","role":"user"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_780611","function":{"name":"list_zones","arguments":"{}"}},{"type":"function","id":"call_780612","function":{"name":"list_schedules","arguments":"{}"}}]},{"content":"{\"success\":
-      true, \"message\": \"Listed 1 Zone.\", \"data\": [{\"name\": \"F1_Office\",
-      \"direction_of_relative_north\": 0.0, \"x_origin\": 0.0, \"y_origin\": 0.0,
-      \"z_origin\": 0.0, \"type\": 1, \"multiplier\": 1, \"ceiling_height\": \"Autocalculate\",
-      \"volume\": \"Autocalculate\", \"floor_area\": \"Autocalculate\", \"part_of_total_floor_area\":
-      \"Yes\"}]}","role":"tool","tool_call_id":"call_780611"},{"content":"{\"success\":
+    body: '{"messages":[{"content":"You are a plug-load expert for EnergyPlus.\nCreate
+      the ElectricEquipment objects of the specified zones with\ncreate_equipment,
+      one call per group of zones with the same values.\n\nWorkflow:\n1. FIRST call
+      `list_zones` to see the exact zone names.\n2. FIRST call `list_schedules` to
+      see the exact Schedule:Compact names\n   (you need an equipment fraction schedule).\n3.
+      Call `create_equipment` once per group of zones with the same\n   schedule and
+      values, listing the zones in `zone_names`. Its reply names\n   only zones that
+      failed; the rest got their object. Do not list\n   afterwards.\n\nRules:\n-
+      Zone names and `schedule_name` MUST appear verbatim in the list_zones /\n  list_schedules
+      results.\n- If a needed zone or schedule is missing, do NOT invent a name and
+      do NOT\n  list again: give your final answer at once, with it in `missing_inputs`.\n-
+      Objects are named ''{zone}_Equipment''; `name_suffix` changes the suffix.\n-
+      design_level_calculation_method:\n    * ''EquipmentLevel'' -> supply design_level
+      (W, absolute)\n    * ''Watts/Area'' -> supply watts_per_floor_area (W/m^2)\n    *
+      ''Watts/Person'' -> supply watts_per_person (W/person)\n- Typical office plug
+      load: 8-15 W/m^2 (Watts/Area). Use 10 when unspecified.\n- Office equipment:
+      fraction_radiant 0.5, fraction_latent 0, fraction_lost 0,\n  unless the specification
+      says otherwise.\n","role":"system"},{"content":"Create exactly one ElectricEquipment
+      object named ''F1_Office_Equipment'' for zone ''F1_Office'': method Watts/Area
+      at 12 W/m2, schedule ''Office_Equipment''.","role":"user"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_160467","function":{"name":"list_zones","arguments":"{}"}},{"type":"function","id":"call_160468","function":{"name":"list_schedules","arguments":"{}"}}]},{"content":"{\"success\":
+      true, \"message\": \"Listed 1 zones.\", \"data\": [\"F1_Office\"]}","role":"tool","tool_call_id":"call_160467"},{"content":"{\"success\":
       true, \"message\": \"Listed 1 Schedule:Compact.\", \"data\": [{\"name\": \"Office_Equipment\",
-      \"schedule_type_limits_name\": \"Fraction\", \"data\": [{\"field\": \"Through:
-      12/31\"}, {\"field\": \"For: AllDays\"}, {\"field\": \"Until: 24:00\"}, {\"field\":
-      \"1.0\"}]}]}","role":"tool","tool_call_id":"call_780612"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_629607","function":{"name":"create_equipment","arguments":"{\"watts_per_floor_area\":
-      12, \"fraction_latent\": 0, \"fraction_lost\": 0, \"design_level_calculation_method\":
-      \"Watts/Area\", \"zone_name\": \"F1_Office\", \"schedule_name\": \"Office_Equipment\",
-      \"name\": \"F1_Office_Equipment\", \"fraction_radiant\": 0.5}"}}]},{"content":"{\"success\":
-      true, \"message\": \"ElectricEquipment ''F1_Office_Equipment'' created.\", \"data\":
-      {\"name\": \"F1_Office_Equipment\", \"zone_or_zonelist_or_space_or_spacelist_name\":
-      \"F1_Office\", \"schedule_name\": \"Office_Equipment\", \"design_level_calculation_method\":
-      \"Watts/Area\", \"design_level\": 0.0, \"watts_per_floor_area\": 12.0, \"watts_per_person\":
-      0.0, \"fraction_latent\": 0.0, \"fraction_radiant\": 0.5, \"fraction_lost\":
-      0.0, \"end_use_subcategory\": \"General\"}}","role":"tool","tool_call_id":"call_629607"}],"model":"google/gemini-3.8-flash","max_completion_tokens":16384,"parallel_tool_calls":false,"stream":false,"temperature":0.7,"tool_choice":"required","tools":[{"type":"function","function":{"name":"create_equipment","description":"Create
-      an ElectricEquipment (plug load) object.\n\n        Args:\n            name:
-      Unique equipment object name.\n            zone_name: Existing Zone name.\n            schedule_name:
-      Existing Schedule:Compact (Fraction).\n            design_level_calculation_method:
+      \"schedule_type_limits_name\": \"Fraction\"}]}","role":"tool","tool_call_id":"call_160468"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_620091","function":{"name":"create_equipment","arguments":"{\"design_level_calculation_method\":
+      \"Watts/Area\", \"fraction_radiant\": 0.5, \"fraction_latent\": 0, \"fraction_lost\":
+      0, \"zone_names\": [\"F1_Office\"], \"name_suffix\": \"Equipment\", \"schedule_name\":
+      \"Office_Equipment\", \"watts_per_floor_area\": 12}"}}]},{"content":"{\"success\":
+      true, \"message\": \"Created ElectricEquipment in 1 of 1 zones.\", \"data\":
+      null}","role":"tool","tool_call_id":"call_620091"}],"model":"google/gemini-3.8-flash","max_completion_tokens":16384,"parallel_tool_calls":false,"stream":false,"temperature":0.7,"tool_choice":"required","tools":[{"type":"function","function":{"name":"create_equipment","description":"Create
+      one ElectricEquipment, named ''<zone>_<name_suffix>'', per zone.\n\n        Call
+      it once per group of zones with the same values.\n\n        Args:\n            zone_names:
+      Existing Zone names.\n            schedule_name: Existing Schedule:Compact (Fraction).\n            design_level_calculation_method:
       EquipmentLevel / Watts/Area / Watts/Person.\n            design_level: Absolute
-      watts (when method=EquipmentLevel).\n            watts_per_floor_area: W/m^2
-      (when method=Watts/Area).\n            watts_per_person: W/person (when method=Watts/Person).\n            fraction_latent:
-      Latent fraction of the heat gain (0-1).\n            fraction_radiant: Radiant
-      fraction of the heat gain (0-1).\n            fraction_lost: Fraction leaving
-      the zone, e.g. exhausted (0-1).","parameters":{"properties":{"name":{"type":"string"},"zone_name":{"type":"string"},"schedule_name":{"type":"string"},"design_level_calculation_method":{"default":"Watts/Area","enum":["EquipmentLevel","Watts/Area","Watts/Person"],"type":"string"},"design_level":{"default":0.0,"type":"number"},"watts_per_floor_area":{"default":0.0,"type":"number"},"watts_per_person":{"default":0.0,"type":"number"},"fraction_latent":{"default":0.0,"type":"number"},"fraction_radiant":{"default":0.0,"type":"number"},"fraction_lost":{"default":0.0,"type":"number"}},"required":["name","zone_name","schedule_name"],"type":"object"}}},{"type":"function","function":{"name":"list_equipment","description":"List
-      all ElectricEquipment.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"delete_equipment","description":"Delete
+      watts per zone (when method=EquipmentLevel).\n            watts_per_floor_area:
+      W/m^2 (when method=Watts/Area).\n            watts_per_person: W/person (when
+      method=Watts/Person).\n            fraction_latent: Latent fraction of the heat
+      gain (0-1).\n            fraction_radiant: Radiant fraction of the heat gain
+      (0-1).\n            fraction_lost: Fraction leaving the zone, e.g. exhausted
+      (0-1).\n            name_suffix: Name suffix; give another one for a second\n                ElectricEquipment
+      in the same zones.","parameters":{"properties":{"zone_names":{"items":{"type":"string"},"type":"array"},"schedule_name":{"type":"string"},"design_level_calculation_method":{"default":"Watts/Area","enum":["EquipmentLevel","Watts/Area","Watts/Person"],"type":"string"},"design_level":{"default":0.0,"type":"number"},"watts_per_floor_area":{"default":0.0,"type":"number"},"watts_per_person":{"default":0.0,"type":"number"},"fraction_latent":{"default":0.0,"type":"number"},"fraction_radiant":{"default":0.0,"type":"number"},"fraction_lost":{"default":0.0,"type":"number"},"name_suffix":{"default":"Equipment","type":"string"}},"required":["zone_names","schedule_name"],"type":"object"}}},{"type":"function","function":{"name":"list_equipment","description":"List
+      ElectricEquipment: name, zone, schedule and level.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"delete_equipment","description":"Delete
       an ElectricEquipment object.","parameters":{"properties":{"name":{"type":"string"}},"required":["name"],"type":"object"}}},{"type":"function","function":{"name":"list_zones","description":"List
-      zones an equipment load can use.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"list_schedules","description":"List
-      Schedule:Compact objects.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"EquipmentResponse","description":"Structured
-      summary returned by the equipment phase agent.","parameters":{"properties":{"equipment_names":{"description":"Names
+      zone names an equipment load can use.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"list_schedules","description":"List
+      Schedule:Compact names and type limits.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"EquipmentResponse","description":"Structured
+      summary returned by the equipment phase agent.","parameters":{"properties":{"missing_inputs":{"description":"Needed
+      objects that do not exist; empty when none","items":{"description":"An upstream
+      object a phase needed but did not find.","properties":{"kind":{"description":"Kind
+      of object; the phase of that name creates it","enum":["zone","material","construction","schedule","surface"],"type":"string"},"description":{"description":"What
+      is needed and for what, e.g. ''a window construction (kind window) for the office
+      windows''","type":"string"}},"required":["kind","description"],"type":"object"},"type":"array"},"equipment_names":{"description":"Names
       of all ElectricEquipment objects created","items":{"type":"string"},"type":"array"},"summary":{"description":"One-line
       summary of the equipment creation result","type":"string"}},"required":["equipment_names","summary"],"type":"object"}}}],"max_thinking_budget":4096}'
     headers:
@@ -364,7 +381,7 @@ interactions:
       connection:
       - keep-alive
       content-length:
-      - '6012'
+      - '6238'
       content-type:
       - application/json
       host:
@@ -396,17 +413,22 @@ interactions:
   response:
     body:
       string: !!binary |
-        KLUv/QBYNRIAhiVxJ/CyNgfABMjkTdt19fLWxOtyatcMqkpdg78ceMCho9984hPZhDwfDWcAXABs
-        ANvVU98+ecKaIoDBIGDh7nQn7kx6vX1TX6Qgl0gEYcnWVgIbqzmru8edpvXmPm2/pfDtcnJvvKwJ
-        I/028O4Nl6OZb5fwAkaDTMJFAaPp4DjoiKAOQCQWqGKhSAgsEojc6u4T/wMQABAYtXRbTvj2lq8r
-        1/ruvnHSf9y3erWu9fYJCQyFtB3uJ99eY3xQinP23eWsb6m0qSyZqppJr2rGN8jdYyfJ/2S414U8
-        N/DtHhspbmkhd+jWtxgx6d6S6UW3kkxJVphMBQITES0uHniDkahAFBmrASGiMRAyHAvMQ5SwAPFR
-        IUR4KhYaHDA44e6v3/T2afvyUCg3wq93kjSy7Nnn7rXlWlhF31oXYxwrdeV497We/Me1Wy4UgmhA
-        ivFBKDHq7nt5+p8MV0mWs774almWVc/it6xiuUigWplEkbRQLl1KsmS9pV0vLNuJO5Mn7G0z7ZAa
-        NO0GPvjP1vgo943p0UiV3yaVCgRBEci9a0SJr2e/QW+TCUXiXuVuzJb6sia9MI3skg6kn0Un9faC
-        gg4ITuRgeGAyIECC5hT2+lkdsaHCCgiNA0RMyhO/Erbw+FGTg4sMTBNwNSQ+uSEw2I1McVrJS2ng
-        6IVHuGPUAiKpOafAxc2sHSra5rvTtX2RDxG+8Qf5qgYqBywsAFkoigHFQlzbP62FsRC4sqsdcVFv
-        C6HRabjwHJGeSHxvA2LbUgIwvgAL
+        KLUv/QBY9RsApru5KMAO6wHM4kwggSsKjZ5vDnnib3GjQI64/01j7413g58AEQiCIEgAoFSkAKIA
+        wAB4u+YXa/mZC2l6qadBOIMfrh4rzUnfXeomCc31T4pD06PvGkrvO7q5n3SUX3usNbya70szmP+7
+        1OPsb13SHh3TLtwaKkFCHbjm+Ts6whn06CEtqzcAIWgM0Evtf4yvH8afa16/w9aj5t1v+Xl69Ivp
+        /gpaPAm2DE3XfM+nAGGP3rjY0pkGCJDqjSSDw7IlXBwMZNjjgWFWJLMG7n+ueUfdBEABBG/l5d4/
+        cUJC84/eIXgp912qNbX+if4hCKC+ht2Hpqa6K6nLMh6oy6JCm1pQAdxP6nkXzjIIoCbNe37dKIp/
+        NP+UsrQ21P4xueZ637fhl6VHf30xqD+z71uQhhWba/5WXjdp0avIlV0RrlY55w091/zB0naThPZd
+        erGWVerQ+/z74iu3plpL1/wrzm7S/D+p9VuPjrlsNNyP6JbXo+ta5eQqDiUMpTLYIC7VRQMsQRiS
+        iMW1mXREVyhJDwgXigjHwWarNosV0aCv6VgMDrviM9ajRRiFsymQHHlbKHnTktEE4iVYQokFVQ5k
+        pmrImevKMHmEfSUvbsUqEqm52AWKwAaBVGyFjaXIiDDOdmmurPIYljDia6ciLRzLqLtoaEyo4kPP
+        p7neQ0ixFJtNRqq4PJaZjMrEgmQnibg8ERFDxuOIHiQTiE2ZiPbmmsstO4/e/QZLed4noHJ/x02c
+        Tn6a8I9/AqfT6ZOWesysE3Y9sEpjDYcVH1V2VRUB9/N+fu9SzsrPW4Ph6Ts6wrQL5W+aLbhYdR+a
+        crrpw7w1F+ESiNN0azw9OirMqnLj7RHLPEYuh6W5vi/Cm9ugxRkMJ05ujQa2tBl7Hr2g4ANhwoZH
+        5HEglyMSYmSjEgJldt6jS+my8ZZxOBgNDAmCMgwZzuMCUWXFgDIhlShkKYuEDc4HZtbjUdAdR0iS
+        YbfBMQBJ2+xoQvsBBjkgMILGmJkH+RkXW2KfCvjMAZ2n6mCOI1twfmo14GIGTJQf1Y1v3AAzGEam
+        cVrFSzVwksILtmODC8CQ9nVXoKoc8wLGkM0bS9cUF0GVCIP6D/JVRJsyoEWgsSw+iXm9xNrVWSFc
+        8NNhOgkpR3M9oOW+6lsYCQEtuNqNi/a2CBrVkERQ4fGIHoRQif/bgGpbSgjG92IB
     headers:
       access-control-allow-origin:
       - '*'
@@ -417,7 +439,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a47657fd9e40a0ee-NRT
+      - a47e1fd59837af28-NRT
       connection:
       - keep-alive
       content-encoding:
@@ -425,7 +447,7 @@ interactions:
       content-type:
       - application/json
       date:
-      - Thu, 08 Oct 2026 15:57:54 GMT
+      - Fri, 09 Oct 2026 14:37:40 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       permissions-policy:
@@ -434,13 +456,13 @@ interactions:
       referrer-policy:
       - no-referrer, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=caeZdjoeHdk1J1GlRzLyMGDDh6qV%2FP1CY05FMFEY47GHk3mDYVMEuh0M5cswRD97VGE7UG6ULRCOnIcFfvALh52VYMgLvkYAzt%2BunPGdOhxP9pbYfbUnmg%2BAHbt3Iz%2BG0wI%3D"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=lmbwljzVExJwzic3VyiyVmEZJ4ecgfRWHemK2154kXxuzF59cBZfLXAIB4E4dxGL%2FlgaBkM%2BO4FwhWmfw%2FB8FMH1ka7Q8iAf6qlYFsLpKFAeZLreFDrErwkv5QpJ6fDIPx4%3D"}]}'
       server:
       - cloudflare
       set-cookie:
-      - __cf_bm=Wlw4z9dzZdQEWZW9U_p268eOFOSFXhWcmad_KiTTJYg-1791475071.774707-1.0.1.1-4Pao_RR_2gOI_B8egjW1gcOb924x9VEmopNigw5zmdc8d0g6MwSVhGYbaRkba6XSs_NVtoEDhO8xQQYGnDL0nPyBp3eVbaQxiHKu1NBFr6wfwFC4RiCwJsycif.AGPQR;
-        HttpOnly; SameSite=None; Secure; Path=/; Domain=openrouter.ai; Expires=Thu,
-        08 Oct 2026 16:27:54 GMT
+      - __cf_bm=2qPNyeB03IU2gmsBOINF3jcTvU7VkZLGublpxNtTjVI-1791556657.7054567-1.0.1.1-esgTRGdVovLXzTdJ.QQ3ygy9eXWnMyXWBAmjuiTa_BeZwoKUaDd3eZvU20WhILpxZCBKw82.CktcqnENJ0uWtiv_icnYVqGpi73oW4JmHj59kQbpqNRvPr5ntOkoXkF1;
+        HttpOnly; SameSite=None; Secure; Path=/; Domain=openrouter.ai; Expires=Fri,
+        09 Oct 2026 15:07:39 GMT
       strict-transport-security:
       - max-age=31536000
       transfer-encoding:
@@ -450,172 +472,11 @@ interactions:
       x-content-type-options:
       - nosniff
       x-generation-id:
-      - gen-1791475071-6s93tBqwbTF8EZAlcWcn
+      - gen-1791556657-GzIEJ4Mavfl8HFcVJon3
       x-new-api-version:
-      - v1.0.0-rc.41
+      - v1.0.0-rc.42
       x-oneapi-request-id:
-      - 202610081557517622934928268d9d6ZsLfs2QD
-    status:
-      code: 200
-      message: OK
-- request:
-    body: '{"messages":[{"content":"You are a plug-load expert for EnergyPlus.\nFor
-      each specified zone, create an ElectricEquipment object via\ncreate_equipment.\n\nWorkflow:\n1.
-      FIRST call `list_zones` to see the exact zone names.\n2. FIRST call `list_schedules`
-      to see the exact Schedule:Compact names\n   (you need an equipment fraction
-      schedule).\n3. Create one ElectricEquipment object per zone via `create_equipment`.\n4.
-      Call `list_equipment` once at the end to confirm.\n\nRules:\n- `zone_name` and
-      `schedule_name` MUST appear verbatim in the list_zones /\n  list_schedules results.\n-
-      If a needed zone or schedule is missing, STOP and report; do NOT invent names.\n-
-      Use the names the specification gives; otherwise ''{zone}_Equipment''.\n- design_level_calculation_method:\n    *
-      ''EquipmentLevel'' -> supply design_level (W, absolute)\n    * ''Watts/Area''
-      -> supply watts_per_floor_area (W/m^2)\n    * ''Watts/Person'' -> supply watts_per_person
-      (W/person)\n- Typical office plug load: 8-15 W/m^2 (Watts/Area). Use 10 when
-      unspecified.\n- Office equipment: fraction_radiant 0.5, fraction_latent 0, fraction_lost
-      0,\n  unless the specification says otherwise.\n","role":"system"},{"content":"Create
-      exactly one ElectricEquipment object named ''F1_Office_Equipment'' for zone
-      ''F1_Office'': method Watts/Area at 12 W/m2, schedule ''Office_Equipment''.","role":"user"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_780611","function":{"name":"list_zones","arguments":"{}"}},{"type":"function","id":"call_780612","function":{"name":"list_schedules","arguments":"{}"}}]},{"content":"{\"success\":
-      true, \"message\": \"Listed 1 Zone.\", \"data\": [{\"name\": \"F1_Office\",
-      \"direction_of_relative_north\": 0.0, \"x_origin\": 0.0, \"y_origin\": 0.0,
-      \"z_origin\": 0.0, \"type\": 1, \"multiplier\": 1, \"ceiling_height\": \"Autocalculate\",
-      \"volume\": \"Autocalculate\", \"floor_area\": \"Autocalculate\", \"part_of_total_floor_area\":
-      \"Yes\"}]}","role":"tool","tool_call_id":"call_780611"},{"content":"{\"success\":
-      true, \"message\": \"Listed 1 Schedule:Compact.\", \"data\": [{\"name\": \"Office_Equipment\",
-      \"schedule_type_limits_name\": \"Fraction\", \"data\": [{\"field\": \"Through:
-      12/31\"}, {\"field\": \"For: AllDays\"}, {\"field\": \"Until: 24:00\"}, {\"field\":
-      \"1.0\"}]}]}","role":"tool","tool_call_id":"call_780612"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_629607","function":{"name":"create_equipment","arguments":"{\"watts_per_floor_area\":
-      12, \"fraction_latent\": 0, \"fraction_lost\": 0, \"design_level_calculation_method\":
-      \"Watts/Area\", \"zone_name\": \"F1_Office\", \"schedule_name\": \"Office_Equipment\",
-      \"name\": \"F1_Office_Equipment\", \"fraction_radiant\": 0.5}"}}]},{"content":"{\"success\":
-      true, \"message\": \"ElectricEquipment ''F1_Office_Equipment'' created.\", \"data\":
-      {\"name\": \"F1_Office_Equipment\", \"zone_or_zonelist_or_space_or_spacelist_name\":
-      \"F1_Office\", \"schedule_name\": \"Office_Equipment\", \"design_level_calculation_method\":
-      \"Watts/Area\", \"design_level\": 0.0, \"watts_per_floor_area\": 12.0, \"watts_per_person\":
-      0.0, \"fraction_latent\": 0.0, \"fraction_radiant\": 0.5, \"fraction_lost\":
-      0.0, \"end_use_subcategory\": \"General\"}}","role":"tool","tool_call_id":"call_629607"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_639487","function":{"name":"list_equipment","arguments":"{}"}}]},{"content":"{\"success\":
-      true, \"message\": \"Listed 1 ElectricEquipment.\", \"data\": [{\"name\": \"F1_Office_Equipment\",
-      \"zone_or_zonelist_or_space_or_spacelist_name\": \"F1_Office\", \"schedule_name\":
-      \"Office_Equipment\", \"design_level_calculation_method\": \"Watts/Area\", \"design_level\":
-      0.0, \"watts_per_floor_area\": 12.0, \"watts_per_person\": 0.0, \"fraction_latent\":
-      0.0, \"fraction_radiant\": 0.5, \"fraction_lost\": 0.0, \"end_use_subcategory\":
-      \"General\"}]}","role":"tool","tool_call_id":"call_639487"}],"model":"google/gemini-3.8-flash","max_completion_tokens":16384,"parallel_tool_calls":false,"stream":false,"temperature":0.7,"tool_choice":"required","tools":[{"type":"function","function":{"name":"create_equipment","description":"Create
-      an ElectricEquipment (plug load) object.\n\n        Args:\n            name:
-      Unique equipment object name.\n            zone_name: Existing Zone name.\n            schedule_name:
-      Existing Schedule:Compact (Fraction).\n            design_level_calculation_method:
-      EquipmentLevel / Watts/Area / Watts/Person.\n            design_level: Absolute
-      watts (when method=EquipmentLevel).\n            watts_per_floor_area: W/m^2
-      (when method=Watts/Area).\n            watts_per_person: W/person (when method=Watts/Person).\n            fraction_latent:
-      Latent fraction of the heat gain (0-1).\n            fraction_radiant: Radiant
-      fraction of the heat gain (0-1).\n            fraction_lost: Fraction leaving
-      the zone, e.g. exhausted (0-1).","parameters":{"properties":{"name":{"type":"string"},"zone_name":{"type":"string"},"schedule_name":{"type":"string"},"design_level_calculation_method":{"default":"Watts/Area","enum":["EquipmentLevel","Watts/Area","Watts/Person"],"type":"string"},"design_level":{"default":0.0,"type":"number"},"watts_per_floor_area":{"default":0.0,"type":"number"},"watts_per_person":{"default":0.0,"type":"number"},"fraction_latent":{"default":0.0,"type":"number"},"fraction_radiant":{"default":0.0,"type":"number"},"fraction_lost":{"default":0.0,"type":"number"}},"required":["name","zone_name","schedule_name"],"type":"object"}}},{"type":"function","function":{"name":"list_equipment","description":"List
-      all ElectricEquipment.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"delete_equipment","description":"Delete
-      an ElectricEquipment object.","parameters":{"properties":{"name":{"type":"string"}},"required":["name"],"type":"object"}}},{"type":"function","function":{"name":"list_zones","description":"List
-      zones an equipment load can use.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"list_schedules","description":"List
-      Schedule:Compact objects.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"EquipmentResponse","description":"Structured
-      summary returned by the equipment phase agent.","parameters":{"properties":{"equipment_names":{"description":"Names
-      of all ElectricEquipment objects created","items":{"type":"string"},"type":"array"},"summary":{"description":"One-line
-      summary of the equipment creation result","type":"string"}},"required":["equipment_names","summary"],"type":"object"}}}],"max_thinking_budget":4096}'
-    headers:
-      accept:
-      - application/json
-      accept-encoding:
-      - gzip, deflate, zstd
-      connection:
-      - keep-alive
-      content-length:
-      - '6683'
-      content-type:
-      - application/json
-      host:
-      - one.chat-yu.net
-      user-agent:
-      - OpenAI/Python 2.52.0
-      x-stainless-arch:
-      - x64
-      x-stainless-async:
-      - 'false'
-      x-stainless-lang:
-      - python
-      x-stainless-os:
-      - Linux
-      x-stainless-package-version:
-      - 2.52.0
-      x-stainless-raw-response:
-      - 'true'
-      x-stainless-read-timeout:
-      - '120.0'
-      x-stainless-retry-count:
-      - '0'
-      x-stainless-runtime:
-      - CPython
-      x-stainless-runtime-version:
-      - 3.12.3
-    method: POST
-    uri: https://one.chat-yu.net/v1/chat/completions
-  response:
-    body:
-      string: !!binary |
-        KLUv/QBYdRUAVq2HJ9CyWAfMpVnZoztznDWBy9VOUtbMTAZpQ0tYsgKMpo8pnkGuZrDUvHsAdACB
-        AJfMVUfZuY3v5tTqe67yZrexKq+KdsYefHcrLS1foIUDSOHvty3ZsTe7+wbDeUUIJAIRWSVtLKAn
-        Zi3299mWpXfvVmfYN969Wpl7ZtRGSYab+Pccm6Nh735puBiOpmI0TfdEh6TBgkkmMlCJpsqAVFCR
-        IrWxv1vyHwAIILjaDDdFrk0zqXFY/t4U1n+eezRNE6VSzQljrNr19848+R+Mh1VZLYYTYu3q27na
-        ePdcYcYSY/j3nvb+894YxLjp3SUiMJeqOzLDenc8J4zVtDb/vVoM+1YbLKu8sIa9GWbnXfTu0VaV
-        /2C8447SbuLdPXoGEDmDoOFYYBwELAoPHxgChKdCgaEhIy1/hxlad7c6Z54ba0skzG1VGdv27ZQE
-        AoF6alZvIoY2WXZAExpwAU0kKEMI0tV+QNdeEAQCRXlz7GmBIM+c2oVxx6hdTr1Tngsp1fApl3Gq
-        6iivK6KSEk5hvFO4KaxVn/r8HefaVMMuvHsH27ZhkMq7bZpQJAlPooKp6lj79lVlRWHfjDNta0t2
-        rLQ02FnejspFVm8ijP80nvB637AejQrLu4kSVaIokkTvGdt4RxGgSBNmm+8mlLuByiS949obNlc5
-        o/ZmWsZ2qRPJkF573d3AoOOBMzkZT8RopgcMxLS4cJAbTMQUXTSUASE3IDCCBZndAftZIXXDhRQg
-        mgNGTeqT30lbeChyNfAqg9MEZHWOb24JH+xGpnFax0ttYOnCJNlBfkGjqr2aPp4CJs1mG6Nr68Vd
-        iOAZfy5fxaxy4ML+XJYkxIfIyAkNBCXhXTnHNzuFpdlIyuX+qVsYgcDVXe2Li/y2GBqdhguPIVKI
-        xPc2ILUtJQLjC7A=
-    headers:
-      access-control-allow-origin:
-      - '*'
-      access-control-expose-headers:
-      - X-Generation-Id,X-Provider-Name,request-id,cf-ray
-      alt-svc:
-      - h3=":443"; ma=86400
-      cf-cache-status:
-      - DYNAMIC
-      cf-ray:
-      - a476580eac74a0ee-NRT
-      connection:
-      - keep-alive
-      content-encoding:
-      - zstd
-      content-type:
-      - application/json
-      date:
-      - Thu, 08 Oct 2026 15:57:56 GMT
-      nel:
-      - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
-      permissions-policy:
-      - payment=(self "https://checkout.stripe.com" "https://connect-js.stripe.com"
-        "https://js.stripe.com" "https://*.js.stripe.com" "https://hooks.stripe.com")
-      referrer-policy:
-      - no-referrer, strict-origin-when-cross-origin
-      report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=zLX9kidSaJStArVuVk4GMlWeLhAfY1BlFOuhOIbh4KSoTq1915k0rfPlkr0Dmev%2F318Ym9DdxlpzH%2FN8rgKai0bt1HqhOPMIBTfbpzSAEm%2BKMf8v6f36Ndqte2ChAMkwdys%3D"}]}'
-      server:
-      - cloudflare
-      set-cookie:
-      - __cf_bm=avppwN1fsjIZRNMVGdyUmeKq_sieqAOmctJbRvho7B8-1791475074.5066779-1.0.1.1-aXsQgOZWZNXcu3cXLcE3l5.9NFYLQ772TDZAEvNeXjl1.8TnbWgAv4jlBnzaLDA4GWWyy7B6NVEqqDC_1.x00ApeMNzQYPQ57AUmdMy0kBFRRKzoDwe0YDNHeVxoOjNf;
-        HttpOnly; SameSite=None; Secure; Path=/; Domain=openrouter.ai; Expires=Thu,
-        08 Oct 2026 16:27:56 GMT
-      strict-transport-security:
-      - max-age=31536000
-      transfer-encoding:
-      - chunked
-      via:
-      - 1.1 Caddy
-      x-content-type-options:
-      - nosniff
-      x-generation-id:
-      - gen-1791475074-Y29au1wQeeZuTnZjTrKS
-      x-new-api-version:
-      - v1.0.0-rc.41
-      x-oneapi-request-id:
-      - 202610081557544879817468268d9d6Gac0HsJs
+      - 202610091437376786770928268d9d6p63T1Ge5
     status:
       code: 200
       message: OK

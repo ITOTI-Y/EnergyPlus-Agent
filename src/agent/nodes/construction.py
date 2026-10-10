@@ -1,15 +1,19 @@
 from langchain_core.messages import AIMessage
-from pydantic import BaseModel, Field
+from langgraph.runtime import Runtime
+from pydantic import Field
 
 from src.agent.llm import build_agent
 from src.agent.nodes._share import (
+    PhaseReport,
     invoke_with_self_repair,
     last_message_text,
+    missing_input_issues,
     skipped,
     with_feedback,
 )
-from src.agent.state import AgentState, AgentStateUpdate
+from src.agent.state import AgentState, AgentStateUpdate, SimContext
 from src.agent.tools import make_construction_tools
+from src.agent.tools.reference_tools import make_reference_tools, reference_prompt
 from src.agent.trace import TraceCollector, record_phase_trace, trace_middleware
 
 CONSTRUCTION_SYSTEM_PROMPT = """You are a construction-assembly expert for EnergyPlus.
@@ -28,8 +32,9 @@ Workflow:
 Rules:
 - Layer names passed to `create_construction` MUST appear verbatim in
   the list_materials result (exact case, underscores, dashes, numbers).
-- If a needed material is missing from list_materials, STOP and report
-  the gap; do NOT invent names or call create with a broken reference.
+- If a needed material is missing from list_materials, do NOT invent a
+  name, do NOT call create with a broken reference and do NOT list
+  again: give your final answer at once, with it in `missing_inputs`.
 - Use the construction names the specification gives, verbatim: zones and
   openings reference them. Only for constructions it does not name, use
   separate ones per surface type when thermal properties differ (e.g.,
@@ -47,7 +52,7 @@ Rules:
 """
 
 
-class ConstructionResponse(BaseModel):
+class ConstructionResponse(PhaseReport):
     """Structured summary returned by the construction phase agent."""
 
     construction_names: list[str] = Field(
@@ -58,16 +63,22 @@ class ConstructionResponse(BaseModel):
     )
 
 
-def construction_agent(state: AgentState) -> AgentStateUpdate:
+def construction_agent(
+    state: AgentState, runtime: Runtime[SimContext]
+) -> AgentStateUpdate:
     if skipped(state, "construction"):
         return AgentStateUpdate()
     local = state.config_state.model_copy(deep=True)
     tools = make_construction_tools(local)
+    prompt = CONSTRUCTION_SYSTEM_PROMPT
+    if (reference := runtime.context.reference) is not None:
+        tools += make_reference_tools(reference, ("construction",))
+        prompt += reference_prompt(reference, ("construction",))
     collector = TraceCollector(phase="construction")
 
     agent = build_agent(
         tools=tools,
-        system_prompt=CONSTRUCTION_SYSTEM_PROMPT,
+        system_prompt=prompt,
         response_format=ConstructionResponse,
         middleware=[trace_middleware(collector)],
     )
@@ -87,5 +98,6 @@ def construction_agent(state: AgentState) -> AgentStateUpdate:
     record_phase_trace("construction", collector.export())
     return AgentStateUpdate(
         config_state=local,
+        build_issues=missing_input_issues("construction", response),
         messages=[AIMessage(content=f"[construction] {summary}")],
     )

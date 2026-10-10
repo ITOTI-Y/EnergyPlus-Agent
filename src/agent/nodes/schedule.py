@@ -1,4 +1,5 @@
 from langchain_core.messages import AIMessage
+from langgraph.runtime import Runtime
 from pydantic import BaseModel, Field
 
 from src.agent.llm import build_agent
@@ -8,8 +9,9 @@ from src.agent.nodes._share import (
     skipped,
     with_feedback,
 )
-from src.agent.state import AgentState, AgentStateUpdate
+from src.agent.state import AgentState, AgentStateUpdate, SimContext
 from src.agent.tools import make_schedule_tools
+from src.agent.tools.reference_tools import make_reference_tools, reference_prompt
 from src.agent.trace import TraceCollector, record_phase_trace, trace_middleware
 
 SCHEDULE_SYSTEM_PROMPT = """You are a scheduling expert for EnergyPlus.
@@ -119,16 +121,20 @@ class ScheduleResponse(BaseModel):
     summary: str = Field(description="One-line summary of the schedule creation result")
 
 
-def schedule_agent(state: AgentState) -> AgentStateUpdate:
+def schedule_agent(state: AgentState, runtime: Runtime[SimContext]) -> AgentStateUpdate:
     if skipped(state, "schedule"):
         return AgentStateUpdate()
     local = state.config_state.model_copy(deep=True)
     tools = make_schedule_tools(local)
+    prompt = SCHEDULE_SYSTEM_PROMPT
+    if (reference := runtime.context.reference) is not None:
+        tools += make_reference_tools(reference, ("schedule",))
+        prompt += reference_prompt(reference, ("schedule",))
     collector = TraceCollector(phase="schedule")
 
     agent = build_agent(
         tools=tools,
-        system_prompt=SCHEDULE_SYSTEM_PROMPT,
+        system_prompt=prompt,
         response_format=ScheduleResponse,
         middleware=[trace_middleware(collector)],
     )

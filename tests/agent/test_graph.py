@@ -20,7 +20,7 @@ from src.agent.nodes import intake as intake_module
 from src.agent.nodes._share import skipped
 from src.agent.phases import Phase
 from src.agent.state import AgentState, IntakeOutput, IntakePatch, SimContext
-from tests.agent.intake_data import intake, zone_spec
+from tests.agent.intake_data import intake, layout, zone_spec
 
 type Build = Callable[[IDF, int], None]
 
@@ -146,7 +146,7 @@ def test_a_zone_problem_revises_intake_and_keeps_unaffected_phases(
         zone_spec("B", [(4, 0), (9, 0), (9, 5), (4, 5)]),
     ]
     fixed = [zone_spec("A", BOX), zone_spec("B", [(5, 0), (10, 0), (10, 5), (5, 5)])]
-    patch = IntakePatch.model_validate({"reason": "move B east", "zones": fixed})
+    patch = IntakePatch.model_validate({"reason": "move B east", **layout(*fixed)})
     _intake_llm(monkeypatch, intake(zones=overlapping, **SPECS), patch)
     # Start from a schedule that is right the first time.
     runs["schedule"] = 1

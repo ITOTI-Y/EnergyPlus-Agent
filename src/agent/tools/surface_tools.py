@@ -5,6 +5,7 @@ from langchain_core.tools import BaseTool
 
 from src.agent.tools._share import (
     list_constructions_tool,
+    list_surfaces_tool,
     list_tool,
     model_tool,
     ok,
@@ -107,8 +108,10 @@ def make_surface_tools(config: ConfigState) -> list[BaseTool]:
     return [
         create_surfaces,
         create_surface,
-        list_tool(
-            idf, "list_surfaces", BuildingSurfaceDetailed, "List all building surfaces."
+        list_surfaces_tool(
+            idf,
+            "List building surfaces, filtered by zone, type and boundary: a "
+            "large building has hundreds of surfaces.",
         ),
         get_surface,
         delete_surface,

@@ -6,15 +6,16 @@ nodes-internal — no other part of the agent package uses these.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Final
+from typing import TYPE_CHECKING, Any, Final, Literal
 
 from langchain_core.messages import AIMessage, AnyMessage, HumanMessage
 from langgraph.graph.state import CompiledStateGraph
 from loguru import logger
+from pydantic import BaseModel, Field
 
 from src.agent._share import language_directive
-from src.agent.phases import Phase, owner
-from src.modeling.validation import model_issues
+from src.agent.phases import PHASE_TYPES, Phase, owner
+from src.modeling.validation import ModelIssue, model_issues
 from src.state.config_state import ConfigState
 
 if TYPE_CHECKING:
@@ -27,6 +28,47 @@ Two rounds is enough for the LLM to see its own error feedback and
 react; repeated failures beyond that point usually mean the intake
 specs are broken, which the outer validate loop handles better.
 """
+
+
+class MissingInput(BaseModel):
+    """An upstream object a phase needed but did not find."""
+
+    kind: Literal["zone", "material", "construction", "schedule", "surface"] = Field(
+        description="Kind of object; the phase of that name creates it"
+    )
+    description: str = Field(
+        description="What is needed and for what, e.g. 'a window construction "
+        "(kind window) for the office windows'"
+    )
+
+
+class PhaseReport(BaseModel):
+    """Final answer of a phase that references upstream objects."""
+
+    missing_inputs: list[MissingInput] = Field(
+        default_factory=list,
+        description="Needed objects that do not exist; empty when none",
+    )
+
+
+def missing_input_issues(phase: Phase, report: PhaseReport | None) -> list[ModelIssue]:
+    """Reported missing inputs, each blamed on the phase that creates it.
+
+    Validation then reruns that phase with the request as feedback, and the
+    reporting phase after it.
+    """
+    if report is None:
+        return []
+    return [
+        ModelIssue(
+            PHASE_TYPES[missing.kind][0].idf_object_type(),
+            None,
+            None,
+            f"The {phase} phase needs {missing.description}, which does not "
+            "exist; create it.",
+        )
+        for missing in report.missing_inputs
+    ]
 
 
 def skipped(state: AgentState, phase: Phase) -> bool:
@@ -118,8 +160,9 @@ def invoke_with_self_repair(
                 "broken object, then `create_<x>` it again. If the broken "
                 "reference names an upstream "
                 "resource (zone / schedule / material / construction / "
-                "surface) that truly does not exist, report it in your "
-                "final message and do NOT fabricate a replacement — "
+                "surface) that truly does not exist, list it in the "
+                "`missing_inputs` of your final answer and do NOT fabricate "
+                "a replacement — "
                 "upstream phases own those objects." + language_directive()
             )
         )

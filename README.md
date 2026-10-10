@@ -11,7 +11,7 @@ EnergyPlus Agent turns a natural-language building brief, optionally accompanied
 - **MCP server**: a FastMCP server exposing the same building-configuration CRUD tools and workflow tools over stdio, HTTP, SSE or streamable-HTTP, so any MCP client (for example Claude Desktop) can assemble a model interactively.
 - **idfpy model and EnergyPlus runner**: every tool edits one [idfpy](https://github.com/ITOTI-Y/idfpy) model, which is saved as IDF or epJSON and simulated by a runner around the EnergyPlus CLI.
 
-A RAG knowledge base (Gemini Embedding + Qdrant) and SQLite data tools for standard materials, constructions, schedules and design days complete the toolset.
+A reference library of materials, constructions and schedules from the DOE prototype buildings, searched by meaning (Qwen3-Embedding-8B + Qdrant), and SQLite data tools for standard materials, constructions, schedules and design days complete the toolset.
 
 ## Key Features
 
@@ -44,11 +44,13 @@ A RAG knowledge base (Gemini Embedding + Qdrant) and SQLite data tools for stand
 - **Runner**: each run gets its own directory; EnergyPlus runs with `-x` (ExpandObjects, so `HVACTemplate` objects are expanded) and `-r` (ReadVarsESO), and `eplusout.err` is parsed into structured Warning, Severe and Fatal messages.
 - **Default output variables**: when no `Output:Variable` is configured, the simulate step adds an hourly monitoring set (zone temperature and humidity, ideal-loads heating and cooling energy, lighting and people energy, facility HVAC electricity) so results are actually recorded.
 
-### RAG knowledge base
-- **Async embedding pipeline** built on Gemini Embedding and Qdrant.
-- **Rate limiting, concurrency control and retry** on 429 / `RESOURCE_EXHAUSTED`.
-- **Incremental sync** with deletion of stale vectors.
-- **Typed results** using dataclasses (`QdrantData`, `RowRecord`, `VectorizedResult`).
+### Prototype reference library
+- **Sources**: the DOE commercial prototypes (ASHRAE 90.1-2019 and 2022, 16 building types, 19 locations from 0A to 8) and residential prototypes (IECC 2021 and 2024, single- and multifamily on four foundations, 16 climate zones) from energycodes.gov: 864 models.
+- **Upgrade**: models are reduced to materials, constructions and schedules and set to EnergyPlus 26.1; the 22.1 to 26.1 transition rules change none of these objects, and running the transition programs on reduced models gave identical objects.
+- **Library**: equal objects are merged with every building type, standard, climate zone and use they appear in (1,519 materials, 1,553 constructions, 1,434 schedules). Constructions carry their layer materials; schedules of any kind (`Schedule:Compact`, or `Schedule:Year` over weekly and hourly schedules) become the nested Through/For/Until periods the schedule tool accepts.
+- **Search**: each object has a bilingual description embedded with Qwen3-Embedding-8B; Qdrant filters by kind and by the site's ASHRAE 169 climate zones, computed from the weather file (CDD10 and HDD18 of daily means, neighbour zones within 10% of a threshold, moisture regime from precipitation when the file has it). For Shenzhen this gives 1A and 2A.
+- **Agent use**: when configured, the material, construction and schedule phases get `find_reference_*` tools and a prompt section; values and names from the specification still take precedence. A configured but unreachable service stops `run-agent` before any LLM call.
+- **Storage**: the library is one SQLite file with embeddings, published to a private Hugging Face dataset; the Qdrant collection can be rebuilt from it without embedding again.
 
 ### Data tools
 - SQLite-backed management of standard materials, no-mass materials, constructions, compact schedules, schedule type limits and design days.
@@ -101,12 +103,11 @@ EnergyPlus-Agent/
 │   │   └── errors.py                 # Rejections reported to tool callers
 │   ├── runner/
 │   │   └── runner.py                 # run_energyplus and eplusout.err parsing
-│   ├── rag/                          # RAG pipeline (rag.py, embedding.py, vector.py, chunk.py)
+│   ├── reference/                    # Prototype reference library: download, extract, library, climate, index, search, hub
 │   ├── database/datatools/           # SQLite data tools
 │   ├── configs/
-│   │   ├── config.py                 # EmbeddingConfig, LLMConfig
-│   │   ├── llm.yaml                  # Agent LLM settings
-│   │   └── embedding.yaml            # Embedding model settings
+│   │   ├── config.py                 # LLMConfig
+│   │   └── llm.yaml                  # Agent LLM settings
 │   └── utils/logging.py              # Loguru setup
 ├── scripts/
 │   ├── run_demo.py                   # End-to-end agent demo with auto-approval
@@ -140,9 +141,11 @@ EnergyPlus-Agent/
 | **fastmcp** | >=2.14.1 | MCP server framework |
 | **idfpy** | ==26.1.* | Typed EnergyPlus objects, IDF and epJSON I/O, reference checks |
 | **pydantic** | >=2.11.7 | Schema validation |
-| **google-genai** | >=1.68.0 | Gemini Embedding API |
-| **qdrant-client** | >=1.17.1 | Vector database client |
-| **omegaconf** | >=2.3.0 | LLM and embedding settings with env interpolation |
+| **qdrant-client** | >=1.17.1 | Vector database of the reference library |
+| **openai** | >=1.100 | Client of the OpenAI-compatible embedding service |
+| **huggingface-hub** | >=0.35 | Publishing and pulling the reference library |
+| **pydantic-settings** | >=2.11 | Reference library settings from the environment |
+| **omegaconf** | >=2.3.0 | LLM settings with env interpolation |
 | **typer** | >=0.20.1 | CLI |
 | **shapely** | >=2.2.0 | Polygon overlap and splitting for zone geometry |
 | **loguru** | >=0.7.3 | Logging |
@@ -169,11 +172,13 @@ Copy `.env.example` to `.env` and fill in what you need:
 # Agent LLM (used with src/configs/llm.yaml)
 LLM_API_KEY=
 LLM_BASE_URL=            # optional, for OpenAI-compatible gateways
+LLM_TEMPERATURE=         # optional, default 0.7; "null" sends none (Claude 5.5 models reject one)
 
-# RAG embedding pipeline
-QDRANT_ENDPOINT=
-QDRANT_API_KEY=
-GEMINI_API_KEY=
+# Prototype reference library (both URLs, or neither)
+REFERENCE_QDRANT_URL=      # e.g. http://pan-office:6333
+REFERENCE_EMBEDDING_URL=   # OpenAI-compatible, e.g. http://pan-office:8000/v1
+# REFERENCE_QDRANT_API_KEY, REFERENCE_EMBEDDING_API_KEY, REFERENCE_COLLECTION,
+# REFERENCE_EMBEDDING_MODEL, REFERENCE_HUB_REPO, REFERENCE_LIBRARY_PATH: optional
 
 # Optional LangSmith tracing
 LANGSMITH_API_KEY=
@@ -182,7 +187,7 @@ LANGSMITH_PROJECT=
 LANGSMITH_TRACING=
 ```
 
-`AGENT_LANGUAGE` (default `English`) controls the language of agent narrative text. The `embedding` command requires all three of `QDRANT_ENDPOINT`, `QDRANT_API_KEY` and `GEMINI_API_KEY` to be set.
+`AGENT_LANGUAGE` (default `English`) controls the language of agent narrative text.
 
 ### LLM configuration
 
@@ -240,14 +245,16 @@ Claude Desktop configuration:
 }
 ```
 
-### RAG index
+### Reference library
+
+The embedding service is vLLM serving Qwen3-Embedding-8B with `--runner pooling` (OpenAI-compatible `/v1/embeddings`); Qdrant runs as usual. With both URLs set:
 
 ```bash
-docker run -p 6333:6333 -p 6334:6334 \
-  -v $(pwd)/qdrant_storage:/qdrant/storage:z \
-  qdrant/qdrant
-
-uv run main.py embedding --collection energyplus_database --db-path data/examples/EP_Agent_data.db
+uv run main.py reference pull      # library from the Hugging Face dataset, or:
+uv run main.py reference build     # download the prototypes and build it (about 30 s)
+uv run main.py reference embed     # embed entries without an embedding
+uv run main.py reference load      # replace the Qdrant collection
+uv run main.py reference publish   # upload the library to the private dataset
 ```
 
 ### Docker
@@ -357,7 +364,7 @@ START -> intake -> plan_rerun        (removes the objects of the phases about to
 |---------|-------------|
 | `uv run main.py run-agent "<brief>" --epw <file> [--image <file>]... [--output-dir <dir>] [--thread-id <id>]` | Run the multi-phase agent end to end with interactive approval |
 | `uv run main.py mcp-server [--transport] [--host] [--port]` | Start the MCP server |
-| `uv run main.py embedding --collection <name> --db-path <path>` | Build the RAG index |
+| `uv run main.py reference build\|embed\|load\|publish\|pull` | Build, embed, index and share the prototype reference library |
 | `energyplus-mcp` | MCP server entry point installed by `pyproject.toml` |
 
 ## Testing
@@ -366,7 +373,7 @@ START -> intake -> plan_rerun        (removes the objects of the phases about to
 uv run pytest
 ```
 
-`tests/` mirrors `src/`. Tests that run EnergyPlus are skipped when `energyplus` is not on `PATH`; `tests/agent/nodes/test_zone.py` calls the configured LLM, while the other phase-agent tests replay recorded cassettes.
+`tests/` mirrors `src/`. Tests that run EnergyPlus are skipped when `energyplus` is not on `PATH`; phase-agent tests replay recorded cassettes.
 
 ## Roadmap
 
@@ -374,7 +381,7 @@ uv run pytest
 - idfpy-backed model with IDF and epJSON import and export, default objects and design-day import
 - EnergyPlus runner with per-run directories, ExpandObjects and ReadVarsESO, and structured `eplusout.err` parsing
 - FastMCP server with full CRUD, workflow tools, resources, multi-transport support, CLI and Docker
-- Async RAG pipeline with rate limiting, retry, incremental sync and typed results
+- Prototype reference library (DOE commercial and residential models) with semantic search by climate zone, used by the material, construction and schedule phases
 - SQLite data tools for materials, constructions, schedules and design days
 - LangGraph multi-phase agent: structured intake, parallel phase sub-agents, parallel-safe state merge, phase-scoped self-repair, partial reruns and intake patches, human-in-the-loop approval, simulation
 - Multimodal intake (text + drawings) with zone prisms extruded and paired in code
@@ -383,7 +390,6 @@ uv run pytest
 ### Planned
 - Simulation result parsing and visualization
 - Broader HVAC coverage beyond `HVACTemplate` ideal loads
-- Agent-side use of the RAG knowledge base and data tools during construction
 - Persistent checkpointing and resumable sessions
 - Fine-tuning pipeline built on the collected traces
 
