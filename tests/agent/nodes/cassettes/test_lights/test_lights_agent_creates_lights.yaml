@@ -15,7 +15,7 @@ interactions:
       ~ 0.7 for recessed fluorescent/LED, 0.42 for pendant.\n- fraction_visible ~
       0.18 for LED.\n","role":"system"},{"content":"Create exactly one Lights object
       named ''F1_Office_Lights'' for zone ''F1_Office'': method Watts/Area at 10 W/m2,
-      schedule ''Office_Lighting''.","role":"user"}],"model":"opencode/glm-5.2","max_completion_tokens":64000,"parallel_tool_calls":false,"stream":false,"temperature":0.7,"tool_choice":"required","tools":[{"type":"function","function":{"name":"create_light","description":"Create
+      schedule ''Office_Lighting''.","role":"user"}],"model":"google/gemini-3.8-flash","max_completion_tokens":16384,"parallel_tool_calls":false,"stream":false,"temperature":0.7,"tool_choice":"required","tools":[{"type":"function","function":{"name":"create_light","description":"Create
       a Lights (lighting load) object.\n\n        Args:\n            name: Unique
       lights object name.\n            zone_name: Existing Zone name.\n            schedule_name:
       Existing Schedule:Compact (Fraction).\n            design_level_calculation_method:
@@ -25,9 +25,9 @@ interactions:
       Radiant fraction (0-1).\n            fraction_visible: Visible light fraction
       (0-1).","parameters":{"properties":{"name":{"type":"string"},"zone_name":{"type":"string"},"schedule_name":{"type":"string"},"design_level_calculation_method":{"default":"Watts/Area","enum":["LightingLevel","Watts/Area","Watts/Person"],"type":"string"},"lighting_level":{"default":0.0,"type":"number"},"watts_per_floor_area":{"default":0.0,"type":"number"},"watts_per_person":{"default":0.0,"type":"number"},"fraction_radiant":{"default":0.0,"type":"number"},"fraction_visible":{"default":0.0,"type":"number"}},"required":["name","zone_name","schedule_name"],"type":"object"}}},{"type":"function","function":{"name":"list_lights","description":"List
       all Lights objects.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"delete_light","description":"Delete
-      a Lights object.","parameters":{"properties":{"name":{"type":"string"}},"required":["name"],"type":"object"}}},{"type":"function","function":{"name":"list_zones","description":"Read-only:
-      list zones a Lights load can be assigned to.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"list_schedules","description":"Read-only:
-      list Schedule:Compact (for schedule_name reference).","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"LightsResponse","description":"Structured
+      a Lights object.","parameters":{"properties":{"name":{"type":"string"}},"required":["name"],"type":"object"}}},{"type":"function","function":{"name":"list_zones","description":"List
+      zones a Lights load can use.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"list_schedules","description":"List
+      Schedule:Compact objects.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"LightsResponse","description":"Structured
       summary returned by the lights phase agent.","parameters":{"properties":{"lights_names":{"description":"Names
       of all Lights objects created","items":{"type":"string"},"type":"array"},"summary":{"description":"One-line
       summary of the lights creation result","type":"string"}},"required":["lights_names","summary"],"type":"object"}}}],"max_thinking_budget":4096}'
@@ -39,7 +39,7 @@ interactions:
       connection:
       - keep-alive
       content-length:
-      - '3794'
+      - '3746'
       content-type:
       - application/json
       host:
@@ -58,6 +58,8 @@ interactions:
       - 2.52.0
       x-stainless-raw-response:
       - 'true'
+      x-stainless-read-timeout:
+      - '120.0'
       x-stainless-retry-count:
       - '0'
       x-stainless-runtime:
@@ -69,25 +71,47 @@ interactions:
   response:
     body:
       string: !!binary |
-        KLUv/QBY/Q8A9mRpJECLmwPAuB9IrFqSjpUWTWyxUNZ94lHpjRXwjLvtVqRyDMPrAmMAWgBeAF9f
-        yEyjA2K37rla1hvUWffJwTprcxBqV0coioDoQb7+1IHRFbMwGkajaAaYdUebaWxXX+hanxTBpnRT
-        hQe8evN4PI/GqPMIKJrDYIgmkUAsDbEsmocKMIuAJ0WtGdS+7rhPAo1tLAl8z0KEklSoUwLfg09q
-        lK0FqXDU1ohFJmVzj2sqcULtJJncEMQVJMuEnRol9zJJRuVIKmTggKy7+td7tRe2q/eyZsfMvq4P
-        xk/WFcKYNbo6v8ea40HYAauSOutSI4CDQp3a1nE+fW9dMkPWNbuXAcmkpB1Z8za2oUTRPQvbE9iG
-        olCvQgapILahNLsGTdaIberCB4fHRWVI2JnA+iKOQo2dZZnAuvDB0exeQr7HWqrm6AhSYTbTl683
-        w3Y1TYzCUaix9sk6P8daHYdCNAvzWMO+apqrBIOxzqsLsB0tRTBKkSuEaUKYpk+Tr3OvRhFIZFf/
-        ukZsP1ltI8/XVXLoq7PHYkm0R9EkEAuGYsECHoStrvSqEyAgEBTF1PZiiiBYvqqWbVl+cd9zkOAx
-        tNsoYV6YvRzKkA4ZBLj8KGqJ8q5Jt9Yh2fnM1wYGcQPsYCQIjxx0eV3+wIoQjy9nNBuuo49hMP0m
-        E4JDJs4UFA==
+        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
     headers:
+      access-control-allow-origin:
+      - '*'
+      access-control-expose-headers:
+      - X-Generation-Id,X-Provider-Name,request-id,cf-ray
       alt-svc:
       - h3=":443"; ma=86400
       cf-cache-status:
       - DYNAMIC
-      cf-placement:
-      - remote-ORD
       cf-ray:
-      - a2628efc1f4262d0-NRT
+      - a475e4818999ac08-NRT
       connection:
       - keep-alive
       content-encoding:
@@ -95,23 +119,36 @@ interactions:
       content-type:
       - application/json
       date:
-      - Wed, 05 Aug 2026 03:01:45 GMT
+      - Thu, 08 Oct 2026 14:39:04 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
+      permissions-policy:
+      - payment=(self "https://checkout.stripe.com" "https://connect-js.stripe.com"
+        "https://js.stripe.com" "https://*.js.stripe.com" "https://hooks.stripe.com")
+      referrer-policy:
+      - no-referrer, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=cUsqpClOXFGMwHJumcUHmdEacogdsuGFyjaXCp8aCTaYss7t8tZ0wSMU1mr%2B3ETYpj8cF%2FtO0SeU4jJMwMh298pq9c%2BpFA6B7W7%2Fe6HMbOShK%2BPbLuEkeHYq0iOR%2FYREkYo%3D"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=OEOXI1ZTY7Dz%2F29xyaUd2st2pwBttYV1cd72nc1%2F6TRCPh53SiI2ubRMbG1OTDJXCNJZ7nAeOuLW%2BH4QV1Qx%2FKCfzt2RK4tkpCYSuSXuWBB3SZxc6LocsXrJoygWaWdnBdM%3D"}]}'
       server:
       - cloudflare
+      set-cookie:
+      - __cf_bm=bwUqiCj4p5gktpFvoO.GWJ5p_MSdRzPb_pAvLfvobk4-1791470341.5148306-1.0.1.1-sDT_ygyASFZlxerUAlR1ku5Pxt8UoJoaBB1hWpUvqLOZsT.Fs6Svw5PdP169JSeLFBSNNQeHdfoPSC8_IuUGVmDDTpnISLIjVjEnHFedbYLhe9ykxh5Nw8KbCqwPCq_a;
+        HttpOnly; SameSite=None; Secure; Path=/; Domain=openrouter.ai; Expires=Thu,
+        08 Oct 2026 15:09:03 GMT
       strict-transport-security:
       - max-age=31536000
       transfer-encoding:
       - chunked
       via:
       - 1.1 Caddy
+      x-content-type-options:
+      - nosniff
+      x-generation-id:
+      - gen-1791470341-mWqbT4qTVTJi9b2vBshT
       x-new-api-version:
-      - v1.0.0-rc.21
+      - v1.0.0-rc.41
       x-oneapi-request-id:
-      - 202608050301399833729388268d9d6SdutGl4x
+      - 202610081439015017888398268d9d6B2sSKP1t
     status:
       code: 200
       message: OK
@@ -131,135 +168,16 @@ interactions:
       ~ 0.7 for recessed fluorescent/LED, 0.42 for pendant.\n- fraction_visible ~
       0.18 for LED.\n","role":"system"},{"content":"Create exactly one Lights object
       named ''F1_Office_Lights'' for zone ''F1_Office'': method Watts/Area at 10 W/m2,
-      schedule ''Office_Lighting''.","role":"user"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"chatcmpl-tool-a65962485fc406ba","function":{"name":"list_zones","arguments":"{}"}}]},{"content":"{\"success\":
-      true, \"message\": \"Listed 1 zones.\", \"data\": [{\"name\": \"F1_Office\",
+      schedule ''Office_Lighting''.","role":"user"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_503370","function":{"name":"list_zones","arguments":"{}"}},{"type":"function","id":"call_503373","function":{"name":"list_schedules","arguments":"{}"}}]},{"content":"{\"success\":
+      true, \"message\": \"Listed 1 Zone.\", \"data\": [{\"name\": \"F1_Office\",
       \"direction_of_relative_north\": 0.0, \"x_origin\": 0.0, \"y_origin\": 0.0,
       \"z_origin\": 0.0, \"type\": 1, \"multiplier\": 1, \"ceiling_height\": \"Autocalculate\",
-      \"volume\": \"Autocalculate\", \"floor_area\": \"Autocalculate\", \"zone_inside_convection_algorithm\":
-      null, \"zone_outside_convection_algorithm\": null, \"part_of_total_floor_area\":
-      \"Yes\"}]}","role":"tool","tool_call_id":"chatcmpl-tool-a65962485fc406ba"}],"model":"opencode/glm-5.2","max_completion_tokens":64000,"parallel_tool_calls":false,"stream":false,"temperature":0.7,"tool_choice":"required","tools":[{"type":"function","function":{"name":"create_light","description":"Create
-      a Lights (lighting load) object.\n\n        Args:\n            name: Unique
-      lights object name.\n            zone_name: Existing Zone name.\n            schedule_name:
-      Existing Schedule:Compact (Fraction).\n            design_level_calculation_method:
-      LightingLevel / Watts/Area / Watts/Person.\n            lighting_level: Absolute
-      watts (when method=LightingLevel).\n            watts_per_floor_area: W/m^2
-      (when method=Watts/Area).\n            watts_per_person: W/person (when method=Watts/Person).\n            fraction_radiant:
-      Radiant fraction (0-1).\n            fraction_visible: Visible light fraction
-      (0-1).","parameters":{"properties":{"name":{"type":"string"},"zone_name":{"type":"string"},"schedule_name":{"type":"string"},"design_level_calculation_method":{"default":"Watts/Area","enum":["LightingLevel","Watts/Area","Watts/Person"],"type":"string"},"lighting_level":{"default":0.0,"type":"number"},"watts_per_floor_area":{"default":0.0,"type":"number"},"watts_per_person":{"default":0.0,"type":"number"},"fraction_radiant":{"default":0.0,"type":"number"},"fraction_visible":{"default":0.0,"type":"number"}},"required":["name","zone_name","schedule_name"],"type":"object"}}},{"type":"function","function":{"name":"list_lights","description":"List
-      all Lights objects.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"delete_light","description":"Delete
-      a Lights object.","parameters":{"properties":{"name":{"type":"string"}},"required":["name"],"type":"object"}}},{"type":"function","function":{"name":"list_zones","description":"Read-only:
-      list zones a Lights load can be assigned to.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"list_schedules","description":"Read-only:
-      list Schedule:Compact (for schedule_name reference).","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"LightsResponse","description":"Structured
-      summary returned by the lights phase agent.","parameters":{"properties":{"lights_names":{"description":"Names
-      of all Lights objects created","items":{"type":"string"},"type":"array"},"summary":{"description":"One-line
-      summary of the lights creation result","type":"string"}},"required":["lights_names","summary"],"type":"object"}}}],"max_thinking_budget":4096}'
-    headers:
-      accept:
-      - application/json
-      accept-encoding:
-      - gzip, deflate, zstd
-      connection:
-      - keep-alive
-      content-length:
-      - '4482'
-      content-type:
-      - application/json
-      host:
-      - one.chat-yu.net
-      user-agent:
-      - OpenAI/Python 2.52.0
-      x-stainless-arch:
-      - x64
-      x-stainless-async:
-      - 'false'
-      x-stainless-lang:
-      - python
-      x-stainless-os:
-      - Linux
-      x-stainless-package-version:
-      - 2.52.0
-      x-stainless-raw-response:
-      - 'true'
-      x-stainless-retry-count:
-      - '0'
-      x-stainless-runtime:
-      - CPython
-      x-stainless-runtime-version:
-      - 3.12.3
-    method: POST
-    uri: https://one.chat-yu.net/v1/chat/completions
-  response:
-    body:
-      string: !!binary |
-        KLUv/QBY7QsAxttRJDBrnQPAOB6hNlXrlfd/+WI/40ntk7KgC61W/TfdA5LAwMACAkkAQgBLAPp2
-        JcEgqCjdPS7E1FuDOAyHwTCaxB3aflvp2yXD3uigWBOtm9Dgt0cL0yzRItLdbSyU1yQNxVNH0aix
-        aETJIqKD0n6T3h2CtwIr+YHt1KxBzAGPJOHb795yW7K+veXrCed8d9/I1S33ld6cS719xvj0icx9
-        d8nzbfVME0oYvSHuDQtJeMvAfa5CngJO5SO6+zoc+u0LgyiyKM4iDETBKA8RmbtdkrAnCQ48P2AO
-        Eax2gXGzufEB7aRTQXdSxs2gXckEGAMTsMTsCRuW/WAVRlHBkwD8gAXXkbv3ZH27rsVxoJ306S33
-        GeHrhZ7GNEkSX3O/McsbokgS9ylXgftpB8WV4/GGcF0I1/XLuvtsudRDqt7bn54w3n2pJ28FEgCg
-        CEOQr6YWnrIK077vEME9r5SrrHFtRnAr29nk4DOOl9iHEKahVRfqbDIh8JCJMwUF
-    headers:
-      alt-svc:
-      - h3=":443"; ma=86400
-      cf-cache-status:
-      - DYNAMIC
-      cf-placement:
-      - remote-ORD
-      cf-ray:
-      - a2628f1f3c0262d0-NRT
-      connection:
-      - keep-alive
-      content-encoding:
-      - zstd
-      content-type:
-      - application/json
-      date:
-      - Wed, 05 Aug 2026 03:01:50 GMT
-      nel:
-      - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
-      report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=PfbcxVp7OqGFePPrMaE4bihKS3arzO2D2jR%2BSjCP7gNzUdd0C%2Frbv3YQpGSzXOUhkPJm75rxi4w2d6TJlza1GIVtYb34o4MwvR1ZCawwjXithQRf1W6WcJUj%2FHC37LlXZik%3D"}]}'
-      server:
-      - cloudflare
-      strict-transport-security:
-      - max-age=31536000
-      transfer-encoding:
-      - chunked
-      via:
-      - 1.1 Caddy
-      x-new-api-version:
-      - v1.0.0-rc.21
-      x-oneapi-request-id:
-      - 202608050301456072347348268d9d6Z29nTlFe
-    status:
-      code: 200
-      message: OK
-- request:
-    body: '{"messages":[{"content":"You are a lighting-load expert for EnergyPlus.\nFor
-      each specified zone, create a Lights object via create_light.\n\nWorkflow:\n1.
-      FIRST call `list_zones` to see the exact zone names.\n2. FIRST call `list_schedules`
-      to see the exact Schedule:Compact names\n   (you need a lighting fraction schedule).\n3.
-      Create a Lights object per zone via `create_light`.\n4. Call `list_lights` once
-      at the end to confirm.\n\nRules:\n- `zone_name` and `schedule_name` MUST appear
-      verbatim in the list_zones /\n  list_schedules results.\n- If a needed zone
-      or schedule is missing, STOP and report; do NOT invent names.\n- name convention:
-      ''{zone}_Lights''.\n- design_level_calculation_method:\n    * ''LightingLevel''
-      -> supply lighting_level (W, absolute)\n    * ''Watts/Area'' -> supply watts_per_floor_area
-      (W/m^2)\n    * ''Watts/Person'' -> supply watts_per_person (W/person)\n- Typical
-      office LPD: 8-12 W/m^2 (Watts/Area). Use 10 when unspecified.\n- fraction_radiant
-      ~ 0.7 for recessed fluorescent/LED, 0.42 for pendant.\n- fraction_visible ~
-      0.18 for LED.\n","role":"system"},{"content":"Create exactly one Lights object
-      named ''F1_Office_Lights'' for zone ''F1_Office'': method Watts/Area at 10 W/m2,
-      schedule ''Office_Lighting''.","role":"user"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"chatcmpl-tool-a65962485fc406ba","function":{"name":"list_zones","arguments":"{}"}}]},{"content":"{\"success\":
-      true, \"message\": \"Listed 1 zones.\", \"data\": [{\"name\": \"F1_Office\",
-      \"direction_of_relative_north\": 0.0, \"x_origin\": 0.0, \"y_origin\": 0.0,
-      \"z_origin\": 0.0, \"type\": 1, \"multiplier\": 1, \"ceiling_height\": \"Autocalculate\",
-      \"volume\": \"Autocalculate\", \"floor_area\": \"Autocalculate\", \"zone_inside_convection_algorithm\":
-      null, \"zone_outside_convection_algorithm\": null, \"part_of_total_floor_area\":
-      \"Yes\"}]}","role":"tool","tool_call_id":"chatcmpl-tool-a65962485fc406ba"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"chatcmpl-tool-a254080e9230c053","function":{"name":"list_schedules","arguments":"{}"}}]},{"content":"{\"success\":
-      true, \"message\": \"Listed 1 schedules.\", \"data\": [{\"name\": \"Office_Lighting\",
+      \"volume\": \"Autocalculate\", \"floor_area\": \"Autocalculate\", \"part_of_total_floor_area\":
+      \"Yes\"}]}","role":"tool","tool_call_id":"call_503370"},{"content":"{\"success\":
+      true, \"message\": \"Listed 1 Schedule:Compact.\", \"data\": [{\"name\": \"Office_Lighting\",
       \"schedule_type_limits_name\": \"Fraction\", \"data\": [{\"field\": \"Through:
-      12/31\"}, {\"field\": \"For: AllDays\"}, {\"field\": \"Until: 24:00, 1.0\"}]}]}","role":"tool","tool_call_id":"chatcmpl-tool-a254080e9230c053"}],"model":"opencode/glm-5.2","max_completion_tokens":64000,"parallel_tool_calls":false,"stream":false,"temperature":0.7,"tool_choice":"required","tools":[{"type":"function","function":{"name":"create_light","description":"Create
+      12/31\"}, {\"field\": \"For: AllDays\"}, {\"field\": \"Until: 24:00\"}, {\"field\":
+      \"1.0\"}]}]}","role":"tool","tool_call_id":"call_503373"}],"model":"google/gemini-3.8-flash","max_completion_tokens":16384,"parallel_tool_calls":false,"stream":false,"temperature":0.7,"tool_choice":"required","tools":[{"type":"function","function":{"name":"create_light","description":"Create
       a Lights (lighting load) object.\n\n        Args:\n            name: Unique
       lights object name.\n            zone_name: Existing Zone name.\n            schedule_name:
       Existing Schedule:Compact (Fraction).\n            design_level_calculation_method:
@@ -269,9 +187,9 @@ interactions:
       Radiant fraction (0-1).\n            fraction_visible: Visible light fraction
       (0-1).","parameters":{"properties":{"name":{"type":"string"},"zone_name":{"type":"string"},"schedule_name":{"type":"string"},"design_level_calculation_method":{"default":"Watts/Area","enum":["LightingLevel","Watts/Area","Watts/Person"],"type":"string"},"lighting_level":{"default":0.0,"type":"number"},"watts_per_floor_area":{"default":0.0,"type":"number"},"watts_per_person":{"default":0.0,"type":"number"},"fraction_radiant":{"default":0.0,"type":"number"},"fraction_visible":{"default":0.0,"type":"number"}},"required":["name","zone_name","schedule_name"],"type":"object"}}},{"type":"function","function":{"name":"list_lights","description":"List
       all Lights objects.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"delete_light","description":"Delete
-      a Lights object.","parameters":{"properties":{"name":{"type":"string"}},"required":["name"],"type":"object"}}},{"type":"function","function":{"name":"list_zones","description":"Read-only:
-      list zones a Lights load can be assigned to.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"list_schedules","description":"Read-only:
-      list Schedule:Compact (for schedule_name reference).","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"LightsResponse","description":"Structured
+      a Lights object.","parameters":{"properties":{"name":{"type":"string"}},"required":["name"],"type":"object"}}},{"type":"function","function":{"name":"list_zones","description":"List
+      zones a Lights load can use.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"list_schedules","description":"List
+      Schedule:Compact objects.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"LightsResponse","description":"Structured
       summary returned by the lights phase agent.","parameters":{"properties":{"lights_names":{"description":"Names
       of all Lights objects created","items":{"type":"string"},"type":"array"},"summary":{"description":"One-line
       summary of the lights creation result","type":"string"}},"required":["lights_names","summary"],"type":"object"}}}],"max_thinking_budget":4096}'
@@ -283,7 +201,7 @@ interactions:
       connection:
       - keep-alive
       content-length:
-      - '4981'
+      - '4740'
       content-type:
       - application/json
       host:
@@ -302,6 +220,8 @@ interactions:
       - 2.52.0
       x-stainless-raw-response:
       - 'true'
+      x-stainless-read-timeout:
+      - '120.0'
       x-stainless-retry-count:
       - '0'
       x-stainless-runtime:
@@ -313,25 +233,49 @@ interactions:
   response:
     body:
       string: !!binary |
-        KLUv/QBY1Q8AtiJlJRCNWAfckkcF9OULp1nICIndK2LAtORwGIZpbDbupUoUAAAAHA5dAFgAWQAu
-        qnHG50xpj2A44ycK7ZVfpNE7O2PxAJAk9HbJkEpnjCXSRJpHwyztkHuZemefNDbLSaJv0Y8bGOjZ
-        X+QRgTgYvA/zQBrPMgtxPPgBm0eDHwhZAOQkvd7ovR3GTwJr1SWlomBB0IO16BojeCmgGTuCooFT
-        LJYSyNGrC85dCn7xeRDcQqBYPOnE4qhX1HTAQTOe/e09uSd9Z++5XWOt+3aWlPqknaGtlaWzVyn3
-        OUlpv33SukwF3ZsAadQsuUljr5Q8fmDpJhQrw0kn3J3F7tQ7q91xJm+vPVmSQNSevSMoStfO0s5P
-        2puS5+08SfTZnwYuDaNAyCgOZR8GAElpsy8qxc3SUjstyPGJj6caIQLVlbd3pe+sqiKNBXL09n3S
-        XmXcZuiYo9GQ27TPGOWMYTCW9jrZgbbrSaLUJDlbqKqFqnrVLCwZYo0PzEJZ7U7PjXApt9RzZzFl
-        WW0dRal8HMWTq90LsUwJBNQmICBCwqCyHrAFQplt8FghKCwhsyO9D2b4ruJ5c9cAHu4ITxXmTvhY
-        6MKe+awHmLAD674KEGt7gAGqRN82GPP5Agb37AmRYW8ZlJa3kjwkNohy4djAZeGB9NDanSeEQybO
-        DBQ=
+        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
+        WKyThz4PMlpA8TMBin4pUSq3tm8S
     headers:
+      access-control-allow-origin:
+      - '*'
+      access-control-expose-headers:
+      - X-Generation-Id,X-Provider-Name,request-id,cf-ray
       alt-svc:
       - h3=":443"; ma=86400
       cf-cache-status:
       - DYNAMIC
-      cf-placement:
-      - remote-ORD
       cf-ray:
-      - a2628f3fbb4d62d0-NRT
+      - a475e4947e01ac08-NRT
       connection:
       - keep-alive
       content-encoding:
@@ -339,23 +283,36 @@ interactions:
       content-type:
       - application/json
       date:
-      - Wed, 05 Aug 2026 03:01:57 GMT
+      - Thu, 08 Oct 2026 14:39:09 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
+      permissions-policy:
+      - payment=(self "https://checkout.stripe.com" "https://connect-js.stripe.com"
+        "https://js.stripe.com" "https://*.js.stripe.com" "https://hooks.stripe.com")
+      referrer-policy:
+      - no-referrer, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=eGigOt8wfzR0Zy%2BHt5xgGT55JAWMP5BRPmMdcEtCUeVrxkWm1BrEDuJO%2F3u5fVHWhoHgncAy8AWI45%2BqGVAEJs7hSF%2BeYO2u5n4KuQMGXR5hUTIHtHS9B47%2B466tj7mR760%3D"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=Z%2BhpP2wHugDJYEr3Iw2DvM6O%2FrGAlF8mZx3LvR0kVHB1HzJ8k0qEtHucXmeQa2%2FUEVBfkNNTeKCQMAkpcrzjBY4LdF15uy5IrNmhP5Nx9jkT3tFzLHlU706%2BBUNcj1b2UTo%3D"}]}'
       server:
       - cloudflare
+      set-cookie:
+      - __cf_bm=qWvozj_EWqHbOG09zS0Uj2EnBC9bcC_c1fdGU6wAwuc-1791470344.553379-1.0.1.1-kIplznUsJbNa_zaKnnTR7DRyKhk61dy9_xh5slrVDkOyRsvxRcWXoYOAKB._ijZF0W010InkSKDp_CToR5x1NzcWhuPnsZBkxRhu8eh_YuBzqHjbUaJ8667p3SGya3fO;
+        HttpOnly; SameSite=None; Secure; Path=/; Domain=openrouter.ai; Expires=Thu,
+        08 Oct 2026 15:09:08 GMT
       strict-transport-security:
       - max-age=31536000
       transfer-encoding:
       - chunked
       via:
       - 1.1 Caddy
+      x-content-type-options:
+      - nosniff
+      x-generation-id:
+      - gen-1791470344-2mmrRfi17eolJLnWbVCt
       x-new-api-version:
-      - v1.0.0-rc.21
+      - v1.0.0-rc.41
       x-oneapi-request-id:
-      - 202608050301508037956378268d9d6MvFs1jxr
+      - 202610081439045238975078268d9d6GFo7Y9eo
     status:
       code: 200
       message: OK
@@ -375,29 +332,27 @@ interactions:
       ~ 0.7 for recessed fluorescent/LED, 0.42 for pendant.\n- fraction_visible ~
       0.18 for LED.\n","role":"system"},{"content":"Create exactly one Lights object
       named ''F1_Office_Lights'' for zone ''F1_Office'': method Watts/Area at 10 W/m2,
-      schedule ''Office_Lighting''.","role":"user"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"chatcmpl-tool-a65962485fc406ba","function":{"name":"list_zones","arguments":"{}"}}]},{"content":"{\"success\":
-      true, \"message\": \"Listed 1 zones.\", \"data\": [{\"name\": \"F1_Office\",
+      schedule ''Office_Lighting''.","role":"user"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_503370","function":{"name":"list_zones","arguments":"{}"}},{"type":"function","id":"call_503373","function":{"name":"list_schedules","arguments":"{}"}}]},{"content":"{\"success\":
+      true, \"message\": \"Listed 1 Zone.\", \"data\": [{\"name\": \"F1_Office\",
       \"direction_of_relative_north\": 0.0, \"x_origin\": 0.0, \"y_origin\": 0.0,
       \"z_origin\": 0.0, \"type\": 1, \"multiplier\": 1, \"ceiling_height\": \"Autocalculate\",
-      \"volume\": \"Autocalculate\", \"floor_area\": \"Autocalculate\", \"zone_inside_convection_algorithm\":
-      null, \"zone_outside_convection_algorithm\": null, \"part_of_total_floor_area\":
-      \"Yes\"}]}","role":"tool","tool_call_id":"chatcmpl-tool-a65962485fc406ba"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"chatcmpl-tool-a254080e9230c053","function":{"name":"list_schedules","arguments":"{}"}}]},{"content":"{\"success\":
-      true, \"message\": \"Listed 1 schedules.\", \"data\": [{\"name\": \"Office_Lighting\",
+      \"volume\": \"Autocalculate\", \"floor_area\": \"Autocalculate\", \"part_of_total_floor_area\":
+      \"Yes\"}]}","role":"tool","tool_call_id":"call_503370"},{"content":"{\"success\":
+      true, \"message\": \"Listed 1 Schedule:Compact.\", \"data\": [{\"name\": \"Office_Lighting\",
       \"schedule_type_limits_name\": \"Fraction\", \"data\": [{\"field\": \"Through:
-      12/31\"}, {\"field\": \"For: AllDays\"}, {\"field\": \"Until: 24:00, 1.0\"}]}]}","role":"tool","tool_call_id":"chatcmpl-tool-a254080e9230c053"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"chatcmpl-tool-bfa0407dd0781d8f","function":{"name":"create_light","arguments":"{\"name\":
-      \"F1_Office_Lights\", \"schedule_name\": \"Office_Lighting\", \"zone_name\":
-      \"F1_Office\", \"design_level_calculation_method\": \"Watts/Area\", \"watts_per_floor_area\":
-      10, \"fraction_radiant\": 0.7, \"fraction_visible\": 0.18}"}}]},{"content":"{\"success\":
-      true, \"message\": \"Lights ''F1_Office_Lights'' created successfully.\", \"data\":
-      {\"name\": \"F1_Office_Lights\", \"zone_or_zonelist_or_space_or_spacelist_name\":
-      \"F1_Office\", \"schedule_name\": \"Office_Lighting\", \"design_level_calculation_method\":
+      12/31\"}, {\"field\": \"For: AllDays\"}, {\"field\": \"Until: 24:00\"}, {\"field\":
+      \"1.0\"}]}]}","role":"tool","tool_call_id":"call_503373"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_521444","function":{"name":"create_light","arguments":"{\"schedule_name\":
+      \"Office_Lighting\", \"watts_per_floor_area\": 10, \"design_level_calculation_method\":
+      \"Watts/Area\", \"zone_name\": \"F1_Office\", \"fraction_visible\": 0.18, \"name\":
+      \"F1_Office_Lights\", \"fraction_radiant\": 0.7}"}}]},{"content":"{\"success\":
+      true, \"message\": \"Lights ''F1_Office_Lights'' created.\", \"data\": {\"name\":
+      \"F1_Office_Lights\", \"zone_or_zonelist_or_space_or_spacelist_name\": \"F1_Office\",
+      \"schedule_name\": \"Office_Lighting\", \"design_level_calculation_method\":
       \"Watts/Area\", \"lighting_level\": 0.0, \"watts_per_floor_area\": 10.0, \"watts_per_person\":
       0.0, \"return_air_fraction\": 0.0, \"fraction_radiant\": 0.7, \"fraction_visible\":
       0.18, \"fraction_replaceable\": 1.0, \"end_use_subcategory\": \"General\", \"return_air_fraction_calculated_from_plenum_temperature\":
       \"No\", \"return_air_fraction_function_of_plenum_temperature_coefficient_1\":
-      0.0, \"return_air_fraction_function_of_plenum_temperature_coefficient_2\": 0.0,
-      \"return_air_heat_gain_node_name\": null, \"exhaust_air_heat_gain_node_name\":
-      null}}","role":"tool","tool_call_id":"chatcmpl-tool-bfa0407dd0781d8f"}],"model":"opencode/glm-5.2","max_completion_tokens":64000,"parallel_tool_calls":false,"stream":false,"temperature":0.7,"tool_choice":"required","tools":[{"type":"function","function":{"name":"create_light","description":"Create
+      0.0, \"return_air_fraction_function_of_plenum_temperature_coefficient_2\": 0.0}}","role":"tool","tool_call_id":"call_521444"}],"model":"google/gemini-3.8-flash","max_completion_tokens":16384,"parallel_tool_calls":false,"stream":false,"temperature":0.7,"tool_choice":"required","tools":[{"type":"function","function":{"name":"create_light","description":"Create
       a Lights (lighting load) object.\n\n        Args:\n            name: Unique
       lights object name.\n            zone_name: Existing Zone name.\n            schedule_name:
       Existing Schedule:Compact (Fraction).\n            design_level_calculation_method:
@@ -407,9 +362,9 @@ interactions:
       Radiant fraction (0-1).\n            fraction_visible: Visible light fraction
       (0-1).","parameters":{"properties":{"name":{"type":"string"},"zone_name":{"type":"string"},"schedule_name":{"type":"string"},"design_level_calculation_method":{"default":"Watts/Area","enum":["LightingLevel","Watts/Area","Watts/Person"],"type":"string"},"lighting_level":{"default":0.0,"type":"number"},"watts_per_floor_area":{"default":0.0,"type":"number"},"watts_per_person":{"default":0.0,"type":"number"},"fraction_radiant":{"default":0.0,"type":"number"},"fraction_visible":{"default":0.0,"type":"number"}},"required":["name","zone_name","schedule_name"],"type":"object"}}},{"type":"function","function":{"name":"list_lights","description":"List
       all Lights objects.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"delete_light","description":"Delete
-      a Lights object.","parameters":{"properties":{"name":{"type":"string"}},"required":["name"],"type":"object"}}},{"type":"function","function":{"name":"list_zones","description":"Read-only:
-      list zones a Lights load can be assigned to.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"list_schedules","description":"Read-only:
-      list Schedule:Compact (for schedule_name reference).","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"LightsResponse","description":"Structured
+      a Lights object.","parameters":{"properties":{"name":{"type":"string"}},"required":["name"],"type":"object"}}},{"type":"function","function":{"name":"list_zones","description":"List
+      zones a Lights load can use.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"list_schedules","description":"List
+      Schedule:Compact objects.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"LightsResponse","description":"Structured
       summary returned by the lights phase agent.","parameters":{"properties":{"lights_names":{"description":"Names
       of all Lights objects created","items":{"type":"string"},"type":"array"},"summary":{"description":"One-line
       summary of the lights creation result","type":"string"}},"required":["lights_names","summary"],"type":"object"}}}],"max_thinking_budget":4096}'
@@ -421,7 +376,7 @@ interactions:
       connection:
       - keep-alive
       content-length:
-      - '6284'
+      - '5907'
       content-type:
       - application/json
       host:
@@ -440,6 +395,8 @@ interactions:
       - 2.52.0
       x-stainless-raw-response:
       - 'true'
+      x-stainless-read-timeout:
+      - '120.0'
       x-stainless-retry-count:
       - '0'
       x-stainless-runtime:
@@ -451,22 +408,28 @@ interactions:
   response:
     body:
       string: !!binary |
-        KLUv/QBYLQsA5hlMIkBpnQO4Gh5qaFrbGYFaaFdbAH2O9r7+yK5/UvmVjmMYBgRFAD0ARQCFKD5v
-        j/s4OmMOZmEWZUkc7W9bd3Jnlwx7oxSxM7TbAgWffUmYgyLxDgpEEwbDLHvQJIFQZGEQxXH2FaIU
-        uVbIvf3BUwHNI+HZ395yW7I7e0vtCefUt2/k6VT7PjrnRmefMaprInO/XfLUnRpoQgmdM6MdYZ+E
-        pwba5zrIkDs7YlACkcpTzcmF8/aVEvrsyksMJFkSZ1HcoYYWInOzG6IJOpJn0xPGFaO6xb3erlwA
-        64ADliEhxoUz5zq3mGtNPVgNPTCuhQQC1Y2392R3VlUIBDneQk7dqfYZofa+hiEI5Yja3GcJcrYc
-        lKN9yjXgblqKeJIWZwRVRVBVr6i3z5YbLZ5Jz/72DRIAoAhDkK+mFp6yhtK+axDBgWfaVcJ8Nnup
-        lSFpMgAZvpvtfqt4VCYrnU0mBB4ycaag
+        KLUv/QBYJRIAliVxJ/CyNgfABMjkTdt19fLWxL24WlsSROQCXq5y4CtuE9984hPZhDwfDWkAXQBr
+        ANZ29dS3T56wnghYMAhQuDvdiTuTXm/f1BcpiCUygbBkayuBjdWc1d3jTtN6c5+231L4djm5N17W
+        hJF+G3j3hsvRmG9nzcYFQ9E5aA8mgYAvDg0CwwaEgDKBKhQJQUUCkVvdfeJ/AAIAAq9i1NJtOeHb
+        W76uXOu7+8ZJ/3Hf6tW61tslIjIT0na4n3x7jfFBKc7Zd5ezvqXSprJkqmpMelUzvkHuHjtJ/gfD
+        vS7kuYFv99hIcUsLuUO3vsWISfeWTC+6lWRKCjBzET1kIGKFhQNvMhERNHFhMVwgWnO54FRkHCYY
+        hYeP6gLhoVBgaNAw5u6v3/T2afvyUCg3wq93kjKy7Nnn7rXlWlhF39trbyqOUleOd1/ryX9c+0Qy
+        EEksUowPQolRd9/L0/9guEqynPXFWZZVz+K3LKpYJFClSAvl0qUkS9Zb2vXCsp24M3nC3jbTDqlB
+        027gg/9sjY9y35geDanyW1SxRBEEQRHIvWtEia9nv0FvEIUica9yN2ZLfVmTXlhGdkkH0s+ik3p7
+        QUHHAydyNJ4xIECC5tj1+VkZucHCCgCBA0VNqhM/E7Zg/O7JA5YMkAnYihff3BQxGEamcVrjpTjw
+        hMIl3lF+gZDUnFPg4mbWDg9tM93p2riYLxG4++N8lYKVAytsryw6EMtV+KcXYcQGrppr1ywa2dI2
+        OmUrPEakEonf24DWtpQIxtdhAQ==
     headers:
+      access-control-allow-origin:
+      - '*'
+      access-control-expose-headers:
+      - X-Generation-Id,X-Provider-Name,request-id,cf-ray
       alt-svc:
       - h3=":443"; ma=86400
       cf-cache-status:
       - DYNAMIC
-      cf-placement:
-      - remote-ORD
       cf-ray:
-      - a2628f68fa9562d0-NRT
+      - a475e4b258cfac08-NRT
       connection:
       - keep-alive
       content-encoding:
@@ -474,23 +437,36 @@ interactions:
       content-type:
       - application/json
       date:
-      - Wed, 05 Aug 2026 03:02:02 GMT
+      - Thu, 08 Oct 2026 14:39:10 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
+      permissions-policy:
+      - payment=(self "https://checkout.stripe.com" "https://connect-js.stripe.com"
+        "https://js.stripe.com" "https://*.js.stripe.com" "https://hooks.stripe.com")
+      referrer-policy:
+      - no-referrer, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=7CNyweC1FUpRjqn25vGM2bcw6bxmcsauABmQJGhH%2F4wAgdvvZDttQswnM%2F1Cp%2BrcThu6fLC42cspMlcQeZhEiGvkRh3FhZ0c2dasuRjljtE6wCfOpSr1kx722M58f83mBEM%3D"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=rps8mZhsjl0W%2BokTzrJFIfFw2x7EMeYamcpD%2B2cjMnd46AOpSxJceXF7qPj8dE5R265mkDikTAcf2AVrPCy9a8vXvXfMJ9ane8rV83aYjn938HTtxsivc7mr2DQ4X%2FQ1f1g%3D"}]}'
       server:
       - cloudflare
+      set-cookie:
+      - __cf_bm=I1so5y_w_LIma9IYi.LYAkxRt7vvKiNYeUTRwz8oiYw-1791470349.3288481-1.0.1.1-UU0Gx789skDqLzFP6cIzeh3Y9LPpReUGwSdspb_FFdpMb2Fy0qgaOLdU3Zms7akhFCeZXAuqu.sBLVOil4gCYaB.NA.d3FUA7c_QAmIr7m0WwqIIJy7kCXm7V1q72lXN;
+        HttpOnly; SameSite=None; Secure; Path=/; Domain=openrouter.ai; Expires=Thu,
+        08 Oct 2026 15:09:10 GMT
       strict-transport-security:
       - max-age=31536000
       transfer-encoding:
       - chunked
       via:
       - 1.1 Caddy
+      x-content-type-options:
+      - nosniff
+      x-generation-id:
+      - gen-1791470349-kJCYqpi9FEytBvUEDkYi
       x-new-api-version:
-      - v1.0.0-rc.21
+      - v1.0.0-rc.41
       x-oneapi-request-id:
-      - 202608050301574040210088268d9d6pugghLlY
+      - 202610081439093127959678268d9d6JjxiMLx5
     status:
       code: 200
       message: OK
@@ -510,39 +486,35 @@ interactions:
       ~ 0.7 for recessed fluorescent/LED, 0.42 for pendant.\n- fraction_visible ~
       0.18 for LED.\n","role":"system"},{"content":"Create exactly one Lights object
       named ''F1_Office_Lights'' for zone ''F1_Office'': method Watts/Area at 10 W/m2,
-      schedule ''Office_Lighting''.","role":"user"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"chatcmpl-tool-a65962485fc406ba","function":{"name":"list_zones","arguments":"{}"}}]},{"content":"{\"success\":
-      true, \"message\": \"Listed 1 zones.\", \"data\": [{\"name\": \"F1_Office\",
+      schedule ''Office_Lighting''.","role":"user"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_503370","function":{"name":"list_zones","arguments":"{}"}},{"type":"function","id":"call_503373","function":{"name":"list_schedules","arguments":"{}"}}]},{"content":"{\"success\":
+      true, \"message\": \"Listed 1 Zone.\", \"data\": [{\"name\": \"F1_Office\",
       \"direction_of_relative_north\": 0.0, \"x_origin\": 0.0, \"y_origin\": 0.0,
       \"z_origin\": 0.0, \"type\": 1, \"multiplier\": 1, \"ceiling_height\": \"Autocalculate\",
-      \"volume\": \"Autocalculate\", \"floor_area\": \"Autocalculate\", \"zone_inside_convection_algorithm\":
-      null, \"zone_outside_convection_algorithm\": null, \"part_of_total_floor_area\":
-      \"Yes\"}]}","role":"tool","tool_call_id":"chatcmpl-tool-a65962485fc406ba"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"chatcmpl-tool-a254080e9230c053","function":{"name":"list_schedules","arguments":"{}"}}]},{"content":"{\"success\":
-      true, \"message\": \"Listed 1 schedules.\", \"data\": [{\"name\": \"Office_Lighting\",
+      \"volume\": \"Autocalculate\", \"floor_area\": \"Autocalculate\", \"part_of_total_floor_area\":
+      \"Yes\"}]}","role":"tool","tool_call_id":"call_503370"},{"content":"{\"success\":
+      true, \"message\": \"Listed 1 Schedule:Compact.\", \"data\": [{\"name\": \"Office_Lighting\",
       \"schedule_type_limits_name\": \"Fraction\", \"data\": [{\"field\": \"Through:
-      12/31\"}, {\"field\": \"For: AllDays\"}, {\"field\": \"Until: 24:00, 1.0\"}]}]}","role":"tool","tool_call_id":"chatcmpl-tool-a254080e9230c053"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"chatcmpl-tool-bfa0407dd0781d8f","function":{"name":"create_light","arguments":"{\"name\":
-      \"F1_Office_Lights\", \"schedule_name\": \"Office_Lighting\", \"zone_name\":
-      \"F1_Office\", \"design_level_calculation_method\": \"Watts/Area\", \"watts_per_floor_area\":
-      10, \"fraction_radiant\": 0.7, \"fraction_visible\": 0.18}"}}]},{"content":"{\"success\":
-      true, \"message\": \"Lights ''F1_Office_Lights'' created successfully.\", \"data\":
-      {\"name\": \"F1_Office_Lights\", \"zone_or_zonelist_or_space_or_spacelist_name\":
-      \"F1_Office\", \"schedule_name\": \"Office_Lighting\", \"design_level_calculation_method\":
+      12/31\"}, {\"field\": \"For: AllDays\"}, {\"field\": \"Until: 24:00\"}, {\"field\":
+      \"1.0\"}]}]}","role":"tool","tool_call_id":"call_503373"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_521444","function":{"name":"create_light","arguments":"{\"schedule_name\":
+      \"Office_Lighting\", \"watts_per_floor_area\": 10, \"design_level_calculation_method\":
+      \"Watts/Area\", \"zone_name\": \"F1_Office\", \"fraction_visible\": 0.18, \"name\":
+      \"F1_Office_Lights\", \"fraction_radiant\": 0.7}"}}]},{"content":"{\"success\":
+      true, \"message\": \"Lights ''F1_Office_Lights'' created.\", \"data\": {\"name\":
+      \"F1_Office_Lights\", \"zone_or_zonelist_or_space_or_spacelist_name\": \"F1_Office\",
+      \"schedule_name\": \"Office_Lighting\", \"design_level_calculation_method\":
       \"Watts/Area\", \"lighting_level\": 0.0, \"watts_per_floor_area\": 10.0, \"watts_per_person\":
       0.0, \"return_air_fraction\": 0.0, \"fraction_radiant\": 0.7, \"fraction_visible\":
       0.18, \"fraction_replaceable\": 1.0, \"end_use_subcategory\": \"General\", \"return_air_fraction_calculated_from_plenum_temperature\":
       \"No\", \"return_air_fraction_function_of_plenum_temperature_coefficient_1\":
-      0.0, \"return_air_fraction_function_of_plenum_temperature_coefficient_2\": 0.0,
-      \"return_air_heat_gain_node_name\": null, \"exhaust_air_heat_gain_node_name\":
-      null}}","role":"tool","tool_call_id":"chatcmpl-tool-bfa0407dd0781d8f"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"chatcmpl-tool-a0a1c58f484204d5","function":{"name":"list_lights","arguments":"{}"}}]},{"content":"{\"success\":
-      true, \"message\": \"Listed 1 Lights objects.\", \"data\": [{\"name\": \"F1_Office_Lights\",
+      0.0, \"return_air_fraction_function_of_plenum_temperature_coefficient_2\": 0.0}}","role":"tool","tool_call_id":"call_521444"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_815613","function":{"name":"list_lights","arguments":"{}"}}]},{"content":"{\"success\":
+      true, \"message\": \"Listed 1 Lights.\", \"data\": [{\"name\": \"F1_Office_Lights\",
       \"zone_or_zonelist_or_space_or_spacelist_name\": \"F1_Office\", \"schedule_name\":
       \"Office_Lighting\", \"design_level_calculation_method\": \"Watts/Area\", \"lighting_level\":
       0.0, \"watts_per_floor_area\": 10.0, \"watts_per_person\": 0.0, \"return_air_fraction\":
       0.0, \"fraction_radiant\": 0.7, \"fraction_visible\": 0.18, \"fraction_replaceable\":
       1.0, \"end_use_subcategory\": \"General\", \"return_air_fraction_calculated_from_plenum_temperature\":
       \"No\", \"return_air_fraction_function_of_plenum_temperature_coefficient_1\":
-      0.0, \"return_air_fraction_function_of_plenum_temperature_coefficient_2\": 0.0,
-      \"return_air_heat_gain_node_name\": null, \"exhaust_air_heat_gain_node_name\":
-      null}]}","role":"tool","tool_call_id":"chatcmpl-tool-a0a1c58f484204d5"}],"model":"opencode/glm-5.2","max_completion_tokens":64000,"parallel_tool_calls":false,"stream":false,"temperature":0.7,"tool_choice":"required","tools":[{"type":"function","function":{"name":"create_light","description":"Create
+      0.0, \"return_air_fraction_function_of_plenum_temperature_coefficient_2\": 0.0}]}","role":"tool","tool_call_id":"call_815613"}],"model":"google/gemini-3.8-flash","max_completion_tokens":16384,"parallel_tool_calls":false,"stream":false,"temperature":0.7,"tool_choice":"required","tools":[{"type":"function","function":{"name":"create_light","description":"Create
       a Lights (lighting load) object.\n\n        Args:\n            name: Unique
       lights object name.\n            zone_name: Existing Zone name.\n            schedule_name:
       Existing Schedule:Compact (Fraction).\n            design_level_calculation_method:
@@ -552,9 +524,9 @@ interactions:
       Radiant fraction (0-1).\n            fraction_visible: Visible light fraction
       (0-1).","parameters":{"properties":{"name":{"type":"string"},"zone_name":{"type":"string"},"schedule_name":{"type":"string"},"design_level_calculation_method":{"default":"Watts/Area","enum":["LightingLevel","Watts/Area","Watts/Person"],"type":"string"},"lighting_level":{"default":0.0,"type":"number"},"watts_per_floor_area":{"default":0.0,"type":"number"},"watts_per_person":{"default":0.0,"type":"number"},"fraction_radiant":{"default":0.0,"type":"number"},"fraction_visible":{"default":0.0,"type":"number"}},"required":["name","zone_name","schedule_name"],"type":"object"}}},{"type":"function","function":{"name":"list_lights","description":"List
       all Lights objects.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"delete_light","description":"Delete
-      a Lights object.","parameters":{"properties":{"name":{"type":"string"}},"required":["name"],"type":"object"}}},{"type":"function","function":{"name":"list_zones","description":"Read-only:
-      list zones a Lights load can be assigned to.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"list_schedules","description":"Read-only:
-      list Schedule:Compact (for schedule_name reference).","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"LightsResponse","description":"Structured
+      a Lights object.","parameters":{"properties":{"name":{"type":"string"}},"required":["name"],"type":"object"}}},{"type":"function","function":{"name":"list_zones","description":"List
+      zones a Lights load can use.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"list_schedules","description":"List
+      Schedule:Compact objects.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"LightsResponse","description":"Structured
       summary returned by the lights phase agent.","parameters":{"properties":{"lights_names":{"description":"Names
       of all Lights objects created","items":{"type":"string"},"type":"array"},"summary":{"description":"One-line
       summary of the lights creation result","type":"string"}},"required":["lights_names","summary"],"type":"object"}}}],"max_thinking_budget":4096}'
@@ -566,7 +538,7 @@ interactions:
       connection:
       - keep-alive
       content-length:
-      - '7327'
+      - '6819'
       content-type:
       - application/json
       host:
@@ -585,6 +557,8 @@ interactions:
       - 2.52.0
       x-stainless-raw-response:
       - 'true'
+      x-stainless-read-timeout:
+      - '120.0'
       x-stainless-retry-count:
       - '0'
       x-stainless-runtime:
@@ -596,24 +570,30 @@ interactions:
   response:
     body:
       string: !!binary |
-        KLUv/QBYLQ8AdiJnLmBn2hwwwBqGYWALP6egl8ZG2ztK1kz2Lk3iOhEx9zkSpmhD9hFmYRfPJRQE
-        OSVcAFYAWwDRfPE9Xwg7AnbxvQHBPrk9GbWvKxwKggShs0N2UvpSKDQwDYzCLAm7416m2tejfM1w
-        kmQ7urGBhfy6YpllYaEkj3sSZhkYRFkFsgviksWj4JQFBDhJrTdqZ3fvjbtocI0bEKCUvX5MUCtJ
-        jKlw43t0ld2TkNSkLGmzgx7NkDoPNI6aQvFFPUGxhAAHiu/rZ+/IHWX7esft+ebcszOU1BvsDO2c
-        LH19QrjNgVL22aOcy5QTABJm9z4YqIIFUsKDIon2KkeZQONTZaqJBnij7M0bXRFvHG7veQg4yYA3
-        EMreTJY2OvBN4+yzI0sMiNqv84xymlxgdgQ9h7OztPEN1iLjOTtPE/31hjDiFoqEA9WRs/eU7auq
-        lgUlcRy1bW+wT/i22TkrYWASuC37i4H5UpYlYZ+RD8h2epIkNTG+IqoqoqpevTkOmORAlOHizSeh
-        azkQ7bjPLeUs9RgoFJ8yZDiO2tQo9WCZChkAoAhDkK+mFp5lNSP7/r0InlNK/Rd3wfDHs3EAEfLS
-        wY4OB7lj8yybQJi2oW65ip3JZq+zMsRMBogwHOpsMiHwkIkzBQU=
+        KLUv/QBYTRUAVmyFJ9CyWAfMpVntsQu/2odM6xESba2qqrqdxOGzLIYX0GUWzyBXM1hqXnkAcgB/
+        AB1l5za+m1Or77nKm92+qrQo2hl78N2trLScgRYKIIW/365kx97s7hiG04oISCgRWSXtK6DnZe31
+        99mVpXfvVWfYN969Wpl7ZtRGSYZY/HuOzdmwd++NCRkqCRUWi82EQYYTTXAoPiKShRJhKtIARorU
+        vv5eyX8AIIBNgTN2SYe/N4X1n+c+mWAGBDDUnDDGqll/78yT/8l4V5XVYjgh1qy+nauNd88VZiwx
+        hn/vae8/731BjJveXSJCk6G6IzOsd8dzwkhNa/Pfq8WwL4VhWaWFN+zNLjvvonePrqr8J+Mdd5QW
+        i3f36GnJTAVRZkMZDiAyxsGGY6FxoCAoPHxcBxCeCgWGBgyJ8HeYYXX3qnPmubG2RMLcFaWxbd80
+        Pn3KeJ9wU1ip+cl9kkCuKiFQT61qLGLoqhJr0IQGXECRBGUIQbraD+haC4JQHaVlRVBSAgSCIINP
+        75PnQko1/Onzd5xrU+268O6Nq81w27ZdkMq7zYKhVCQJWyYXyuRCdax926qSorBvxpm2dSU7VlYa
+        7CxvB+WiqrEI4z+NJ7TeOaxng8LyToCCiaJIEr1nbONdZYKRJsw230mXO8rlIr3j2hw2Uzmj9maa
+        xnapE8mQXmvdnYCg44EzORieqNlYHjQQ0+LCQWKaCEs5IDCCxpjxAfxZJWvDhRQwmgNGSOyTnwm2
+        APvVYMDFDEwJuCoS37ghZjCMTOO0ipdq4CiFR9gx5gLOTHuVPuYCsszmDKNr46KnRAj8P5evepVy
+        oMKKIAtLIrdzIVKTp61PGHefQcyR3Yy7HexmGfvq/iktjIbAFa72xEV+W4JGJ8OF5xEpROLjNqC3
+        LSUC4wuw
     headers:
+      access-control-allow-origin:
+      - '*'
+      access-control-expose-headers:
+      - X-Generation-Id,X-Provider-Name,request-id,cf-ray
       alt-svc:
       - h3=":443"; ma=86400
       cf-cache-status:
       - DYNAMIC
-      cf-placement:
-      - remote-ORD
       cf-ray:
-      - a2628f8a7fe662d0-NRT
+      - a475e4bdccb9ac08-NRT
       connection:
       - keep-alive
       content-encoding:
@@ -621,23 +601,36 @@ interactions:
       content-type:
       - application/json
       date:
-      - Wed, 05 Aug 2026 03:02:07 GMT
+      - Thu, 08 Oct 2026 14:39:13 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
+      permissions-policy:
+      - payment=(self "https://checkout.stripe.com" "https://connect-js.stripe.com"
+        "https://js.stripe.com" "https://*.js.stripe.com" "https://hooks.stripe.com")
+      referrer-policy:
+      - no-referrer, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=v6d8c%2BySW5m7E%2Bnd3j%2B%2ByjSeWSuZnmreJikJXIf4Gv8npJpQa8Fz1%2FcFyi5pC5c5IZB7KolHQInpxZ3mqrmZg5DtFZOoVETC98Z3IjCI7uZOpgLMnh7%2F2uMN3n0MsJ4MXyM%3D"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=Yu5aa6iSKDatlJ2eHBbrcf4hnd8xK9TwAY0VT1ihA1AvIzObckRh%2B1FDwXEkcdTj%2BbDyR4B7YJvvciB9CsZvKc1p7rSpedU5eEh7QbCWXhmvgusIm3e%2FoqykbpZILCf%2BCpQ%3D"}]}'
       server:
       - cloudflare
+      set-cookie:
+      - __cf_bm=Tw.eqQUkVJmslLBUg3ZwSex3Ku0xtErC5EZeQQQC3l8-1791470351.1515417-1.0.1.1-vvOJllXJuhAY9kOJOOhceB8rAqh0NZHpCeeIEGa8AYFUSe0nrZiyuCfltdKlv4DurKp1DT0cAbEkBAhznfJS6KX_krjBxk2Karj6gORi9xxP7ZS5W6CzZO3pw7ftx3Hm;
+        HttpOnly; SameSite=None; Secure; Path=/; Domain=openrouter.ai; Expires=Thu,
+        08 Oct 2026 15:09:13 GMT
       strict-transport-security:
       - max-age=31536000
       transfer-encoding:
       - chunked
       via:
       - 1.1 Caddy
+      x-content-type-options:
+      - nosniff
+      x-generation-id:
+      - gen-1791470351-zRjQ0jSCQZV5UF4Jalbe
       x-new-api-version:
-      - v1.0.0-rc.21
+      - v1.0.0-rc.41
       x-oneapi-request-id:
-      - 202608050302027625299438268d9d6LUF2hWys
+      - 202610081439111336705488268d9d6ttGGdzkO
     status:
       code: 200
       message: OK

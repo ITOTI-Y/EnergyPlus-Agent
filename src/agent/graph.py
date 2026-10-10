@@ -9,6 +9,7 @@ from src.agent.nodes import (
     construction_agent,
     cross_ref_complete_node,
     cross_ref_foundations_node,
+    equipment_agent,
     fenestration_agent,
     hvac_agent,
     intake_node,
@@ -55,7 +56,7 @@ def build_graph() -> CompiledStateGraph[AgentState, SimContext, AgentState, Agen
         intake
           -> phase 1 [zone, material, schedule] (parallel)
           -> cross_ref_foundations -> construction -> surface -> fenestration
-          -> phase 3 [hvac, people, lights] (parallel)
+          -> phase 3 [hvac, people, lights, equipment] (parallel)
           -> cross_ref_complete -> validate
           -> (approved) simulate -> END
           -> (rejected) intake (loop)
@@ -76,6 +77,7 @@ def build_graph() -> CompiledStateGraph[AgentState, SimContext, AgentState, Agen
     builder.add_node("hvac", hvac_agent)
     builder.add_node("people", people_agent)
     builder.add_node("lights", lights_agent)
+    builder.add_node("equipment", equipment_agent)
     builder.add_node("cross_ref_complete", cross_ref_complete_node)
 
     builder.add_node("validate", validate_node)
@@ -100,8 +102,9 @@ def build_graph() -> CompiledStateGraph[AgentState, SimContext, AgentState, Agen
     builder.add_edge("fenestration", "hvac")
     builder.add_edge("fenestration", "people")
     builder.add_edge("fenestration", "lights")
+    builder.add_edge("fenestration", "equipment")
 
-    builder.add_edge(["hvac", "people", "lights"], "cross_ref_complete")
+    builder.add_edge(["hvac", "people", "lights", "equipment"], "cross_ref_complete")
 
     builder.add_edge("cross_ref_complete", "validate")
 

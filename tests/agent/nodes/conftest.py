@@ -10,7 +10,7 @@ from idfpy.models.schedules import (
 )
 
 RECORDED_BASE_URL = "https://one.chat-yu.net/v1"
-RECORDED_MODEL = "opencode/glm-5.2"
+RECORDED_MODEL = "google/gemini-3.8-flash"
 
 
 @pytest.fixture(scope="module")

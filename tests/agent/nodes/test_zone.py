@@ -1,9 +1,19 @@
+"""Phase agent test replayed from a recorded LLM cassette.
+
+Record with `pytest --record-mode=once` and a real LLM_API_KEY; tools run for
+real on every replay, so the assertions cover prompt -> tool call -> model.
+"""
+
+import pytest
 from idfpy.models.thermal_zones import Zone
 
 from src.agent.nodes.zone import zone_agent
 from src.agent.state import AgentState, IntakeOutput
 
+pytestmark = pytest.mark.usefixtures("pinned_llm_env")
 
+
+@pytest.mark.vcr
 def test_zone_agent_creates_two_zones():
     intake = IntakeOutput.model_validate(
         {
@@ -24,6 +34,7 @@ def test_zone_agent_creates_two_zones():
             "hvac_specs": "",
             "people_specs": "",
             "lights_specs": "",
+            "equipment_specs": "",
         }
     )
     out = zone_agent(AgentState(intake_output=intake))
