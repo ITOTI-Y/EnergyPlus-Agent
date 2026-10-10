@@ -20,7 +20,7 @@ from idfpy.models.thermal_zones import (
 )
 from pydantic import BaseModel, ConfigDict, Field
 
-from src.modeling.errors import ObjectNotFoundError
+from src.modeling.errors import DuplicateNameError, ObjectNotFoundError
 
 type MaterialObject = (
     Material
@@ -81,6 +81,19 @@ def find_material(idf: IDF, name: str) -> MaterialObject:
         if (material := idf.get(material_type, name)) is not None:
             return material
     raise ObjectNotFoundError("Material", name)
+
+
+def check_material_name_free(idf: IDF, material: MaterialObject) -> None:
+    """Constructions name their layers, so a name is one material of any type.
+
+    ``objects.create`` checks names within one type only.
+
+    Raises:
+        DuplicateNameError: If a material of another type has the name.
+    """
+    for other in MATERIAL_TYPES:
+        if other is not type(material) and idf.has(other, material.name):
+            raise DuplicateNameError(other.idf_object_type(), material.name)
 
 
 def all_materials(idf: IDF) -> list[MaterialObject]:

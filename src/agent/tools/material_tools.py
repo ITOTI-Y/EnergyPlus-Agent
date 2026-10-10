@@ -1,6 +1,6 @@
 from typing import Any, Literal
 
-from idfpy import IDF, IDFBaseModel
+from idfpy import IDFBaseModel
 from idfpy.models.constructions import (
     Material,
     MaterialAirGap,
@@ -15,12 +15,13 @@ from pydantic import BaseModel, Field
 from src.agent.tools._share import model_tool, ok
 from src.modeling import objects
 from src.modeling.envelope import (
-    MATERIAL_TYPES,
+    MaterialObject,
     Roughness,
     all_materials,
+    check_material_name_free,
     find_material,
 )
-from src.modeling.errors import DuplicateNameError, ModelingError, describe_error
+from src.modeling.errors import ModelingError, describe_error
 from src.state.config_state import ConfigState
 
 
@@ -111,18 +112,6 @@ def _pane(pane: GlassPaneSchema) -> WindowMaterialGlazing:
     )
 
 
-def _check_name_free_in_other_types(idf: IDF, material: IDFBaseModel) -> None:
-    """Constructions name their layers, so a name is one material of any type.
-
-    Raises:
-        DuplicateNameError: If a material of another type has the name.
-    """
-    name = getattr(material, "name", "")
-    for other in MATERIAL_TYPES:
-        if other is not type(material) and idf.has(other, name):
-            raise DuplicateNameError(other.idf_object_type(), name)
-
-
 def list_materials_tool(config: ConfigState) -> BaseTool:
     @tool
     def list_materials() -> str:
@@ -166,7 +155,7 @@ def make_material_tools(config: ConfigState) -> list[BaseTool]:
             glass_panes: Panes of multi-pane windows (WindowMaterial:Glazing).
             window_gases: Gas layers between panes (WindowMaterial:Gas).
         """
-        materials: list[IDFBaseModel] = [
+        materials: list[MaterialObject] = [
             *(Material(**m.model_dump(exclude_none=True)) for m in standard or []),
             *(MaterialNoMass(**m.model_dump(exclude_none=True)) for m in nomass or []),
             *(MaterialAirGap(**m.model_dump()) for m in airgap or []),
@@ -188,7 +177,7 @@ def make_material_tools(config: ConfigState) -> list[BaseTool]:
         failed = []
         for material in materials:
             try:
-                _check_name_free_in_other_types(idf, material)
+                check_material_name_free(idf, material)
                 _, new = objects.create_or_same(idf, material)
             except (ModelingError, ValueError) as e:
                 failed.append(
