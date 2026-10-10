@@ -6,9 +6,13 @@ nodes-internal — no other part of the agent package uses these.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Final, Literal
+import re
+from collections.abc import Callable, Iterable
+from typing import TYPE_CHECKING, Any, Final, Literal, cast
 
-from langchain_core.messages import AIMessage, AnyMessage, HumanMessage
+from langchain_core.language_models import BaseChatModel
+from langchain_core.messages import AIMessage, AnyMessage, BaseMessage, HumanMessage
+from langchain_core.utils.function_calling import convert_to_openai_tool
 from langgraph.graph.state import CompiledStateGraph
 from loguru import logger
 from pydantic import BaseModel, Field
@@ -169,3 +173,125 @@ def invoke_with_self_repair(
         messages = [*list(result["messages"]), feedback]
 
     return result
+
+
+MAX_STRUCTURED_ATTEMPTS: Final = 2
+"""A model replying with text instead of the tool call usually complies
+when told so once."""
+
+
+def without_empty_choices(node: Any) -> Any:
+    """The schema with "" removed from enums.
+
+    idfpy allows "" (leave blank) in many choices; Gemini rejects empty enum
+    values in tool declarations. Replies are still validated by the model.
+    """
+    if isinstance(node, dict):
+        return {
+            key: [v for v in value if v != ""]
+            if key == "enum" and isinstance(value, list)
+            else without_empty_choices(value)
+            for key, value in node.items()
+        }
+    if isinstance(node, list):
+        return [without_empty_choices(v) for v in node]
+    return node
+
+
+def strict_tool(schema: type[BaseModel]) -> dict[str, Any]:
+    """The schema as a strict tool: every field required, no extra keys.
+
+    Without strict mode Haiku now and then left out required specs (e.g.
+    construction_specs) and repeated the omission when told.
+    """
+    return without_empty_choices(convert_to_openai_tool(schema, strict=True))
+
+
+_LEAKED_FIELD_START = re.compile(r'<(?:parameter name="(\w+)"|(\w+))>')
+
+
+def unpack_leaked_fields(args: dict[str, Any], fields: Iterable[str]) -> list[str]:
+    """Move fields written as XML into a string field back to their own keys.
+
+    Haiku sometimes ends a string argument with its closing tag and writes
+    the following arguments in its native tool format inside it, e.g.
+    ``'...</lights_specs>\n<parameter name="equipment_specs">...'``, leaving
+    those fields missing. The text after the closing tag is cut off; each
+    field opened there runs to the next field's opening tag or the end, less
+    its closing tag, and fills its key unless the key is set (the first of
+    repeated fields wins).
+
+    Returns:
+        The fields filled, in ``args``, which is changed in place.
+    """
+    known = set(fields)
+    filled: list[str] = []
+    for key in list(args):
+        value = args[key]
+        if not isinstance(value, str) or f"</{key}>" not in value:
+            continue
+        own, _, rest = value.partition(f"</{key}>")
+        args[key] = own.strip()
+        starts = [
+            (m, name)
+            for m in _LEAKED_FIELD_START.finditer(rest)
+            if (name := m[1] or m[2]) in known
+        ]
+        for i, (match, name) in enumerate(starts):
+            stop = starts[i + 1][0].start() if i + 1 < len(starts) else len(rest)
+            text = rest[match.end() : stop].partition(f"</{name}>")[0]
+            if name not in args:
+                args[name] = text.strip()
+                filled.append(name)
+    return filled
+
+
+def structured[T: BaseModel, R](
+    llm: BaseChatModel,
+    schema: type[T],
+    messages: list[BaseMessage],
+    check: Callable[[T], R],
+) -> tuple[T, R]:
+    """Call ``llm`` for ``schema`` as a forced tool call, retrying once.
+
+    The tool is the schema without empty enum values (see
+    ``without_empty_choices``); the arguments are validated with the full
+    model. ``check`` turns the parsed reply into the result the caller
+    needs; a ValueError from it, like invalid arguments, is sent back to the
+    LLM for one more attempt.
+
+    Raises:
+        RuntimeError: If no attempt gives a usable reply.
+    """
+    caller = llm.with_structured_output(
+        strict_tool(schema), method="function_calling", include_raw=True, strict=True
+    )
+    problem = ""
+    for _ in range(MAX_STRUCTURED_ATTEMPTS):
+        result = cast(dict[str, Any], caller.invoke(messages))
+        try:
+            if result.get("parsed") is None:
+                raw: BaseMessage | None = result.get("raw")
+                raise ValueError(
+                    f"no {schema.__name__} tool call (parsing error "
+                    f"{result.get('parsing_error')!r}; reply "
+                    f"{repr(raw.content if raw is not None else raw)[:300]})"
+                )
+            args = dict(result["parsed"])
+            if filled := unpack_leaked_fields(args, schema.model_fields):
+                logger.warning(
+                    "{}: fields written inside others: {}", schema.__name__, filled
+                )
+            parsed = schema.model_validate(args)
+            return parsed, check(parsed)
+        except ValueError as e:  # pydantic.ValidationError is a ValueError
+            problem = str(e)
+        logger.warning("{}: unusable reply: {}", schema.__name__, problem)
+        messages = [
+            *messages,
+            HumanMessage(
+                content=f"Your reply was unusable: {problem}. Call the "
+                f"{schema.__name__} tool again with a corrected argument."
+            ),
+        ]
+    raise RuntimeError(f"no usable {schema.__name__}: {problem}")

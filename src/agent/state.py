@@ -5,7 +5,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from itertools import accumulate
 from pathlib import Path
-from typing import Annotated, Any, Final, Self
+from typing import Annotated, Any, Final, Literal, Self
 
 from idfpy import IDF
 from idfpy.models.location import SiteLocation
@@ -19,6 +19,7 @@ from src.agent._share import DEFAULT_OUTPUT_DIR, MAX_GLOBAL_RETRIES
 from src.agent.phases import Phase
 from src.modeling.geometry import PlanPointSchema
 from src.modeling.validation import ModelIssue
+from src.modeling.zoning import perimeter_core
 from src.reference.search import ReferenceSearch
 from src.state.config_state import ConfigState
 
@@ -32,6 +33,18 @@ class ZonePlanSchema(BaseModel):
     )
     plan: list[PlanPointSchema] = Field(
         description="Floor plan corners (X, Y in meters) in order around the zone"
+    )
+    zoning: Literal["single", "perimeter_core"] = Field(
+        default="single",
+        description="'single': the plan is one zone '<storey>_<key>'. "
+        "'perimeter_core': code splits the rectangle into four 4.57 m deep "
+        "perimeter zones and a core zone, '<storey>_<key>_N', '_E', '_S', "
+        "'_W' and '_Core' (needs both sides of at least 12.14 m)",
+    )
+    block: str | None = Field(
+        default=None,
+        description="Only with a photo reading: the name of the reading's "
+        "block this plan belongs to; code then builds the storeys",
     )
     exterior_wall_construction: str
     roof_construction: str
@@ -155,24 +168,47 @@ class IntakeOutput(BaseModel):
     @property
     def zones(self) -> list[ZoneGeometrySchema]:
         """Every zone: each plan on each storey, named '<storey>_<plan key>'
-        (the plan key alone on a storey named ''), at its storey's level."""
+        (the plan key alone on a storey named ''), at its storey's level; a
+        'perimeter_core' plan gives five zones with the side as a suffix.
+
+        Raises:
+            ValueError: If a 'perimeter_core' plan cannot be split.
+        """
         plans = {p.key: p for p in self.zone_plans}
         # One more bottom than storeys: the last is the top of the building.
         bottoms = accumulate(
             (s.height * s.multiplier for s in self.storeys), initial=0.0
         )
-        return [
-            ZoneGeometrySchema(
-                name=f"{storey.name}_{entry.plan}" if storey.name else entry.plan,
-                plan=plans[entry.plan].plan,
-                floor_z=floor_z,
-                height=entry.height or storey.height,
-                multiplier=storey.multiplier,
-                **plans[entry.plan].model_dump(exclude={"key", "plan"}),
-            )
-            for storey, floor_z in zip(self.storeys, bottoms, strict=False)
-            for entry in storey.zones
-        ]
+        zones = []
+        for storey, floor_z in zip(self.storeys, bottoms, strict=False):
+            for entry in storey.zones:
+                plan = plans[entry.plan]
+                name = f"{storey.name}_{entry.plan}" if storey.name else entry.plan
+                parts = (
+                    [(name, plan.plan)]
+                    if plan.zoning == "single"
+                    else [
+                        (
+                            f"{name}_{side}",
+                            [PlanPointSchema(x=x, y=y) for x, y in corners],
+                        )
+                        for side, corners in perimeter_core(
+                            [(q.x, q.y) for q in plan.plan]
+                        )
+                    ]
+                )
+                zones += [
+                    ZoneGeometrySchema(
+                        name=part_name,
+                        plan=corners,
+                        floor_z=floor_z,
+                        height=entry.height or storey.height,
+                        multiplier=storey.multiplier,
+                        **plan.model_dump(exclude={"key", "plan", "zoning", "block"}),
+                    )
+                    for part_name, corners in parts
+                ]
+        return zones
 
     @model_validator(mode="after")
     def _plans_exist_and_names_are_unique(self) -> Self:
@@ -302,6 +338,66 @@ def merge_config_state(old: ConfigState, new: ConfigState) -> ConfigState:
     return merged
 
 
+class MassingBlockSchema(BaseModel):
+    """A block of the building as a photo shows it."""
+
+    name: str = Field(description="e.g. 'podium', 'tower', 'service core'")
+    role: Literal["podium", "tower", "core", "wing", "other"]
+    storeys: int = Field(
+        ge=1, description="Storeys of this block, counted from its window bands"
+    )
+    bottom_storey: int = Field(
+        ge=1, description="Storey the block starts on; 1 is the ground storey"
+    )
+    width_m: float = Field(gt=0, description="Estimated length along the front")
+    depth_m: float = Field(gt=0, description="Estimated depth from the front")
+    position: str = Field(description="Where it sits relative to the other blocks")
+
+
+class FacadeSchema(BaseModel):
+    """What one side of a block shows."""
+
+    block: str = Field(description="Name of the block")
+    side: Literal["front", "left", "right", "back"]
+    windows: str = Field(
+        description="e.g. 'continuous ribbon', 'punched', 'curtain wall', 'none'"
+    )
+    window_to_wall_ratio: float = Field(ge=0, le=1)
+
+
+class PhotoReadingSchema(BaseModel):
+    """A vision model's reading of the building's photos or drawings."""
+
+    # First, so the model writes its counting before the numbers: the call
+    # is a forced tool call and has no other place to reason.
+    reading: str = Field(
+        description="FIRST, step by step: count each block's window bands "
+        "from the ground up, name the blocks, and name the scale cues "
+        "(doors, people, cars, bays) behind the dimensions"
+    )
+    total_storeys: int = Field(ge=1)
+    ground_storey_height_m: float = Field(
+        gt=0, description="Estimated floor-to-floor height of the ground storey"
+    )
+    storey_height_m: float = Field(
+        gt=0, description="Estimated floor-to-floor height of the other storeys"
+    )
+    blocks: list[MassingBlockSchema]
+    facades: list[FacadeSchema]
+    assumptions: list[str] = Field(
+        description="What the images do not show and was assumed, e.g. the "
+        "back facades or the depth"
+    )
+
+    @model_validator(mode="after")
+    def _block_names_are_unique(self) -> Self:
+        # Intake tags each plan with a block name; storeys follow from it.
+        names = [b.name for b in self.blocks]
+        if repeated := sorted({n for n in names if names.count(n) > 1}):
+            raise ValueError(f"block names must be unique, repeated: {repeated}")
+        return self
+
+
 class AgentState(BaseModel):
     """Top-level graph state.
 
@@ -313,6 +409,9 @@ class AgentState(BaseModel):
     messages: Annotated[list[AnyMessage], add_messages] = Field(default_factory=list)
     user_input: str = ""
     image_paths: list[str] = Field(default_factory=list)
+    photo_reading: PhotoReadingSchema | None = Field(
+        default=None, description="The images read once, before intake"
+    )
 
     config_state: Annotated[ConfigState, merge_config_state] = Field(
         default_factory=ConfigState
@@ -350,6 +449,7 @@ class AgentStateUpdate(TypedDict, total=False):
     messages: Sequence[AnyMessage]
     user_input: str
     image_paths: list[str]
+    photo_reading: PhotoReadingSchema | None
     config_state: ConfigState
     intake_output: IntakeOutput | None
     validation_errors: list[ModelIssue]

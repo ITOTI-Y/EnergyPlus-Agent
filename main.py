@@ -136,7 +136,8 @@ def run_agent(
             "-i",
             default_factory=list,
             show_default=False,
-            help="Architectural drawing(s); repeat flag for multiple (floorplan + elevation + perspective...)",
+            help="Photo or drawing of the building (png, jpg, webp, gif); repeat "
+            "for several. Read by LLM_VISION_MODEL, which must be set.",
         ),
     ],
     output_dir: Annotated[

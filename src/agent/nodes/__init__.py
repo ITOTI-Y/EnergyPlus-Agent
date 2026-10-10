@@ -9,6 +9,7 @@ from src.agent.nodes.hvac import hvac_agent
 from src.agent.nodes.intake import intake_node
 from src.agent.nodes.lights import lights_agent
 from src.agent.nodes.material import material_agent
+from src.agent.nodes.observe import observe_node
 from src.agent.nodes.people import people_agent
 from src.agent.nodes.rerun import plan_rerun_node
 from src.agent.nodes.schedule import schedule_agent
@@ -27,6 +28,7 @@ __all__ = [
     "intake_node",
     "lights_agent",
     "material_agent",
+    "observe_node",
     "people_agent",
     "plan_rerun_node",
     "schedule_agent",

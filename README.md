@@ -16,7 +16,7 @@ A reference library of materials, constructions and schedules from the DOE proto
 ## Key Features
 
 ### Multi-phase agent (LangGraph)
-- **Intake**: one structured LLM call parses text and images into `IntakeOutput`, which carries the `Building` and `Site:Location` objects, every zone as a prism (floor plan, floor level, height and the constructions of its faces), and natural-language task specs for the other phases.
+- **Intake**: one structured LLM call turns the text brief, and the photo reading when images are given, into `IntakeOutput`, which carries the `Building` and `Site:Location` objects, every zone as a prism (floor plan, floor level, height and the constructions of its faces), and natural-language task specs for the other phases.
 - **Phased construction with parallelism**: independent object types are built by separate ReAct sub-agents; zones and their surfaces are built in code from the intake output. Zone, material and schedule run in parallel; construction, surface and fenestration run sequentially because of their dependencies; HVAC, people, lights and equipment run in parallel again.
 - **Parallel-safe state**: a reducer (`merge_config_state`) unions the idfpy models written by concurrent phases; on a name conflict the later branch wins.
 - **Shared model operations**: agent tools and MCP tools are thin adapters over `src/modeling`, which rejects missing references and duplicate names at the call, applies updates atomically, renames references along with an object, and refuses to delete an object that others still reference. Tool arguments are typed models with declared fields, so a rejected call names the exact field (for example `vertices.0.X: Field required`).
@@ -27,7 +27,7 @@ A reference library of materials, constructions and schedules from the DOE proto
 - **Structured validation**: `src/modeling/validation.py` reports each problem as a `ModelIssue` tied to an object type, name and field. Sources are idfpy's reference check, geometric checks (fenestration reversed, off its parent surface's plane or outside its outline, which EnergyPlus would only warn about), empty models, phases that created nothing, and EnergyPlus Severe and Fatal messages, which are tied to the first object they quote. `src/agent/phases.py` maps object types to the phase that owns them; after its run each phase repairs the problems in its own objects, and every phase agent also receives read-only `list_*` tools to inspect what earlier phases created.
 - **Partial retries**: after a pass, problems go to the phases that own them. If those phases can fix them from their unchanged task, only they and the phases depending on their objects run again, with the problems as feedback (zone -> surface -> fenestration and loads; material -> construction -> surface; schedule -> loads). Otherwise intake receives the brief, its previous output and the problems, and returns a patch of the fields to change; the phases fed by changed fields, the phases owning the problems, and their dependants run again. Before a pass, the objects of the phases about to run are removed; the other phases keep their objects and are not prompted. Intake revises at most twice before a human reviews the model, and EnergyPlus Severe errors after approval go through the same loop.
 - **Human-in-the-loop approval**: the validate node raises a LangGraph `interrupt()` with a configuration summary and any errors. Approval continues to simulation; free-text feedback goes to intake as a correction and is handled like a revision.
-- **Multimodal input**: PNG, JPEG, WebP and GIF drawings are passed to the intake LLM as base64 image parts alongside the text brief.
+- **Photo and drawing input**: PNG, JPEG, WebP and GIF images are read once, before intake, by the vision model `LLM_VISION_MODEL` in its own structured call (`observe`): blocks with their storey counts, estimated dimensions and positions, the window type and window-to-wall ratio of each visible side, and the assumptions for what the images do not show. Intake builds the zones from this reading and never receives the images, so revisions resend none. Without `LLM_VISION_MODEL` images are refused before any LLM call.
 - **Tool-call tracing**: `TraceCollector` wraps every tool call in the ReAct subgraphs and records name, arguments, result and success flag per phase, intended as fine-tuning data. A script also exports full LangSmith run trees to local JSON.
 - **Provider-agnostic LLM**: `src/configs/llm.yaml` selects provider, model, temperature and token budget; Anthropic and OpenAI integrations are bundled. `AGENT_LANGUAGE` switches the narrative language of all agent output while EnergyPlus identifiers stay ASCII.
 
@@ -173,6 +173,7 @@ Copy `.env.example` to `.env` and fill in what you need:
 LLM_API_KEY=
 LLM_BASE_URL=            # optional, for OpenAI-compatible gateways
 LLM_TEMPERATURE=         # optional, default 0.7; "null" sends none (Claude 5.5 models reject one)
+LLM_VISION_MODEL=        # optional; reads --image files (sent without temperature); unset, images are refused
 
 # Prototype reference library (both URLs, or neither)
 REFERENCE_QDRANT_URL=      # e.g. http://pan-office:6333
@@ -209,8 +210,8 @@ max_tokens: 64000
 uv run main.py run-agent "Design a 5-zone office in Shenzhen, 10m x 8m x 3m, ..." \
   --epw data/weather/Shenzhen.epw
 
-# With drawings (repeat --image for several files)
-uv run main.py run-agent "Office building described in the drawings" \
+# With photos or drawings (repeat --image for several files; needs LLM_VISION_MODEL)
+LLM_VISION_MODEL=google/gemini-3.8-flash uv run main.py run-agent "Office building described in the drawings" \
   --epw data/weather/Shenzhen.epw \
   --image floorplan.png --image elevation.png \
   --output-dir output/run1 --thread-id run1

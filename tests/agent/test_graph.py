@@ -90,12 +90,13 @@ def runs(monkeypatch: pytest.MonkeyPatch) -> Counter[Phase]:
 def _intake_llm(
     monkeypatch: pytest.MonkeyPatch, first: IntakeOutput, patch: IntakePatch | None
 ) -> None:
-    def structured(schema: type, messages: list, check: Callable) -> tuple:
+    def structured(llm: object, schema: type, messages: list, check: Callable) -> tuple:
         reply = first if schema is IntakeOutput else patch
         assert reply is not None, "unexpected intake revision"
         return reply, check(reply)
 
-    monkeypatch.setattr(intake_module, "_structured", structured)
+    monkeypatch.setattr(intake_module, "create_llm", lambda: None)
+    monkeypatch.setattr(intake_module, "structured", structured)
 
 
 def _run(tmp_path) -> dict[str, Any]:
