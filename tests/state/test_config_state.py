@@ -58,6 +58,12 @@ def test_model_round_trip_keeps_objects(tmp_path, filename):
     assert _dump(restored) == _dump(state)
 
 
+def test_save_model_creates_missing_directories(tmp_path):
+    path = ConfigState().save_model(tmp_path / "output" / "model" / "model.epJSON")
+
+    assert path.is_file()
+
+
 def test_save_model_rejects_unknown_suffix(tmp_path):
     with pytest.raises(ValueError, match=r"\.idf or \.epJSON"):
         ConfigState().save_model(tmp_path / "model.yaml")

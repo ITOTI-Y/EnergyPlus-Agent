@@ -102,16 +102,20 @@ class ConfigState(BaseModel):
     def save_model(self, path: Path) -> Path:
         """Write the model as IDF or epJSON, chosen by the file suffix.
 
+        Missing parent directories are created, as MCP exports default to
+        ``./output/model/``.
+
         Raises:
             ValueError: If the suffix is neither ``.idf`` nor ``.epJSON``.
         """
+        if path.suffix.lower() not in (".idf", ".epjson"):
+            raise ValueError(f"Unsupported model file {path}; use .idf or .epJSON")
+        path.parent.mkdir(parents=True, exist_ok=True)
         match path.suffix.lower():
             case ".idf":
                 self._idf.save(path)
-            case ".epjson":
-                self._idf.save(path, output_type="epjson")
             case _:
-                raise ValueError(f"Unsupported model file {path}; use .idf or .epJSON")
+                self._idf.save(path, output_type="epjson")
         logger.info("Saved model to {}", path)
         return path
 
