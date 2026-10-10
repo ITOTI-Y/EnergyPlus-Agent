@@ -7,7 +7,7 @@ lets callers hand it to whoever owns that type.
 """
 
 import re
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Final
 
@@ -18,10 +18,16 @@ from idfpy.models.thermal_zones import (
     Zone,
 )
 
+from src.modeling.fenestration import faces_away, placement_problem
+from src.modeling.surfaces import pair_problem
 from src.runner.runner import EnergyPlusMessage
 
-PLANE_TOLERANCE_M: Final = 0.01
-_QUOTED: Final = re.compile(r'"([^"]+)"')
+# EnergyPlus names objects either quoted, `Subsurface="WIN_1"`, or after a
+# keyword, `convergence error ... for window WIN_1`.
+_NAMED: Final = re.compile(
+    r'"([^"]+)"|\b(?:window|surface|zone|schedule|construction)\s+([^\s,;"]+)',
+    re.IGNORECASE,
+)
 
 type Point = tuple[float, float, float]
 
@@ -65,83 +71,61 @@ def reference_issues(idf: IDF) -> list[ModelIssue]:
     return issues
 
 
-def _inside(point: Point, polygon: Sequence[Point], normal: Point) -> bool:
-    """Point-in-polygon on the coordinate plane the polygon projects onto best."""
-    drop = max(range(3), key=lambda i: abs(normal[i]))
-    keep = [i for i in range(3) if i != drop]
-
-    def flat(p: Point) -> tuple[float, float]:
-        return p[keep[0]], p[keep[1]]
-
-    px, py = flat(point)
-    corners = [flat(p) for p in polygon]
-    inside = False
-    for (x1, y1), (x2, y2) in zip(corners, [*corners[1:], corners[0]], strict=True):
-        # On an edge counts as inside: windows often share an edge with the wall.
-        cross = (x2 - x1) * (py - y1) - (y2 - y1) * (px - x1)
-        if (
-            abs(cross) <= PLANE_TOLERANCE_M * ((x2 - x1) ** 2 + (y2 - y1) ** 2) ** 0.5
-            and min(x1, x2) - PLANE_TOLERANCE_M <= px <= max(x1, x2) + PLANE_TOLERANCE_M
-            and min(y1, y2) - PLANE_TOLERANCE_M <= py <= max(y1, y2) + PLANE_TOLERANCE_M
-        ):
-            return True
-        if (y1 > py) != (y2 > py) and px < x1 + (py - y1) * (x2 - x1) / (y2 - y1):
-            inside = not inside
-    return inside
-
-
 def fenestration_issues(idf: IDF) -> list[ModelIssue]:
-    """Fenestration that faces away from or does not lie on its parent surface.
-
-    A reversed vertex order is fatal in EnergyPlus; a window off its wall's
-    plane or outside its outline only draws a warning, after which heat flows
-    are computed for that wrong geometry.
-    """
+    """Fenestration that faces away from or does not lie on its parent surface."""
     issues = []
     for fenestration in idf.all_of_type(FenestrationSurfaceDetailed).values():
         parent = idf.get(BuildingSurfaceDetailed, fenestration.building_surface_name)
         if parent is None:
             continue  # reported by reference_issues
-        wall = parent.vertices_as_tuples
-        nx, ny, nz = parent.normal
-        ox, oy, oz = wall[0]
-        points = fenestration.vertices_as_tuples
-        fx, fy, fz = fenestration.normal
-        if fx * nx + fy * ny + fz * nz < 0:
+        if faces_away(fenestration, parent):
+            problem = (
+                f"vertex order faces opposite to surface '{parent.name}'; "
+                "list the vertices counter-clockwise seen from outside"
+            )
+        else:
+            problem = placement_problem(fenestration, parent)
+        if problem:
             issues.append(
                 ModelIssue(
-                    fenestration.idf_object_type(),
-                    fenestration.name,
-                    None,
-                    f"vertex order faces opposite to surface '{parent.name}'; "
-                    "list the vertices counter-clockwise seen from outside",
+                    fenestration.idf_object_type(), fenestration.name, None, problem
                 )
             )
+    return issues
+
+
+def interzone_issues(idf: IDF) -> list[ModelIssue]:
+    """Interzone surfaces whose partner does not name them back or does not match.
+
+    EnergyPlus needs both faces of an interzone element; a one-sided pair
+    leaves the other face adiabatic or outdoors and fails any opening in it.
+    """
+    issues = []
+    for surface in idf.all_of_type(BuildingSurfaceDetailed).values():
+        if surface.outside_boundary_condition != "Surface":
             continue
-        for point in points:
-            x, y, z = point
-            distance = abs((x - ox) * nx + (y - oy) * ny + (z - oz) * nz)
-            if distance > PLANE_TOLERANCE_M:
-                message = (
-                    f"vertex {point} is {distance:.3f} m off the plane of "
-                    f"'{parent.name}'"
-                )
-            elif not _inside(point, wall, (nx, ny, nz)):
-                message = f"vertex {point} lies outside surface '{parent.name}'"
-            else:
-                continue
-            issues.append(
-                ModelIssue(
-                    fenestration.idf_object_type(), fenestration.name, None, message
-                )
+        partner = idf.get(
+            BuildingSurfaceDetailed, surface.outside_boundary_condition_object or ""
+        )
+        if partner is None:
+            continue  # reported by reference_issues
+        if partner.outside_boundary_condition_object != surface.name:
+            problem = (
+                f"partner '{partner.name}' does not name it back "
+                f"(its boundary is {partner.outside_boundary_condition})"
             )
-            break
+        else:
+            problem = pair_problem(surface, partner)
+        if problem:
+            issues.append(
+                ModelIssue(surface.idf_object_type(), surface.name, None, problem)
+            )
     return issues
 
 
 def model_issues(idf: IDF) -> list[ModelIssue]:
     """Problems in the objects present, detectable without running EnergyPlus."""
-    return reference_issues(idf) + fenestration_issues(idf)
+    return reference_issues(idf) + fenestration_issues(idf) + interzone_issues(idf)
 
 
 def completeness_issues(idf: IDF) -> list[ModelIssue]:
@@ -165,7 +149,7 @@ def _name_index(idf: IDF) -> dict[str, tuple[str, str]]:
 def simulation_issues(
     idf: IDF, messages: Iterable[EnergyPlusMessage]
 ) -> list[ModelIssue]:
-    """Severe and Fatal messages, each tied to the first object they quote.
+    """Severe and Fatal messages, each tied to the first object they name.
 
     EnergyPlus quotes object names in upper case, e.g.
     ``FenestrationSurface:Detailed="WIN_1" has an opaque surface construction``.
@@ -175,8 +159,11 @@ def simulation_issues(
     for message in messages:
         if message.severity == "Warning":
             continue
-        quoted = (index.get(q.upper()) for q in _QUOTED.findall(message.text))
-        found = next((hit for hit in quoted if hit is not None), None)
+        named = (
+            index.get((quoted or bare).upper())
+            for quoted, bare in _NAMED.findall(message.text)
+        )
+        found = next((hit for hit in named if hit is not None), None)
         object_type, name = found if found else (None, None)
         issues.append(ModelIssue(object_type, name, None, message.text))
     return issues

@@ -1,12 +1,20 @@
 from typing import Literal
 
-from idfpy.models.constructions import Construction
 from idfpy.models.thermal_zones import BuildingSurfaceDetailed, Zone
 from langchain_core.tools import BaseTool
 
-from src.agent.tools._share import list_tool, model_tool, ok
+from src.agent.tools._share import (
+    list_constructions_tool,
+    list_tool,
+    model_tool,
+    ok,
+)
 from src.modeling import objects
-from src.modeling.envelope import VertexSchema, surface_geometry
+from src.modeling.envelope import (
+    VertexSchema,
+    surface_geometry,
+)
+from src.modeling.surfaces import add_surface
 from src.state.config_state import ConfigState
 
 
@@ -32,7 +40,7 @@ def make_surface_tools(config: ConfigState) -> list[BaseTool]:
         Args:
             name: Unique surface name.
             surface_type: Wall / Floor / Roof / Ceiling.
-            construction_name: Existing Construction name.
+            construction_name: Existing opaque construction name.
             zone_name: Existing Zone name the surface belongs to.
             outside_boundary_condition: Outdoors / Ground / Zone / Adiabatic / Surface.
             vertices: >= 3 vertices in meters, counter-clockwise when viewed
@@ -46,9 +54,11 @@ def make_surface_tools(config: ConfigState) -> list[BaseTool]:
             wind_exposure: WindExposed for outdoor-facing walls and roofs.
             outside_boundary_condition_object: Name of the partner surface
                 when outside_boundary_condition is Surface, or of the
-                adjacent zone when it is Zone.
+                adjacent zone when it is Zone. The partner may be created
+                after this surface; when it already exists it is linked back
+                automatically.
         """
-        surface = objects.create(
+        created = add_surface(
             idf,
             BuildingSurfaceDetailed.model_validate(
                 {
@@ -64,7 +74,10 @@ def make_surface_tools(config: ConfigState) -> list[BaseTool]:
                 }
             ),
         )
-        return ok(f"Surface '{name}' created.", surface.model_dump(exclude_none=True))
+        message = f"Surface '{name}' created."
+        if len(created) > 1:
+            message += f" '{created[1].name}' now faces it as its interzone partner."
+        return ok(message, [c.model_dump(exclude_none=True) for c in created])
 
     @model_tool
     def get_surface(name: str) -> str:
@@ -86,10 +99,7 @@ def make_surface_tools(config: ConfigState) -> list[BaseTool]:
         get_surface,
         delete_surface,
         list_tool(idf, "list_zones", Zone, "List zones a surface can belong to."),
-        list_tool(
-            idf,
-            "list_constructions",
-            Construction,
-            "List constructions a surface can reference.",
+        list_constructions_tool(
+            idf, "List the opaque constructions a surface can use.", ("opaque",)
         ),
     ]

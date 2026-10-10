@@ -20,6 +20,7 @@ A RAG knowledge base (Gemini Embedding + Qdrant) and SQLite data tools for stand
 - **Phased construction with parallelism**: independent object types are built by separate ReAct sub-agents. Zone, material and schedule run in parallel; construction, surface and fenestration run sequentially because of their dependencies; HVAC, people and lights run in parallel again.
 - **Parallel-safe state**: a reducer (`merge_config_state`) unions the idfpy models written by concurrent phases; on a name conflict the later branch wins.
 - **Shared model operations**: agent tools and MCP tools are thin adapters over `src/modeling`, which rejects missing references and duplicate names at the call, applies updates atomically, renames references along with an object, and refuses to delete an object that others still reference. Tool arguments are typed models with declared fields, so a rejected call names the exact field (for example `vertices.0.X: Field required`).
+- **Envelope rules at the tool boundary**: constructions are checked as they are created. Opaque layers never mix with window layers, a SimpleGlazingSystem stands alone, and multi-pane glazing alternates glass and `WindowMaterial:Gas`. Each surface and opening accepts only a construction of the matching kind, and the list tools show the kind. Openings get their vertex order corrected, are rejected when off their wall, and on an interzone wall get a mirrored partner in the adjacent zone. The two faces of an interzone wall can be created in either order and are linked to each other.
 - **Failure-loop guard**: every phase agent stops when the same tool call fails three times or ten calls fail in a row, logs each failure, and reports the last error as the phase summary instead of retrying until the LLM budget runs out.
 - **Structured validation**: `src/modeling/validation.py` reports each problem as a `ModelIssue` tied to an object type, name and field. Sources are idfpy's reference check, geometric checks (fenestration reversed, off its parent surface's plane or outside its outline, which EnergyPlus would only warn about), empty models, phases that created nothing, and EnergyPlus Severe and Fatal messages, which are tied to the first object they quote. `src/agent/phases.py` maps object types to the phase that owns them; after its run each phase repairs the problems in its own objects, and every phase agent also receives read-only `list_*` tools to inspect what earlier phases created.
 - **Human-in-the-loop approval**: the validate node raises a LangGraph `interrupt()` with a configuration summary and any errors. Approval continues to simulation; free-text feedback loops back to intake.
@@ -91,6 +92,8 @@ EnergyPlus-Agent/
 │   │   ├── hvac.py                   # Ideal loads systems keyed by zone
 │   │   ├── validation.py             # ModelIssue from references, geometry and EnergyPlus
 │   │   ├── ground.py                 # Kiva slab foundations and exposed perimeters
+│   │   ├── surfaces.py               # Base surfaces and interzone pairs
+│   │   ├── fenestration.py           # Opening placement, orientation and partners
 │   │   └── errors.py                 # Rejections reported to tool callers
 │   ├── runner/
 │   │   └── runner.py                 # run_energyplus and eplusout.err parsing
@@ -295,7 +298,7 @@ START -> intake
 ### Envelope
 | Tool | Description |
 |------|-------------|
-| `create_standard_material` / `create_no_mass_material` / `create_air_gap_material` / `create_glazing_material` | Create materials by type |
+| `create_standard_material` / `create_no_mass_material` / `create_air_gap_material` / `create_glazing_material` / `create_window_glazing_material` / `create_window_gas_material` | Create materials by type; the last two build multi-pane windows |
 | `get_material` / `update_*_material` / `delete_material` / `list_materials` | Material read, update, delete, list |
 | `create_construction` / `get_construction` / `update_construction` / `delete_construction` / `list_constructions` | Construction CRUD |
 | `create_surface` / `get_surface` / `update_surface` / `delete_surface` / `list_surfaces` | Building surface CRUD |

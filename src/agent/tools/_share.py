@@ -6,8 +6,10 @@ from collections.abc import Callable
 from typing import Any
 
 from idfpy import IDF, IDFBaseModel
+from idfpy.models.constructions import Construction
 from langchain_core.tools import BaseTool, ToolException, tool
 
+from src.modeling.envelope import ConstructionKind, construction_kind
 from src.modeling.errors import ModelingError, describe_error
 from src.modeling.objects import dumps
 
@@ -50,3 +52,20 @@ def list_tool(
     list_objects.__name__ = name
     list_objects.__doc__ = description
     return tool(list_objects)
+
+
+def list_constructions_tool(
+    idf: IDF, description: str, kinds: tuple[ConstructionKind, ...]
+) -> BaseTool:
+    """Read-only tool listing constructions of the given kinds, kind included."""
+
+    def list_constructions() -> str:
+        items = [
+            {"kind": kind, **construction.model_dump(exclude_none=True)}
+            for construction in idf.all_of_type(Construction).values()
+            if (kind := construction_kind(construction)) in kinds
+        ]
+        return ok(f"Listed {len(items)} constructions.", items)
+
+    list_constructions.__doc__ = description
+    return tool(list_constructions)
