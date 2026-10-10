@@ -14,6 +14,7 @@ from pydantic import BaseModel, Field
 from typing_extensions import TypedDict
 
 from src.agent._share import DEFAULT_OUTPUT_DIR, MAX_RETRIES
+from src.modeling.validation import ModelIssue
 from src.state.config_state import ConfigState
 
 
@@ -119,7 +120,7 @@ class AgentState(BaseModel):
     )
     intake_output: IntakeOutput | None = None
 
-    validation_errors: list[str] = Field(default_factory=list)
+    validation_errors: list[ModelIssue] = Field(default_factory=list)
     retry_count: int = 0
     max_retries: int = MAX_RETRIES
 
@@ -132,5 +133,5 @@ class AgentStateUpdate(TypedDict, total=False):
     image_paths: list[str]
     config_state: ConfigState
     intake_output: IntakeOutput | None
-    validation_errors: list[str]
+    validation_errors: list[ModelIssue]
     retry_count: int

@@ -7,6 +7,11 @@ from idfpy.models.location import SizingPeriodDesignDay
 
 from src.mcp.interface import ToolResponse
 from src.modeling.ground import use_kiva_foundations
+from src.modeling.validation import (
+    completeness_issues,
+    model_issues,
+    simulation_issues,
+)
 from src.runner.runner import run_energyplus
 from src.state.config_state import ConfigState
 from src.state.defaults import add_design_days
@@ -46,12 +51,13 @@ class WorkflowTool:
         )
 
     def validate_config(self) -> ToolResponse:
-        errors = self.state.validate_references()
-        if errors:
+        idf = self.state.idf
+        issues = model_issues(idf) + completeness_issues(idf)
+        if issues:
             return ToolResponse(
                 success=False,
-                message=f"Validation failed: {len(errors)} reference errors found.",
-                data={"errors": errors},
+                message=f"Validation failed: {len(issues)} problem(s) found.",
+                data={"errors": [asdict(issue) for issue in issues]},
             )
         return ToolResponse(
             success=True,
@@ -114,7 +120,10 @@ class WorkflowTool:
             "idf_path": str(idf_path),
             "output_dir": str(result.output_dir),
             "return_code": result.return_code,
-            "errors": [asdict(message) for message in result.errors],
+            "errors": [
+                asdict(issue)
+                for issue in simulation_issues(self.state.idf, result.messages)
+            ],
         }
         if not result.succeeded:
             return ToolResponse(

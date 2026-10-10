@@ -1,4 +1,5 @@
 import json
+import re
 import threading
 from collections import Counter
 from collections.abc import Callable, Sequence
@@ -10,6 +11,8 @@ from langchain.agents import create_agent
 from langchain.agents.middleware import (
     AgentMiddleware,
     AgentState,
+    ClearToolUsesEdit,
+    ContextEditingMiddleware,
     ModelRequest,
     ModelResponse,
     hook_config,
@@ -56,6 +59,7 @@ def create_llm(config: LLMConfig | None = None) -> BaseChatModel:
         "temperature": config.temperature,
         "max_tokens": config.max_tokens,
         "max_retries": config.max_retries,
+        "timeout": config.timeout,
     }
     if config.reasoning_max_tokens is not None:
         kwargs["extra_body"] = {
@@ -120,6 +124,16 @@ MAX_REPEATED_FAILURES: Final = 3
 MAX_CONSECUTIVE_FAILURES: Final = 10
 """Failing calls in a row, of any kind, before the run stops."""
 
+MAX_TOTAL_FAILURES: Final = 20
+"""Failing calls in all, before the run stops; catches failures between successes."""
+
+CONTEXT_TRIGGER_TOKENS: Final = 40_000
+"""Prompt size above which older tool outputs are replaced by a placeholder."""
+
+_ARGUMENT_ECHO: Final = re.compile(
+    r"^Error invoking tool '[^']+' with kwargs .*? with error:\s*", re.DOTALL
+)
+
 
 class FailureLoopGuard(AgentMiddleware):
     """Stop the agent run once tool calls keep failing.
@@ -129,12 +143,17 @@ class FailureLoopGuard(AgentMiddleware):
     without this guard the loop only ends when the LLM budget does. Every
     failure is logged, and once tripped the guard ends this and any later run
     of the same agent with a message naming the failing call.
+
+    Argument errors from LangChain repeat the whole call before the field
+    errors; the call is already in the model's own message, so the echo is cut
+    to keep every retry from resending the arguments twice.
     """
 
     def __init__(self) -> None:
         super().__init__()
         self._failures: Counter[str] = Counter()
         self._consecutive = 0
+        self._total = 0
         self.reason: str | None = None
 
     def wrap_tool_call(
@@ -148,10 +167,14 @@ class FailureLoopGuard(AgentMiddleware):
         if result.status != "error":
             self._consecutive = 0
             return result
+        result = result.model_copy(
+            update={"content": _ARGUMENT_ECHO.sub("", str(result.content))}
+        )
         call = request.tool_call
         key = f"{call['name']}({json.dumps(call['args'], sort_keys=True)})"
         self._failures[key] += 1
         self._consecutive += 1
+        self._total += 1
         logger.warning(
             "Tool {} failed ({} identical, {} in a row): {}",
             call["name"],
@@ -167,6 +190,11 @@ class FailureLoopGuard(AgentMiddleware):
         elif self._consecutive >= MAX_CONSECUTIVE_FAILURES:
             self.reason = (
                 f"{self._consecutive} tool calls failed in a row; "
+                f"last error from {call['name']}: {result.content}"
+            )
+        elif self._total >= MAX_TOTAL_FAILURES:
+            self.reason = (
+                f"{self._total} tool calls failed in this phase; "
                 f"last error from {call['name']}: {result.content}"
             )
         return result
@@ -212,6 +240,11 @@ def build_agent(
         response_format=response_format,
         middleware=[
             FailureLoopGuard(),
+            # Phase agents resend their whole history on every call; this caps
+            # what large buildings and failure streaks add to each prompt.
+            ContextEditingMiddleware(
+                edits=[ClearToolUsesEdit(trigger=CONTEXT_TRIGGER_TOKENS, keep=5)]
+            ),
             _sequential_tool_calls,
             serial_write_tools_middleware(),
             *middleware,

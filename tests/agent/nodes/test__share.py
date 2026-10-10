@@ -35,7 +35,9 @@ def _broken_config() -> ConfigState:
 def test_self_repair_invokes_with_message_dict():
     stub = _StubAgent()
 
-    invoke_with_self_repair(cast(Any, stub), ConfigState(), "specs", phase="test")
+    invoke_with_self_repair(
+        cast(Any, stub), ConfigState(), "specs", phase="construction"
+    )
 
     assert len(stub.payloads) == 1
     payload = stub.payloads[0]
@@ -88,11 +90,19 @@ def test_self_repair_exhausts_rounds_on_persistent_errors():
     stub = _StubAgent()
 
     result = invoke_with_self_repair(
-        cast(Any, stub), _broken_config(), "specs", phase="test"
+        cast(Any, stub), _broken_config(), "specs", phase="construction"
     )
 
     assert len(stub.payloads) == MAX_SELF_REPAIR_ROUNDS + 1
     feedback = stub.payloads[1]["messages"][-1]
     assert isinstance(feedback, HumanMessage)
-    assert "Cross-reference validation failed" in feedback.content
+    assert "Construction 'C1' field outside_layer" in feedback.content
     assert isinstance(result["messages"][-1], AIMessage)
+
+
+def test_self_repair_ignores_problems_owned_by_other_phases():
+    stub = _StubAgent()
+
+    invoke_with_self_repair(cast(Any, stub), _broken_config(), "specs", phase="surface")
+
+    assert len(stub.payloads) == 1

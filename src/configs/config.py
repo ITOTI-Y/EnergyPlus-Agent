@@ -63,3 +63,8 @@ class LLMConfig(BaseModel):
         ge=0,
         description="Retries the provider performs on transient API errors",
     )
+    timeout: float = Field(
+        default=120.0,
+        gt=0,
+        description="Seconds before a request is abandoned and retried",
+    )
