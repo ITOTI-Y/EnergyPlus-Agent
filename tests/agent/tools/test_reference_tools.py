@@ -5,6 +5,7 @@ from typing import Any, cast
 import pytest
 from pydantic import ValidationError
 from qdrant_client import QdrantClient
+from qdrant_client.http.exceptions import ResponseHandlingException
 
 from src.agent.tools.reference_tools import (
     compact_hit,
@@ -13,7 +14,7 @@ from src.agent.tools.reference_tools import (
 )
 from src.reference.climate import Climate
 from src.reference.index import Embedder, Hit
-from src.reference.search import ReferenceSearch
+from src.reference.search import ReferenceSearch, ReferenceSearchError
 from src.reference.settings import ReferenceSettings
 
 
@@ -114,3 +115,41 @@ def test_construction_phase_gets_layer_names_without_material_values():
     entry = compact_hit(WALL, with_material_values=False)
 
     assert entry["data"] == {"layers": ["F07 Stucco", "Wall Insulation"]}
+
+
+class FlakyQdrant(FakeQdrant):
+    """Times out on the first ``failures`` searches."""
+
+    def __init__(self, failures: int) -> None:
+        super().__init__()
+        self.failures = failures
+
+    def query_points(self, collection: str, **kwargs: Any) -> SimpleNamespace:
+        if self.failures:
+            self.failures -= 1
+            raise ResponseHandlingException(TimeoutError("timed out"))
+        return super().query_points(collection, **kwargs)
+
+
+def _search(qdrant: FakeQdrant) -> ReferenceSearch:
+    return ReferenceSearch(
+        cast(QdrantClient, qdrant),
+        "reference",
+        cast(Embedder, FakeEmbedder()),
+        Climate(5153.0, 136.0, "1A", ["1A", "2A"]),
+        qdrant_url="http://pan-office:6333",
+    )
+
+
+def test_a_failed_search_is_tried_once_more():
+    hits = _search(FlakyQdrant(failures=1)).find("roof", "material", by_climate=True)
+
+    assert [h.name for h in hits] == ["Roof Insulation"]
+
+
+def test_a_search_failing_twice_stops_the_run_with_the_reason():
+    [find] = make_reference_tools(_search(FlakyQdrant(failures=2)), ("material",))
+
+    # Raised through the tool: the run stops instead of inventing values.
+    with pytest.raises(ReferenceSearchError, match="Qdrant at http://pan-office:6333"):
+        find.invoke({"query": "roof insulation"})

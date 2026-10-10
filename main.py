@@ -5,7 +5,7 @@ from typing import Annotated, Literal
 import typer
 from dotenv import load_dotenv
 from langchain_core.runnables import RunnableConfig
-from typer import Argument, Option
+from typer import Argument, Exit, Option
 
 from src.agent import AgentState, SimContext, build_graph
 from src.agent.runner import interactive_approval, print_final_messages, run_session
@@ -166,7 +166,7 @@ def run_agent(
         user_input=user_input,
         image_paths=[str(p) for p in images],
     )
-    from src.reference.search import ReferenceSearch
+    from src.reference.search import ReferenceSearch, ReferenceSearchError
     from src.reference.settings import ReferenceSettings
 
     settings = ReferenceSettings()
@@ -175,9 +175,13 @@ def run_agent(
     context = SimContext(epw_path=epw, output_dir=output_dir, reference=reference)
     config: RunnableConfig = {"configurable": {"thread_id": thread_id}}
 
-    state = run_session(
-        graph, initial, context, config, on_interrupt=interactive_approval
-    )
+    try:
+        state = run_session(
+            graph, initial, context, config, on_interrupt=interactive_approval
+        )
+    except ReferenceSearchError as e:
+        logger.error("Run stopped: {}", e)
+        raise Exit(1) from e
     print_final_messages(state)
 
 
