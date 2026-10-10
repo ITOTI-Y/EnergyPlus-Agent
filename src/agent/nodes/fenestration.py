@@ -29,7 +29,8 @@ Workflow:
    window): call `list_surfaces` FILTERED to the zone and type you need
    (never unfiltered: large buildings have hundreds of surfaces), then
    `create_fenestration` with corners on that surface.
-4. Call `list_fenestrations` once at the end to confirm.
+The replies of the create tools are final: do not list the openings
+again at the end.
 
 Rules:
 - Construction names MUST appear verbatim in the list_constructions
