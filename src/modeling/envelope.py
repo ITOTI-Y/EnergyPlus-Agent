@@ -53,6 +53,10 @@ _GLAZED_TYPES: Final = frozenset({"Window", "GlassDoor"})
 type ConstructionKind = Literal["window", "opaque", "mixed"]
 
 MAX_LAYERS: Final = 10
+LAYER_FIELDS: Final = (
+    "outside_layer",
+    *(f"layer_{i}" for i in range(2, MAX_LAYERS + 1)),
+)
 
 type Roughness = Literal[
     "VeryRough", "Rough", "MediumRough", "MediumSmooth", "Smooth", "VerySmooth"
@@ -92,13 +96,50 @@ def layer_fields(layers: list[str]) -> dict[str, str | None]:
     if not 1 <= len(layers) <= MAX_LAYERS:
         raise ValueError(f"A construction takes 1 to {MAX_LAYERS} layers.")
     padded = [*layers, *[None] * (MAX_LAYERS - len(layers))]
-    names = ["outside_layer", *(f"layer_{i}" for i in range(2, MAX_LAYERS + 1))]
-    return dict(zip(names, padded, strict=True))
+    return dict(zip(LAYER_FIELDS, padded, strict=True))
+
+
+def layer_names(construction: Construction) -> list[str]:
+    """Material names from outside to inside."""
+    return [v for f in LAYER_FIELDS if (v := getattr(construction, f))]
 
 
 def construction_from_layers(name: str, layers: list[str]) -> Construction:
     """Construction with ``layers`` ordered from outside to inside."""
     return Construction.model_validate({"name": name, **layer_fields(layers)})
+
+
+REVERSED_SUFFIX: Final = "_Reversed"
+
+
+def reversed_construction(idf: IDF, name: str) -> str:
+    """A construction with the layers of ``name`` in reverse order.
+
+    The two faces of an interzone element list the same layers from opposite
+    sides. EnergyPlus warns when they do not, and then computes the heat
+    stored in the element with its layers the wrong way round on one side.
+    A symmetric construction is its own reverse; otherwise
+    ``<name>_Reversed`` is created when missing.
+
+    Raises:
+        ObjectNotFoundError: If the construction does not exist.
+        ValueError: If ``<name>_Reversed`` exists with other layers.
+    """
+    construction = idf.get(Construction, name)
+    if construction is None:
+        raise ObjectNotFoundError(Construction.idf_object_type(), name)
+    layers = layer_names(construction)
+    if layers == layers[::-1]:
+        return name
+    reverse = f"{name}{REVERSED_SUFFIX}"
+    existing = idf.get(Construction, reverse)
+    if existing is None:
+        idf.add(construction_from_layers(reverse, layers[::-1]))
+    elif layer_names(existing) != layers[::-1]:
+        raise ValueError(
+            f"Construction '{reverse}' exists but is not '{name}' reversed."
+        )
+    return reverse
 
 
 def layering_problem(materials: list[MaterialObject]) -> str | None:

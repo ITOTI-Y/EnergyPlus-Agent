@@ -1,43 +1,23 @@
-"""Phase agent test replayed from a recorded LLM cassette.
-
-Record with `pytest --record-mode=once` and a real LLM_API_KEY; tools run for
-real on every replay, so the assertions cover prompt -> tool call -> model.
-"""
-
-import pytest
 from idfpy.models.thermal_zones import Zone
 
-from src.agent.nodes.zone import zone_agent
-from src.agent.state import AgentState, IntakeOutput
+from src.agent.nodes.zone import zone_node
+from src.agent.state import AgentState
+from tests.agent.intake_data import intake, zone_spec
 
-pytestmark = pytest.mark.usefixtures("pinned_llm_env")
+SQUARE = [(0, 0), (5, 0), (5, 5), (0, 5)]
 
 
-@pytest.mark.vcr
-def test_zone_agent_creates_two_zones():
-    intake = IntakeOutput.model_validate(
-        {
-            "building": {"name": "Test"},
-            "site_location": {
-                "name": "Test",
-                "latitude": 22.5,
-                "longitude": 114.0,
-                "time_zone": 8.0,
-                "elevation": 10.0,
-            },
-            "zone_specs": "Create two zones: F1_Office (6x6m, ground floor) and F1_Corridor (6x2m, ground floor).",
-            "material_specs": "",
-            "schedule_specs": "",
-            "construction_specs": "",
-            "surface_specs": "",
-            "fenestration_specs": "",
-            "hvac_specs": "",
-            "people_specs": "",
-            "lights_specs": "",
-            "equipment_specs": "",
-        }
+def test_zones_come_from_the_intake_output():
+    output = intake(zones=[zone_spec("Office", SQUARE), zone_spec("Store", SQUARE)])
+
+    out = zone_node(AgentState(pending_phases=["zone"], intake_output=output))
+
+    assert set(out["config_state"].idf.all_of_type(Zone)) == {"Office", "Store"}
+
+
+def test_zone_phase_not_pending_leaves_the_model_alone():
+    output = intake(zones=[zone_spec("Office", SQUARE)])
+
+    assert (
+        zone_node(AgentState(pending_phases=["material"], intake_output=output)) == {}
     )
-    out = zone_agent(AgentState(intake_output=intake))
-    zones = out["config_state"].idf.all_of_type(Zone)
-    assert len(zones) == 2
-    assert set(zones) == {"F1_Office", "F1_Corridor"}

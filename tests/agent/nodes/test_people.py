@@ -39,6 +39,7 @@ def test_people_agent_creates_people(
     seeded.idf.add(constant_schedule("Office_Occupancy", "Fraction", 1.0))
     seeded.idf.add(constant_schedule("Office_Activity", "Activity Level", 120.0))
     state = AgentState(
+        pending_phases=["people"],
         config_state=seeded,
         user_input=(
             "Create exactly one People object named 'F1_Office_People' for "

@@ -16,15 +16,17 @@ A RAG knowledge base (Gemini Embedding + Qdrant) and SQLite data tools for stand
 ## Key Features
 
 ### Multi-phase agent (LangGraph)
-- **Intake**: one structured LLM call parses text and images into `IntakeOutput`, which carries the `Building` and `Site:Location` objects and natural-language task specs for each downstream phase.
-- **Phased construction with parallelism**: independent object types are built by separate ReAct sub-agents. Zone, material and schedule run in parallel; construction, surface and fenestration run sequentially because of their dependencies; HVAC, people, lights and equipment run in parallel again.
+- **Intake**: one structured LLM call parses text and images into `IntakeOutput`, which carries the `Building` and `Site:Location` objects, every zone as a prism (floor plan, floor level, height and the constructions of its faces), and natural-language task specs for the other phases.
+- **Phased construction with parallelism**: independent object types are built by separate ReAct sub-agents; zones and their surfaces are built in code from the intake output. Zone, material and schedule run in parallel; construction, surface and fenestration run sequentially because of their dependencies; HVAC, people, lights and equipment run in parallel again.
 - **Parallel-safe state**: a reducer (`merge_config_state`) unions the idfpy models written by concurrent phases; on a name conflict the later branch wins.
 - **Shared model operations**: agent tools and MCP tools are thin adapters over `src/modeling`, which rejects missing references and duplicate names at the call, applies updates atomically, renames references along with an object, and refuses to delete an object that others still reference. Tool arguments are typed models with declared fields, so a rejected call names the exact field (for example `vertices.0.X: Field required`).
 - **Envelope rules at the tool boundary**: constructions are checked as they are created. Opaque layers never mix with window layers, a SimpleGlazingSystem stands alone, and multi-pane glazing alternates glass and `WindowMaterial:Gas`. Each surface and opening accepts only a construction of the matching kind, and the list tools show the kind. Openings get their vertex order corrected, are rejected when off their wall, and on an interzone wall get a mirrored partner in the adjacent zone. The two faces of an interzone wall can be created in either order and are linked to each other.
-- **Zone geometry by extrusion**: `create_zone_geometry` builds a zone's walls, floor and flat roof from its floor plan, floor level and height. Faces touching another zone's faces become interzone pairs in any creation order, also for zones of different height and storeys whose plans do not line up (overlaps computed with shapely). Concave faces are cut into convex parts, and a concave zone switches solar distribution to `FullExterior`. Sloped roofs and walls go through `create_surfaces`, where each entry succeeds or fails on its own.
+- **Schedule rules at the tool boundary**: a `Schedule:Compact` is rejected unless its periods end at 12/31, every day ends at 24:00, and every period gives all twelve day types a value (weekends, holidays, design days and custom days included), through `AllDays` or blocks ending with `AllOtherDays`. EnergyPlus only warns about missing day types and runs those days without the intended values.
+- **Zone geometry by extrusion**: the surface phase, and the MCP tool `create_zone_geometry`, build a zone's walls, floor and flat roof from its floor plan, floor level and height. Faces touching another zone's faces become interzone pairs in any creation order, also for zones of different height and storeys whose plans do not line up (overlaps computed with shapely). The ceiling side, or the wall of the zone already there, gets the interior construction with its layers reversed (`<name>_Reversed`), as EnergyPlus expects of the two faces of one element. Concave faces are cut into convex parts, and a concave zone switches solar distribution to `FullExterior`. Sloped roofs and walls are left to the surface phase's LLM, which replaces flat faces through `create_surfaces`, where each entry succeeds or fails on its own.
 - **Failure-loop guard**: every phase agent stops when the same tool call fails three times or ten calls fail in a row, logs each failure, and reports the last error as the phase summary instead of retrying until the LLM budget runs out.
 - **Structured validation**: `src/modeling/validation.py` reports each problem as a `ModelIssue` tied to an object type, name and field. Sources are idfpy's reference check, geometric checks (fenestration reversed, off its parent surface's plane or outside its outline, which EnergyPlus would only warn about), empty models, phases that created nothing, and EnergyPlus Severe and Fatal messages, which are tied to the first object they quote. `src/agent/phases.py` maps object types to the phase that owns them; after its run each phase repairs the problems in its own objects, and every phase agent also receives read-only `list_*` tools to inspect what earlier phases created.
-- **Human-in-the-loop approval**: the validate node raises a LangGraph `interrupt()` with a configuration summary and any errors. Approval continues to simulation; free-text feedback loops back to intake.
+- **Partial retries**: after a pass, problems go to the phases that own them. If those phases can fix them from their unchanged task, only they and the phases depending on their objects run again, with the problems as feedback (zone -> surface -> fenestration and loads; material -> construction -> surface; schedule -> loads). Otherwise intake receives the brief, its previous output and the problems, and returns a patch of the fields to change; the phases fed by changed fields, the phases owning the problems, and their dependants run again. Before a pass, the objects of the phases about to run are removed; the other phases keep their objects and are not prompted. Intake revises at most twice before a human reviews the model, and EnergyPlus Severe errors after approval go through the same loop.
+- **Human-in-the-loop approval**: the validate node raises a LangGraph `interrupt()` with a configuration summary and any errors. Approval continues to simulation; free-text feedback goes to intake as a correction and is handled like a revision.
 - **Multimodal input**: PNG, JPEG, WebP and GIF drawings are passed to the intake LLM as base64 image parts alongside the text brief.
 - **Tool-call tracing**: `TraceCollector` wraps every tool call in the ReAct subgraphs and records name, arguments, result and success flag per phase, intended as fine-tuning data. A script also exports full LangSmith run trees to local JSON.
 - **Provider-agnostic LLM**: `src/configs/llm.yaml` selects provider, model, temperature and token budget; Anthropic and OpenAI integrations are bundled. `AGENT_LANGUAGE` switches the narrative language of all agent output while EnergyPlus identifiers stay ASCII.
@@ -66,7 +68,7 @@ EnergyPlus-Agent/
 │   │   ├── llm.py                    # create_llm() from src/configs/llm.yaml
 │   │   ├── trace.py                  # TraceCollector and per-phase trace registry
 │   │   ├── _share.py                 # AGENT_LANGUAGE directive, constants
-│   │   ├── nodes/                    # intake, zone, material, schedule, construction,
+│   │   ├── nodes/                    # intake, plan_rerun, zone, material, schedule, construction,
 │   │   │                             # surface, fenestration, hvac, people, lights, equipment,
 │   │   │                             # cross_ref, validate, simulate
 │   │   └── tools/                    # make_*_tools() closures over src/modeling
@@ -258,9 +260,9 @@ docker compose up -d    # builds on nrel/energyplus:25.1.0 and serves the MCP se
 ## Agent Architecture
 
 ```
-START -> intake
-           |
-     +-----+-----+          phase 1, parallel
+START -> intake -> plan_rerun        (removes the objects of the phases about to run)
+                       |
+     +-----+-----+          phase 1, parallel; phases not pending return at once
      v     v     v
    zone material schedule
      |     |     |
@@ -278,12 +280,14 @@ START -> intake
                                      v
                              cross_ref_complete
                                      v
-                                 validate --[interrupt]--> approved -> simulate -> END
-                                     |
-                                     +-- rejected / feedback -> intake
+                                 validate --[phases can fix it]--> plan_rerun
+                                     |----[needs new specs, <= 2]--> intake
+                                     +--[interrupt]--> approved -> simulate -> END
+                                                    |                 +--[Severe]--> validate
+                                                    +-- feedback -> intake
 ```
 
-- **State**: `AgentState` holds the message list (intake conversation and phase summaries only), the user brief, image paths, `ConfigState`, `IntakeOutput`, validation errors and a retry counter.
+- **State**: `AgentState` holds the message list (intake conversation and phase summaries only), the user brief, image paths, `ConfigState`, `IntakeOutput`, validation errors, problems found while building in code, the phases pending in this pass with their feedback, and the retry counters. `plan_rerun` writes the model with LangGraph's `Overwrite`, since the parallel-branch reducer is a union and would bring removed objects back.
 - **Phase agents**: each phase is a compiled ReAct subgraph with `parallel_tool_calls=False`, working on a local copy of `ConfigState` and returning only its delta. Tool-call history stays inside the subgraph and is captured by `TraceCollector`.
 - **Checkpointing**: `InMemorySaver` with a pickle serializer, so the idfpy model survives the interrupt round-trip.
 - **Runtime context**: `SimContext` carries the EPW path and output directory; `RunnableConfig` carries the `thread_id`.
@@ -372,8 +376,8 @@ uv run pytest
 - FastMCP server with full CRUD, workflow tools, resources, multi-transport support, CLI and Docker
 - Async RAG pipeline with rate limiting, retry, incremental sync and typed results
 - SQLite data tools for materials, constructions, schedules and design days
-- LangGraph multi-phase agent: structured intake, parallel phase sub-agents, parallel-safe state merge, phase-scoped self-repair, human-in-the-loop approval, simulation
-- Multimodal intake (text + drawings) and box-recipe zone geometry
+- LangGraph multi-phase agent: structured intake, parallel phase sub-agents, parallel-safe state merge, phase-scoped self-repair, partial reruns and intake patches, human-in-the-loop approval, simulation
+- Multimodal intake (text + drawings) with zone prisms extruded and paired in code
 - Tool-call trace collection and LangSmith trace export
 
 ### Planned

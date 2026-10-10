@@ -1,6 +1,8 @@
 """Which phase owns which object types, so problems reach the phase that can fix them."""
 
-from typing import Final, Literal
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Final, Literal
 
 from idfpy import IDF, IDFBaseModel
 from idfpy.models.constructions import Construction
@@ -16,9 +18,11 @@ from idfpy.models.thermal_zones import (
     Zone,
 )
 
-from src.agent.state import IntakeOutput
 from src.modeling.envelope import MATERIAL_TYPES
 from src.modeling.validation import ModelIssue
+
+if TYPE_CHECKING:
+    from src.agent.state import IntakeOutput
 
 type Phase = Literal[
     "zone",
@@ -48,6 +52,20 @@ PHASE_TYPES: Final[dict[Phase, tuple[type[IDFBaseModel], ...]]] = {
 
 FOUNDATION_PHASES: Final[tuple[Phase, ...]] = ("zone", "material", "schedule")
 
+DEPENDS_ON: Final[dict[Phase, tuple[Phase, ...]]] = {
+    "zone": (),
+    "material": (),
+    "schedule": (),
+    "construction": ("material",),
+    "surface": ("zone", "construction"),
+    "fenestration": ("surface", "construction"),
+    "hvac": ("zone", "schedule"),
+    "people": ("zone", "schedule"),
+    "lights": ("zone", "schedule"),
+    "equipment": ("zone", "schedule"),
+}
+"""Phases whose objects a phase references; keys are in dependency order."""
+
 _OWNERS: Final[dict[str, Phase]] = {
     object_type.idf_object_type(): phase
     for phase, object_types in PHASE_TYPES.items()
@@ -72,8 +90,9 @@ def missing_output_issues(
     issues = []
     for phase in phases:
         object_types = PHASE_TYPES[phase]
-        specs: str = getattr(intake, f"{phase}_specs")
-        if specs.strip() and not any(idf.all_of_type(t) for t in object_types):
+        if has_task(intake, phase) and not any(
+            idf.all_of_type(t) for t in object_types
+        ):
             issues.append(
                 ModelIssue(
                     object_types[0].idf_object_type(),
@@ -84,3 +103,41 @@ def missing_output_issues(
                 )
             )
     return issues
+
+
+def rerun_closure(phases: set[Phase]) -> set[Phase]:
+    """The given phases and every phase that references their objects."""
+    closure = set(phases)
+    for phase, upstream in DEPENDS_ON.items():  # dependency order
+        if closure.intersection(upstream):
+            closure.add(phase)
+    return closure
+
+
+def remove_phase_objects(idf: IDF, phases: set[Phase]) -> list[str]:
+    """Delete every object the given phases own, dependants first.
+
+    ``phases`` must be closed under ``rerun_closure``, so no object left in
+    the model references a removed one.
+
+    Returns:
+        Labels of the removed objects.
+    """
+    removed = []
+    for phase in reversed(DEPENDS_ON):
+        if phase not in phases:
+            continue
+        for object_type in PHASE_TYPES[phase]:
+            for name in list(idf.all_of_type(object_type)):
+                idf.remove(object_type, name)
+                removed.append(f"{object_type.idf_object_type()} '{name}'")
+    return removed
+
+
+def has_task(intake: IntakeOutput, phase: Phase) -> bool:
+    """Whether the intake output asks the phase to build anything."""
+    if phase in ("zone", "surface"):
+        # Surfaces come from the zone prisms; surface_specs only adds to them.
+        return bool(intake.zones)
+    specs: str = getattr(intake, f"{phase}_specs")
+    return bool(specs.strip())

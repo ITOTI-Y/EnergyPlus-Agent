@@ -2,7 +2,12 @@ from langchain_core.messages import AIMessage
 from pydantic import BaseModel, Field
 
 from src.agent.llm import build_agent
-from src.agent.nodes._share import invoke_with_self_repair, last_message_text
+from src.agent.nodes._share import (
+    invoke_with_self_repair,
+    last_message_text,
+    skipped,
+    with_feedback,
+)
 from src.agent.state import AgentState, AgentStateUpdate
 from src.agent.tools import make_construction_tools
 from src.agent.trace import TraceCollector, record_phase_trace, trace_middleware
@@ -25,10 +30,14 @@ Rules:
   the list_materials result (exact case, underscores, dashes, numbers).
 - If a needed material is missing from list_materials, STOP and report
   the gap; do NOT invent names or call create with a broken reference.
-- Each Construction is an ordered list of layers from OUTSIDE to INSIDE.
-- Use separate constructions per surface type when thermal properties differ
-  (e.g., 'ExtWall_Office', 'IntWall_Office', 'Roof_Office', 'Floor_Office',
-  'Window_Office').
+- Use the construction names the specification gives, verbatim: zones and
+  openings reference them. Only for constructions it does not name, use
+  separate ones per surface type when thermal properties differ (e.g.,
+  'ExtWall_Office', 'IntWall_Office', 'Roof_Office', 'Window_Office').
+- Each Construction is an ordered list of layers from OUTSIDE to INSIDE. An
+  interior floor lists its layers from the ceiling below up to the floor
+  above. Do NOT create reversed copies of interior constructions; the face
+  in the adjacent zone gets one automatically.
 - Opaque constructions (walls, roofs, floors, ceilings, doors) use only
   opaque materials; Material:AirGap is allowed there.
 - Window constructions are either a single simplified glazing material, or
@@ -50,6 +59,8 @@ class ConstructionResponse(BaseModel):
 
 
 def construction_agent(state: AgentState) -> AgentStateUpdate:
+    if skipped(state, "construction"):
+        return AgentStateUpdate()
     local = state.config_state.model_copy(deep=True)
     tools = make_construction_tools(local)
     collector = TraceCollector(phase="construction")
@@ -66,7 +77,9 @@ def construction_agent(state: AgentState) -> AgentStateUpdate:
         if state.intake_output
         else state.user_input
     )
-    result = invoke_with_self_repair(agent, local, specs, phase="construction")
+    result = invoke_with_self_repair(
+        agent, local, with_feedback(specs, state, "construction"), phase="construction"
+    )
 
     response: ConstructionResponse | None = result.get("structured_response")
     summary = response.summary if response else last_message_text(result)

@@ -2,7 +2,7 @@ from langchain_core.messages import AIMessage, HumanMessage
 from pydantic import BaseModel, Field
 
 from src.agent.llm import build_agent
-from src.agent.nodes._share import last_message_text
+from src.agent.nodes._share import last_message_text, skipped, with_feedback
 from src.agent.state import AgentState, AgentStateUpdate
 from src.agent.tools import make_material_tools
 from src.agent.trace import TraceCollector, record_phase_trace, trace_middleware
@@ -26,8 +26,10 @@ Choose the correct material type:
     the gap between panes (Air / Argon / Krypton / Xenon, thickness in m).
 
 Rules:
-- Material names must be unique and self-describing (e.g., 'Brick_100mm',
-  'EPS_Insulation_R5', 'Window_U1.8_SHGC0.4').
+- Use the material names the specification gives, verbatim; constructions
+  reference them. Name other materials uniquely and self-describing with
+  letters, digits and '_' only (e.g., 'Brick_100mm', 'EPS_Insulation_R5',
+  'Window_U1p8_SHGC0p4').
 - Roughness options: VeryRough, Rough, MediumRough, MediumSmooth, Smooth, VerySmooth.
 - Use typical ASHRAE values when the description is vague.
 - Call list_materials once at the end to verify.
@@ -42,6 +44,8 @@ class MaterialResponse(BaseModel):
 
 
 def material_agent(state: AgentState) -> AgentStateUpdate:
+    if skipped(state, "material"):
+        return AgentStateUpdate()
     local = state.config_state.model_copy(deep=True)
     tools = make_material_tools(local)
     collector = TraceCollector(phase="material")
@@ -56,7 +60,9 @@ def material_agent(state: AgentState) -> AgentStateUpdate:
     specs = (
         state.intake_output.material_specs if state.intake_output else state.user_input
     )
-    result = agent.invoke({"messages": [HumanMessage(content=specs)]})
+    result = agent.invoke(
+        {"messages": [HumanMessage(content=with_feedback(specs, state, "material"))]}
+    )
 
     response: MaterialResponse | None = result.get("structured_response")
     summary = response.summary if response else last_message_text(result)

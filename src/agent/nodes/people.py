@@ -2,7 +2,12 @@ from langchain_core.messages import AIMessage
 from pydantic import BaseModel, Field
 
 from src.agent.llm import build_agent
-from src.agent.nodes._share import invoke_with_self_repair, last_message_text
+from src.agent.nodes._share import (
+    invoke_with_self_repair,
+    last_message_text,
+    skipped,
+    with_feedback,
+)
 from src.agent.state import AgentState, AgentStateUpdate
 from src.agent.tools import make_people_tools
 from src.agent.trace import TraceCollector, record_phase_trace, trace_middleware
@@ -21,7 +26,7 @@ Rules:
 - `zone_name`, `number_of_people_schedule_name`, `activity_level_schedule_name`
   MUST all appear verbatim in the list_zones / list_schedules results.
 - If a needed zone or schedule is missing, STOP and report; do NOT invent names.
-- name convention: '{zone}_People'.
+- Use the names the specification gives; otherwise '{zone}_People'.
 - Choose number_of_people_calculation_method based on input:
     * 'People' -> supply number_of_people (absolute count)
     * 'People/Area' -> supply people_per_floor_area (people/m^2)
@@ -39,6 +44,8 @@ class PeopleResponse(BaseModel):
 
 
 def people_agent(state: AgentState) -> AgentStateUpdate:
+    if skipped(state, "people"):
+        return AgentStateUpdate()
     local = state.config_state.model_copy(deep=True)
     tools = make_people_tools(local)
     collector = TraceCollector(phase="people")
@@ -53,7 +60,9 @@ def people_agent(state: AgentState) -> AgentStateUpdate:
     specs = (
         state.intake_output.people_specs if state.intake_output else state.user_input
     )
-    result = invoke_with_self_repair(agent, local, specs, phase="people")
+    result = invoke_with_self_repair(
+        agent, local, with_feedback(specs, state, "people"), phase="people"
+    )
 
     response: PeopleResponse | None = result.get("structured_response")
     summary = response.summary if response else last_message_text(result)

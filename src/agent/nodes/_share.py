@@ -6,7 +6,7 @@ nodes-internal — no other part of the agent package uses these.
 
 from __future__ import annotations
 
-from typing import Any, Final
+from typing import TYPE_CHECKING, Any, Final
 
 from langchain_core.messages import AIMessage, AnyMessage, HumanMessage
 from langgraph.graph.state import CompiledStateGraph
@@ -17,6 +17,9 @@ from src.agent.phases import Phase, owner
 from src.modeling.validation import model_issues
 from src.state.config_state import ConfigState
 
+if TYPE_CHECKING:
+    from src.agent.state import AgentState
+
 MAX_SELF_REPAIR_ROUNDS: Final = 2
 """Max extra invokes per phase for cross-ref self-repair.
 
@@ -24,6 +27,24 @@ Two rounds is enough for the LLM to see its own error feedback and
 react; repeated failures beyond that point usually mean the intake
 specs are broken, which the outer validate loop handles better.
 """
+
+
+def skipped(state: AgentState, phase: Phase) -> bool:
+    """Whether the phase sits out this pass; its objects stay as they are."""
+    return phase not in state.pending_phases
+
+
+def with_feedback(specs: str, state: AgentState, phase: Phase) -> str:
+    """The phase task, plus the problems its objects had in the previous pass."""
+    problems = state.phase_feedback.get(phase)
+    if not problems:
+        return specs
+    listed = "\n".join(f"  - {p}" for p in problems)
+    return (
+        f"{specs}\n\nThe objects this phase built in the previous attempt had "
+        f"these problems, and were removed. Build them again without them:\n"
+        f"{listed}"
+    )
 
 
 def last_message_text(result: dict[str, Any]) -> str:
@@ -93,9 +114,9 @@ def invoke_with_self_repair(
             content=(
                 "Validation found problems in the objects you created:\n"
                 + "\n".join(f"  - {e}" for e in errors)
-                + "\n\nFix the objects YOU just created: use `update_<x>` to "
-                "rename references, or `delete_<x>` + `create_<x>` to "
-                "rebuild. If the broken reference names an upstream "
+                + "\n\nFix the objects YOU just created: `delete_<x>` the "
+                "broken object, then `create_<x>` it again. If the broken "
+                "reference names an upstream "
                 "resource (zone / schedule / material / construction / "
                 "surface) that truly does not exist, report it in your "
                 "final message and do NOT fabricate a replacement — "

@@ -33,7 +33,7 @@ def make_people_tools(config: ConfigState) -> list[BaseTool]:
             name: Unique people object name.
             zone_name: Existing Zone name this load applies to.
             number_of_people_schedule_name: Existing Schedule:Compact (Fraction).
-            activity_level_schedule_name: Existing Schedule:Compact (Activity Level, W/person).
+            activity_level_schedule_name: Existing Schedule:Compact (ActivityLevel limits, W/person).
             number_of_people_calculation_method: People / People/Area / Area/Person.
             number_of_people: Absolute count (use when method=People).
             people_per_floor_area: people/m^2 (use when method=People/Area).

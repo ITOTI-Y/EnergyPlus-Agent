@@ -30,6 +30,7 @@ def test_lights_agent_creates_lights(
     seeded.idf.add(fraction_limits)
     seeded.idf.add(constant_schedule("Office_Lighting", "Fraction", 1.0))
     state = AgentState(
+        pending_phases=["lights"],
         config_state=seeded,
         user_input=(
             "Create exactly one Lights object named 'F1_Office_Lights' for "

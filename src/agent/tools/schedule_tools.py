@@ -55,8 +55,10 @@ def make_schedule_tools(config: ConfigState) -> list[BaseTool]:
         Args:
             name: Unique schedule name.
             schedule_type_limits_name: Existing ScheduleTypeLimits name.
-            data: Periods in date order; the last "Through" is "12/31" and
-                every day's last "Until" time is "24:00". Example (weekdays
+            data: Periods in date order; the last "Through" is "12/31",
+                every day's last "Until" time is "24:00", and every period
+                gives all day types a value (AllDays, or blocks ending with
+                AllOtherDays, which cannot come first). Example (weekdays
                 8-18 at 1.0, else 0.0):
                   [{"Through": "12/31", "Days": [
                      {"For": "Weekdays", "Times": [

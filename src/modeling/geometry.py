@@ -14,6 +14,7 @@ from typing import Final, Literal
 
 from idfpy import IDF
 from idfpy.ext.geometry.functions import polygon_normal
+from idfpy.models.constructions import Construction
 from idfpy.models.simulation import Building
 from idfpy.models.thermal_zones import BuildingSurfaceDetailed, Zone
 from pydantic import BaseModel, ConfigDict, Field
@@ -22,7 +23,7 @@ from shapely.geometry import LineString
 from shapely.geometry.polygon import orient
 
 from src.modeling import objects
-from src.modeling.envelope import check_construction_fits
+from src.modeling.envelope import check_construction_fits, reversed_construction
 from src.modeling.errors import ModelingError, ReferencedObjectError
 from src.modeling.surfaces import add_surface
 
@@ -369,6 +370,95 @@ def _solar_note(idf: IDF) -> str | None:
     return None
 
 
+def _plan(
+    idf: IDF,
+    zone_name: str,
+    z0: float,
+    constructions: ZoneConstructions,
+    faces: list[_Face],
+    replaced: list[BuildingSurfaceDetailed],
+    left: dict[str, tuple[_Plane, Polygon]],
+    names: _Names,
+) -> list[_Planned]:
+    """Surfaces replacing the split ones, and the faces of the new zone.
+
+    Creates the reversed interior constructions the pairs need.
+    """
+    planned: list[_Planned] = []
+    for surface in replaced:
+        plane, shape = left[surface.name]
+        pieces = _polygons(shape)
+        for name, piece in zip(
+            names.take(surface.name, len(pieces)), pieces, strict=True
+        ):
+            planned.append(
+                _Planned(
+                    name,
+                    surface.surface_type,
+                    surface.zone_name,
+                    surface.construction_name,
+                    surface.outside_boundary_condition,
+                    plane.lift(piece, facing=-1),
+                )
+            )
+    for face in faces:
+        own_type, boundary, construction = _own_side(
+            face.surface_type, z0, constructions
+        )
+        pieces = _polygons(face.remainder)
+        base = f"{zone_name}_{face.role}"
+        for name, piece in zip(names.take(base, len(pieces)), pieces, strict=True):
+            planned.append(
+                _Planned(
+                    name,
+                    own_type,
+                    zone_name,
+                    construction,
+                    boundary,
+                    face.plane.lift(piece, facing=1),
+                )
+            )
+        for overlap, other in face.pairs:
+            ours = names.take(f"{base}_To_{other.zone_name}", 1)[0]
+            theirs = names.take(f"{other.name}_To_{zone_name}", 1)[0]
+            shared = (
+                constructions.interior_wall
+                if face.surface_type == "Wall"
+                else constructions.interior_floor
+            )
+            # The floor, or the wall of the zone being extruded, takes the
+            # construction as given; the ceiling or the other wall its reverse.
+            reverse = reversed_construction(idf, shared)
+            ours_type = "Ceiling" if face.surface_type == "Roof" else face.surface_type
+            ours_construction, theirs_construction = (
+                (reverse, shared) if ours_type == "Ceiling" else (shared, reverse)
+            )
+            planned.append(
+                _Planned(
+                    ours,
+                    ours_type,
+                    zone_name,
+                    ours_construction,
+                    "Surface",
+                    face.plane.lift(overlap, facing=1),
+                    theirs,
+                )
+            )
+            planned.append(
+                _Planned(
+                    theirs,
+                    "Ceiling" if other.surface_type == "Roof" else other.surface_type,
+                    other.zone_name,
+                    theirs_construction,
+                    "Surface",
+                    face.plane.lift(overlap, facing=-1),
+                    ours,
+                )
+            )
+
+    return planned
+
+
 def create_zone_geometry(
     idf: IDF,
     zone_name: str,
@@ -382,7 +472,8 @@ def create_zone_geometry(
     Where a face lies on a face of another zone facing it, the overlap
     becomes an interzone pair: walls with the interior wall construction;
     floors and ceilings with the interior floor construction, a roof under
-    the overlap turning into a ceiling. Elsewhere walls are outdoors, the
+    the overlap turning into a ceiling. The ceiling, or the wall of the
+    zone already there, gets the construction with its layers reversed. Elsewhere walls are outdoors, the
     floor is on the ground at z <= 0 and outdoors above it, and the top is
     a flat roof.
 
@@ -432,72 +523,14 @@ def create_zone_geometry(
             )
 
     names = _Names(idf, {s.name for s in replaced})
-    planned: list[_Planned] = []
-    for surface in replaced:
-        plane, shape = left[surface.name]
-        pieces = _polygons(shape)
-        for name, piece in zip(
-            names.take(surface.name, len(pieces)), pieces, strict=True
-        ):
-            planned.append(
-                _Planned(
-                    name,
-                    surface.surface_type,
-                    surface.zone_name,
-                    surface.construction_name,
-                    surface.outside_boundary_condition,
-                    plane.lift(piece, facing=-1),
-                )
-            )
-    for face in faces:
-        own_type, boundary, construction = _own_side(
-            face.surface_type, z0, constructions
-        )
-        pieces = _polygons(face.remainder)
-        base = f"{zone_name}_{face.role}"
-        for name, piece in zip(names.take(base, len(pieces)), pieces, strict=True):
-            planned.append(
-                _Planned(
-                    name,
-                    own_type,
-                    zone_name,
-                    construction,
-                    boundary,
-                    face.plane.lift(piece, facing=1),
-                )
-            )
-        for overlap, other in face.pairs:
-            ours = names.take(f"{base}_To_{other.zone_name}", 1)[0]
-            theirs = names.take(f"{other.name}_To_{zone_name}", 1)[0]
-            shared = (
-                constructions.interior_wall
-                if face.surface_type == "Wall"
-                else constructions.interior_floor
-            )
-            planned.append(
-                _Planned(
-                    ours,
-                    "Ceiling" if face.surface_type == "Roof" else face.surface_type,
-                    zone_name,
-                    shared,
-                    "Surface",
-                    face.plane.lift(overlap, facing=1),
-                    theirs,
-                )
-            )
-            planned.append(
-                _Planned(
-                    theirs,
-                    "Ceiling" if other.surface_type == "Roof" else other.surface_type,
-                    other.zone_name,
-                    shared,
-                    "Surface",
-                    face.plane.lift(overlap, facing=-1),
-                    ours,
-                )
-            )
-
-    _apply(idf, replaced, planned)
+    constructions_before = set(idf.all_of_type(Construction))
+    try:
+        planned = _plan(idf, zone_name, z0, constructions, faces, replaced, left, names)
+        _apply(idf, replaced, planned)
+    except (ModelingError, ValueError):
+        for name in set(idf.all_of_type(Construction)) - constructions_before:
+            idf.remove(Construction, name)
+        raise
     result = ZoneGeometryResult(
         created=[p.name for p in planned], replaced=[s.name for s in replaced]
     )
