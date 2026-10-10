@@ -7,6 +7,7 @@ from idfpy import IDF
 from idfpy.models import (
     Construction,
     FenestrationSurfaceDetailed,
+    Material,
     WindowMaterialGas,
     WindowMaterialGlazing,
 )
@@ -147,13 +148,18 @@ def test_rejected_pair_update_changes_neither_face():
         idf,
         _opening("Win", "Window", "Zone_East_Wall_South", SOUTH_WINDOW, "Window_Const"),
     )
-    idf.add(Construction(name="Heavy_Door", outside_layer="Concrete_20cm"))
+    idf.add(
+        Construction(
+            name="Heavy_Door", outside_layer="Concrete_20cm", layer_2="Gypsum_1.3cm"
+        )
+    )
     before = (door.construction_name, partner.construction_name)
 
     with pytest.raises(DuplicateNameError):
         update_fenestration(idf, "Door", new_name="Win", construction_name="Heavy_Door")
 
     assert (door.construction_name, partner.construction_name) == before
+    assert "Heavy_Door_Reversed" not in idf.all_of_type(Construction)
 
 
 @pytest.mark.skipif(shutil.which("energyplus") is None, reason="EnergyPlus not on PATH")
@@ -195,3 +201,71 @@ def test_triple_glazing_and_paired_door_simulate(tmp_path):
     )
 
     assert result.succeeded, result.errors
+
+
+def _steel_door_model() -> IDF:
+    """The two-zone model with a door construction whose layers differ."""
+    idf = _model()
+    idf.add(
+        Material(
+            name="Steel",
+            roughness="Smooth",
+            thickness=0.002,
+            conductivity=45.0,
+            density=7800.0,
+            specific_heat=500.0,
+        )
+    )
+    idf.add(
+        Material(
+            name="Foam",
+            roughness="Rough",
+            thickness=0.04,
+            conductivity=0.03,
+            density=30.0,
+            specific_heat=1400.0,
+        )
+    )
+    idf.add(Construction(name="SteelDoor", outside_layer="Steel", layer_2="Foam"))
+    return idf
+
+
+def test_interzone_partner_takes_the_construction_reversed():
+    idf = _steel_door_model()
+    door = _door()
+    door.construction_name = "SteelDoor"
+
+    _, partner = add_fenestration(idf, door)[0]
+
+    assert partner.construction_name == "SteelDoor_Reversed"
+    reverse = idf.all_of_type(Construction)["SteelDoor_Reversed"]
+    assert (reverse.outside_layer, reverse.layer_2) == ("Foam", "Steel")
+
+
+def test_construction_change_reaches_the_partner_reversed():
+    idf = _steel_door_model()
+    add_fenestration(idf, _door())
+
+    door, partner = update_fenestration(idf, "Door", construction_name="SteelDoor")
+
+    assert door.construction_name == "SteelDoor"
+    assert partner.construction_name == "SteelDoor_Reversed"
+
+
+@pytest.mark.skipif(shutil.which("energyplus") is None, reason="EnergyPlus not on PATH")
+def test_asymmetric_paired_door_simulates_without_a_layer_order_warning(tmp_path):
+    idf = _steel_door_model()
+    door = _door()
+    door.construction_name = "SteelDoor"
+    add_fenestration(idf, door)
+    add_design_days(idf, DATA / "weather" / "Shenzhen.ddy")
+    idf.save(tmp_path / "in.idf")
+
+    result = run_energyplus(
+        tmp_path / "in.idf", DATA / "weather" / "Shenzhen.epw", tmp_path
+    )
+
+    assert result.succeeded, result.errors
+    # Without the reversed partner: "does not have the same materials in the
+    # reverse order as the construction ... of adjacent surface".
+    assert not [m for m in result.messages if "reverse order" in m.text]
