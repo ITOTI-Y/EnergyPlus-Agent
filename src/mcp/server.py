@@ -9,7 +9,6 @@ from src.mcp.api import (
     register_schedule_tools,
     register_workflow_tools,
 )
-from src.mcp.state import ConfigState
 from src.mcp.tools import (
     BuildingTool,
     ConstructionTool,
@@ -26,6 +25,7 @@ from src.mcp.tools import (
     WorkflowTool,
     ZoneTool,
 )
+from src.state.config_state import ConfigState
 
 
 def create_mcp_server() -> FastMCP:

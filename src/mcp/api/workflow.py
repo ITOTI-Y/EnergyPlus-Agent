@@ -4,7 +4,7 @@ from src.mcp.tools import WorkflowTool
 
 
 def register_workflow_tools(mcp: FastMCP, workflow_tool: WorkflowTool) -> None:
-    """Register workflow tools (export, load, validate, simulate) with the MCP server.
+    """Register workflow tools (model export/load, validate, simulate) with the MCP server.
 
     Args:
         mcp: FastMCP server instance.
@@ -12,40 +12,30 @@ def register_workflow_tools(mcp: FastMCP, workflow_tool: WorkflowTool) -> None:
     """
 
     @mcp.tool
-    def export_yaml(output_path: str = "./output/yaml/output.yaml") -> dict:
-        """Export the current configuration to a YAML file.
+    def export_model(output_path: str = "./output/model/output.epJSON") -> dict:
+        """Export the current model to an IDF or epJSON file.
 
         Args:
-            output_path: File path for the output YAML file.
+            output_path: Output file; the suffix (.idf or .epJSON) selects
+                the format.
 
         Returns:
             MCP response with the exported file path.
         """
-        return workflow_tool.export_yaml(output_path).to_mcp_response()
+        return workflow_tool.export_model(output_path).to_mcp_response()
 
     @mcp.tool
-    def export_idf(output_path: str = "./output/idf/output.idf") -> dict:
-        """Export the current in-memory IDF model to an IDF file.
+    def load_model(input_path: str = "data/schemas/building_schema.epJSON") -> dict:
+        """Replace the current model with an IDF or epJSON file.
 
         Args:
-            output_path: File path for the output IDF file.
+            input_path: Model file; the suffix (.idf or .epJSON) selects
+                the format.
 
         Returns:
-            MCP response with the exported IDF path.
+            MCP response with the configuration summary after loading.
         """
-        return workflow_tool.export_idf(output_path).to_mcp_response()
-
-    @mcp.tool
-    def load_yaml(input_path: str = "data/schemas/building_schema.yaml") -> dict:
-        """Load a YAML configuration file into the current state.
-
-        Args:
-            input_path: Path to the YAML file to load.
-
-        Returns:
-            MCP response with configuration summary after loading.
-        """
-        return workflow_tool.load_yaml(input_path).to_mcp_response()
+        return workflow_tool.load_model(input_path).to_mcp_response()
 
     @mcp.tool
     def validate_config() -> dict:
@@ -64,7 +54,8 @@ def register_workflow_tools(mcp: FastMCP, workflow_tool: WorkflowTool) -> None:
         """Run an EnergyPlus simulation with the current configuration.
 
         Args:
-            epw_path: Path to the EPW weather data file.
+            epw_path: Path to the EPW weather data file; design days are read
+                from the .ddy file with the same stem when the model has none.
             output_dir: Directory for simulation output files.
 
         Returns:

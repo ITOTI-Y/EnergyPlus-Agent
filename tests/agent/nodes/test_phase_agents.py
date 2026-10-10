@@ -35,7 +35,7 @@ from src.agent.nodes.people import people_agent
 from src.agent.nodes.schedule import schedule_agent
 from src.agent.nodes.surface import surface_agent
 from src.agent.state import AgentState
-from src.mcp.state import ConfigState
+from src.state.config_state import ConfigState
 
 pytestmark = pytest.mark.usefixtures("pinned_llm_env")
 

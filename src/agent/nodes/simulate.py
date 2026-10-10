@@ -1,49 +1,39 @@
+from typing import Final
+
+from idfpy.models.outputs import OutputVariable
 from langchain_core.messages import AIMessage
 from langgraph.runtime import Runtime
 
 from src.agent.state import AgentState, AgentStateUpdate, SimContext
-from src.mcp.state import ConfigState
 from src.mcp.tools.workflow import WorkflowTool
-from src.validator import OutputVariableSchema
+from src.state.config_state import ConfigState
 
-# Default Output:Variable set. Without at least one entry, EnergyPlus
-# runs the full RunPeriod but `eplusout.eso` stays 0 bytes — nothing is
-# recorded. Applied only when `config.output_variable` is empty; users
-# / LLM can override by populating it themselves.
-_DEFAULT_OUTPUT_VARIABLES: tuple[tuple[str, str, str], ...] = (
-    ("*", "Zone Mean Air Temperature", "Hourly"),
-    ("*", "Zone Air Relative Humidity", "Hourly"),
-    ("*", "Zone Ideal Loads Supply Air Total Heating Energy", "Hourly"),
-    ("*", "Zone Ideal Loads Supply Air Total Cooling Energy", "Hourly"),
-    ("*", "Zone Lights Electricity Energy", "Hourly"),
-    ("*", "Zone People Total Heating Energy", "Hourly"),
-    ("", "Facility Total HVAC Electricity Demand Rate", "Hourly"),
+# Without at least one Output:Variable, EnergyPlus runs the full RunPeriod
+# but `eplusout.eso` stays 0 bytes. Applied only when the model has none.
+_DEFAULT_OUTPUT_VARIABLES: Final = (
+    ("*", "Zone Mean Air Temperature"),
+    ("*", "Zone Air Relative Humidity"),
+    ("*", "Zone Ideal Loads Supply Air Total Heating Energy"),
+    ("*", "Zone Ideal Loads Supply Air Total Cooling Energy"),
+    ("*", "Zone Lights Electricity Energy"),
+    ("*", "Zone People Total Heating Energy"),
+    ("", "Facility Total HVAC Electricity Demand Rate"),
 )
 
 
 def _ensure_default_output_variables(config: ConfigState) -> None:
-    """Populate `config.output_variable` with office-default monitoring set
-    if the user / LLM has not specified any."""
-    if config.output_variable:
+    if config.idf.all_of_type(OutputVariable):
         return
-    for key, name, freq in _DEFAULT_OUTPUT_VARIABLES:
-        config.output_variable.append(
-            OutputVariableSchema.model_validate(
-                {
-                    "Key Value": key,
-                    "Variable Name": name,
-                    "Reporting Frequency": freq,
-                }
+    for key, name in _DEFAULT_OUTPUT_VARIABLES:
+        config.idf.add(
+            OutputVariable(
+                key_value=key, variable_name=name, reporting_frequency="Hourly"
             )
         )
 
 
 def simulate_node(state: AgentState, runtime: Runtime[SimContext]) -> AgentStateUpdate:
-    """Export YAML -> IDF and run EnergyPlus.
-
-    `WorkflowTool.run_simulation` does the full pipeline:
-    validate -> export YAML -> convert to IDF -> run eplus.
-    """
+    """Run EnergyPlus on a copy of the model through `WorkflowTool`."""
     ctx = runtime.context
 
     config = state.config_state.model_copy(deep=True)

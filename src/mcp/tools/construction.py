@@ -6,8 +6,8 @@ from idfpy.models.thermal_zones import (
     FenestrationSurfaceDetailed,
 )
 
-from src.mcp.state import ConfigState
 from src.mcp.tools.base import BaseTool, normalize_payload
+from src.state.config_state import ConfigState
 
 _LAYER_FIELDS = [
     "outside_layer",

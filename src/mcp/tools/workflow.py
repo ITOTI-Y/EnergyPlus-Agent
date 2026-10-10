@@ -3,9 +3,12 @@ from dataclasses import asdict
 from pathlib import Path
 from uuid import uuid4
 
+from idfpy.models.location import SizingPeriodDesignDay
+
 from src.mcp.interface import ToolResponse
-from src.mcp.state import ConfigState
 from src.runner.runner import run_energyplus
+from src.state.config_state import ConfigState
+from src.state.defaults import add_design_days
 from src.utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -17,46 +20,29 @@ class WorkflowTool:
     def __init__(self, state: ConfigState):
         self.state = state
 
-    def export_yaml(self, output_path: str) -> ToolResponse:
+    def export_model(self, output_path: str) -> ToolResponse:
         try:
-            path = Path(output_path)
-            self.state.export_yaml(path)
-            return ToolResponse(
-                success=True,
-                message=f"Exported YAML-like IDF snapshot to {path}",
-                data={"path": str(path.absolute())},
-            )
-        except Exception as e:
-            logger.exception("Error exporting YAML")
-            return ToolResponse(success=False, message=f"Error exporting YAML: {e!s}")
+            path = self.state.save_model(Path(output_path))
+        except (OSError, ValueError) as e:
+            logger.exception("Error exporting model")
+            return ToolResponse(success=False, message=f"Error exporting model: {e!s}")
+        return ToolResponse(
+            success=True,
+            message=f"Exported model to {path}",
+            data={"path": str(path.absolute())},
+        )
 
-    def export_idf(self, output_path: str = "./output/idf/output.idf") -> ToolResponse:
+    def load_model(self, input_path: str) -> ToolResponse:
         try:
-            path = self.state.save_idf(output_path)
-            return ToolResponse(
-                success=True,
-                message=f"Exported IDF to {path}",
-                data={"path": str(path.absolute())},
-            )
-        except Exception as e:
-            logger.exception("Error exporting IDF")
-            return ToolResponse(success=False, message=f"Error exporting IDF: {e!s}")
-
-    def load_yaml(self, yaml_path: str) -> ToolResponse:
-        try:
-            path = Path(yaml_path)
-            staged = ConfigState.load_yaml(path)
-            self.state.update_from(staged)
-            self.state.load_yaml_into_idf(path)
-            summary = self.state.get_summary()
-            return ToolResponse(
-                success=True,
-                message=f"Loaded YAML directly into IDF from {path}",
-                data={"summary": summary.model_dump()},
-            )
-        except Exception as e:
-            logger.exception("Error loading YAML")
-            return ToolResponse(success=False, message=f"Error loading YAML: {e!s}")
+            self.state.load_model(Path(input_path))
+        except (OSError, ValueError) as e:
+            logger.exception("Error loading model")
+            return ToolResponse(success=False, message=f"Error loading model: {e!s}")
+        return ToolResponse(
+            success=True,
+            message=f"Loaded model from {input_path}",
+            data={"summary": self.state.get_summary().model_dump()},
+        )
 
     def validate_config(self) -> ToolResponse:
         errors = self.state.validate_references()
@@ -77,11 +63,13 @@ class WorkflowTool:
     ) -> ToolResponse:
         """Run an EnergyPlus simulation with the current configuration.
 
-        Validates references, writes the IDF into a fresh run directory under
-        ``output_dir`` and runs EnergyPlus there.
+        Validates references, adds the annual design days from the ``.ddy``
+        file next to the EPW when the model has none, writes the IDF into a
+        fresh run directory under ``output_dir`` and runs EnergyPlus there.
 
         Args:
-            epw_path: Path to the EPW weather data file.
+            epw_path: Path to the EPW weather data file; ``<stem>.ddy`` must
+                sit beside it unless the model already has design days.
             output_dir: Parent directory for per-run output directories.
 
         Returns:
@@ -96,13 +84,22 @@ class WorkflowTool:
                 data=validation.data,
             )
 
+        epw = Path(epw_path)
+        if not self.state.idf.all_of_type(SizingPeriodDesignDay):
+            try:
+                add_design_days(self.state.idf, epw.with_suffix(".ddy"))
+            except (FileNotFoundError, LookupError) as e:
+                return ToolResponse(
+                    success=False, message=f"Cannot add design days: {e!s}"
+                )
+
         run_dir = (
             Path(output_dir) / f"run_{time.strftime('%Y%m%d_%H%M%S')}_{uuid4().hex[:8]}"
         )
         run_dir.mkdir(parents=True)
-        idf_path = self.state.save_idf(run_dir / "in.idf")
+        idf_path = self.state.save_model(run_dir / "in.idf")
         try:
-            result = run_energyplus(idf_path, Path(epw_path), run_dir)
+            result = run_energyplus(idf_path, epw, run_dir)
         except (FileNotFoundError, TimeoutError) as e:
             logger.exception("EnergyPlus run failed")
             return ToolResponse(success=False, message=f"EnergyPlus run failed: {e!s}")

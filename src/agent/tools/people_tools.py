@@ -6,7 +6,7 @@ from idfpy.models.schedules import ScheduleCompact
 from idfpy.models.thermal_zones import Zone
 from langchain_core.tools import BaseTool, tool
 
-from src.mcp.state import ConfigState, missing_references
+from src.state.config_state import ConfigState, missing_references
 
 
 def _ok(msg: str, data=None) -> str:
