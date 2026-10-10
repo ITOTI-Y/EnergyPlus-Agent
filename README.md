@@ -16,9 +16,11 @@ A RAG knowledge base (Gemini Embedding + Qdrant) and SQLite data tools for stand
 ## Key Features
 
 ### Multi-phase agent (LangGraph)
-- **Intake**: one structured LLM call parses text and images into `IntakeOutput`, which carries the `Building` and `Site:Location` objects, natural-language task specs for each downstream phase, and per-zone axis-aligned box geometry hints (`ZoneGeometry`).
+- **Intake**: one structured LLM call parses text and images into `IntakeOutput`, which carries the `Building` and `Site:Location` objects and natural-language task specs for each downstream phase.
 - **Phased construction with parallelism**: independent object types are built by separate ReAct sub-agents. Zone, material and schedule run in parallel; construction, surface and fenestration run sequentially because of their dependencies; HVAC, people and lights run in parallel again.
 - **Parallel-safe state**: a reducer (`merge_config_state`) unions the idfpy models written by concurrent phases; on a name conflict the later branch wins.
+- **Shared model operations**: agent tools and MCP tools are thin adapters over `src/modeling`, which rejects missing references and duplicate names at the call, applies updates atomically, renames references along with an object, and refuses to delete an object that others still reference. Tool arguments are typed models with declared fields, so a rejected call names the exact field (for example `vertices.0.X: Field required`).
+- **Failure-loop guard**: every phase agent stops when the same tool call fails three times or ten calls fail in a row, logs each failure, and reports the last error as the phase summary instead of retrying until the LLM budget runs out.
 - **Cross-reference self-repair**: after each phase group, `ConfigState.validate_references()` checks that every referenced zone, material, construction, surface and schedule exists. Each phase agent also receives read-only `list_*` tools so it can inspect what earlier phases created.
 - **Human-in-the-loop approval**: the validate node raises a LangGraph `interrupt()` with a configuration summary and any errors. Approval continues to simulation; free-text feedback loops back to intake.
 - **Multimodal input**: PNG, JPEG, WebP and GIF drawings are passed to the intake LLM as base64 image parts alongside the text brief.
@@ -27,7 +29,7 @@ A RAG knowledge base (Gemini Embedding + Qdrant) and SQLite data tools for stand
 
 ### MCP server
 - **FastMCP framework** with `stdio`, `http`, `sse` and `streamable-http` transports.
-- **Full CRUD tool set** for Building, Location, Zone, Surface, Material, Construction, Fenestration, Schedule, HVAC, People and Lights.
+- **Full CRUD tool set** for Building, Location, Zone, Surface, Material, Construction, Fenestration, Schedule, HVAC, People and Lights; update tools take an optional `new_name` that is applied to every reference.
 - **Workflow tools** for model export and load (IDF or epJSON), cross-reference validation, simulation and summary.
 - **Resource endpoints** exposing the current configuration and its summary.
 
@@ -54,7 +56,7 @@ EnergyPlus-Agent/
 ├── src/
 │   ├── agent/                        # LangGraph multi-phase agent
 │   │   ├── graph.py                  # build_graph(): topology + in-memory checkpointer
-│   │   ├── state.py                  # AgentState, IntakeOutput, ZoneGeometry, SimContext, merge_config_state
+│   │   ├── state.py                  # AgentState, IntakeOutput, SimContext, merge_config_state
 │   │   ├── react.py                  # 3-node ReAct subgraph (llm -> tools -> llm)
 │   │   ├── runner.py                 # run_session(), interactive_approval(), auto_approval()
 │   │   ├── llm.py                    # create_llm() from src/configs/llm.yaml
@@ -63,10 +65,10 @@ EnergyPlus-Agent/
 │   │   ├── nodes/                    # intake, zone, material, schedule, construction,
 │   │   │                             # surface, fenestration, hvac, people, lights,
 │   │   │                             # cross_ref, validate, simulate
-│   │   └── tools/                    # make_*_tools() closures wrapping the MCP Tool classes
+│   │   └── tools/                    # make_*_tools() closures over src/modeling
 │   ├── mcp/                          # MCP server
 │   │   ├── server.py                 # FastMCP entry point
-│   │   ├── interface.py              # Tool interfaces and response models
+│   │   ├── interface.py              # ToolResponse
 │   │   ├── api/                      # Tool registration grouped by domain
 │   │   │   ├── core.py               # Building, Location, Zone
 │   │   │   ├── envelope.py           # Material, Construction, Surface, Fenestration
@@ -75,13 +77,17 @@ EnergyPlus-Agent/
 │   │   │   ├── loads.py              # People, Lights
 │   │   │   ├── workflow.py           # model export/load, validate, simulate, summary, clear
 │   │   │   ├── resources.py          # config://current, config://summary
-│   │   │   └── common.py             # Shared helpers
-│   │   └── tools/                    # Tool implementations (one class per object type)
+│   │   │   └── common.py             # model_tool(): (message, data) -> MCP response
+│   │   └── tools/workflow.py         # WorkflowTool: model I/O, validation, simulation
 │   ├── state/
 │   │   ├── config_state.py           # ConfigState (idfpy model, save/load, summary, cross-ref validation)
 │   │   └── defaults.py               # Default objects and design-day import
-│   ├── validator/
-│   │   └── data_model.py             # ScheduleCompactSchema for nested schedule input
+│   ├── modeling/                     # Model operations shared by agent and MCP tools
+│   │   ├── objects.py                # create / get / update / delete with reference checks
+│   │   ├── envelope.py               # Materials, layers, vertex input
+│   │   ├── schedules.py              # Nested Through/For/Until input -> Schedule:Compact
+│   │   ├── hvac.py                   # Ideal loads systems keyed by zone
+│   │   └── errors.py                 # Rejections reported to tool callers
 │   ├── runner/
 │   │   └── runner.py                 # run_energyplus and eplusout.err parsing
 │   ├── rag/                          # RAG pipeline (rag.py, embedding.py, vector.py, chunk.py)
@@ -270,7 +276,6 @@ START -> intake
 
 - **State**: `AgentState` holds the message list (intake conversation and phase summaries only), the user brief, image paths, `ConfigState`, `IntakeOutput`, validation errors and a retry counter.
 - **Phase agents**: each phase is a compiled ReAct subgraph with `parallel_tool_calls=False`, working on a local copy of `ConfigState` and returning only its delta. Tool-call history stays inside the subgraph and is captured by `TraceCollector`.
-- **Geometry**: the surface phase builds a canonical six-surface box for each zone from `ZoneGeometry` (origin, width, depth, height, exterior wall faces, floor and roof boundary conditions).
 - **Checkpointing**: `InMemorySaver` with a pickle serializer, so the idfpy model survives the interrupt round-trip.
 - **Runtime context**: `SimContext` carries the EPW path and output directory; `RunnableConfig` carries the `thread_id`.
 

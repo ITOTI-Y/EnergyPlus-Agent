@@ -1,6 +1,13 @@
 import os
+from collections.abc import Callable
 
 import pytest
+from idfpy.models.constructions import Material
+from idfpy.models.schedules import (
+    ScheduleCompact,
+    ScheduleCompactDataItem,
+    ScheduleTypeLimits,
+)
 
 RECORDED_BASE_URL = "https://one.chat-yu.net/v1"
 RECORDED_MODEL = "opencode/glm-5.2"
@@ -26,3 +33,42 @@ def pinned_llm_env(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("LLM_BASE_URL", RECORDED_BASE_URL)
     monkeypatch.setenv("LLM_MODEL", RECORDED_MODEL)
     monkeypatch.setenv("LLM_API_KEY", os.environ.get("LLM_API_KEY", "test-key"))
+
+
+@pytest.fixture
+def brick() -> Material:
+    return Material(
+        name="Brick_100mm",
+        roughness="MediumRough",
+        thickness=0.1,
+        conductivity=0.89,
+        density=1920.0,
+        specific_heat=790.0,
+    )
+
+
+@pytest.fixture
+def constant_schedule() -> Callable[[str, str, float], ScheduleCompact]:
+    def build(name: str, type_limits: str, value: float) -> ScheduleCompact:
+        return ScheduleCompact(
+            name=name,
+            schedule_type_limits_name=type_limits,
+            data=[
+                ScheduleCompactDataItem(field="Through: 12/31"),
+                ScheduleCompactDataItem(field="For: AllDays"),
+                ScheduleCompactDataItem(field="Until: 24:00"),
+                ScheduleCompactDataItem(field=str(value)),
+            ],
+        )
+
+    return build
+
+
+@pytest.fixture
+def fraction_limits() -> ScheduleTypeLimits:
+    return ScheduleTypeLimits(
+        name="Fraction",
+        lower_limit_value=0.0,
+        upper_limit_value=1.0,
+        numeric_type="Continuous",
+    )

@@ -12,10 +12,3 @@ class ToolResponse(BaseModel):
 
     def to_mcp_response(self) -> dict:
         return {"result": self.model_dump()}
-
-
-class SchemaValidationError(BaseModel):
-    """Represents a single field-level validation error."""
-
-    field: str = Field(..., description="The field that caused the validation error.")
-    message: str = Field(..., description="The message from the validation error.")
