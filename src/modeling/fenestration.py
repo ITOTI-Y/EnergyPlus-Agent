@@ -10,13 +10,14 @@ from collections.abc import Sequence
 from typing import Final
 
 from idfpy import IDF
+from idfpy.models.constructions import Construction
 from idfpy.models.thermal_zones import (
     BuildingSurfaceDetailed,
     FenestrationSurfaceDetailed,
 )
 
 from src.modeling import objects
-from src.modeling.envelope import check_construction_fits
+from src.modeling.envelope import check_construction_fits, reversed_construction
 from src.modeling.errors import (
     DuplicateNameError,
     ModelingError,
@@ -101,7 +102,9 @@ def add_fenestration(
 
     An opening in a wall whose outside boundary is another surface gets a
     mirrored partner in that surface, the two naming each other, as
-    EnergyPlus requires. Both are added or neither.
+    EnergyPlus requires. The partner takes the construction reversed, as
+    its layers are seen from the other side (EnergyPlus warns otherwise).
+    Both are added or neither.
 
     Returns:
         The created openings and whether the vertex order was reversed.
@@ -141,11 +144,19 @@ def add_fenestration(
         raise ValueError(f"Fenestration '{partner.name}': {problem}")
     if idf.has(FenestrationSurfaceDetailed, partner.name):
         raise DuplicateNameError(partner.idf_object_type(), partner.name)
-    created = objects.create(idf, fenestration)
+    constructions_before = set(idf.all_of_type(Construction))
+    partner.construction_name = reversed_construction(
+        idf, fenestration.construction_name
+    )
+    created = None
     try:
+        created = objects.create(idf, fenestration)
         objects.create(idf, partner)
     except (ModelingError, ValueError):
-        idf.remove(FenestrationSurfaceDetailed, created.name)
+        if created is not None:
+            idf.remove(FenestrationSurfaceDetailed, created.name)
+        if partner.construction_name not in constructions_before:
+            idf.remove(Construction, partner.construction_name)
         raise
     created.outside_boundary_condition_object = partner.name
     return [created, partner], flipped
@@ -189,9 +200,9 @@ def update_fenestration(
 ) -> list[FenestrationSurfaceDetailed]:
     """Rename an opening or change its construction or multiplier.
 
-    The construction and multiplier go to the interzone partner as well, so
-    both faces of the opening stay alike; a new name is also applied to the
-    partner's reference. Geometry and parent changes go through
+    The multiplier goes to the interzone partner as well, and the
+    construction reversed, so both faces of the opening stay alike; a new
+    name is also applied to the partner's reference. Geometry and parent changes go through
     ``remove_fenestration`` and ``add_fenestration``.
 
     Returns:
@@ -218,7 +229,12 @@ def update_fenestration(
     }
     updated = [opening]
     if partner is not None and partner.outside_boundary_condition_object == name:
-        objects.update(idf, partner, shared)
+        partner_changes = dict(shared)
+        if construction_name is not None:
+            partner_changes["construction_name"] = reversed_construction(
+                idf, construction_name
+            )
+        objects.update(idf, partner, partner_changes)
         updated.append(partner)
     rename = {} if new_name is None else {"name": new_name}
     objects.update(idf, opening, shared | rename)
