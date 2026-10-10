@@ -8,7 +8,11 @@ from langchain_core.tools import BaseTool
 
 from src.agent.tools._share import list_tool, model_tool, ok
 from src.modeling import objects
-from src.modeling.hvac import check_zone_free, find_ideal_loads
+from src.modeling.hvac import (
+    check_setpoints_free,
+    check_zone_free,
+    find_ideal_loads,
+)
 from src.state.config_state import ConfigState
 
 
@@ -27,7 +31,13 @@ def make_hvac_tools(config: ConfigState) -> list[BaseTool]:
             name: Unique thermostat name.
             heating_setpoint_schedule_name: Existing Schedule:Compact for heating setpoints (C).
             cooling_setpoint_schedule_name: Existing Schedule:Compact for cooling setpoints (C).
+
+        A pair of setpoint schedules has one thermostat: a second one for the
+        same pair is refused, naming the existing one to use.
         """
+        check_setpoints_free(
+            idf, heating_setpoint_schedule_name, cooling_setpoint_schedule_name
+        )
         thermostat = objects.create(
             idf,
             HVACTemplateThermostat(
