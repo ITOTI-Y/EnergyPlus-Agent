@@ -42,8 +42,9 @@ def simulate_node(state: AgentState, runtime: Runtime[SimContext]) -> SimulateCo
     """Run EnergyPlus on a copy of the model through `WorkflowTool`.
 
     Severe and Fatal messages go back to validate as problems tied to the
-    objects they name; a run that cannot start ends the graph with the
-    reason.
+    objects they name, and so does a failed exit without such messages, as
+    a problem of the whole model; a run that cannot start ends the graph
+    with the reason.
     """
     ctx = runtime.context
 
@@ -61,6 +62,19 @@ def simulate_node(state: AgentState, runtime: Runtime[SimContext]) -> SimulateCo
     if response.success:
         message += f" idf={data.get('idf_path')}"
     issues = [ModelIssue(**e) for e in data.get("errors", [])]
+    if not response.success and not issues and "return_code" in data:
+        # EnergyPlus ran but failed without a Severe or Fatal message: still
+        # a problem to fix, not a finished run.
+        issues = [
+            ModelIssue(
+                None,
+                None,
+                None,
+                f"EnergyPlus exited with code {data['return_code']} without "
+                f"Severe or Fatal messages; see {data.get('output_dir')}"
+                "/eplusout.err.",
+            )
+        ]
     if issues:
         return SimulateCommand(
             goto="validate",
