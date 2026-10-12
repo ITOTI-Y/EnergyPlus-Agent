@@ -99,9 +99,10 @@ class WorkflowTool:
         run_dir = (
             Path(output_dir) / f"run_{time.strftime('%Y%m%d_%H%M%S')}_{uuid4().hex[:8]}"
         )
-        run_dir.mkdir(parents=True)
-        idf_path = self.state.save_idf(run_dir / "in.idf")
+
         try:
+            run_dir.mkdir(parents=True)
+            idf_path = self.state.save_idf(run_dir / "in.idf")
             result = run_energyplus(idf_path, Path(epw_path), run_dir)
         except (FileNotFoundError, TimeoutError) as e:
             logger.exception("EnergyPlus run failed")

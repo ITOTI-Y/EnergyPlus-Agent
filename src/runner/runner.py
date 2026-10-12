@@ -1,6 +1,9 @@
 """Run EnergyPlus as a subprocess and collect its eplusout.err diagnostics."""
 
+import contextlib
+import os
 import shutil
+import signal
 import subprocess
 import threading
 from collections import Counter
@@ -80,6 +83,12 @@ def _log_output(stream: IO[str]) -> None:
         logger.info("[EnergyPlus] {}", line.rstrip())
 
 
+def _kill_process_group(process: subprocess.Popen[str]) -> None:
+    with contextlib.suppress(ProcessLookupError):
+        os.killpg(process.pid, signal.SIGKILL)
+    process.wait()
+
+
 def run_energyplus(
     idf_path: Path,
     epw_path: Path,
@@ -123,29 +132,29 @@ def run_energyplus(
         str(idf_path),
     ]
     logger.info("Running EnergyPlus: {}", " ".join(cmd))
-    # ExpandObjects writes intermediate files into the working directory;
-    # concurrent runs sharing one cwd abort, so each run uses its own output dir.
     process = subprocess.Popen(
         cmd,
         cwd=output_dir,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True,
+        start_new_session=True,
     )
-    # stdout=PIPE guarantees a stream; Popen types it as optional.
     stdout = cast(IO[str], process.stdout)
     reader = threading.Thread(target=_log_output, args=(stdout,), daemon=True)
     reader.start()
     try:
         return_code = process.wait(timeout=timeout_s)
     except subprocess.TimeoutExpired as exc:
-        process.kill()
-        process.wait()
+        _kill_process_group(process)
         raise TimeoutError(
             f"EnergyPlus exceeded {timeout_s:g} s for {idf_path}"
         ) from exc
+    except BaseException:
+        _kill_process_group(process)
+        raise
     finally:
-        reader.join()
+        reader.join(timeout=5)
 
     err_path = output_dir / "eplusout.err"
     if not err_path.exists():

@@ -55,8 +55,7 @@ class LLMConfig(BaseModel):
     reasoning_max_tokens: int | None = Field(
         default=None,
         gt=0,
-        description="Thinking budget, sent as OpenRouter's reasoning.max_tokens; "
-        "None sends none",
+        description="Thinking budget, sent as reasoning.max_tokens; None sends none",
     )
     max_retries: int = Field(
         default=2,
