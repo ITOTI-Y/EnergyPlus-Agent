@@ -21,16 +21,22 @@ def _config(**overrides) -> LLMConfig:
     return LLMConfig.model_validate({**defaults, **overrides})
 
 
-def test_create_llm_sets_default_thinking_budget():
+def test_create_llm_sends_no_thinking_budget_without_one():
     llm = create_llm(_config())
     assert isinstance(llm, ChatOpenAI)
-    assert llm.extra_body == {"max_thinking_budget": 4096}
+    assert llm.extra_body is None
 
 
-def test_create_llm_respects_configured_thinking_budget():
-    llm = create_llm(_config(max_thinking_budget=8192))
+def test_create_llm_sends_the_thinking_budget_as_reasoning_max_tokens():
+    llm = create_llm(_config(reasoning_max_tokens=8192))
     assert isinstance(llm, ChatOpenAI)
-    assert llm.extra_body == {"max_thinking_budget": 8192}
+    assert llm.extra_body == {"reasoning": {"max_tokens": 8192}}
+
+
+def test_create_llm_passes_configured_retries():
+    llm = create_llm(_config(max_retries=5))
+    assert isinstance(llm, ChatOpenAI)
+    assert llm.max_retries == 5
 
 
 def _request(tool_name: str) -> ToolCallRequest:

@@ -18,13 +18,12 @@ from src.converters import (
     ZoneConverter,
 )
 from src.utils.logging import get_logger
-from src.validator.data_model import BaseSchema
 
 
 class ConverterManager:
     def __init__(self, file_to_convert: Path):
         self.logger = get_logger(__name__)
-        self._idf = BaseSchema.get_idf()
+        self._idf = IDF()
         self.yaml_data: dict = self._load_yaml(file_to_convert)
         self.converters = {
             "settings": SettingsConverter(self._idf),

@@ -5,7 +5,6 @@ from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 
-from src.agent._share import ensure_schema_initialized
 from src.agent.nodes import (
     construction_agent,
     cross_ref_complete_node,
@@ -64,8 +63,6 @@ def build_graph() -> CompiledStateGraph[AgentState, SimContext, AgentState, Agen
           -> (approved) simulate -> END
           -> (rejected) intake (loop)
     """
-    ensure_schema_initialized()
-
     builder = StateGraph(AgentState, context_schema=SimContext)
 
     builder.add_node("intake", intake_node)

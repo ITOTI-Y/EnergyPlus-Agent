@@ -2,8 +2,6 @@ import os
 from pathlib import Path
 from typing import Final
 
-from src.validator import BaseSchema
-
 MAX_RETRIES: Final[int] = 0
 
 DEFAULT_OUTPUT_DIR: Final[Path] = Path("output")
@@ -54,15 +52,3 @@ def language_directive() -> str:
         "Those identifiers are read by the EnergyPlus IDF parser, not by\n"
         "humans — never translate or transliterate them.\n"
     )
-
-
-_SCHEMA_INITIALIZED = False
-
-
-def ensure_schema_initialized() -> None:
-    """Initialize a blank idfpy IDF in BaseSchema once per process."""
-    global _SCHEMA_INITIALIZED
-    if _SCHEMA_INITIALIZED:
-        return
-    BaseSchema.set_idf()
-    _SCHEMA_INITIALIZED = True
