@@ -81,7 +81,7 @@ EnergyPlus-Agent/
 │   ├── validator/
 │   │   └── data_model.py             # 31 Pydantic schema classes
 │   ├── runner/
-│   │   └── runner.py                 # EnergyPlusRunner
+│   │   └── runner.py                 # run_energyplus and eplusout.err parsing
 │   ├── rag/                          # RAG pipeline (rag.py, embedding.py, vector.py, chunk.py)
 │   ├── database/datatools/           # SQLite data tools
 │   ├── configs/
