@@ -3,12 +3,12 @@ from dataclasses import asdict
 from pathlib import Path
 from uuid import uuid4
 
-from idfpy.models.location import SizingPeriodDesignDay
+from idfpy.models import OutputVariable, SizingPeriodDesignDay
 
 from src.mcp.interface import ToolResponse
 from src.runner.runner import run_energyplus
 from src.state.config_state import ConfigState
-from src.state.defaults import add_design_days
+from src.state.defaults import add_design_days, add_output_variables
 from src.utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -63,9 +63,13 @@ class WorkflowTool:
     ) -> ToolResponse:
         """Run an EnergyPlus simulation with the current configuration.
 
-        Validates references, adds the annual design days from the ``.ddy``
-        file next to the EPW when the model has none, writes the IDF into a
-        fresh run directory under ``output_dir`` and runs EnergyPlus there.
+        Validates references, then prepares a copy of the model for the run:
+        adds the annual design days from the ``.ddy`` file next to the EPW
+        when the model has none and hourly default output variables when it
+        has no ``Output:Variable``. The copy is written into a fresh run
+        directory under ``output_dir`` and EnergyPlus runs there; the model
+        being edited is left as it was, so a later run with another EPW gets
+        that file's design days.
 
         Args:
             epw_path: Path to the EPW weather data file; ``<stem>.ddy`` must
@@ -85,13 +89,16 @@ class WorkflowTool:
             )
 
         epw = Path(epw_path)
-        if not self.state.idf.all_of_type(SizingPeriodDesignDay):
+        model = self.state.model_copy(deep=True)
+        if not model.idf.all_of_type(SizingPeriodDesignDay):
             try:
-                add_design_days(self.state.idf, epw.with_suffix(".ddy"))
-            except (FileNotFoundError, LookupError) as e:
+                add_design_days(model.idf, epw.with_suffix(".ddy"))
+            except (FileNotFoundError, ValueError, LookupError) as e:
                 return ToolResponse(
                     success=False, message=f"Cannot add design days: {e!s}"
                 )
+        if not model.idf.all_of_type(OutputVariable):
+            add_output_variables(model.idf)
 
         run_dir = (
             Path(output_dir) / f"run_{time.strftime('%Y%m%d_%H%M%S')}_{uuid4().hex[:8]}"
@@ -99,7 +106,7 @@ class WorkflowTool:
 
         try:
             run_dir.mkdir(parents=True)
-            idf_path = self.state.save_model(run_dir / "in.idf")
+            idf_path = model.save_model(run_dir / "in.idf")
             result = run_energyplus(idf_path, epw, run_dir)
         except (FileNotFoundError, TimeoutError) as e:
             logger.exception("EnergyPlus run failed")
