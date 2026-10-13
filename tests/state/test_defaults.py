@@ -2,10 +2,15 @@ from pathlib import Path
 
 import pytest
 from idfpy import IDF
-from idfpy.models.location import SizingPeriodDesignDay
-from idfpy.models.simulation import SimulationControl, Timestep, Version
+from idfpy.models import (
+    OutputVariable,
+    SimulationControl,
+    SizingPeriodDesignDay,
+    Timestep,
+    Version,
+)
 
-from src.state.defaults import add_design_days, new_model
+from src.state.defaults import add_design_days, add_output_variables, new_model
 
 SHENZHEN_DDY = Path(__file__).parents[2] / "data" / "weather" / "Shenzhen.ddy"
 
@@ -43,3 +48,14 @@ def test_add_design_days_requires_both_conditions(tmp_path):
 
     with pytest.raises(LookupError, match="Clg"):
         add_design_days(new_model(), ddy)
+
+
+def test_add_output_variables_adds_hourly_zone_and_facility_outputs():
+    idf = new_model()
+
+    add_output_variables(idf)
+
+    variables = list(idf.all_of_type(OutputVariable).values())
+    assert len(variables) == 7
+    assert {v.reporting_frequency for v in variables} == {"Hourly"}
+    assert "Zone Mean Air Temperature" in {v.variable_name for v in variables}
