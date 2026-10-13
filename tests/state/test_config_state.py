@@ -1,8 +1,13 @@
 import pytest
-from idfpy.models.internal_gains import Lights, People
-from idfpy.models.schedules import ScheduleCompact, ScheduleCompactDataItem
-from idfpy.models.simulation import Version
-from idfpy.models.thermal_zones import FenestrationSurfaceDetailed, Zone
+from idfpy.models import (
+    FenestrationSurfaceDetailed,
+    Lights,
+    People,
+    ScheduleCompact,
+    ScheduleCompactDataItem,
+    Version,
+    Zone,
+)
 
 from src.state.config_state import ConfigState
 

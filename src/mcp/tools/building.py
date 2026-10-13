@@ -1,6 +1,6 @@
 from typing import Any
 
-from idfpy.models.simulation import Building
+from idfpy.models import Building
 
 from src.mcp.tools.base import BaseTool, normalize_payload
 from src.state.config_state import ConfigState
@@ -26,7 +26,7 @@ class BuildingTool(BaseTool):
         payload.setdefault("solar_distribution", "FullExterior")
         payload.setdefault("maximum_number_of_warmup_days", 25)
         payload.setdefault("minimum_number_of_warmup_days", 1)
-        return Building(**payload)
+        return Building.model_validate(payload)
 
     def _get_name(self, instance: Building) -> str:
         if instance.name is None:

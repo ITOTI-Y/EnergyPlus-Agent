@@ -1,9 +1,7 @@
 import json
 from typing import Literal
 
-from idfpy.models.internal_gains import People
-from idfpy.models.schedules import ScheduleCompact
-from idfpy.models.thermal_zones import Zone
+from idfpy.models import People, ScheduleCompact, Zone
 from langchain_core.tools import BaseTool, tool
 
 from src.state.config_state import ConfigState, missing_references

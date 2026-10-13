@@ -1,6 +1,6 @@
 from typing import Any
 
-from idfpy.models.constructions import (
+from idfpy.models import (
     Construction,
     Material,
     MaterialAirGap,

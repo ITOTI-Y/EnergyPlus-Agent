@@ -1,7 +1,10 @@
 from typing import Any
 
-from idfpy.models.hvac_templates import HVACTemplateZoneIdealLoadsAirSystem
-from idfpy.models.thermal_zones import BuildingSurfaceDetailed, Zone
+from idfpy.models import (
+    BuildingSurfaceDetailed,
+    HVACTemplateZoneIdealLoadsAirSystem,
+    Zone,
+)
 
 from src.mcp.tools.base import BaseTool, normalize_payload
 from src.state.config_state import ConfigState

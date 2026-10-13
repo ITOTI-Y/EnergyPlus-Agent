@@ -1,7 +1,10 @@
 import json
 
-from idfpy.models.hvac_templates import HVACTemplateZoneIdealLoadsAirSystem
-from idfpy.models.thermal_zones import BuildingSurfaceDetailed, Zone
+from idfpy.models import (
+    BuildingSurfaceDetailed,
+    HVACTemplateZoneIdealLoadsAirSystem,
+    Zone,
+)
 from langchain_core.tools import BaseTool, tool
 
 from src.state.config_state import ConfigState

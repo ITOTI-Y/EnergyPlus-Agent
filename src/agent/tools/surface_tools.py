@@ -1,10 +1,10 @@
 import json
 from typing import Literal
 
-from idfpy.models.constructions import Construction
-from idfpy.models.thermal_zones import (
+from idfpy.models import (
     BuildingSurfaceDetailed,
     BuildingSurfaceDetailedVerticesItem,
+    Construction,
     FenestrationSurfaceDetailed,
     Zone,
 )
