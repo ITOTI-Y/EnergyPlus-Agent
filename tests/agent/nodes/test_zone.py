@@ -1,4 +1,4 @@
-from idfpy.models.thermal_zones import Zone
+from idfpy.models import Zone
 
 from src.agent.nodes.zone import zone_agent
 from src.agent.state import AgentState, IntakeOutput

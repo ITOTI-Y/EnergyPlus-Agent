@@ -2,9 +2,9 @@ import json
 from typing import Final
 
 from idfpy.idf import IDF
-from idfpy.models._base import IDFBaseModel
-from idfpy.models.constructions import (
+from idfpy.models import (
     Construction,
+    IDFBaseModel,
     Material,
     MaterialAirGap,
     MaterialNoMass,

@@ -1,8 +1,8 @@
 from typing import Any
 
-from idfpy.models.constructions import Construction
-from idfpy.models.thermal_zones import (
+from idfpy.models import (
     BuildingSurfaceDetailed,
+    Construction,
     FenestrationSurfaceDetailed,
 )
 

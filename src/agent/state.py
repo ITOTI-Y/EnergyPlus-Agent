@@ -6,8 +6,7 @@ from pathlib import Path
 from typing import Annotated, Any
 
 from idfpy import IDF
-from idfpy.models.location import SiteLocation
-from idfpy.models.simulation import Building
+from idfpy.models import Building, SiteLocation
 from langchain_core.messages import AnyMessage
 from langgraph.graph.message import add_messages
 from pydantic import BaseModel, Field

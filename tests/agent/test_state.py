@@ -1,6 +1,4 @@
-from idfpy.models.constructions import Material
-from idfpy.models.outputs import OutputVariable
-from idfpy.models.thermal_zones import Zone
+from idfpy.models import Material, OutputVariable, Zone
 
 from src.agent import build_graph
 from src.agent.state import merge_config_state

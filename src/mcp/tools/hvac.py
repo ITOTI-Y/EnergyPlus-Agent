@@ -1,6 +1,6 @@
 from typing import Any
 
-from idfpy.models.hvac_templates import (
+from idfpy.models import (
     HVACTemplateThermostat,
     HVACTemplateZoneIdealLoadsAirSystem,
 )

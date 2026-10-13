@@ -7,22 +7,19 @@ every run, so the assertions cover prompt -> tool call -> IDF mutation.
 
 import pytest
 from idfpy import IDF
-from idfpy.models.constructions import (
+from idfpy.models import (
+    BuildingSurfaceDetailed,
+    BuildingSurfaceDetailedVerticesItem,
     Construction,
+    FenestrationSurfaceDetailed,
+    HVACTemplateZoneIdealLoadsAirSystem,
+    Lights,
     Material,
-    WindowMaterialSimpleGlazingSystem,
-)
-from idfpy.models.hvac_templates import HVACTemplateZoneIdealLoadsAirSystem
-from idfpy.models.internal_gains import Lights, People
-from idfpy.models.schedules import (
+    People,
     ScheduleCompact,
     ScheduleCompactDataItem,
     ScheduleTypeLimits,
-)
-from idfpy.models.thermal_zones import (
-    BuildingSurfaceDetailed,
-    BuildingSurfaceDetailedVerticesItem,
-    FenestrationSurfaceDetailed,
+    WindowMaterialSimpleGlazingSystem,
     Zone,
 )
 

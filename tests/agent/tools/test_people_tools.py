@@ -1,7 +1,6 @@
 import json
 
-from idfpy.models.schedules import ScheduleCompact
-from idfpy.models.thermal_zones import Zone
+from idfpy.models import ScheduleCompact, Zone
 
 from src.agent.tools.people_tools import make_people_tools
 from src.state.config_state import ConfigState

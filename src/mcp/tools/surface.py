@@ -1,6 +1,6 @@
 from typing import Any
 
-from idfpy.models.thermal_zones import (
+from idfpy.models import (
     BuildingSurfaceDetailed,
     BuildingSurfaceDetailedVerticesItem,
     FenestrationSurfaceDetailed,

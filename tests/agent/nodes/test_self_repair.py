@@ -1,7 +1,7 @@
 from typing import Any, cast
 
-from idfpy.models.constructions import Construction
-from idfpy.models.schedules import (
+from idfpy.models import (
+    Construction,
     ScheduleCompact,
     ScheduleCompactDataItem,
     ScheduleTypeLimits,
