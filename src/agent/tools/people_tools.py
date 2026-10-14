@@ -11,6 +11,7 @@ from src.agent.tools._share import (
     ok,
 )
 from src.modeling import objects
+from src.modeling.loads import require_level
 from src.state.config_state import ConfigState
 
 
@@ -25,9 +26,9 @@ def make_people_tools(config: ConfigState) -> list[BaseTool]:
         number_of_people_calculation_method: Literal[
             "People", "People/Area", "Area/Person"
         ] = "People",
-        number_of_people: float = 0.0,
-        people_per_floor_area: float = 0.0,
-        floor_area_per_person: float = 0.0,
+        number_of_people: float | None = None,
+        people_per_floor_area: float | None = None,
+        floor_area_per_person: float | None = None,
         fraction_radiant: float = 0.3,
         name_suffix: str = "People",
     ) -> str:
@@ -47,6 +48,12 @@ def make_people_tools(config: ConfigState) -> list[BaseTool]:
             name_suffix: Name suffix; give another one for a second People
                 object in the same zones.
         """
+        require_level(
+            number_of_people_calculation_method,
+            number_of_people=number_of_people,
+            people_per_floor_area=people_per_floor_area,
+            floor_area_per_person=floor_area_per_person,
+        )
         return create_in_zones(
             idf,
             "People",

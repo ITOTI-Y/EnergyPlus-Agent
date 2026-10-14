@@ -11,6 +11,7 @@ from src.agent.tools._share import (
     ok,
 )
 from src.modeling import objects
+from src.modeling.loads import require_level
 from src.state.config_state import ConfigState
 
 
@@ -24,9 +25,9 @@ def make_lights_tools(config: ConfigState) -> list[BaseTool]:
         design_level_calculation_method: Literal[
             "LightingLevel", "Watts/Area", "Watts/Person"
         ] = "Watts/Area",
-        lighting_level: float = 0.0,
-        watts_per_floor_area: float = 0.0,
-        watts_per_person: float = 0.0,
+        lighting_level: float | None = None,
+        watts_per_floor_area: float | None = None,
+        watts_per_person: float | None = None,
         fraction_radiant: float = 0.0,
         fraction_visible: float = 0.0,
         name_suffix: str = "Lights",
@@ -47,6 +48,12 @@ def make_lights_tools(config: ConfigState) -> list[BaseTool]:
             name_suffix: Name suffix; give another one for a second Lights
                 object in the same zones.
         """
+        require_level(
+            design_level_calculation_method,
+            lighting_level=lighting_level,
+            watts_per_floor_area=watts_per_floor_area,
+            watts_per_person=watts_per_person,
+        )
         return create_in_zones(
             idf,
             "Lights",
