@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Final
+from typing import Any
 
-from idfpy import IDF, IDFBaseModel, RefError
+from idfpy import IDF, IDFBaseModel
 from idfpy.models import (
     Building,
     BuildingSurfaceDetailed,
@@ -12,22 +12,16 @@ from idfpy.models import (
     GlobalGeometryRules,
     HVACTemplateThermostat,
     HVACTemplateZoneIdealLoadsAirSystem,
-    Lights,
-    Material,
-    MaterialAirGap,
-    MaterialNoMass,
-    People,
     RunPeriod,
     ScheduleCompact,
-    ScheduleTypeLimits,
     SimulationControl,
     SiteLocation,
-    WindowMaterialSimpleGlazingSystem,
     Zone,
 )
 from loguru import logger
 from pydantic import BaseModel, PrivateAttr
 
+from src.modeling.envelope import MATERIAL_TYPES
 from src.state.defaults import new_model
 
 
@@ -49,19 +43,6 @@ class ConfigSummary(BaseModel):
     global_geometry_rules: dict[str, Any] | None = None
 
 
-def missing_references(idf: IDF, instance: IDFBaseModel, object_name: str) -> list[str]:
-    """Validate one instance's cross-references before it is added to the IDF.
-
-    Wraps idfpy's private per-object validation (``IDF.validate()`` only
-    covers objects already added); the instance itself need not be in the
-    IDF, only the referenced providers must already exist. Sole call site
-    of the private API — update here if idfpy changes it.
-    """
-    errors: list[RefError] = []
-    idf._validate_obj_refs(object_name, instance, errors)
-    return [f"{err.field_name}: {err.detail}" for err in errors]
-
-
 def _first_dump(idf: IDF, object_type: type[IDFBaseModel]) -> dict[str, Any] | None:
     obj = next(iter(idf.all_of_type(object_type).values()), None)
     return obj.model_dump(exclude_none=True) if obj is not None else None
@@ -69,14 +50,6 @@ def _first_dump(idf: IDF, object_type: type[IDFBaseModel]) -> dict[str, Any] | N
 
 def _names(idf: IDF, *object_types: type[IDFBaseModel]) -> set[str]:
     return {name for t in object_types for name in idf.all_of_type(t)}
-
-
-_MATERIAL_TYPES: Final = (
-    Material,
-    MaterialNoMass,
-    MaterialAirGap,
-    WindowMaterialSimpleGlazingSystem,
-)
 
 
 class ConfigState(BaseModel):
@@ -135,7 +108,7 @@ class ConfigState(BaseModel):
             building=_first_dump(idf, Building),
             site_location=_first_dump(idf, SiteLocation),
             zones_count=len(idf.all_of_type(Zone)),
-            materials_count=len(_names(idf, *_MATERIAL_TYPES)),
+            materials_count=len(_names(idf, *MATERIAL_TYPES)),
             constructions_count=len(idf.all_of_type(Construction)),
             surfaces_count=len(idf.all_of_type(BuildingSurfaceDetailed)),
             fenestrations_count=len(idf.all_of_type(FenestrationSurfaceDetailed)),
@@ -148,117 +121,3 @@ class ConfigState(BaseModel):
             run_period=_first_dump(idf, RunPeriod),
             global_geometry_rules=_first_dump(idf, GlobalGeometryRules),
         )
-
-    def validate_references(self) -> list[str]:
-        idf = self._idf
-        errors: list[str] = []
-        material_names = _names(idf, *_MATERIAL_TYPES)
-        construction_names = _names(idf, Construction)
-        surface_names = _names(idf, BuildingSurfaceDetailed)
-        zone_names = _names(idf, Zone)
-        schedule_names = _names(idf, ScheduleCompact)
-        thermostat_names = _names(idf, HVACTemplateThermostat)
-        type_limits_names = _names(idf, ScheduleTypeLimits)
-
-        for schedule in idf.all_of_type(ScheduleCompact).values():
-            limits = schedule.schedule_type_limits_name
-            if limits and limits not in type_limits_names:
-                errors.append(
-                    f"Schedule '{schedule.name}' references type limits '{limits}' which does not exist."
-                )
-
-        for const in idf.all_of_type(Construction).values():
-            for layer in (
-                const.outside_layer,
-                const.layer_2,
-                const.layer_3,
-                const.layer_4,
-                const.layer_5,
-                const.layer_6,
-                const.layer_7,
-                const.layer_8,
-                const.layer_9,
-                const.layer_10,
-            ):
-                if layer and layer not in material_names:
-                    errors.append(
-                        f"Construction '{const.name}' references material '{layer}' which does not exist."
-                    )
-
-        for surface in idf.all_of_type(BuildingSurfaceDetailed).values():
-            if surface.construction_name not in construction_names:
-                errors.append(
-                    f"Surface '{surface.name}' references construction '{surface.construction_name}' which does not exist."
-                )
-            if surface.zone_name not in zone_names:
-                errors.append(
-                    f"Surface '{surface.name}' references zone '{surface.zone_name}' which does not exist."
-                )
-
-        for fen in idf.all_of_type(FenestrationSurfaceDetailed).values():
-            if fen.construction_name not in construction_names:
-                errors.append(
-                    f"Fenestration '{fen.name}' references construction '{fen.construction_name}' which does not exist."
-                )
-            if fen.building_surface_name not in surface_names:
-                errors.append(
-                    f"Fenestration '{fen.name}' references building surface '{fen.building_surface_name}' which does not exist."
-                )
-
-        for ils in idf.all_of_type(HVACTemplateZoneIdealLoadsAirSystem).values():
-            if ils.zone_name not in zone_names:
-                errors.append(
-                    f"Ideal load system references zone '{ils.zone_name}' which does not exist."
-                )
-            if ils.template_thermostat_name not in thermostat_names:
-                errors.append(
-                    f"Ideal load system references thermostat '{ils.template_thermostat_name}' which does not exist."
-                )
-            avail = ils.system_availability_schedule_name
-            if avail and avail not in schedule_names:
-                errors.append(
-                    f"Ideal load system for zone '{ils.zone_name}' references availability schedule '{avail}' which does not exist."
-                )
-
-        for thermostat in idf.all_of_type(HVACTemplateThermostat).values():
-            if thermostat.heating_setpoint_schedule_name not in schedule_names:
-                errors.append(
-                    f"Thermostat '{thermostat.name}' references heating setpoint schedule '{thermostat.heating_setpoint_schedule_name}' which does not exist."
-                )
-            if thermostat.cooling_setpoint_schedule_name not in schedule_names:
-                errors.append(
-                    f"Thermostat '{thermostat.name}' references cooling setpoint schedule '{thermostat.cooling_setpoint_schedule_name}' which does not exist."
-                )
-
-        for people in idf.all_of_type(People).values():
-            zone = people.zone_or_zonelist_or_space_or_spacelist_name
-            if zone and zone not in zone_names:
-                errors.append(
-                    f"People '{people.name}' references zone '{zone}' which does not exist."
-                )
-            for sched in (
-                people.number_of_people_schedule_name,
-                people.activity_level_schedule_name,
-                people.work_efficiency_schedule_name,
-                people.clothing_insulation_calculation_method_schedule_name,
-                people.clothing_insulation_schedule_name,
-                people.air_velocity_schedule_name,
-                people.ankle_level_air_velocity_schedule_name,
-            ):
-                if sched and sched not in schedule_names:
-                    errors.append(
-                        f"People '{people.name}' references schedule '{sched}' which does not exist."
-                    )
-
-        for light in idf.all_of_type(Lights).values():
-            zone = light.zone_or_zonelist_or_space_or_spacelist_name
-            if zone and zone not in zone_names:
-                errors.append(
-                    f"Lights '{light.name}' references zone '{zone}' which does not exist."
-                )
-            if light.schedule_name and light.schedule_name not in schedule_names:
-                errors.append(
-                    f"Lights '{light.name}' references schedule '{light.schedule_name}' which does not exist."
-                )
-
-        return errors

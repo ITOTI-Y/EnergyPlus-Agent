@@ -1,0 +1,184 @@
+"""Nested Schedule:Compact input, checked for syntax and flattened into fields.
+
+EnergyPlus reports compact-schedule syntax errors poorly: a day that does not
+reach 24:00 yields hundreds of identical Severe lines, and a schedule whose
+last period stops before 12/31 crashes the run. A period that leaves day
+types without values only draws a warning, and those days, weekends or the
+design days used for sizing among them, then run with whatever EnergyPlus
+fills in. Checking the structure here gives the caller one precise message
+instead.
+"""
+
+import re
+from datetime import date
+from typing import Final, Literal
+
+from idfpy.models import ScheduleCompact, ScheduleCompactDataItem
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
+type DayType = Literal[
+    "Weekdays",
+    "Weekends",
+    "Holidays",
+    "AllDays",
+    "SummerDesignDay",
+    "WinterDesignDay",
+    "Sunday",
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+    "CustomDay1",
+    "CustomDay2",
+    "AllOtherDays",
+]
+
+_TIME: Final = re.compile(r"(\d{1,2}):(\d{2})")
+
+_WEEKDAYS: Final = ("Monday", "Tuesday", "Wednesday", "Thursday", "Friday")
+ALL_DAY_TYPES: Final = (
+    "Sunday",
+    *_WEEKDAYS,
+    "Saturday",
+    "Holiday",
+    "SummerDesignDay",
+    "WinterDesignDay",
+    "CustomDay1",
+    "CustomDay2",
+)
+"""The day types every period of a schedule must give values for."""
+
+_COVERS: Final[dict[str, tuple[str, ...]]] = {
+    "Weekdays": _WEEKDAYS,
+    "Weekends": ("Saturday", "Sunday"),
+    "Holidays": ("Holiday",),
+    "AllDays": ALL_DAY_TYPES,
+}
+
+
+class _ScheduleInputSchema(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, extra="forbid")
+
+
+class UntilSchema(_ScheduleInputSchema):
+    time: str = Field(
+        alias="Time", description="HH:MM; the last entry of a day is 24:00"
+    )
+    value: float = Field(alias="Value")
+
+    @field_validator("time")
+    @classmethod
+    def _normalize_time(cls, value: str) -> str:
+        match = _TIME.fullmatch(value.strip())
+        if match is None:
+            raise ValueError(f"time {value!r} is not HH:MM")
+        hours, minutes = int(match[1]), int(match[2])
+        if not ((hours < 24 and minutes < 60) or (hours, minutes) == (24, 0)):
+            raise ValueError(f"time {value!r} is outside 00:00-24:00")
+        return f"{hours:02d}:{minutes:02d}"
+
+
+class TimeValueSchema(_ScheduleInputSchema):
+    until: UntilSchema = Field(alias="Until")
+
+
+class DayScheduleSchema(_ScheduleInputSchema):
+    day_type: DayType = Field(alias="For")
+    times: list[TimeValueSchema] = Field(alias="Times", min_length=1)
+
+    @model_validator(mode="after")
+    def _times_cover_the_day(self) -> "DayScheduleSchema":
+        times = [t.until.time for t in self.times]
+        if times != sorted(set(times)):
+            raise ValueError(f"For {self.day_type}: times must increase, got {times}")
+        if times[-1] != "24:00":
+            raise ValueError(f"For {self.day_type}: the last time must be 24:00")
+        return self
+
+
+class ThroughSchema(_ScheduleInputSchema):
+    through: str = Field(alias="Through", description="MM/DD, inclusive end date")
+    days: list[DayScheduleSchema] = Field(alias="Days", min_length=1)
+
+    @field_validator("through")
+    @classmethod
+    def _normalize_date(cls, value: str) -> str:
+        month, _, day = value.strip().partition("/")
+        try:
+            # 2000 is a leap year, so 02/29 is accepted as EnergyPlus does.
+            parsed = date(2000, int(month), int(day))
+        except ValueError as e:
+            raise ValueError(f"date {value!r} is not a valid MM/DD") from e
+        return parsed.strftime("%m/%d")
+
+    @model_validator(mode="after")
+    def _days_cover_every_day_type(self) -> "ThroughSchema":
+        if self.days[0].day_type == "AllOtherDays":
+            raise ValueError(
+                f"Through {self.through}: AllOtherDays may only follow other For blocks"
+            )
+        covered: set[str] = set()
+        for day in self.days:
+            days = (
+                set(ALL_DAY_TYPES) - covered
+                if day.day_type == "AllOtherDays"
+                else set(_COVERS.get(day.day_type, (day.day_type,)))
+            )
+            # EnergyPlus stops on a day type given values twice in a period.
+            if repeated := sorted(days & covered, key=ALL_DAY_TYPES.index):
+                raise ValueError(
+                    f"Through {self.through}: For {day.day_type} gives "
+                    f"{', '.join(repeated)} values again; each day type takes "
+                    "one For block"
+                )
+            covered |= days
+        if missing := [d for d in ALL_DAY_TYPES if d not in covered]:
+            raise ValueError(
+                f"Through {self.through}: no values for {', '.join(missing)}; "
+                "add For blocks for them or end with For AllOtherDays"
+            )
+        return self
+
+
+def schedule_fields(periods: list[ThroughSchema]) -> list[str]:
+    """Flatten periods into Schedule:Compact fields.
+
+    ``Until`` time and value are separate fields: epJSON stores a combined
+    ``Until: 24:00, 1.0`` as one value, which EnergyPlus cannot read.
+
+    Raises:
+        ValueError: If dates do not increase or the last one is not 12/31.
+    """
+    dates = [p.through for p in periods]
+    if not dates or dates != sorted(set(dates)) or dates[-1] != "12/31":
+        raise ValueError(f"Through dates must increase and end at 12/31, got {dates}")
+    fields: list[str] = []
+    for period in periods:
+        fields.append(f"Through: {period.through}")
+        for day in period.days:
+            fields.append(f"For: {day.day_type}")
+            for entry in day.times:
+                fields.extend((f"Until: {entry.until.time}", str(entry.until.value)))
+    return fields
+
+
+def compact_schedule(
+    name: str, schedule_type_limits_name: str, periods: list[ThroughSchema]
+) -> ScheduleCompact:
+    """Build a Schedule:Compact from validated periods.
+
+    Raises:
+        ValueError: If either name is blank, which idfpy accepts, or the
+            periods fail ``schedule_fields``.
+    """
+    if not name.strip() or not schedule_type_limits_name.strip():
+        raise ValueError(
+            "Schedule:Compact name and schedule type limits name must not be empty"
+        )
+    return ScheduleCompact(
+        name=name,
+        schedule_type_limits_name=schedule_type_limits_name,
+        data=[ScheduleCompactDataItem(field=f) for f in schedule_fields(periods)],
+    )

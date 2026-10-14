@@ -1,19 +1,27 @@
 from langchain_core.messages import AIMessage
-from pydantic import BaseModel, Field
+from langgraph.runtime import Runtime
+from pydantic import Field
 
 from src.agent.llm import build_agent
-from src.agent.nodes._share import invoke_with_self_repair
-from src.agent.state import AgentState, AgentStateUpdate
+from src.agent.nodes._share import (
+    PhaseReport,
+    invoke_with_self_repair,
+    last_message_text,
+    missing_input_issues,
+    skipped,
+    with_feedback,
+)
+from src.agent.state import AgentState, AgentStateUpdate, SimContext
 from src.agent.tools import make_construction_tools
+from src.agent.tools.reference_tools import make_reference_tools, reference_prompt
 from src.agent.trace import TraceCollector, record_phase_trace, trace_middleware
 
 CONSTRUCTION_SYSTEM_PROMPT = """You are a construction-assembly expert for EnergyPlus.
 Given construction specifications, create all required Construction objects.
 
 Workflow:
-1. FIRST call `list_materials` to discover which materials are already
-   defined and their full properties (thickness, conductivity, U-Factor
-   for glazing, etc.). DO NOT skip this step — the materials phase uses
+1. FIRST call `list_materials` to discover the names and types of the
+   materials already defined. DO NOT skip this step — the materials phase uses
    names that may differ from what the intake spec suggested.
 2. Pick the correct layer composition for each construction using the
    material names returned by list_materials, verbatim.
@@ -23,17 +31,27 @@ Workflow:
 Rules:
 - Layer names passed to `create_construction` MUST appear verbatim in
   the list_materials result (exact case, underscores, dashes, numbers).
-- If a needed material is missing from list_materials, STOP and report
-  the gap; do NOT invent names or call create with a broken reference.
-- Each Construction is an ordered list of layers from OUTSIDE to INSIDE.
-- Use separate constructions per surface type when thermal properties differ
-  (e.g., 'ExtWall_Office', 'IntWall_Office', 'Roof_Office', 'Floor_Office',
-  'Window_Office').
-- For fenestration, the construction's only layer is the glazing material.
+- If a needed material is missing from list_materials, do NOT invent a
+  name, do NOT call create with a broken reference and do NOT list
+  again: give your final answer at once, with it in `missing_inputs`.
+- Use the construction names the specification gives, verbatim: zones and
+  openings reference them. Only for constructions it does not name, use
+  separate ones per surface type when thermal properties differ (e.g.,
+  'ExtWall_Office', 'IntWall_Office', 'Roof_Office', 'Window_Office').
+- Each Construction is an ordered list of layers from OUTSIDE to INSIDE. An
+  interior floor lists its layers from the ceiling below up to the floor
+  above. Do NOT create reversed copies of interior constructions; the face
+  in the adjacent zone gets one automatically.
+- Opaque constructions (walls, roofs, floors, ceilings, doors) use only
+  opaque materials; Material:AirGap is allowed there.
+- Window constructions are either a single simplified glazing material, or
+  glass panes with exactly one window gas layer between each pair, starting
+  and ending with glass (e.g., [Glass_6mm, Air_13mm, Glass_6mm]). Never mix
+  window and opaque materials; create_construction rejects such layers.
 """
 
 
-class ConstructionResponse(BaseModel):
+class ConstructionResponse(PhaseReport):
     """Structured summary returned by the construction phase agent."""
 
     construction_names: list[str] = Field(
@@ -44,14 +62,22 @@ class ConstructionResponse(BaseModel):
     )
 
 
-def construction_agent(state: AgentState) -> AgentStateUpdate:
+def construction_agent(
+    state: AgentState, runtime: Runtime[SimContext]
+) -> AgentStateUpdate:
+    if skipped(state, "construction"):
+        return AgentStateUpdate()
     local = state.config_state.model_copy(deep=True)
     tools = make_construction_tools(local)
+    prompt = CONSTRUCTION_SYSTEM_PROMPT
+    if (reference := runtime.context.reference) is not None:
+        tools += make_reference_tools(reference, ("construction",))
+        prompt += reference_prompt(reference, ("construction",))
     collector = TraceCollector(phase="construction")
 
     agent = build_agent(
         tools=tools,
-        system_prompt=CONSTRUCTION_SYSTEM_PROMPT,
+        system_prompt=prompt,
         response_format=ConstructionResponse,
         middleware=[trace_middleware(collector)],
     )
@@ -61,13 +87,16 @@ def construction_agent(state: AgentState) -> AgentStateUpdate:
         if state.intake_output
         else state.user_input
     )
-    result = invoke_with_self_repair(agent, local, specs, phase="construction")
+    result = invoke_with_self_repair(
+        agent, local, with_feedback(specs, state, "construction"), phase="construction"
+    )
 
     response: ConstructionResponse | None = result.get("structured_response")
-    summary = response.summary if response else "construction done"
+    summary = response.summary if response else last_message_text(result)
 
     record_phase_trace("construction", collector.export())
     return AgentStateUpdate(
         config_state=local,
+        build_issues=missing_input_issues("construction", response),
         messages=[AIMessage(content=f"[construction] {summary}")],
     )

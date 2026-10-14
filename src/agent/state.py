@@ -1,19 +1,96 @@
 from __future__ import annotations
 
+import operator
 from collections.abc import Sequence
 from dataclasses import dataclass
+from itertools import accumulate
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Annotated, Any, Final, Self
 
 from idfpy import IDF
 from idfpy.models import Building, SiteLocation
 from langchain_core.messages import AnyMessage
 from langgraph.graph.message import add_messages
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator, model_validator
 from typing_extensions import TypedDict
 
-from src.agent._share import DEFAULT_OUTPUT_DIR, MAX_RETRIES
+from src.agent._share import DEFAULT_OUTPUT_DIR, MAX_GLOBAL_RETRIES
+from src.agent.phases import Phase
+from src.modeling.geometry import PlanPointSchema
+from src.modeling.validation import ModelIssue
+from src.reference.search import ReferenceSearch
 from src.state.config_state import ConfigState
+
+
+class ZonePlanSchema(BaseModel):
+    """A floor plan used on one or more storeys, with its constructions."""
+
+    key: str = Field(
+        description="Short id, word characters and '_' only, e.g. 'S1' or "
+        "'Corridor'; a zone is named '<storey>_<key>'"
+    )
+    plan: list[PlanPointSchema] = Field(
+        description="Floor plan corners (X, Y in meters) in order around the zone"
+    )
+    exterior_wall_construction: str
+    roof_construction: str
+    ground_floor_construction: str = Field(
+        description="Floor on the ground, or above outdoor air"
+    )
+    interior_wall_construction: str = Field(
+        description="Walls shared with another zone"
+    )
+    interior_floor_construction: str = Field(
+        description="Floors and ceilings shared with another zone"
+    )
+
+
+class StoreyZoneSchema(BaseModel):
+    """A plan placed on a storey."""
+
+    plan: str = Field(description="Key of a zone plan")
+    height: float | None = Field(
+        default=None,
+        gt=0,
+        description="Only for a zone taller than its storey (e.g. an 8 m "
+        "lobby through two storeys); the storey height otherwise",
+    )
+
+
+class StoreySchema(BaseModel):
+    """One storey, or a run of identical storeys modelled once.
+
+    Storeys stack from the ground up: each starts where the one below ends,
+    so levels are computed from the heights and multipliers below.
+    """
+
+    name: str = Field(
+        description="Short id, e.g. 'G', 'L2', 'T' or 'Top'; '' for a "
+        "single-storey building, whose zones are then named by plan key"
+    )
+    height: float = Field(gt=0, description="Floor-to-floor height in meters")
+    multiplier: int = Field(
+        default=1,
+        ge=1,
+        description="Number of identical storeys this one stands for "
+        "(e.g. 18 for storeys 3-20); 1 otherwise",
+    )
+    zones: list[StoreyZoneSchema] = Field(description="Plans on this storey")
+
+
+class ZoneGeometrySchema(BaseModel):
+    """One thermal zone as a prism, derived from a storey and a plan."""
+
+    name: str
+    plan: list[PlanPointSchema]
+    floor_z: float
+    height: float
+    multiplier: int
+    exterior_wall_construction: str
+    roof_construction: str
+    ground_floor_construction: str
+    interior_wall_construction: str
+    interior_floor_construction: str
 
 
 class IntakeOutput(BaseModel):
@@ -22,8 +99,9 @@ class IntakeOutput(BaseModel):
     `building` and `site_location` are idfpy models populated directly by
     the LLM's structured output; intake_node adds them to the IDF as is.
 
-    All `*_specs` fields are natural-language task instructions passed to
-    the corresponding phase agent.
+    Zones and their geometry are structured and built in code. All
+    `*_specs` fields are natural-language task instructions passed to the
+    corresponding phase agent.
     """
 
     building: Building = Field(
@@ -32,8 +110,11 @@ class IntakeOutput(BaseModel):
     site_location: SiteLocation = Field(
         description="Site location (latitude, longitude, time zone, elevation)"
     )
-    zone_specs: str = Field(
-        description="Zone creation instructions: count, names, dimensions, positions"
+    zone_plans: list[ZonePlanSchema] = Field(
+        description="Each distinct floor plan once, with its constructions"
+    )
+    storeys: list[StoreySchema] = Field(
+        description="Every storey, bottom up, with the plans on it"
     )
     material_specs: str = Field(
         description="Material definitions with thermal properties"
@@ -45,13 +126,19 @@ class IntakeOutput(BaseModel):
         description="Construction assembly instructions referencing materials"
     )
     surface_specs: str = Field(
-        description="Surface geometry instructions referencing zones and constructions"
+        description=(
+            "Only geometry the zone prisms cannot express: sloped or pitched "
+            "roofs and sloped walls, which replace faces of the extruded "
+            "zones. Empty for buildings with vertical walls and flat roofs."
+        )
     )
     fenestration_specs: str = Field(
         description="Window/door instructions referencing surfaces"
     )
     hvac_specs: str = Field(
-        description="HVAC system type, thermostat setpoints, schedule references"
+        description="HVAC system per conditioned zone; one thermostat template "
+        "per distinct pair of heating/cooling setpoint schedules, with the "
+        "zones that use it; availability schedule references"
     )
     people_specs: str = Field(
         description="Occupancy: zone assignment, density, activity schedule per zone"
@@ -59,6 +146,134 @@ class IntakeOutput(BaseModel):
     lights_specs: str = Field(
         description="Lighting: zone assignment, power density, schedule per zone"
     )
+    equipment_specs: str = Field(
+        description="Plug loads (ElectricEquipment): zone assignment, power "
+        "density, schedule per zone; typical densities for the space types "
+        "when the brief gives none"
+    )
+
+    @field_validator("equipment_specs")
+    @classmethod
+    def _plug_loads_given(cls, value: str) -> str:
+        # Occupied buildings have plug loads; leaving them out understates
+        # the internal gains.
+        if not value.strip():
+            raise ValueError(
+                "equipment_specs must give the plug loads of every zone, with "
+                "typical densities for the space types when the brief gives none"
+            )
+        return value
+
+    @property
+    def zones(self) -> list[ZoneGeometrySchema]:
+        """Every zone: each plan on each storey, named '<storey>_<plan key>'
+        (the plan key alone on a storey named ''), at its storey's level."""
+        plans = {p.key: p for p in self.zone_plans}
+        # One more bottom than storeys: the last is the top of the building.
+        bottoms = accumulate(
+            (s.height * s.multiplier for s in self.storeys), initial=0.0
+        )
+        return [
+            ZoneGeometrySchema(
+                name=f"{storey.name}_{entry.plan}" if storey.name else entry.plan,
+                plan=plans[entry.plan].plan,
+                floor_z=floor_z,
+                height=entry.height or storey.height,
+                multiplier=storey.multiplier,
+                **plans[entry.plan].model_dump(exclude={"key", "plan"}),
+            )
+            for storey, floor_z in zip(self.storeys, bottoms, strict=False)
+            for entry in storey.zones
+        ]
+
+    @model_validator(mode="after")
+    def _plans_exist_and_names_are_unique(self) -> Self:
+        keys = [p.key for p in self.zone_plans]
+        if repeated := sorted({k for k in keys if keys.count(k) > 1}):
+            raise ValueError(f"zone plan keys must be unique, repeated: {repeated}")
+        unknown = sorted({e.plan for s in self.storeys for e in s.zones} - set(keys))
+        if unknown:
+            raise ValueError(f"storeys use plans that are not defined: {unknown}")
+        names = [z.name for z in self.zones]
+        if repeated := sorted({n for n in names if names.count(n) > 1}):
+            raise ValueError(f"zone names must be unique, repeated: {repeated}")
+        return self
+
+
+SPEC_PHASES: Final[dict[str, tuple[Phase, ...]]] = {
+    # Zones change with plans or storeys; only "surface" if the names and
+    # multipliers stay.
+    "zone_plans": ("zone", "surface"),
+    "storeys": ("zone", "surface"),
+    "material_specs": ("material",),
+    "schedule_specs": ("schedule",),
+    "construction_specs": ("construction",),
+    "surface_specs": ("surface",),
+    "fenestration_specs": ("fenestration",),
+    "hvac_specs": ("hvac",),
+    "people_specs": ("people",),
+    "lights_specs": ("lights",),
+    "equipment_specs": ("equipment",),
+}
+"""Phases that build from each intake field; Building and Site:Location are
+written by intake itself."""
+
+
+class IntakePatch(BaseModel):
+    """Changes to an earlier intake output; omitted fields stay as they were."""
+
+    reason: str = Field(description="Which errors the changes fix, and how")
+    building: Building | None = None
+    site_location: SiteLocation | None = None
+    zone_plans: list[ZonePlanSchema] | None = Field(
+        default=None, description="The complete new plan list, if a plan changes"
+    )
+    storeys: list[StoreySchema] | None = Field(
+        default=None, description="The complete new storey list, if one changes"
+    )
+    material_specs: str | None = None
+    schedule_specs: str | None = None
+    construction_specs: str | None = None
+    surface_specs: str | None = None
+    fenestration_specs: str | None = None
+    hvac_specs: str | None = None
+    people_specs: str | None = None
+    lights_specs: str | None = None
+    equipment_specs: str | None = None
+
+    def apply(self, intake: IntakeOutput) -> tuple[IntakeOutput, set[Phase]]:
+        """The patched intake output and the phases whose input changed.
+
+        Raises:
+            pydantic.ValidationError: If the patched output is invalid, e.g.
+                repeats a zone name.
+        """
+        given = {
+            field: value
+            for field in IntakeOutput.model_fields
+            if (value := getattr(self, field)) is not None
+        }
+        current = intake.model_dump()
+        changed = {
+            field for field, value in given.items() if _dumped(value) != current[field]
+        }
+        patched = IntakeOutput.model_validate(current | {f: given[f] for f in changed})
+        phases = {p for field in changed for p in SPEC_PHASES.get(field, ())}
+        if {(z.name, z.multiplier) for z in patched.zones} == {
+            (z.name, z.multiplier) for z in intake.zones
+        }:
+            # Loads and HVAC name zones, not their geometry; keep them. A new
+            # multiplier changes the Zone objects, which the surfaces read.
+            phases.discard("zone")
+        return patched, phases
+
+
+def _dumped(value: Any) -> Any:
+    if isinstance(value, BaseModel):
+        return value.model_dump()
+    if isinstance(value, list):
+        return [_dumped(v) for v in value]
+    return value
 
 
 @dataclass(frozen=True)
@@ -67,6 +282,8 @@ class SimContext:
 
     epw_path: Path
     output_dir: Path = DEFAULT_OUTPUT_DIR
+    reference: ReferenceSearch | None = None
+    """Prototype reference search, when configured; phases add its tools."""
 
 
 def _merge_idf(old_idf: IDF, new_idf: IDF) -> IDF:
@@ -118,9 +335,29 @@ class AgentState(BaseModel):
     )
     intake_output: IntakeOutput | None = None
 
-    validation_errors: list[str] = Field(default_factory=list)
-    retry_count: int = 0
-    max_retries: int = MAX_RETRIES
+    validation_errors: list[ModelIssue] = Field(default_factory=list)
+    build_issues: Annotated[list[ModelIssue], operator.add] = Field(
+        default_factory=list,
+        description="Problems found while building objects in code, e.g. a "
+        "zone that cannot be extruded; reset before each rerun",
+    )
+    pending_phases: list[Phase] = Field(
+        default_factory=list, description="Phases that run in the current pass"
+    )
+    unfinished_phases: list[Phase] = Field(
+        default_factory=list,
+        description="Pending phases skipped because the foundation check failed",
+    )
+    phase_feedback: dict[str, list[str]] = Field(
+        default_factory=dict,
+        description="Problems from the previous pass, by the phase that must fix them",
+    )
+    review_feedback: str = Field(
+        default="", description="Corrections from the human reviewer"
+    )
+    subgroup_retried: bool = False
+    global_retries: int = 0
+    max_global_retries: int = MAX_GLOBAL_RETRIES
 
 
 class AgentStateUpdate(TypedDict, total=False):
@@ -131,5 +368,11 @@ class AgentStateUpdate(TypedDict, total=False):
     image_paths: list[str]
     config_state: ConfigState
     intake_output: IntakeOutput | None
-    validation_errors: list[str]
-    retry_count: int
+    validation_errors: list[ModelIssue]
+    build_issues: list[ModelIssue]
+    pending_phases: list[Phase]
+    unfinished_phases: list[Phase]
+    phase_feedback: dict[str, list[str]]
+    review_feedback: str
+    subgroup_retried: bool
+    global_retries: int

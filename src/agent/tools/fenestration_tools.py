@@ -1,144 +1,163 @@
-import json
 from typing import Literal
 
 from idfpy.models import (
-    BuildingSurfaceDetailed,
-    Construction,
     FenestrationSurfaceDetailed,
 )
-from langchain_core.tools import BaseTool, tool
+from langchain_core.tools import BaseTool
 
+from src.agent.tools._share import (
+    list_constructions_tool,
+    list_surfaces_tool,
+    list_tool,
+    model_tool,
+    ok,
+)
+from src.modeling import objects
+from src.modeling.envelope import VertexSchema, fenestration_from_vertices
+from src.modeling.fenestration import (
+    Facing,
+    add_fenestration,
+    add_windows_by_ratio,
+    remove_fenestration,
+)
 from src.state.config_state import ConfigState
 
 
-def _ok(msg: str, data=None) -> str:
-    return json.dumps({"success": True, "message": msg, "data": data})
-
-
-def _err(msg: str, data=None) -> str:
-    return json.dumps({"success": False, "message": msg, "data": data})
-
-
 def make_fenestration_tools(config: ConfigState) -> list[BaseTool]:
+    idf = config.idf
 
-    @tool
+    @model_tool
     def create_fenestration(
         name: str,
         surface_type: Literal["Window", "Door", "GlassDoor"],
         construction_name: str,
         building_surface_name: str,
-        vertices: list[dict[str, float]],
+        vertices: list[VertexSchema],
         multiplier: int = 1,
     ) -> str:
-        """Create a FenestrationSurface:Detailed (window/door/skylight).
+        """Create a FenestrationSurface:Detailed (window/door).
 
         Args:
             name: Unique fenestration name.
             surface_type: Window / Door / GlassDoor.
-            construction_name: Existing Glazing construction name.
-            building_surface_name: Existing parent Surface name.
-            vertices: List of vertex dicts in meters. Each vertex is
-                      `{"X": float, "Y": float, "Z": float}`. >= 3 points,
-                      counter-clockwise from the outside, MUST lie on the
-                      parent surface plane (coplanar).
-                      Example 1.5x1.2m window centered on a south wall at
-                      sill 0.8m (wall at y=0, spans x=0..5):
-                        [{"X": 1.75, "Y": 0.0, "Z": 0.8},
-                         {"X": 3.25, "Y": 0.0, "Z": 0.8},
-                         {"X": 3.25, "Y": 0.0, "Z": 2.0},
-                         {"X": 1.75, "Y": 0.0, "Z": 2.0}]
+            construction_name: Existing construction: a window construction for
+                Window and GlassDoor, an opaque one for Door.
+            building_surface_name: Existing parent surface name. On a wall
+                shared with another zone, the matching opening in that zone is
+                created automatically.
+            vertices: 3 or 4 vertices in meters on the parent surface plane
+                and inside its outline; the order is corrected to match the
+                parent surface. Example 1.5x1.2m
+                window centered on a south wall at sill 0.8m (wall at y=0,
+                spans x=0..5):
+                  [{"X": 1.75, "Y": 0.0, "Z": 0.8},
+                   {"X": 3.25, "Y": 0.0, "Z": 0.8},
+                   {"X": 3.25, "Y": 0.0, "Z": 2.0},
+                   {"X": 1.75, "Y": 0.0, "Z": 2.0}]
             multiplier: Number of identical copies (>= 1).
         """
-        idf = config.idf
-        if idf.has("FenestrationSurface:Detailed", name):
-            return _err(f"Fenestration '{name}' already exists.")
-        try:
-            assert 3 <= len(vertices) <= 4, (
-                "At least 3 vertices are required, and at most 4 vertices are allowed."
-            )
-            fenestration = FenestrationSurfaceDetailed(
+        created, flipped = add_fenestration(
+            idf,
+            fenestration_from_vertices(
+                vertices,
                 name=name,
                 surface_type=surface_type,
                 construction_name=construction_name,
                 building_surface_name=building_surface_name,
                 multiplier=float(multiplier),
-                number_of_vertices=len(vertices),
-                vertex_1_x_coordinate=float(vertices[0]["X"]),
-                vertex_1_y_coordinate=float(vertices[0]["Y"]),
-                vertex_1_z_coordinate=float(vertices[0]["Z"]),
-                vertex_2_x_coordinate=float(vertices[1]["X"]),
-                vertex_2_y_coordinate=float(vertices[1]["Y"]),
-                vertex_2_z_coordinate=float(vertices[1]["Z"]),
-                vertex_3_x_coordinate=float(vertices[2]["X"]),
-                vertex_3_y_coordinate=float(vertices[2]["Y"]),
-                vertex_3_z_coordinate=float(vertices[2]["Z"]),
-                vertex_4_x_coordinate=float(vertices[3]["X"])
-                if len(vertices) > 3
-                else None,
-                vertex_4_y_coordinate=float(vertices[3]["Y"])
-                if len(vertices) > 3
-                else None,
-                vertex_4_z_coordinate=float(vertices[3]["Z"])
-                if len(vertices) > 3
-                else None,
+            ),
+        )
+        notes = []
+        if flipped:
+            notes.append("vertex order reversed to face the same way as the surface")
+        if len(created) > 1:
+            notes.append(
+                f"interzone opening, so '{created[1].name}' was added to "
+                f"'{created[1].building_surface_name}'"
             )
-            idf.add(fenestration)
-            return _ok(
-                f"Fenestration '{name}' created successfully.",
-                fenestration.model_dump(),
-            )
-        except Exception as e:
-            return _err(f"Error creating fenestration '{name}': {e}")
+        message = f"Fenestration '{name}' created" + (
+            f" ({'; '.join(notes)})." if notes else "."
+        )
+        return ok(message, [f.model_dump(exclude_none=True) for f in created])
 
-    @tool
-    def list_fenestrations() -> str:
-        """List all fenestration surfaces."""
-        idf = config.idf
-        items = [
-            f.model_dump()
-            for f in idf.all_of_type(FenestrationSurfaceDetailed).values()
-        ]
-        return _ok(f"Listed {len(items)} fenestrations.", items)
+    @model_tool
+    def create_windows_by_ratio(
+        window_to_wall_ratio: float,
+        construction_name: str,
+        zone_names: list[str] | None = None,
+        facings: list[Facing] | None = None,
+        sill_height: float = 0.8,
+    ) -> str:
+        """Put one strip window on every matching exterior wall, sized by ratio.
 
-    @tool
+        The window spans the wall's width (5 cm clearance at each edge) at
+        the given sill height, as high as the ratio needs. Prefer this to
+        create_fenestration whenever the specification gives window-to-wall
+        ratios; call it once per ratio, facing and zone group.
+
+        Args:
+            window_to_wall_ratio: Window area over wall area, e.g. 0.4.
+            construction_name: Existing window construction.
+            zone_names: Zones whose outdoor walls get windows; all when omitted.
+            facings: Compass directions of the walls; all when omitted.
+            sill_height: Height of the window bottom above the floor, in m.
+        """
+        created, problems = add_windows_by_ratio(
+            idf,
+            zone_names,
+            facings,
+            window_to_wall_ratio,
+            construction_name,
+            sill_height,
+        )
+        message = f"Created {len(created)} windows"
+        if problems:
+            message += f"; {len(problems)} walls got none"
+        return ok(message + ".", {"created": created, "not_created": problems})
+
+    @model_tool
     def get_fenestration(name: str) -> str:
         """Read a fenestration by name."""
-        idf = config.idf
-        obj = idf.get(FenestrationSurfaceDetailed, name)
-        if obj is None:
-            return _err(f"Fenestration '{name}' not found.")
-        return _ok(f"Fenestration '{name}' read successfully.", obj.model_dump())
+        fenestration = objects.get(idf, FenestrationSurfaceDetailed, name)
+        return ok(
+            f"Fenestration '{name}' read.", fenestration.model_dump(exclude_none=True)
+        )
 
-    @tool
+    @model_tool
     def delete_fenestration(name: str) -> str:
-        """Delete a fenestration."""
-        idf = config.idf
-        if not idf.has("FenestrationSurface:Detailed", name):
-            return _err(f"Fenestration '{name}' not found.")
-        idf.remove("FenestrationSurface:Detailed", name)
-        return _ok(f"Fenestration '{name}' deleted successfully.")
-
-    @tool
-    def list_surfaces() -> str:
-        """Read-only: list parent surfaces a fenestration can attach to."""
-        idf = config.idf
-        items = [
-            s.model_dump() for s in idf.all_of_type(BuildingSurfaceDetailed).values()
-        ]
-        return _ok(f"Listed {len(items)} surfaces.", items)
-
-    @tool
-    def list_constructions() -> str:
-        """Read-only: list constructions a fenestration can reference."""
-        idf = config.idf
-        items = [c.model_dump() for c in idf.all_of_type(Construction).values()]
-        return _ok(f"Listed {len(items)} constructions.", items)
+        """Delete a fenestration, and its partner when it is an interzone opening."""
+        deleted = remove_fenestration(idf, name)
+        return ok(f"Deleted {', '.join(deleted)}.")
 
     return [
+        create_windows_by_ratio,
         create_fenestration,
-        list_fenestrations,
+        list_tool(
+            idf,
+            "list_fenestrations",
+            FenestrationSurfaceDetailed,
+            "List fenestration surfaces: name, type, parent surface, "
+            "construction, partner and multiplier.",
+            (
+                "name",
+                "surface_type",
+                "building_surface_name",
+                "construction_name",
+                "outside_boundary_condition_object",
+                "multiplier",
+            ),
+        ),
         get_fenestration,
         delete_fenestration,
-        list_surfaces,
-        list_constructions,
+        list_surfaces_tool(
+            idf,
+            "List surfaces windows and doors can attach to, filtered by zone, "
+            "type and boundary: a large building has hundreds of surfaces.",
+        ),
+        list_constructions_tool(
+            idf,
+            "List constructions with their kind: window constructions for "
+            "Window and GlassDoor, opaque ones for Door.",
+            ("window", "opaque"),
+        ),
     ]

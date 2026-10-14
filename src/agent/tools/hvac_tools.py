@@ -1,27 +1,30 @@
-import json
-
 from idfpy.models import (
     HVACTemplateThermostat,
     HVACTemplateZoneIdealLoadsAirSystem,
     ScheduleCompact,
-    Zone,
 )
-from langchain_core.tools import BaseTool, tool
+from langchain_core.tools import BaseTool
 
+from src.agent.tools._share import (
+    create_in_zones,
+    list_tool,
+    list_zone_names_tool,
+    model_tool,
+    ok,
+)
+from src.modeling import objects
+from src.modeling.hvac import (
+    check_setpoints_free,
+    check_zone_free,
+    find_ideal_loads,
+)
 from src.state.config_state import ConfigState
 
 
-def _ok(msg: str, data=None) -> str:
-    return json.dumps({"success": True, "message": msg, "data": data})
-
-
-def _err(msg: str, data=None) -> str:
-    return json.dumps({"success": False, "message": msg, "data": data})
-
-
 def make_hvac_tools(config: ConfigState) -> list[BaseTool]:
+    idf = config.idf
 
-    @tool
+    @model_tool
     def create_thermostat(
         name: str,
         heating_setpoint_schedule_name: str,
@@ -33,131 +36,88 @@ def make_hvac_tools(config: ConfigState) -> list[BaseTool]:
             name: Unique thermostat name.
             heating_setpoint_schedule_name: Existing Schedule:Compact for heating setpoints (C).
             cooling_setpoint_schedule_name: Existing Schedule:Compact for cooling setpoints (C).
+
+        A pair of setpoint schedules has one thermostat: a second one for the
+        same pair is refused, naming the existing one to use.
         """
-        idf = config.idf
-        if idf.has("HVACTemplate:Thermostat", name):
-            return _err(f"Thermostat '{name}' already exists.")
-        try:
-            thermostat = HVACTemplateThermostat(
+        check_setpoints_free(
+            idf, heating_setpoint_schedule_name, cooling_setpoint_schedule_name
+        )
+        thermostat = objects.create(
+            idf,
+            HVACTemplateThermostat(
                 name=name,
                 heating_setpoint_schedule_name=heating_setpoint_schedule_name,
                 cooling_setpoint_schedule_name=cooling_setpoint_schedule_name,
-            )
-            idf.add(thermostat)
-            return _ok(
-                f"Thermostat '{name}' created successfully.",
-                thermostat.model_dump(),
-            )
-        except Exception as e:
-            return _err(f"Error creating thermostat '{name}': {e}")
+            ),
+        )
+        return ok(f"Thermostat '{thermostat.name}' created.")
 
-    @tool
-    def create_ideal_loads_system(
-        zone_name: str,
+    @model_tool
+    def create_ideal_loads_systems(
+        zone_names: list[str],
         template_thermostat_name: str,
         system_availability_schedule_name: str | None = None,
     ) -> str:
-        """Create an HVACTemplate:Zone:IdealLoadsAirSystem (one per zone).
+        """Create an HVACTemplate:Zone:IdealLoadsAirSystem for each zone.
+
+        Call it once per group of zones with the same thermostat.
 
         Args:
-            zone_name: Existing Zone name. Acts as the identity key (no separate Name).
+            zone_names: Existing Zone names, each without a system yet.
             template_thermostat_name: Existing HVACTemplate:Thermostat name.
             system_availability_schedule_name: Optional availability Schedule:Compact.
         """
-        idf = config.idf
-        existing = idf.all_of_type(HVACTemplateZoneIdealLoadsAirSystem)
-        if any(obj.zone_name == zone_name for obj in existing.values()):
-            return _err(f"IdealLoadsAirSystem for zone '{zone_name}' already exists.")
-        try:
-            idf.add(
-                HVACTemplateZoneIdealLoadsAirSystem(
-                    zone_name=zone_name,
-                    template_thermostat_name=template_thermostat_name,
-                    system_availability_schedule_name=system_availability_schedule_name
-                    or None,
-                )
-            )
-            return _ok(
-                f"IdealLoadsAirSystem for zone '{zone_name}' created successfully.",
-                {
-                    "zone_name": zone_name,
-                    "template_thermostat_name": template_thermostat_name,
-                },
-            )
-        except Exception as e:
-            return _err(
-                f"Error creating IdealLoadsAirSystem for zone '{zone_name}': {e}"
+
+        def system(zone: str) -> HVACTemplateZoneIdealLoadsAirSystem:
+            check_zone_free(idf, zone)
+            return HVACTemplateZoneIdealLoadsAirSystem(
+                zone_name=zone,
+                template_thermostat_name=template_thermostat_name,
+                system_availability_schedule_name=system_availability_schedule_name,
             )
 
-    @tool
-    def list_thermostats() -> str:
-        """List all thermostats."""
-        idf = config.idf
-        items = [
-            t.model_dump() for t in idf.all_of_type(HVACTemplateThermostat).values()
-        ]
-        return _ok(f"Listed {len(items)} thermostats.", items)
+        return create_in_zones(idf, "IdealLoadsAirSystem", zone_names, system)
 
-    @tool
-    def list_ideal_loads_systems() -> str:
-        """List all IdealLoadsAirSystem entries (keyed by zone_name)."""
-        idf = config.idf
-        items = [
-            obj.model_dump()
-            for obj in idf.all_of_type(HVACTemplateZoneIdealLoadsAirSystem).values()
-        ]
-        return _ok(f"Listed {len(items)} IdealLoadsAirSystem entries.", items)
-
-    @tool
+    @model_tool
     def delete_thermostat(name: str) -> str:
-        """Delete a thermostat. Fails if referenced by an IdealLoadsSystem."""
-        idf = config.idf
-        if not idf.has("HVACTemplate:Thermostat", name):
-            return _err(f"Thermostat '{name}' not found.")
-        refs = []
-        for obj in idf.all_of_type(HVACTemplateZoneIdealLoadsAirSystem).values():
-            if obj.template_thermostat_name == name:
-                refs.append(f"IdealLoadsSystem:{obj.zone_name}")
-        if refs:
-            return _err(
-                f"Thermostat '{name}' is referenced by IdealLoadsAirSystem.",
-                {"references": refs},
-            )
-        idf.remove("HVACTemplate:Thermostat", name)
-        return _ok(f"Thermostat '{name}' deleted successfully.")
+        """Delete a thermostat; refused while an IdealLoadsAirSystem uses it."""
+        objects.delete(idf, objects.get(idf, HVACTemplateThermostat, name), name)
+        return ok(f"Thermostat '{name}' deleted.")
 
-    @tool
+    @model_tool
     def delete_ideal_loads_system(zone_name: str) -> str:
-        """Delete an IdealLoadsSystem by its zone_name."""
-        idf = config.idf
-        items = idf.all_of_type(HVACTemplateZoneIdealLoadsAirSystem)
-        key = next((k for k, v in items.items() if v.zone_name == zone_name), None)
-        if key is None:
-            return _err(f"IdealLoadsAirSystem for zone '{zone_name}' not found.")
-        idf.remove("HVACTemplate:Zone:IdealLoadsAirSystem", key)
-        return _ok(f"IdealLoadsAirSystem for zone '{zone_name}' deleted successfully.")
-
-    @tool
-    def list_zones() -> str:
-        """Read-only: list zones an IdealLoadsAirSystem can be attached to."""
-        idf = config.idf
-        items = [z.model_dump() for z in idf.all_of_type(Zone).values()]
-        return _ok(f"Listed {len(items)} zones.", items)
-
-    @tool
-    def list_schedules() -> str:
-        """Read-only: list Schedule:Compact objects (setpoint / availability references)."""
-        idf = config.idf
-        items = [s.model_dump() for s in idf.all_of_type(ScheduleCompact).values()]
-        return _ok(f"Listed {len(items)} schedules.", items)
+        """Delete the IdealLoadsAirSystem of a zone."""
+        key, system = find_ideal_loads(idf, zone_name)
+        objects.delete(idf, system, key)
+        return ok(f"IdealLoadsAirSystem for zone '{zone_name}' deleted.")
 
     return [
         create_thermostat,
-        create_ideal_loads_system,
-        list_thermostats,
-        list_ideal_loads_systems,
+        create_ideal_loads_systems,
+        list_tool(
+            idf, "list_thermostats", HVACTemplateThermostat, "List all thermostats."
+        ),
+        list_tool(
+            idf,
+            "list_ideal_loads_systems",
+            HVACTemplateZoneIdealLoadsAirSystem,
+            "List IdealLoadsAirSystem entries: zone, thermostat, availability.",
+            (
+                "zone_name",
+                "template_thermostat_name",
+                "system_availability_schedule_name",
+            ),
+        ),
         delete_thermostat,
         delete_ideal_loads_system,
-        list_zones,
-        list_schedules,
+        list_zone_names_tool(idf, "List zone names that can get an HVAC system."),
+        list_tool(
+            idf,
+            "list_schedules",
+            ScheduleCompact,
+            "List Schedule:Compact names and type limits, for setpoint and "
+            "availability references.",
+            ("name", "schedule_type_limits_name"),
+        ),
     ]

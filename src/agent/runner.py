@@ -67,7 +67,7 @@ def run_session(
 def interactive_approval(payload: dict[str, Any]) -> InterruptDecision:
     """Console approval prompt for the validate interrupt.
 
-    Prints a one-line ConfigSummary + any cross-ref errors, then reads
+    Prints a one-line ConfigSummary + any validation problems, then reads
     y / yes to approve or any other text as rejection feedback.
     """
 
@@ -83,9 +83,9 @@ def interactive_approval(payload: dict[str, Any]) -> InterruptDecision:
     )
     if errors:
         for e in errors:
-            logger.warning("cross-ref error: {}", e)
+            logger.warning("validation problem: {}", e)
     else:
-        logger.info("no cross-reference errors")
+        logger.info("no validation problems")
 
     answer = input("Approve? [y/N or feedback text] > ").strip()
     if answer.lower() in ["y", "yes"]:

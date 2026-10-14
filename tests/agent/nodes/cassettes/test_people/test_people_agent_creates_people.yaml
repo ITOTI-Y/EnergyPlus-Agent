@@ -1,0 +1,482 @@
+interactions:
+- request:
+    body: '{"messages":[{"content":"You are an occupancy-load expert for EnergyPlus.\nCreate
+      the People objects of the specified zones with create_people,\none call per
+      group of zones with the same values.\n\nWorkflow:\n1. FIRST call `list_zones`
+      to see the exact zone names.\n2. FIRST call `list_schedules` to see the exact
+      Schedule:Compact names\n   (you need occupancy fraction + activity level schedules).\n3.
+      Call `create_people` once per group of zones with the same schedules\n   and
+      values, listing the zones in `zone_names`. Its reply names only\n   zones that
+      failed; the rest got their object. Do not list afterwards.\n\nRules:\n- Zone
+      names, `number_of_people_schedule_name`, `activity_level_schedule_name`\n  MUST
+      all appear verbatim in the list_zones / list_schedules results.\n- If a needed
+      zone or schedule is missing, do NOT invent a name and do NOT\n  list again:
+      give your final answer at once, with it in `missing_inputs`.\n- Objects are
+      named ''{zone}_People''; `name_suffix` changes the suffix.\n- Choose number_of_people_calculation_method
+      based on input:\n    * ''People'' -> supply number_of_people (absolute count)\n    *
+      ''People/Area'' -> supply people_per_floor_area (people/m^2)\n    * ''Area/Person''
+      -> supply floor_area_per_person (m^2/person)\n- Typical office density: 10 m^2/person
+      (People/Area ~ 0.1).\n- fraction_radiant defaults to 0.3 for seated activity.\n","role":"system"},{"content":"Create
+      exactly one People object named ''F1_Office_People'' for zone ''F1_Office'':
+      method People/Area with 0.1 people/m2, occupancy schedule ''Office_Occupancy'',
+      activity level schedule ''Office_Activity''.","role":"user"}],"model":"google/gemini-3.8-flash","max_completion_tokens":16384,"parallel_tool_calls":false,"stream":false,"temperature":0.7,"tool_choice":"required","tools":[{"type":"function","function":{"name":"create_people","description":"Create
+      one People object, named ''<zone>_<name_suffix>'', per zone.\n\n        Call
+      it once per group of zones with the same values.\n\n        Args:\n            zone_names:
+      Existing Zone names.\n            number_of_people_schedule_name: Existing Schedule:Compact
+      (Fraction).\n            activity_level_schedule_name: Existing Schedule:Compact
+      (ActivityLevel limits, W/person).\n            number_of_people_calculation_method:
+      People / People/Area / Area/Person.\n            number_of_people: Absolute
+      count per zone (use when method=People).\n            people_per_floor_area:
+      people/m^2 (use when method=People/Area).\n            floor_area_per_person:
+      m^2/person (use when method=Area/Person).\n            fraction_radiant: Radiant
+      fraction of sensible heat (0-1).\n            name_suffix: Name suffix; give
+      another one for a second People\n                object in the same zones.","parameters":{"properties":{"zone_names":{"items":{"type":"string"},"type":"array"},"number_of_people_schedule_name":{"type":"string"},"activity_level_schedule_name":{"type":"string"},"number_of_people_calculation_method":{"default":"People","enum":["People","People/Area","Area/Person"],"type":"string"},"number_of_people":{"default":0.0,"type":"number"},"people_per_floor_area":{"default":0.0,"type":"number"},"floor_area_per_person":{"default":0.0,"type":"number"},"fraction_radiant":{"default":0.3,"type":"number"},"name_suffix":{"default":"People","type":"string"}},"required":["zone_names","number_of_people_schedule_name","activity_level_schedule_name"],"type":"object"}}},{"type":"function","function":{"name":"list_people","description":"List
+      People objects: name, zone, schedules and density.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"delete_people","description":"Delete
+      a People object.","parameters":{"properties":{"name":{"type":"string"}},"required":["name"],"type":"object"}}},{"type":"function","function":{"name":"list_zones","description":"List
+      zone names an occupancy load can use.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"list_schedules","description":"List
+      Schedule:Compact names and type limits, for occupancy and activity references.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"PeopleResponse","description":"Structured
+      summary returned by the people phase agent.","parameters":{"properties":{"missing_inputs":{"description":"Needed
+      objects that do not exist; empty when none","items":{"description":"An upstream
+      object a phase needed but did not find.","properties":{"kind":{"description":"Kind
+      of object; the phase of that name creates it","enum":["zone","material","construction","schedule","surface"],"type":"string"},"description":{"description":"What
+      is needed and for what, e.g. ''a window construction (kind window) for the office
+      windows''","type":"string"}},"required":["kind","description"],"type":"object"},"type":"array"},"people_names":{"description":"Names
+      of all People objects created","items":{"type":"string"},"type":"array"},"summary":{"description":"One-line
+      summary of the people creation result","type":"string"}},"required":["people_names","summary"],"type":"object"}}}],"max_thinking_budget":4096}'
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate, zstd
+      connection:
+      - keep-alive
+      content-length:
+      - '5134'
+      content-type:
+      - application/json
+      host:
+      - one.chat-yu.net
+      user-agent:
+      - OpenAI/Python 2.52.0
+      x-stainless-arch:
+      - x64
+      x-stainless-async:
+      - 'false'
+      x-stainless-lang:
+      - python
+      x-stainless-os:
+      - Linux
+      x-stainless-package-version:
+      - 2.52.0
+      x-stainless-raw-response:
+      - 'true'
+      x-stainless-read-timeout:
+      - '120.0'
+      x-stainless-retry-count:
+      - '0'
+      x-stainless-runtime:
+      - CPython
+      x-stainless-runtime-version:
+      - 3.12.3
+    method: POST
+    uri: https://one.chat-yu.net/v1/chat/completions
+  response:
+    body:
+      string: !!binary |
+        KLUv/QBYbSUAqlN8ECjQRpA3yKC2Ma3SIOpOlZHxOdyJ2Kni/2GcoOKHQPUDk6ceRqkcpWIC7AD/
+        AAgBf2EUFmGX87yiqFfys8epp/8BgazUWW9+z8tXEqu4661v55nz+9njc6t/kD0uL+cYfegNIJPv
+        gtncr37o+Xle8XLu3T97vfnF6iXDs84kx2w1Lff5UJR9B486/wGB7DkW886ID30/10viMfcLFjOr
+        Yv7Qea46+66zmqq41Jm8oLhzD3/odx7X/gVwaAEYn72Kx8xuNX3oM/ye5MBFYBjIOqO4LOCz3Lv8
+        7E88bvSh7EfcL1bFh17v3PGZolsk6DcjfvZdxCZmP/SNtbwhSW1mbjjIi8DE7HEDB0NVHQ4SZkkD
+        Gpef/Zj/AEAAAAFgZEJsQkQVJrdjaBJK45Egh7Hq8INhbXECm5R7ZywJLAupmTXSg5B6TMhqciyy
+        XUOe2AiOSpdIMdV5yDw6mk3sUFNVEimFudZq6y1B4WxK9WFqqbk9qAO3HqTm1Eqm2wQDaBms07PA
+        OLIOLV9HEyYbY7HkWYi2Yeg0IpcHzVRZVlGIM+TrJIaMNA2lYGelZtxxJghYUJRdQ2zMXmpEpxus
+        sOWujhwJrgNe5WlZAzgg63mcLlkKzfwaCmsSceMhIUFNRVNQKkKh4IrP/vY7PvQj7qlHFTUmyLfj
+        8VLgXEecETkmQZ/Pfw4+e941RtdSvQ89x3q3l87z+dlj9Oo/yKAm547lajFFxvo9LoftHBdlKdMN
+        nEbJh5qbATptrbjU75tMWPILeTRaVzNXDsTiTLASdq9FJweGhy424sTxuNxi2riKGhmgp0zB4DFJ
+        KInL82mFj+q4VfM4UmmzISPXlcE0J4QFvZw5H2TkLGxEk1wERtwiHtjbWbRJXa9jNNpWGzKZJtRW
+        IlYyOMGcHVYVGqJpuc2FyiZVHhi1w6GUEcnCoFBcWNFjytlkhZpRioRleMbq66VkkTU3GxvskbaR
+        qMNxVFZLgedEdFaPnImvo2gdBoiBW0FS2UysAWdYM3ZqxKqlUO2F4CYYU2LQi7BQUHoYZCIdGIUp
+        FWQKZIGilpfYNAa3i0hDDhifz6e8aH6IkqTPYZIiiVfVJUGHy7qmKCK4YFFjFZM6X9CL1c7T9YPH
+        zO48rhf3rHIuUDTijHjFP8Cr2rPXbA/mwnPnW3wIs87bd3/oYHiIoiYpe66xZvdLT9GtputDBT6f
+        Ap+X2IF+UXWTD70AAVobdQZcKlyZTiIPnmhJFgpzk1sraKUuYzhRbRppxzQLDS6p6FhA6DwSkUgJ
+        3AAuJKhllxCeghIBL456iFs28uhAuSacMA0vq2yIkUi4hiwQ2Y2pQmkb8OgcOtlWprlxiNai6HgQ
+        XS3AybZVOXFNJaH7LGRZwBpDZILh5MS24T4WXPLY9KVNFuZcrot0GhYyNSBAgsUYTgf62RUvwM0K
+        +AwHdpCqE3Md2ELrk8OG1xk4oOdoNz64AXwwGJnKaS0v1cBJLszeO7gtABztKzXBjeaYGwSum6kC
+        4RdGBAn65/kqOVRKggo7Xlab8VWlmMP7zGIu6CvgqyLCGBvQeq4dZtHIlrdRaUkEt48H6EEAlfje
+        BtS2pQRgfAEW
+    headers:
+      access-control-allow-origin:
+      - '*'
+      access-control-expose-headers:
+      - X-Generation-Id,X-Provider-Name,request-id,cf-ray
+      alt-svc:
+      - h3=":443"; ma=86400
+      cf-cache-status:
+      - DYNAMIC
+      cf-ray:
+      - a47e1f4dd840af28-NRT
+      connection:
+      - keep-alive
+      content-encoding:
+      - zstd
+      content-type:
+      - application/json
+      date:
+      - Fri, 09 Oct 2026 14:37:18 GMT
+      nel:
+      - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
+      permissions-policy:
+      - payment=(self "https://checkout.stripe.com" "https://connect-js.stripe.com"
+        "https://js.stripe.com" "https://*.js.stripe.com" "https://hooks.stripe.com")
+      referrer-policy:
+      - no-referrer, strict-origin-when-cross-origin
+      report-to:
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=gqSWBDqh%2BFspV3K0t2X3zSAB98GVEO7jm2UcZmyLMRA9sj9iiWdcLlin3AVw32y%2Fsc8KfYkwAj%2FXw5wz81sNKiAOBwQRyc7Xv4ei8xEKXXjfoxUZGHXRjbBaS5A6bApCbho%3D"}]}'
+      server:
+      - cloudflare
+      set-cookie:
+      - __cf_bm=FOWQ0doyN0v51MfcIrKMsU5_hCa4f8P8J6UYehzZnI0-1791556635.970336-1.0.1.1-PC9_Z8aHxajs2ylTzQk9WPfyGc.Vz2uoILnk_PSoCv8Eft8y9zyChf8LMdkGP2DUr8e083W1Aeu.jBPF6dbczQzeJ0y58zwXsF8ecyLLDL_JWryuK5icHrOJ53bv8kCE;
+        HttpOnly; SameSite=None; Secure; Path=/; Domain=openrouter.ai; Expires=Fri,
+        09 Oct 2026 15:07:18 GMT
+      strict-transport-security:
+      - max-age=31536000
+      transfer-encoding:
+      - chunked
+      via:
+      - 1.1 Caddy
+      x-content-type-options:
+      - nosniff
+      x-generation-id:
+      - gen-1791556635-JLic9CafIHijB4fYaguH
+      x-new-api-version:
+      - v1.0.0-rc.42
+      x-oneapi-request-id:
+      - 202610091437159557221248268d9d6ZTrN4isa
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"messages":[{"content":"You are an occupancy-load expert for EnergyPlus.\nCreate
+      the People objects of the specified zones with create_people,\none call per
+      group of zones with the same values.\n\nWorkflow:\n1. FIRST call `list_zones`
+      to see the exact zone names.\n2. FIRST call `list_schedules` to see the exact
+      Schedule:Compact names\n   (you need occupancy fraction + activity level schedules).\n3.
+      Call `create_people` once per group of zones with the same schedules\n   and
+      values, listing the zones in `zone_names`. Its reply names only\n   zones that
+      failed; the rest got their object. Do not list afterwards.\n\nRules:\n- Zone
+      names, `number_of_people_schedule_name`, `activity_level_schedule_name`\n  MUST
+      all appear verbatim in the list_zones / list_schedules results.\n- If a needed
+      zone or schedule is missing, do NOT invent a name and do NOT\n  list again:
+      give your final answer at once, with it in `missing_inputs`.\n- Objects are
+      named ''{zone}_People''; `name_suffix` changes the suffix.\n- Choose number_of_people_calculation_method
+      based on input:\n    * ''People'' -> supply number_of_people (absolute count)\n    *
+      ''People/Area'' -> supply people_per_floor_area (people/m^2)\n    * ''Area/Person''
+      -> supply floor_area_per_person (m^2/person)\n- Typical office density: 10 m^2/person
+      (People/Area ~ 0.1).\n- fraction_radiant defaults to 0.3 for seated activity.\n","role":"system"},{"content":"Create
+      exactly one People object named ''F1_Office_People'' for zone ''F1_Office'':
+      method People/Area with 0.1 people/m2, occupancy schedule ''Office_Occupancy'',
+      activity level schedule ''Office_Activity''.","role":"user"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_909498","function":{"name":"list_zones","arguments":"{}"}},{"type":"function","id":"call_909499","function":{"name":"list_schedules","arguments":"{}"}}]},{"content":"{\"success\":
+      true, \"message\": \"Listed 1 zones.\", \"data\": [\"F1_Office\"]}","role":"tool","tool_call_id":"call_909498"},{"content":"{\"success\":
+      true, \"message\": \"Listed 2 Schedule:Compact.\", \"data\": [{\"name\": \"Office_Occupancy\",
+      \"schedule_type_limits_name\": \"Fraction\"}, {\"name\": \"Office_Activity\",
+      \"schedule_type_limits_name\": \"Activity Level\"}]}","role":"tool","tool_call_id":"call_909499"}],"model":"google/gemini-3.8-flash","max_completion_tokens":16384,"parallel_tool_calls":false,"stream":false,"temperature":0.7,"tool_choice":"required","tools":[{"type":"function","function":{"name":"create_people","description":"Create
+      one People object, named ''<zone>_<name_suffix>'', per zone.\n\n        Call
+      it once per group of zones with the same values.\n\n        Args:\n            zone_names:
+      Existing Zone names.\n            number_of_people_schedule_name: Existing Schedule:Compact
+      (Fraction).\n            activity_level_schedule_name: Existing Schedule:Compact
+      (ActivityLevel limits, W/person).\n            number_of_people_calculation_method:
+      People / People/Area / Area/Person.\n            number_of_people: Absolute
+      count per zone (use when method=People).\n            people_per_floor_area:
+      people/m^2 (use when method=People/Area).\n            floor_area_per_person:
+      m^2/person (use when method=Area/Person).\n            fraction_radiant: Radiant
+      fraction of sensible heat (0-1).\n            name_suffix: Name suffix; give
+      another one for a second People\n                object in the same zones.","parameters":{"properties":{"zone_names":{"items":{"type":"string"},"type":"array"},"number_of_people_schedule_name":{"type":"string"},"activity_level_schedule_name":{"type":"string"},"number_of_people_calculation_method":{"default":"People","enum":["People","People/Area","Area/Person"],"type":"string"},"number_of_people":{"default":0.0,"type":"number"},"people_per_floor_area":{"default":0.0,"type":"number"},"floor_area_per_person":{"default":0.0,"type":"number"},"fraction_radiant":{"default":0.3,"type":"number"},"name_suffix":{"default":"People","type":"string"}},"required":["zone_names","number_of_people_schedule_name","activity_level_schedule_name"],"type":"object"}}},{"type":"function","function":{"name":"list_people","description":"List
+      People objects: name, zone, schedules and density.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"delete_people","description":"Delete
+      a People object.","parameters":{"properties":{"name":{"type":"string"}},"required":["name"],"type":"object"}}},{"type":"function","function":{"name":"list_zones","description":"List
+      zone names an occupancy load can use.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"list_schedules","description":"List
+      Schedule:Compact names and type limits, for occupancy and activity references.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"PeopleResponse","description":"Structured
+      summary returned by the people phase agent.","parameters":{"properties":{"missing_inputs":{"description":"Needed
+      objects that do not exist; empty when none","items":{"description":"An upstream
+      object a phase needed but did not find.","properties":{"kind":{"description":"Kind
+      of object; the phase of that name creates it","enum":["zone","material","construction","schedule","surface"],"type":"string"},"description":{"description":"What
+      is needed and for what, e.g. ''a window construction (kind window) for the office
+      windows''","type":"string"}},"required":["kind","description"],"type":"object"},"type":"array"},"people_names":{"description":"Names
+      of all People objects created","items":{"type":"string"},"type":"array"},"summary":{"description":"One-line
+      summary of the people creation result","type":"string"}},"required":["people_names","summary"],"type":"object"}}}],"max_thinking_budget":4096}'
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate, zstd
+      connection:
+      - keep-alive
+      content-length:
+      - '5802'
+      content-type:
+      - application/json
+      host:
+      - one.chat-yu.net
+      user-agent:
+      - OpenAI/Python 2.52.0
+      x-stainless-arch:
+      - x64
+      x-stainless-async:
+      - 'false'
+      x-stainless-lang:
+      - python
+      x-stainless-os:
+      - Linux
+      x-stainless-package-version:
+      - 2.52.0
+      x-stainless-raw-response:
+      - 'true'
+      x-stainless-read-timeout:
+      - '120.0'
+      x-stainless-retry-count:
+      - '0'
+      x-stainless-runtime:
+      - CPython
+      x-stainless-runtime-version:
+      - 3.12.3
+    method: POST
+    uri: https://one.chat-yu.net/v1/chat/completions
+  response:
+    body:
+      string: !!binary |
+        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
+        ziN1CM3HFxOgkqQk+19XDg==
+    headers:
+      access-control-allow-origin:
+      - '*'
+      access-control-expose-headers:
+      - X-Generation-Id,X-Provider-Name,request-id,cf-ray
+      alt-svc:
+      - h3=":443"; ma=86400
+      cf-cache-status:
+      - DYNAMIC
+      cf-ray:
+      - a47e1f630cb4af28-NRT
+      connection:
+      - keep-alive
+      content-encoding:
+      - zstd
+      content-type:
+      - application/json
+      date:
+      - Fri, 09 Oct 2026 14:37:22 GMT
+      nel:
+      - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
+      permissions-policy:
+      - payment=(self "https://checkout.stripe.com" "https://connect-js.stripe.com"
+        "https://js.stripe.com" "https://*.js.stripe.com" "https://hooks.stripe.com")
+      referrer-policy:
+      - no-referrer, strict-origin-when-cross-origin
+      report-to:
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=%2B6HwWE1v3attPB%2Fu6L95h1Jb5dLYyG2VfsO4uVGrS1xSVUNU5iZjtHLOhHpHKiphObf3iIW8e0xJAD%2FeyJ3WvMV%2FRVQamI89cp0d2HCtYm5ffnGAfaJZeMEmwsAhOyv6pkQ%3D"}]}'
+      server:
+      - cloudflare
+      set-cookie:
+      - __cf_bm=aVVDEOH2S5ICHhBPu9m11IkWsYuJD_A3mJs6rhb1C0Y-1791556639.3597567-1.0.1.1-kcLu0MX.NMDgJd1EAi_SjTnOFSPdE8x4heWXhamrBlJ3ZIwO5mDleNmd1FKpu1PibacLyKJShJso_8qPrqdR.PNNgEgF6Pb6NJtrWQZf59Z6_zbezCLE.Fgl2vBvZVUm;
+        HttpOnly; SameSite=None; Secure; Path=/; Domain=openrouter.ai; Expires=Fri,
+        09 Oct 2026 15:07:22 GMT
+      strict-transport-security:
+      - max-age=31536000
+      transfer-encoding:
+      - chunked
+      via:
+      - 1.1 Caddy
+      x-content-type-options:
+      - nosniff
+      x-generation-id:
+      - gen-1791556639-OMcJ00CT7YDk1zh5Zjbb
+      x-new-api-version:
+      - v1.0.0-rc.42
+      x-oneapi-request-id:
+      - 202610091437193437368378268d9d6kTqHCOZz
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"messages":[{"content":"You are an occupancy-load expert for EnergyPlus.\nCreate
+      the People objects of the specified zones with create_people,\none call per
+      group of zones with the same values.\n\nWorkflow:\n1. FIRST call `list_zones`
+      to see the exact zone names.\n2. FIRST call `list_schedules` to see the exact
+      Schedule:Compact names\n   (you need occupancy fraction + activity level schedules).\n3.
+      Call `create_people` once per group of zones with the same schedules\n   and
+      values, listing the zones in `zone_names`. Its reply names only\n   zones that
+      failed; the rest got their object. Do not list afterwards.\n\nRules:\n- Zone
+      names, `number_of_people_schedule_name`, `activity_level_schedule_name`\n  MUST
+      all appear verbatim in the list_zones / list_schedules results.\n- If a needed
+      zone or schedule is missing, do NOT invent a name and do NOT\n  list again:
+      give your final answer at once, with it in `missing_inputs`.\n- Objects are
+      named ''{zone}_People''; `name_suffix` changes the suffix.\n- Choose number_of_people_calculation_method
+      based on input:\n    * ''People'' -> supply number_of_people (absolute count)\n    *
+      ''People/Area'' -> supply people_per_floor_area (people/m^2)\n    * ''Area/Person''
+      -> supply floor_area_per_person (m^2/person)\n- Typical office density: 10 m^2/person
+      (People/Area ~ 0.1).\n- fraction_radiant defaults to 0.3 for seated activity.\n","role":"system"},{"content":"Create
+      exactly one People object named ''F1_Office_People'' for zone ''F1_Office'':
+      method People/Area with 0.1 people/m2, occupancy schedule ''Office_Occupancy'',
+      activity level schedule ''Office_Activity''.","role":"user"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_909498","function":{"name":"list_zones","arguments":"{}"}},{"type":"function","id":"call_909499","function":{"name":"list_schedules","arguments":"{}"}}]},{"content":"{\"success\":
+      true, \"message\": \"Listed 1 zones.\", \"data\": [\"F1_Office\"]}","role":"tool","tool_call_id":"call_909498"},{"content":"{\"success\":
+      true, \"message\": \"Listed 2 Schedule:Compact.\", \"data\": [{\"name\": \"Office_Occupancy\",
+      \"schedule_type_limits_name\": \"Fraction\"}, {\"name\": \"Office_Activity\",
+      \"schedule_type_limits_name\": \"Activity Level\"}]}","role":"tool","tool_call_id":"call_909499"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_167578","function":{"name":"create_people","arguments":"{\"number_of_people_calculation_method\":
+      \"People/Area\", \"name_suffix\": \"People\", \"people_per_floor_area\": 0.1,
+      \"zone_names\": [\"F1_Office\"], \"activity_level_schedule_name\": \"Office_Activity\",
+      \"number_of_people_schedule_name\": \"Office_Occupancy\"}"}}]},{"content":"{\"success\":
+      true, \"message\": \"Created People in 1 of 1 zones.\", \"data\": null}","role":"tool","tool_call_id":"call_167578"}],"model":"google/gemini-3.8-flash","max_completion_tokens":16384,"parallel_tool_calls":false,"stream":false,"temperature":0.7,"tool_choice":"required","tools":[{"type":"function","function":{"name":"create_people","description":"Create
+      one People object, named ''<zone>_<name_suffix>'', per zone.\n\n        Call
+      it once per group of zones with the same values.\n\n        Args:\n            zone_names:
+      Existing Zone names.\n            number_of_people_schedule_name: Existing Schedule:Compact
+      (Fraction).\n            activity_level_schedule_name: Existing Schedule:Compact
+      (ActivityLevel limits, W/person).\n            number_of_people_calculation_method:
+      People / People/Area / Area/Person.\n            number_of_people: Absolute
+      count per zone (use when method=People).\n            people_per_floor_area:
+      people/m^2 (use when method=People/Area).\n            floor_area_per_person:
+      m^2/person (use when method=Area/Person).\n            fraction_radiant: Radiant
+      fraction of sensible heat (0-1).\n            name_suffix: Name suffix; give
+      another one for a second People\n                object in the same zones.","parameters":{"properties":{"zone_names":{"items":{"type":"string"},"type":"array"},"number_of_people_schedule_name":{"type":"string"},"activity_level_schedule_name":{"type":"string"},"number_of_people_calculation_method":{"default":"People","enum":["People","People/Area","Area/Person"],"type":"string"},"number_of_people":{"default":0.0,"type":"number"},"people_per_floor_area":{"default":0.0,"type":"number"},"floor_area_per_person":{"default":0.0,"type":"number"},"fraction_radiant":{"default":0.3,"type":"number"},"name_suffix":{"default":"People","type":"string"}},"required":["zone_names","number_of_people_schedule_name","activity_level_schedule_name"],"type":"object"}}},{"type":"function","function":{"name":"list_people","description":"List
+      People objects: name, zone, schedules and density.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"delete_people","description":"Delete
+      a People object.","parameters":{"properties":{"name":{"type":"string"}},"required":["name"],"type":"object"}}},{"type":"function","function":{"name":"list_zones","description":"List
+      zone names an occupancy load can use.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"list_schedules","description":"List
+      Schedule:Compact names and type limits, for occupancy and activity references.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"PeopleResponse","description":"Structured
+      summary returned by the people phase agent.","parameters":{"properties":{"missing_inputs":{"description":"Needed
+      objects that do not exist; empty when none","items":{"description":"An upstream
+      object a phase needed but did not find.","properties":{"kind":{"description":"Kind
+      of object; the phase of that name creates it","enum":["zone","material","construction","schedule","surface"],"type":"string"},"description":{"description":"What
+      is needed and for what, e.g. ''a window construction (kind window) for the office
+      windows''","type":"string"}},"required":["kind","description"],"type":"object"},"type":"array"},"people_names":{"description":"Names
+      of all People objects created","items":{"type":"string"},"type":"array"},"summary":{"description":"One-line
+      summary of the people creation result","type":"string"}},"required":["people_names","summary"],"type":"object"}}}],"max_thinking_budget":4096}'
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate, zstd
+      connection:
+      - keep-alive
+      content-length:
+      - '6351'
+      content-type:
+      - application/json
+      host:
+      - one.chat-yu.net
+      user-agent:
+      - OpenAI/Python 2.52.0
+      x-stainless-arch:
+      - x64
+      x-stainless-async:
+      - 'false'
+      x-stainless-lang:
+      - python
+      x-stainless-os:
+      - Linux
+      x-stainless-package-version:
+      - 2.52.0
+      x-stainless-raw-response:
+      - 'true'
+      x-stainless-read-timeout:
+      - '120.0'
+      x-stainless-retry-count:
+      - '0'
+      x-stainless-runtime:
+      - CPython
+      x-stainless-runtime-version:
+      - 3.12.3
+    method: POST
+    uri: https://one.chat-yu.net/v1/chat/completions
+  response:
+    body:
+      string: !!binary |
+        KLUv/QBY5RUAlqyGKMCSsQ5sZoHXX96eZSHTOgcjmygnpt22D/UpGYisQh6IIwiCIBQEpwJ6AHIA
+        fwBRfm7juzm1+p6rvNltrMqrop0xCN/dSkvLFFEDQoT5+21LfuzN7t7BcF6QS0QCkVXSxgh6YtZi
+        f59tWXr3bnWGfePdq5W5Z0ZtjGTYiX/PsT0b9u5XomH4ZCDHZKEBMxviIrVmAZFMKhUKZTKwTJDa
+        2N8t+VAEABABBBnuiZ6ZbYm/N4X1oeduIKlMlko1J4yxatffOwPlhzQeVmW1GE6Itatv52orzFhi
+        DP/e096H3huDGDe9u4RmQ1H1R2ZY747nhLGa1ua/V4th36qDZZUX3rA3w+y8k9492qryIY133FHa
+        Trx7nhq82pK56goZHosNhGQBE/GBKWRAFRiHBwy58HeYoXV3q3MGurF2RMLcVsXZtm+crGVVVliV
+        GEt6ynFOndJ4p3BTWKtT7lRkoIASZNEUkQQi2BeBwHZy0wirEmtRQFf7EV17RQFVR3ldmmpiCIii
+        KOHUOwW6kFINnwr9HefaVMMuvHvjagPbtmGQyruNYrlMJEy5TAWuIlkKJClSdax9+6qyorBvxpm2
+        tSU/Vloa7CxvR+UkqzsRxodau/mdw4I2KiwztvFuMqFME2ab7yiVOwPLZHrHtTlsrnJG7c00zvbp
+        A8mQXnvd/eCgI8IzPRiguMmgRGwy0+ICQnY2GopEkUEdFDIZIz8gMELCGLM7+FkVdcOCFPCZAzpN
+        1WmOo1twfmo14GoGzCk/2o0P3AA8GEamcVrjpThwcuEN79i+QFBpf1kEqsrxFFBoNrMYXVsvxkIE
+        yvhz+apiKQcsbE1k+SGWrSLUZetY0mzQgjcxJP9nEDcSPOPug53tx764r0oLoyGgBVe7cdHelqBR
+        GZIIKjyeowdBKvFxGxDbjpIDh50HIIMAWA==
+    headers:
+      access-control-allow-origin:
+      - '*'
+      access-control-expose-headers:
+      - X-Generation-Id,X-Provider-Name,request-id,cf-ray
+      alt-svc:
+      - h3=":443"; ma=86400
+      cf-cache-status:
+      - DYNAMIC
+      cf-ray:
+      - a47e1f79c961af28-NRT
+      connection:
+      - keep-alive
+      content-encoding:
+      - zstd
+      content-type:
+      - application/json
+      date:
+      - Fri, 09 Oct 2026 14:37:31 GMT
+      nel:
+      - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
+      permissions-policy:
+      - payment=(self "https://checkout.stripe.com" "https://connect-js.stripe.com"
+        "https://js.stripe.com" "https://*.js.stripe.com" "https://hooks.stripe.com")
+      referrer-policy:
+      - no-referrer, strict-origin-when-cross-origin
+      report-to:
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=gMSG49xQmpuH2rSaXPZ3Qb4DUSHQkur6upBKeXXY4MYCF3o7ZBbR0zzThzG4gFAybZ4UPey7fv3jZu5LIn6xFP5EWItyxqSj0dq%2BxfHiV%2BoL3%2FPSf7bhJc8fbQQMIYEQlu4%3D"}]}'
+      server:
+      - cloudflare
+      set-cookie:
+      - __cf_bm=lI.BZa7.KmxfX7.Xy2pcNNJnlBIcwIRn6.k4KxkmBhk-1791556643.0027428-1.0.1.1-H6KBqj4Tv2.V9aAXbv2Dd6h_Uf_YcCUQxs84JLHKR3zR7G_auP4OJSXDT71qrd7iEEejcOcE1lw0IyqNEbWixukVNAqy2V1kc5IaPPQDMzqT84pzGo34IBxqOBk6v7UH;
+        HttpOnly; SameSite=None; Secure; Path=/; Domain=openrouter.ai; Expires=Fri,
+        09 Oct 2026 15:07:31 GMT
+      strict-transport-security:
+      - max-age=31536000
+      transfer-encoding:
+      - chunked
+      via:
+      - 1.1 Caddy
+      x-content-type-options:
+      - nosniff
+      x-generation-id:
+      - gen-1791556643-Vue08LelGIE4kaNvFO3r
+      x-new-api-version:
+      - v1.0.0-rc.42
+      x-oneapi-request-id:
+      - 202610091437229826727698268d9d6nIPWvKyu
+    status:
+      code: 200
+      message: OK
+version: 1

@@ -1,29 +1,43 @@
 from langchain_core.messages import AIMessage, HumanMessage
+from langgraph.runtime import Runtime
 from pydantic import BaseModel, Field
 
 from src.agent.llm import build_agent
-from src.agent.state import AgentState, AgentStateUpdate
+from src.agent.nodes._share import last_message_text, skipped, with_feedback
+from src.agent.state import AgentState, AgentStateUpdate, SimContext
 from src.agent.tools import make_material_tools
+from src.agent.tools.reference_tools import make_reference_tools, reference_prompt
 from src.agent.trace import TraceCollector, record_phase_trace, trace_middleware
 
 MATERIAL_SYSTEM_PROMPT = """You are a building material expert for EnergyPlus.
 Given material specifications, create all required materials.
 
-Choose the correct material type:
-- create_standard_material for solid opaque layers with thermal mass
-  (brick, concrete, insulation board, gypsum). Requires thickness,
-  conductivity (W/m-K), density (kg/m^3), specific heat (J/kg-K).
-- create_nomass_material when only R-value is known (thin finishes, membranes).
-- create_airgap_material for enclosed air cavities in wall/roof assemblies.
-- create_glazing_material for simplified windows: supply u_factor (W/m^2-K),
-  solar_heat_gain_coefficient (0-1), optional visible_transmittance (0-1).
+Create them with ONE `create_materials` call holding every material, each
+in the list of its type:
+- standard: solid opaque layers with thermal mass (brick, concrete,
+  insulation board, gypsum): thickness (m), conductivity (W/m-K), density
+  (kg/m^3), specific heat (J/kg-K).
+- nomass: when only the R-value is known (thin finishes, membranes).
+- airgap: enclosed air cavities in OPAQUE wall/roof assemblies only, never
+  in a window.
+- Windows, either:
+  * simple_glazing for a window given as a whole: u_factor (W/m^2-K),
+    solar_heat_gain_coefficient (0-1), optional visible_transmittance
+    (0-1). It is used as the only layer.
+  * or, for an explicit multi-pane window, glass_panes for each pane
+    (thickness in m) and window_gases for the gap between panes (Air /
+    Argon / Krypton / Xenon, thickness in m).
+The reply of `create_materials` is final: it gives the counts and names
+only the materials that failed. Do NOT call list_materials to check; call
+`create_materials` again only for the failed ones, then give your answer.
 
 Rules:
-- Material names must be unique and self-describing (e.g., 'Brick_100mm',
-  'EPS_Insulation_R5', 'Window_U1.8_SHGC0.4').
+- Use the material names the specification gives, verbatim; constructions
+  reference them. Name other materials uniquely and self-describing with
+  letters, digits and '_' only (e.g., 'Brick_100mm', 'EPS_Insulation_R5',
+  'Window_U1p8_SHGC0p4').
 - Roughness options: VeryRough, Rough, MediumRough, MediumSmooth, Smooth, VerySmooth.
 - Use typical ASHRAE values when the description is vague.
-- Call list_materials once at the end to verify.
 """
 
 
@@ -34,14 +48,20 @@ class MaterialResponse(BaseModel):
     summary: str = Field(description="One-line summary of the material creation result")
 
 
-def material_agent(state: AgentState) -> AgentStateUpdate:
+def material_agent(state: AgentState, runtime: Runtime[SimContext]) -> AgentStateUpdate:
+    if skipped(state, "material"):
+        return AgentStateUpdate()
     local = state.config_state.model_copy(deep=True)
     tools = make_material_tools(local)
+    prompt = MATERIAL_SYSTEM_PROMPT
+    if (reference := runtime.context.reference) is not None:
+        tools += make_reference_tools(reference, ("material", "construction"))
+        prompt += reference_prompt(reference, ("material", "construction"))
     collector = TraceCollector(phase="material")
 
     agent = build_agent(
         tools=tools,
-        system_prompt=MATERIAL_SYSTEM_PROMPT,
+        system_prompt=prompt,
         response_format=MaterialResponse,
         middleware=[trace_middleware(collector)],
     )
@@ -49,10 +69,12 @@ def material_agent(state: AgentState) -> AgentStateUpdate:
     specs = (
         state.intake_output.material_specs if state.intake_output else state.user_input
     )
-    result = agent.invoke({"messages": [HumanMessage(content=specs)]})
+    result = agent.invoke(
+        {"messages": [HumanMessage(content=with_feedback(specs, state, "material"))]}
+    )
 
     response: MaterialResponse | None = result.get("structured_response")
-    summary = response.summary if response else "material done"
+    summary = response.summary if response else last_message_text(result)
 
     record_phase_trace("material", collector.export())
     return AgentStateUpdate(

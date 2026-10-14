@@ -1,37 +1,21 @@
-import json
-from typing import Any
+from idfpy.models import ScheduleCompact, ScheduleTypeLimits
+from langchain_core.tools import BaseTool
 
-from idfpy.models import (
-    HVACTemplateThermostat,
-    HVACTemplateZoneIdealLoadsAirSystem,
-    Lights,
-    People,
-    ScheduleCompact,
-    ScheduleCompactDataItem,
-    ScheduleTypeLimits,
-)
-from langchain_core.tools import BaseTool, tool
-
+from src.agent.tools._share import list_tool, model_tool, ok
+from src.modeling import objects
+from src.modeling.schedules import ThroughSchema, compact_schedule
 from src.state.config_state import ConfigState
-from src.state.schedules import flatten_schedule_data
-
-
-def _ok(msg: str, data=None) -> str:
-    return json.dumps({"success": True, "message": msg, "data": data})
-
-
-def _err(msg: str, data=None) -> str:
-    return json.dumps({"success": False, "message": msg, "data": data})
 
 
 def make_schedule_tools(config: ConfigState) -> list[BaseTool]:
+    idf = config.idf
 
-    @tool
+    @model_tool
     def create_schedule_type_limits(
         name: str,
         lower_limit_value: float | None = None,
         upper_limit_value: float | None = None,
-        numeric_type: str = "CONTINUOUS",
+        numeric_type: str = "Continuous",
         unit_type: str = "Dimensionless",
     ) -> str:
         """Create a ScheduleTypeLimits.
@@ -40,14 +24,12 @@ def make_schedule_tools(config: ConfigState) -> list[BaseTool]:
             name: Unique name (e.g., 'Fraction', 'Temperature', 'OnOff').
             lower_limit_value: Minimum allowed value (None = unbounded).
             upper_limit_value: Maximum allowed value (None = unbounded).
-            numeric_type: CONTINUOUS or DISCRETE.
-            unit_type: EnergyPlus unit category (Dimensionless / Temperature / Power / ...).
+            numeric_type: Continuous or Discrete.
+            unit_type: EnergyPlus unit category (Dimensionless / Temperature / ActivityLevel / ...).
         """
-        idf = config.idf
-        if idf.has("ScheduleTypeLimits", name):
-            return _err(f"ScheduleTypeLimits '{name}' already exists.")
-        try:
-            schedule_type_limits = ScheduleTypeLimits.model_validate(
+        limits = objects.create(
+            idf,
+            ScheduleTypeLimits.model_validate(
                 {
                     "name": name,
                     "lower_limit_value": lower_limit_value,
@@ -55,152 +37,69 @@ def make_schedule_tools(config: ConfigState) -> list[BaseTool]:
                     "numeric_type": numeric_type,
                     "unit_type": unit_type,
                 }
-            )
-            idf.add(schedule_type_limits)
-            return _ok(
-                f"ScheduleTypeLimits '{name}' created successfully.",
-                schedule_type_limits.model_dump(),
-            )
-        except Exception as e:
-            return _err(f"Error creating ScheduleTypeLimits '{name}': {e}")
+            ),
+        )
+        return ok(
+            f"ScheduleTypeLimits '{name}' created.",
+            limits.model_dump(exclude_none=True),
+        )
 
-    @tool
+    @model_tool
     def create_schedule_compact(
         name: str,
         schedule_type_limits_name: str,
-        data: list[dict[str, Any]],
+        data: list[ThroughSchema],
     ) -> str:
-        """Create a Schedule:Compact.
+        """Create a Schedule:Compact from Through / For / Until blocks.
 
         Args:
             name: Unique schedule name.
             schedule_type_limits_name: Existing ScheduleTypeLimits name.
-            data: Nested schedule structure. Each element is one "Through"-block:
-
-                {
-                  "Through": "MM/DD",               # last block must be "12/31"
-                  "Days": [
-                    {
-                      "For": "<DayType>",           # Weekdays / Weekends / Saturday /
-                                                    # Sunday / AllDays / AllOtherDays /
-                                                    # SummerDesignDay / WinterDesignDay /
-                                                    # Monday...Friday / Holidays /
-                                                    # CustomDay1 / CustomDay2
-                      "Times": [
-                        {"Until": {"Time": "HH:MM", "Value": <float>}},
-                        ...
-                        {"Until": {"Time": "24:00", "Value": <float>}},  # last must be 24:00
-                      ],
-                    },
-                    ...  # additional day-type blocks under the same Through
-                  ],
-                }
-
-                Example (office fraction schedule, weekdays 8-18 at 1.0, else 0.0):
-
-                [
-                  {
-                    "Through": "12/31",
-                    "Days": [
-                      {"For": "Weekdays", "Times": [
+            data: Periods in date order; the last "Through" is "12/31",
+                every day's last "Until" time is "24:00", and every period
+                gives all day types a value (AllDays, or blocks ending with
+                AllOtherDays, which cannot come first). Example (weekdays
+                8-18 at 1.0, else 0.0):
+                  [{"Through": "12/31", "Days": [
+                     {"For": "Weekdays", "Times": [
                         {"Until": {"Time": "08:00", "Value": 0.0}},
                         {"Until": {"Time": "18:00", "Value": 1.0}},
-                        {"Until": {"Time": "24:00", "Value": 0.0}},
-                      ]},
-                      {"For": "AllOtherDays", "Times": [
-                        {"Until": {"Time": "24:00", "Value": 0.0}},
-                      ]},
-                    ],
-                  },
-                ]
+                        {"Until": {"Time": "24:00", "Value": 0.0}}]},
+                     {"For": "AllOtherDays", "Times": [
+                        {"Until": {"Time": "24:00", "Value": 0.0}}]}]}]
         """
-        idf = config.idf
-        name = name.strip()
-        schedule_type_limits_name = schedule_type_limits_name.strip()
-        if not name or not schedule_type_limits_name:
-            return _err(
-                "Schedule:Compact name and schedule_type_limits_name must not be empty."
-            )
-        if idf.has(ScheduleCompact, name):
-            return _err(f"Schedule:Compact '{name}' already exists.")
-        try:
-            idf.add(
-                ScheduleCompact(
-                    name=name,
-                    schedule_type_limits_name=schedule_type_limits_name,
-                    data=[
-                        ScheduleCompactDataItem(field=v)
-                        for v in flatten_schedule_data(data)
-                    ],
-                )
-            )
-            obj = idf.get(ScheduleCompact, name)
-            return _ok(
-                f"Schedule:Compact '{name}' created successfully.",
-                obj.model_dump() if obj else None,
-            )
-        except Exception as e:
-            return _err(f"Error creating Schedule:Compact '{name}': {e}")
+        schedule = objects.create(
+            idf, compact_schedule(name, schedule_type_limits_name, data)
+        )
+        return ok(
+            f"Schedule:Compact '{name}' created.",
+            schedule.model_dump(exclude_none=True),
+        )
 
-    @tool
-    def list_schedules() -> str:
-        """List all Schedule:Compact objects."""
-        idf = config.idf
-        items = [s.model_dump() for s in idf.all_of_type(ScheduleCompact).values()]
-        return _ok(f"Listed {len(items)} Schedule:Compact objects.", items)
-
-    @tool
-    def list_schedule_type_limits() -> str:
-        """List all ScheduleTypeLimits objects."""
-        idf = config.idf
-        items = [s.model_dump() for s in idf.all_of_type(ScheduleTypeLimits).values()]
-        return _ok(f"Listed {len(items)} ScheduleTypeLimits objects.", items)
-
-    @tool
+    @model_tool
     def get_schedule(name: str) -> str:
         """Read a Schedule:Compact by name."""
-        idf = config.idf
-        obj = idf.get(ScheduleCompact, name)
-        if obj is None:
-            return _err(f"Schedule:Compact '{name}' not found.")
-        return _ok(f"Schedule:Compact '{name}' read successfully.", obj.model_dump())
+        schedule = objects.get(idf, ScheduleCompact, name)
+        return ok(
+            f"Schedule:Compact '{name}' read.", schedule.model_dump(exclude_none=True)
+        )
 
-    @tool
+    @model_tool
     def delete_schedule(name: str) -> str:
-        """Delete a Schedule:Compact. Fails if referenced."""
-        idf = config.idf
-        if not idf.has(ScheduleCompact, name):
-            return _err(f"Schedule:Compact '{name}' not found.")
-        refs = []
-        for t in idf.all_of_type(HVACTemplateThermostat).values():
-            if t.heating_setpoint_schedule_name == name:
-                refs.append(f"Thermostat:{t.name}")
-            if t.cooling_setpoint_schedule_name == name:
-                refs.append(f"Thermostat:{t.name}")
-        for ils in idf.all_of_type(HVACTemplateZoneIdealLoadsAirSystem).values():
-            if ils.system_availability_schedule_name == name:
-                refs.append(f"IdealLoadsSystem:{ils.zone_name}")
-        for p in idf.all_of_type(People).values():
-            if p.number_of_people_schedule_name == name:
-                refs.append(f"People:{p.name}")
-            if p.activity_level_schedule_name == name:
-                refs.append(f"People:{p.name}")
-        for lt in idf.all_of_type(Lights).values():
-            if lt.schedule_name == name:
-                refs.append(f"Lights:{lt.name}")
-        if refs:
-            return _err(
-                f"Schedule:Compact '{name}' is referenced by other components.",
-                {"references": refs},
-            )
-        idf.remove(ScheduleCompact, name)
-        return _ok(f"Schedule:Compact '{name}' deleted successfully.")
+        """Delete a Schedule:Compact; refused while another object uses it."""
+        objects.delete(idf, objects.get(idf, ScheduleCompact, name), name)
+        return ok(f"Schedule:Compact '{name}' deleted.")
 
     return [
         create_schedule_type_limits,
         create_schedule_compact,
-        list_schedules,
-        list_schedule_type_limits,
+        list_tool(idf, "list_schedules", ScheduleCompact, "List all Schedule:Compact."),
+        list_tool(
+            idf,
+            "list_schedule_type_limits",
+            ScheduleTypeLimits,
+            "List all ScheduleTypeLimits.",
+        ),
         get_schedule,
         delete_schedule,
     ]

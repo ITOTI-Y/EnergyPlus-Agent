@@ -1,0 +1,639 @@
+interactions:
+- request:
+    body: "{\"messages\":[{\"content\":\"You are a construction-assembly expert for
+      EnergyPlus.\\nGiven construction specifications, create all required Construction
+      objects.\\n\\nWorkflow:\\n1. FIRST call `list_materials` to discover which materials
+      are already\\n   defined and their full properties (thickness, conductivity,
+      U-Factor\\n   for glazing, etc.). DO NOT skip this step \u2014 the materials
+      phase uses\\n   names that may differ from what the intake spec suggested.\\n2.
+      Pick the correct layer composition for each construction using the\\n   material
+      names returned by list_materials, verbatim.\\n3. Call `create_construction`
+      for each construction in the spec.\\n4. Call `list_constructions` once at the
+      end to confirm.\\n\\nRules:\\n- Layer names passed to `create_construction`
+      MUST appear verbatim in\\n  the list_materials result (exact case, underscores,
+      dashes, numbers).\\n- If a needed material is missing from list_materials, do
+      NOT invent a\\n  name, do NOT call create with a broken reference and do NOT
+      list\\n  again: give your final answer at once, with it in `missing_inputs`.\\n-
+      Use the construction names the specification gives, verbatim: zones and\\n  openings
+      reference them. Only for constructions it does not name, use\\n  separate ones
+      per surface type when thermal properties differ (e.g.,\\n  'ExtWall_Office',
+      'IntWall_Office', 'Roof_Office', 'Window_Office').\\n- Each Construction is
+      an ordered list of layers from OUTSIDE to INSIDE. An\\n  interior floor lists
+      its layers from the ceiling below up to the floor\\n  above. Do NOT create reversed
+      copies of interior constructions; the face\\n  in the adjacent zone gets one
+      automatically.\\n- Opaque constructions (walls, roofs, floors, ceilings, doors)
+      use only\\n  opaque materials; Material:AirGap is allowed there.\\n- Window
+      constructions are either a single simplified glazing material, or\\n  glass
+      panes with exactly one window gas layer between each pair, starting\\n  and
+      ending with glass (e.g., [Glass_6mm, Air_13mm, Glass_6mm]). Never mix\\n  window
+      and opaque materials; create_construction rejects such layers.\\n\",\"role\":\"system\"},{\"content\":\"Create
+      exactly one construction named 'ExtWall_Simple' with a single layer 'Brick_100mm'.\",\"role\":\"user\"}],\"model\":\"google/gemini-3.8-flash\",\"max_completion_tokens\":16384,\"parallel_tool_calls\":false,\"stream\":false,\"temperature\":0.7,\"tool_choice\":\"required\",\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"create_construction\",\"description\":\"Create
+      a Construction as an ordered list of material layers.\\n\\n        Opaque constructions
+      use opaque materials only. Window constructions\\n        are either one SimpleGlazingSystem,
+      or glazing layers with exactly one\\n        window gas layer between each pair,
+      starting and ending with glazing.\\n\\n        Args:\\n            name: Unique
+      construction name (e.g., 'ExtWall_Brick').\\n            layers: 1 to 10 existing
+      material names, from outside to inside.\",\"parameters\":{\"properties\":{\"name\":{\"type\":\"string\"},\"layers\":{\"items\":{\"type\":\"string\"},\"type\":\"array\"}},\"required\":[\"name\",\"layers\"],\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"list_constructions\",\"description\":\"List
+      all constructions with their kind: window, opaque or mixed.\",\"parameters\":{\"properties\":{},\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"get_construction\",\"description\":\"Read
+      a construction by name.\",\"parameters\":{\"properties\":{\"name\":{\"type\":\"string\"}},\"required\":[\"name\"],\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"delete_construction\",\"description\":\"Delete
+      a construction; refused while surfaces or fenestration use it.\",\"parameters\":{\"properties\":{\"name\":{\"type\":\"string\"}},\"required\":[\"name\"],\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"list_materials\",\"description\":\"List
+      all materials, with their EnergyPlus type.\",\"parameters\":{\"properties\":{},\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"ConstructionResponse\",\"description\":\"Structured
+      summary returned by the construction phase agent.\",\"parameters\":{\"properties\":{\"missing_inputs\":{\"description\":\"Needed
+      objects that do not exist; empty when none\",\"items\":{\"description\":\"An
+      upstream object a phase needed but did not find.\",\"properties\":{\"kind\":{\"description\":\"Kind
+      of object; the phase of that name creates it\",\"enum\":[\"zone\",\"material\",\"construction\",\"schedule\",\"surface\"],\"type\":\"string\"},\"description\":{\"description\":\"What
+      is needed and for what, e.g. 'a window construction (kind window) for the office
+      windows'\",\"type\":\"string\"}},\"required\":[\"kind\",\"description\"],\"type\":\"object\"},\"type\":\"array\"},\"construction_names\":{\"description\":\"Names
+      of all constructions created\",\"items\":{\"type\":\"string\"},\"type\":\"array\"},\"summary\":{\"description\":\"One-line
+      summary of the construction creation result\",\"type\":\"string\"}},\"required\":[\"construction_names\",\"summary\"],\"type\":\"object\"}}}],\"max_thinking_budget\":4096}"
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate, zstd
+      connection:
+      - keep-alive
+      content-length:
+      - '4862'
+      content-type:
+      - application/json
+      host:
+      - one.chat-yu.net
+      user-agent:
+      - OpenAI/Python 2.52.0
+      x-stainless-arch:
+      - x64
+      x-stainless-async:
+      - 'false'
+      x-stainless-lang:
+      - python
+      x-stainless-os:
+      - Linux
+      x-stainless-package-version:
+      - 2.52.0
+      x-stainless-raw-response:
+      - 'true'
+      x-stainless-read-timeout:
+      - '120.0'
+      x-stainless-retry-count:
+      - '0'
+      x-stainless-runtime:
+      - CPython
+      x-stainless-runtime-version:
+      - 3.12.3
+    method: POST
+    uri: https://one.chat-yu.net/v1/chat/completions
+  response:
+    body:
+      string: !!binary |
+        KLUv/QBYFSUAilJUECjQRvI2eKNJXDFjxsAL6xWBTtdMUDOjrZEJAIBIWNcJ5RR88QB16gET5wD+
+        AAUBOVdryxP866+Z9j8gcIUlLjWvufITvPv2Upe1c8x5/etv1vsPrr9h5fySLz1HuXSdi+Jey5ee
+        51xtJ2vd//pS83p3x8NxiUHu6W2GOr80XR+6X4n/gMD1/FqsPfal7/ms4P1w71yL0X35Szmf5fW9
+        xNvcNywx2CFv5yl/6TX+zt4FeDACOP76fT+M6m2+9B5eMziwEFAN4BKTNyzcHGod/vX5fpp86frv
+        9nq3felLjfvNJqmtgF499q/v9oqefukVaNaql7CQGsgmLYgrMZ9tYJGoFgcEZSmogfKGf/2H/wBA
+        AAAAAgAIjDt9n8xEXIzRiLJJhrFTgVJ5Eu5G0MYCQ5iNStBKS+qJTq6k8Hw4GDAcS9tABnM8nJgc
+        STuHiWFYg01VVHCcAsOgEuNIcYWKc2TGUpPpETUNZ5J3yJFlhkeEsbulfbpWFEw4os8jiOAcHjTP
+        wHpoGc5mE3IQLiTJSmxDzwqVjRHFw3IcpUCDZZgFjpXlszlECxEDVZZTMkd13hbyT2Fyley5VLpB
+        6BshHKpyNDBzY6nQS26EPD4VPlNTSHE1mVhAzKhhaHxj2mFrf33t9Xvpv9vNdNvyCsC1369TYDT6
+        0cFfz3t5yTPcteJ9eyU7neP811+yln9wSa8wJKYq0QkhCGLprIwuuE+FkKEug+AnbpKw67oHSFM3
+        /oEp1hA3VD2vaIuWokSsjDkeGXax5BiaeDKTgaFOpsqaDIREQonQ+uVDQzNmBBbnEDdetfgsryGy
+        KiK2dbaajcNBQUJup4RuMKUUCIiVqWh5OutgqLBMDRWcIM9jEiKYLHowTSaFUCBGJzKN0kUu8u6I
+        co6yuVifkHZYBpoK6Vn0kWNmD3FMCVqEBBl0WyoiTASTjVfgtVtdojGhhJGSgWTtiSQgDIvFwYfP
+        wwwPWVJdsOCxvU+2fapkX/PQYcxu0xsLT8MT8q7FiVpp74jgaIZb2M/GiiBUtkOu4MhMIJEvI5ls
+        1rsUKnuTqASj0SisJH4JMVEjhCGxmDgCgUBQ0oI6GKZJQOfa8u4LlrhD1rs7N8/R/TCq8XfW2/EG
+        daTpux5b7R/cc/frR516HY471/YlQ65d95cQ1EuKaqKu5+Udde90k9TbPAuMnkIHeiW3Bl/6AQMY
+        H2HECMqTOw2Yh4VEQLRL5kKRJCwahpsspUfgZ4FFdxtl8zyT0Im071MAsmxWs2A6yHGNS7cdGPZB
+        IEo2URduHbIqFIvMfDhWqNgyuJWOCCmiO4IP4SimEGpLbKjQQGYZrqQO27gXmm9iuSelFZAvI8CJ
+        5BgmJEhRDPVAswhmqByaC8cr4IjsuXUTK6mcwDNn0UI0IECCxdQRD/rZFVkAmwr4FAd2kKqbuQ5t
+        wf1ra4eLGTBRfkQ3vrkBajAYmcppLS/VgRMVRu8dHBfISu2PI8HY+PE2mJU2DyF0Bfci8ifC6v55
+        vkJyo5LAwgIgC8UxgFKIK/uqaWEcBLTiamdctLdl0KiGJAIKjyfoQZBKfNwG9LalZDDeGy/AAg==
+    headers:
+      access-control-allow-origin:
+      - '*'
+      access-control-expose-headers:
+      - X-Generation-Id,X-Provider-Name,request-id,cf-ray
+      alt-svc:
+      - h3=":443"; ma=86400
+      cf-cache-status:
+      - DYNAMIC
+      cf-ray:
+      - a47d556edfccd2fd-NRT
+      connection:
+      - keep-alive
+      content-encoding:
+      - zstd
+      content-type:
+      - application/json
+      date:
+      - Fri, 09 Oct 2026 12:19:33 GMT
+      nel:
+      - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
+      permissions-policy:
+      - payment=(self "https://checkout.stripe.com" "https://connect-js.stripe.com"
+        "https://js.stripe.com" "https://*.js.stripe.com" "https://hooks.stripe.com")
+      referrer-policy:
+      - no-referrer, strict-origin-when-cross-origin
+      report-to:
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=GF6wG7NkVF29vDaiGLljJbcROGuZMq%2F6iLxHrFYc7pCp2jsroa1C%2FyT1BJ4QWxOJDYEWOwxD5X3pxSqOOi1scZy%2FFldu2rZ6FkCwsknTym9WZNGeV9ZpHoqj6jLDYYyJuPI%3D"}]}'
+      server:
+      - cloudflare
+      set-cookie:
+      - __cf_bm=Bmi38dk9.Hy2K48HMWBCvJEfYhS.Xc2boI3tvqRyiT4-1791548368.1298747-1.0.1.1-NV1M8WKmeBft6McJlNc__nxtFs0mL_JOIJNZF.AjmN1XMP8wcbx3HkbjWTWMpQ1qxkPZLoN7bxGYCu6Vr8b6Pux6XE0aj0NWhdr.1QkS39_69np4PPMxfnrd9vcJxMzr;
+        HttpOnly; SameSite=None; Secure; Path=/; Domain=openrouter.ai; Expires=Fri,
+        09 Oct 2026 12:49:33 GMT
+      strict-transport-security:
+      - max-age=31536000
+      transfer-encoding:
+      - chunked
+      via:
+      - 1.1 Caddy
+      x-content-type-options:
+      - nosniff
+      x-generation-id:
+      - gen-1791548368-HqUnPwcmrJWmR6baElv7
+      x-new-api-version:
+      - v1.0.0-rc.42
+      x-oneapi-request-id:
+      - 202610091219280909758758268d9d6UGeXvBoE
+    status:
+      code: 200
+      message: OK
+- request:
+    body: "{\"messages\":[{\"content\":\"You are a construction-assembly expert for
+      EnergyPlus.\\nGiven construction specifications, create all required Construction
+      objects.\\n\\nWorkflow:\\n1. FIRST call `list_materials` to discover which materials
+      are already\\n   defined and their full properties (thickness, conductivity,
+      U-Factor\\n   for glazing, etc.). DO NOT skip this step \u2014 the materials
+      phase uses\\n   names that may differ from what the intake spec suggested.\\n2.
+      Pick the correct layer composition for each construction using the\\n   material
+      names returned by list_materials, verbatim.\\n3. Call `create_construction`
+      for each construction in the spec.\\n4. Call `list_constructions` once at the
+      end to confirm.\\n\\nRules:\\n- Layer names passed to `create_construction`
+      MUST appear verbatim in\\n  the list_materials result (exact case, underscores,
+      dashes, numbers).\\n- If a needed material is missing from list_materials, do
+      NOT invent a\\n  name, do NOT call create with a broken reference and do NOT
+      list\\n  again: give your final answer at once, with it in `missing_inputs`.\\n-
+      Use the construction names the specification gives, verbatim: zones and\\n  openings
+      reference them. Only for constructions it does not name, use\\n  separate ones
+      per surface type when thermal properties differ (e.g.,\\n  'ExtWall_Office',
+      'IntWall_Office', 'Roof_Office', 'Window_Office').\\n- Each Construction is
+      an ordered list of layers from OUTSIDE to INSIDE. An\\n  interior floor lists
+      its layers from the ceiling below up to the floor\\n  above. Do NOT create reversed
+      copies of interior constructions; the face\\n  in the adjacent zone gets one
+      automatically.\\n- Opaque constructions (walls, roofs, floors, ceilings, doors)
+      use only\\n  opaque materials; Material:AirGap is allowed there.\\n- Window
+      constructions are either a single simplified glazing material, or\\n  glass
+      panes with exactly one window gas layer between each pair, starting\\n  and
+      ending with glass (e.g., [Glass_6mm, Air_13mm, Glass_6mm]). Never mix\\n  window
+      and opaque materials; create_construction rejects such layers.\\n\",\"role\":\"system\"},{\"content\":\"Create
+      exactly one construction named 'ExtWall_Simple' with a single layer 'Brick_100mm'.\",\"role\":\"user\"},{\"content\":null,\"role\":\"assistant\",\"tool_calls\":[{\"type\":\"function\",\"id\":\"call_630627\",\"function\":{\"name\":\"list_materials\",\"arguments\":\"{}\"}}]},{\"content\":\"{\\\"success\\\":
+      true, \\\"message\\\": \\\"Listed 1 materials.\\\", \\\"data\\\": [{\\\"type\\\":
+      \\\"Material\\\", \\\"name\\\": \\\"Brick_100mm\\\", \\\"roughness\\\": \\\"MediumRough\\\",
+      \\\"thickness\\\": 0.1, \\\"conductivity\\\": 0.89, \\\"density\\\": 1920.0,
+      \\\"specific_heat\\\": 790.0, \\\"thermal_absorptance\\\": 0.9, \\\"solar_absorptance\\\":
+      0.7, \\\"visible_absorptance\\\": 0.7}]}\",\"role\":\"tool\",\"tool_call_id\":\"call_630627\"}],\"model\":\"google/gemini-3.8-flash\",\"max_completion_tokens\":16384,\"parallel_tool_calls\":false,\"stream\":false,\"temperature\":0.7,\"tool_choice\":\"required\",\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"create_construction\",\"description\":\"Create
+      a Construction as an ordered list of material layers.\\n\\n        Opaque constructions
+      use opaque materials only. Window constructions\\n        are either one SimpleGlazingSystem,
+      or glazing layers with exactly one\\n        window gas layer between each pair,
+      starting and ending with glazing.\\n\\n        Args:\\n            name: Unique
+      construction name (e.g., 'ExtWall_Brick').\\n            layers: 1 to 10 existing
+      material names, from outside to inside.\",\"parameters\":{\"properties\":{\"name\":{\"type\":\"string\"},\"layers\":{\"items\":{\"type\":\"string\"},\"type\":\"array\"}},\"required\":[\"name\",\"layers\"],\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"list_constructions\",\"description\":\"List
+      all constructions with their kind: window, opaque or mixed.\",\"parameters\":{\"properties\":{},\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"get_construction\",\"description\":\"Read
+      a construction by name.\",\"parameters\":{\"properties\":{\"name\":{\"type\":\"string\"}},\"required\":[\"name\"],\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"delete_construction\",\"description\":\"Delete
+      a construction; refused while surfaces or fenestration use it.\",\"parameters\":{\"properties\":{\"name\":{\"type\":\"string\"}},\"required\":[\"name\"],\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"list_materials\",\"description\":\"List
+      all materials, with their EnergyPlus type.\",\"parameters\":{\"properties\":{},\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"ConstructionResponse\",\"description\":\"Structured
+      summary returned by the construction phase agent.\",\"parameters\":{\"properties\":{\"missing_inputs\":{\"description\":\"Needed
+      objects that do not exist; empty when none\",\"items\":{\"description\":\"An
+      upstream object a phase needed but did not find.\",\"properties\":{\"kind\":{\"description\":\"Kind
+      of object; the phase of that name creates it\",\"enum\":[\"zone\",\"material\",\"construction\",\"schedule\",\"surface\"],\"type\":\"string\"},\"description\":{\"description\":\"What
+      is needed and for what, e.g. 'a window construction (kind window) for the office
+      windows'\",\"type\":\"string\"}},\"required\":[\"kind\",\"description\"],\"type\":\"object\"},\"type\":\"array\"},\"construction_names\":{\"description\":\"Names
+      of all constructions created\",\"items\":{\"type\":\"string\"},\"type\":\"array\"},\"summary\":{\"description\":\"One-line
+      summary of the construction creation result\",\"type\":\"string\"}},\"required\":[\"construction_names\",\"summary\"],\"type\":\"object\"}}}],\"max_thinking_budget\":4096}"
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate, zstd
+      connection:
+      - keep-alive
+      content-length:
+      - '5397'
+      content-type:
+      - application/json
+      host:
+      - one.chat-yu.net
+      user-agent:
+      - OpenAI/Python 2.52.0
+      x-stainless-arch:
+      - x64
+      x-stainless-async:
+      - 'false'
+      x-stainless-lang:
+      - python
+      x-stainless-os:
+      - Linux
+      x-stainless-package-version:
+      - 2.52.0
+      x-stainless-raw-response:
+      - 'true'
+      x-stainless-read-timeout:
+      - '120.0'
+      x-stainless-retry-count:
+      - '0'
+      x-stainless-runtime:
+      - CPython
+      x-stainless-runtime-version:
+      - 3.12.3
+    method: POST
+    uri: https://one.chat-yu.net/v1/chat/completions
+  response:
+    body:
+      string: !!binary |
+        KLUv/QBY5RsAlru7KNAMbQPMYdBq2xIWTK2BFqyAN5PKZ/yiUbtujGh6DoUHBC0e4BsM4hemAKUA
+        wwDTL9b0M/fR9VZQdziPIbY+UdPL/2510sN0/V7FH88n35ak4H91c+/VUH7tk7Xknb5vzWP+8FaQ
+        E3/rkfbJcf3InQmoQAIMfHr+r4ZwHn3yj6YWFMgGLoF6q/jh4m2IcejT7X9Y9Gn695t+9nzyi+t+
+        O4rYG9j04/n07X1Eh31yhp6ADCShrNxKjIOkOCiO8CJwYVfGaFQPrBK4H/r0rzoJIAAAIAAgm2EB
+        Ygbg2AE1xYUB3IA4EK2DNQ2EJT6dbvr55N/vcZS9+wOV7v84iFLJSxDuEUWKqjiQV3PEPQ/TPTr/
+        iFr3TO55O4o1w1lLObuUuGe6x0Py6XrfF8kwUzJvfbHHTX+RXifNyR8Z5nhcnLXU8y4J+vQfR9tJ
+        DzO89WJNLdUk+Pn3xZduXbWmPv0tzk6a/iHV+kWfXAGjyXAfqpten1xbSz3OYrw9CgvuOomaHWRa
+        BDSZyD5jJcQqeh0gGeeGCIMBXhQmjxKijmXH3IXaqGnIvgWL0pNK1zl0KAsOWVBmn0dILjCGg5Ji
+        qfmwhK8gE0wJbpSFTsgZx8UiQSkxG87DgTnG0jKaaDKKMey2gs1BQhjapptsyo3qKmrohMrSHlaD
+        IfTREY2Lom6fNTJF5SByuTQYQWkiy8CakHwGJApRLksmdxlHoy9Nk0B9vk8yWlx2BGbr6ANbeUlp
+        UD706IDQFTwslYnE14UCpVIppGL1KbtKVYPSF1ZNDYthWRQ1wL13Pz94KyfSz1uPZOm/GsL1I+nv
+        mkXcRH3/8ajnpCfzng7Co47TdWvs+XRZVmXpxtunzOFTo1FV0/V9EN7cHkWcRxKi5FVIYFMxY9An
+        JyCAjBzqghKxySR0OLXzLVi6jUOBPN3wW7lpkMisTGXBbNuFWYz1YgqFhy3WpZrYUIyDJWDk2y4h
+        mNFE0YgjI4XMwrLALS+EwNJhomgENiBAgsXY1QH4GRNZQicFeMqBHCfyZq4jtkAdBwivXXBKz9Fu
+        fOEG+GA2MonTKl5KAycWXqId2xbIT/uDJ1CxHLOA+ruZHOma42IaiMBk/5Cvwr4qAyxCr7Lc8Qg9
+        CJWAcEXnY3lflRZGQUDrrnbERXtbBo1qSCKg8HhCDwKpxPc2oLYtJQAj3ngdFg==
+    headers:
+      access-control-allow-origin:
+      - '*'
+      access-control-expose-headers:
+      - X-Generation-Id,X-Provider-Name,request-id,cf-ray
+      alt-svc:
+      - h3=":443"; ma=86400
+      cf-cache-status:
+      - DYNAMIC
+      cf-ray:
+      - a47d55949c56d2fd-NRT
+      connection:
+      - keep-alive
+      content-encoding:
+      - zstd
+      content-type:
+      - application/json
+      date:
+      - Fri, 09 Oct 2026 12:19:39 GMT
+      nel:
+      - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
+      permissions-policy:
+      - payment=(self "https://checkout.stripe.com" "https://connect-js.stripe.com"
+        "https://js.stripe.com" "https://*.js.stripe.com" "https://hooks.stripe.com")
+      referrer-policy:
+      - no-referrer, strict-origin-when-cross-origin
+      report-to:
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=UEshVVjj7%2BIl4DtCgGFKTJlyRtR0vljQi2AHXRvzV1JAGNivbqRmh56%2FwDwPV21tE%2BnPukTZmVDD56fPpFJuqesGZWIhlMPi1n%2BYaX7vYzQ2rI6wo0NkyG0DOktIo43xx6U%3D"}]}'
+      server:
+      - cloudflare
+      set-cookie:
+      - __cf_bm=dz2HUwnx37dgFhoKr5eMav8ajn4an1WYudPNnA6mYt4-1791548373.3643353-1.0.1.1-g76.w4hR.7Vw76mg4lqV4LmKdEr6lJ0gsjWcaeWjkfj2OxVGafXWvfxzLfY2FLNmcMTki7cGtaRzTMbxt84jthKhZEmpFUW4vtvqXui8uFes_4qZ1_csweM6nzKB3gcM;
+        HttpOnly; SameSite=None; Secure; Path=/; Domain=openrouter.ai; Expires=Fri,
+        09 Oct 2026 12:49:38 GMT
+      strict-transport-security:
+      - max-age=31536000
+      transfer-encoding:
+      - chunked
+      via:
+      - 1.1 Caddy
+      x-content-type-options:
+      - nosniff
+      x-generation-id:
+      - gen-1791548373-Mg6H6Hu6OxVx8vEGkFs4
+      x-new-api-version:
+      - v1.0.0-rc.42
+      x-oneapi-request-id:
+      - 202610091219333519743518268d9d6OWvbSFh1
+    status:
+      code: 200
+      message: OK
+- request:
+    body: "{\"messages\":[{\"content\":\"You are a construction-assembly expert for
+      EnergyPlus.\\nGiven construction specifications, create all required Construction
+      objects.\\n\\nWorkflow:\\n1. FIRST call `list_materials` to discover which materials
+      are already\\n   defined and their full properties (thickness, conductivity,
+      U-Factor\\n   for glazing, etc.). DO NOT skip this step \u2014 the materials
+      phase uses\\n   names that may differ from what the intake spec suggested.\\n2.
+      Pick the correct layer composition for each construction using the\\n   material
+      names returned by list_materials, verbatim.\\n3. Call `create_construction`
+      for each construction in the spec.\\n4. Call `list_constructions` once at the
+      end to confirm.\\n\\nRules:\\n- Layer names passed to `create_construction`
+      MUST appear verbatim in\\n  the list_materials result (exact case, underscores,
+      dashes, numbers).\\n- If a needed material is missing from list_materials, do
+      NOT invent a\\n  name, do NOT call create with a broken reference and do NOT
+      list\\n  again: give your final answer at once, with it in `missing_inputs`.\\n-
+      Use the construction names the specification gives, verbatim: zones and\\n  openings
+      reference them. Only for constructions it does not name, use\\n  separate ones
+      per surface type when thermal properties differ (e.g.,\\n  'ExtWall_Office',
+      'IntWall_Office', 'Roof_Office', 'Window_Office').\\n- Each Construction is
+      an ordered list of layers from OUTSIDE to INSIDE. An\\n  interior floor lists
+      its layers from the ceiling below up to the floor\\n  above. Do NOT create reversed
+      copies of interior constructions; the face\\n  in the adjacent zone gets one
+      automatically.\\n- Opaque constructions (walls, roofs, floors, ceilings, doors)
+      use only\\n  opaque materials; Material:AirGap is allowed there.\\n- Window
+      constructions are either a single simplified glazing material, or\\n  glass
+      panes with exactly one window gas layer between each pair, starting\\n  and
+      ending with glass (e.g., [Glass_6mm, Air_13mm, Glass_6mm]). Never mix\\n  window
+      and opaque materials; create_construction rejects such layers.\\n\",\"role\":\"system\"},{\"content\":\"Create
+      exactly one construction named 'ExtWall_Simple' with a single layer 'Brick_100mm'.\",\"role\":\"user\"},{\"content\":null,\"role\":\"assistant\",\"tool_calls\":[{\"type\":\"function\",\"id\":\"call_630627\",\"function\":{\"name\":\"list_materials\",\"arguments\":\"{}\"}}]},{\"content\":\"{\\\"success\\\":
+      true, \\\"message\\\": \\\"Listed 1 materials.\\\", \\\"data\\\": [{\\\"type\\\":
+      \\\"Material\\\", \\\"name\\\": \\\"Brick_100mm\\\", \\\"roughness\\\": \\\"MediumRough\\\",
+      \\\"thickness\\\": 0.1, \\\"conductivity\\\": 0.89, \\\"density\\\": 1920.0,
+      \\\"specific_heat\\\": 790.0, \\\"thermal_absorptance\\\": 0.9, \\\"solar_absorptance\\\":
+      0.7, \\\"visible_absorptance\\\": 0.7}]}\",\"role\":\"tool\",\"tool_call_id\":\"call_630627\"},{\"content\":null,\"role\":\"assistant\",\"tool_calls\":[{\"type\":\"function\",\"id\":\"call_396789\",\"function\":{\"name\":\"create_construction\",\"arguments\":\"{\\\"name\\\":
+      \\\"ExtWall_Simple\\\", \\\"layers\\\": [\\\"Brick_100mm\\\"]}\"}}]},{\"content\":\"{\\\"success\\\":
+      true, \\\"message\\\": \\\"Construction 'ExtWall_Simple' created.\\\", \\\"data\\\":
+      {\\\"name\\\": \\\"ExtWall_Simple\\\", \\\"outside_layer\\\": \\\"Brick_100mm\\\"}}\",\"role\":\"tool\",\"tool_call_id\":\"call_396789\"}],\"model\":\"google/gemini-3.8-flash\",\"max_completion_tokens\":16384,\"parallel_tool_calls\":false,\"stream\":false,\"temperature\":0.7,\"tool_choice\":\"required\",\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"create_construction\",\"description\":\"Create
+      a Construction as an ordered list of material layers.\\n\\n        Opaque constructions
+      use opaque materials only. Window constructions\\n        are either one SimpleGlazingSystem,
+      or glazing layers with exactly one\\n        window gas layer between each pair,
+      starting and ending with glazing.\\n\\n        Args:\\n            name: Unique
+      construction name (e.g., 'ExtWall_Brick').\\n            layers: 1 to 10 existing
+      material names, from outside to inside.\",\"parameters\":{\"properties\":{\"name\":{\"type\":\"string\"},\"layers\":{\"items\":{\"type\":\"string\"},\"type\":\"array\"}},\"required\":[\"name\",\"layers\"],\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"list_constructions\",\"description\":\"List
+      all constructions with their kind: window, opaque or mixed.\",\"parameters\":{\"properties\":{},\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"get_construction\",\"description\":\"Read
+      a construction by name.\",\"parameters\":{\"properties\":{\"name\":{\"type\":\"string\"}},\"required\":[\"name\"],\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"delete_construction\",\"description\":\"Delete
+      a construction; refused while surfaces or fenestration use it.\",\"parameters\":{\"properties\":{\"name\":{\"type\":\"string\"}},\"required\":[\"name\"],\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"list_materials\",\"description\":\"List
+      all materials, with their EnergyPlus type.\",\"parameters\":{\"properties\":{},\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"ConstructionResponse\",\"description\":\"Structured
+      summary returned by the construction phase agent.\",\"parameters\":{\"properties\":{\"missing_inputs\":{\"description\":\"Needed
+      objects that do not exist; empty when none\",\"items\":{\"description\":\"An
+      upstream object a phase needed but did not find.\",\"properties\":{\"kind\":{\"description\":\"Kind
+      of object; the phase of that name creates it\",\"enum\":[\"zone\",\"material\",\"construction\",\"schedule\",\"surface\"],\"type\":\"string\"},\"description\":{\"description\":\"What
+      is needed and for what, e.g. 'a window construction (kind window) for the office
+      windows'\",\"type\":\"string\"}},\"required\":[\"kind\",\"description\"],\"type\":\"object\"},\"type\":\"array\"},\"construction_names\":{\"description\":\"Names
+      of all constructions created\",\"items\":{\"type\":\"string\"},\"type\":\"array\"},\"summary\":{\"description\":\"One-line
+      summary of the construction creation result\",\"type\":\"string\"}},\"required\":[\"construction_names\",\"summary\"],\"type\":\"object\"}}}],\"max_thinking_budget\":4096}"
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate, zstd
+      connection:
+      - keep-alive
+      content-length:
+      - '5817'
+      content-type:
+      - application/json
+      host:
+      - one.chat-yu.net
+      user-agent:
+      - OpenAI/Python 2.52.0
+      x-stainless-arch:
+      - x64
+      x-stainless-async:
+      - 'false'
+      x-stainless-lang:
+      - python
+      x-stainless-os:
+      - Linux
+      x-stainless-package-version:
+      - 2.52.0
+      x-stainless-raw-response:
+      - 'true'
+      x-stainless-read-timeout:
+      - '120.0'
+      x-stainless-retry-count:
+      - '0'
+      x-stainless-runtime:
+      - CPython
+      x-stainless-runtime-version:
+      - 3.12.3
+    method: POST
+    uri: https://one.chat-yu.net/v1/chat/completions
+  response:
+    body:
+      string: !!binary |
+        KLUv/QBYPBIAhqVwJwCROAdgcdrkdi/FGtL20rWlfCdpd4exKzFZnk6jlqoe1l36d9UyAWcAXABq
+        ANtVU98+WcK6EsCAELBwd7oSZya93l7VF6fHBCJ5sGRrKYGN1JzU3eNK03pzl7bfUvh2Obk3XtaE
+        kH4VvHvDxVzm2zEKRWsoaEhIUAgqFq0aLOqCPQwKJJMB6DEoeB5yqbtL/A1AAECvYtPSbTnl68q1
+        vrtvnPQb96VerWu9XSLCUok2w/3k22uMD0Zxzr67nPUtjarKkqd6mfSiZnxz3DlWkvwNhntdyLOC
+        b++IvWkl7mghZ+jWtxgx6d6S6UWXkjxFVhcQhIUSKSoeuLJEQE7lwmpIoLRFwgWGwvIgUViA6KAS
+        KJqJhQYHC1a4++snvV3avjQUyoXw65WijCx7trl7bbkWRtH39orRrnLCqCvHu6/15DeuPTJxJk8U
+        44NQYtPd99L0NxiOkixnfTFZllHP4rcMikwcp0agSYMkBo/jQKKFculOkiPrLe16YdlKnJksYW+b
+        6UbUHGkr+OA3i9F215iaS1S564RvBAOR+Hr22/MGSSKPe5WrMTvqy5r0wjKyP5lHP4vO6e0HBxsQ
+        mIix0EBLMyAwgsWY9visir5BQQV8zgEdUnU1x/EtOKlpDbiUASPlR7vxxQ1Qg93INE7reKkNnKyw
+        RndsWsCRtI8h4pQ3s3f4aJvzplvroh8iiJkO3FUTpA9Y2EFZNBwbg6Ipb6rSwDgIaOFqb1zEtwVo
+        VEESAYTHI3oQSiW+bgOqbSlJGN+LBQEAAA==
+    headers:
+      access-control-allow-origin:
+      - '*'
+      access-control-expose-headers:
+      - X-Generation-Id,X-Provider-Name,request-id,cf-ray
+      alt-svc:
+      - h3=":443"; ma=86400
+      cf-cache-status:
+      - DYNAMIC
+      cf-ray:
+      - a47d55b93b43d2fd-NRT
+      connection:
+      - keep-alive
+      content-encoding:
+      - zstd
+      content-type:
+      - application/json
+      date:
+      - Fri, 09 Oct 2026 12:19:42 GMT
+      nel:
+      - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
+      permissions-policy:
+      - payment=(self "https://checkout.stripe.com" "https://connect-js.stripe.com"
+        "https://js.stripe.com" "https://*.js.stripe.com" "https://hooks.stripe.com")
+      referrer-policy:
+      - no-referrer, strict-origin-when-cross-origin
+      report-to:
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=vZtV5kWJdCNz050ePFyeockcYZFI7OGRqYApQShKm5Tqd4QssMswpeIf7ao9eEEdMYS1ZYRmljK18lwOfb7Own4uQeYZtPC1Fs%2FtI9KKFRB7gMc0hvrITXBnd%2Fv4rBYNew0%3D"}]}'
+      server:
+      - cloudflare
+      set-cookie:
+      - __cf_bm=VObYQzXmHk6ZH97mlB2FBd39XA7NlJkz33BRQxHJvcI-1791548379.23696-1.0.1.1-Dk81Magzs5JxFwtpUWXSTBQmqWch9lfSJ3rfeW6eJGc2zA80aVjw8EOJRoUEtctE_nqsXY6lOVG421YDcZK1zxWh1qzs8B.wg4l2_76IDzYaSMpYGKZtHTWTNtYLO13V;
+        HttpOnly; SameSite=None; Secure; Path=/; Domain=openrouter.ai; Expires=Fri,
+        09 Oct 2026 12:49:42 GMT
+      strict-transport-security:
+      - max-age=31536000
+      transfer-encoding:
+      - chunked
+      via:
+      - 1.1 Caddy
+      x-content-type-options:
+      - nosniff
+      x-generation-id:
+      - gen-1791548379-ubgmJhrmS6NPPkEktVNu
+      x-new-api-version:
+      - v1.0.0-rc.42
+      x-oneapi-request-id:
+      - 202610091219392232004308268d9d67DDHKYBn
+    status:
+      code: 200
+      message: OK
+- request:
+    body: "{\"messages\":[{\"content\":\"You are a construction-assembly expert for
+      EnergyPlus.\\nGiven construction specifications, create all required Construction
+      objects.\\n\\nWorkflow:\\n1. FIRST call `list_materials` to discover which materials
+      are already\\n   defined and their full properties (thickness, conductivity,
+      U-Factor\\n   for glazing, etc.). DO NOT skip this step \u2014 the materials
+      phase uses\\n   names that may differ from what the intake spec suggested.\\n2.
+      Pick the correct layer composition for each construction using the\\n   material
+      names returned by list_materials, verbatim.\\n3. Call `create_construction`
+      for each construction in the spec.\\n4. Call `list_constructions` once at the
+      end to confirm.\\n\\nRules:\\n- Layer names passed to `create_construction`
+      MUST appear verbatim in\\n  the list_materials result (exact case, underscores,
+      dashes, numbers).\\n- If a needed material is missing from list_materials, do
+      NOT invent a\\n  name, do NOT call create with a broken reference and do NOT
+      list\\n  again: give your final answer at once, with it in `missing_inputs`.\\n-
+      Use the construction names the specification gives, verbatim: zones and\\n  openings
+      reference them. Only for constructions it does not name, use\\n  separate ones
+      per surface type when thermal properties differ (e.g.,\\n  'ExtWall_Office',
+      'IntWall_Office', 'Roof_Office', 'Window_Office').\\n- Each Construction is
+      an ordered list of layers from OUTSIDE to INSIDE. An\\n  interior floor lists
+      its layers from the ceiling below up to the floor\\n  above. Do NOT create reversed
+      copies of interior constructions; the face\\n  in the adjacent zone gets one
+      automatically.\\n- Opaque constructions (walls, roofs, floors, ceilings, doors)
+      use only\\n  opaque materials; Material:AirGap is allowed there.\\n- Window
+      constructions are either a single simplified glazing material, or\\n  glass
+      panes with exactly one window gas layer between each pair, starting\\n  and
+      ending with glass (e.g., [Glass_6mm, Air_13mm, Glass_6mm]). Never mix\\n  window
+      and opaque materials; create_construction rejects such layers.\\n\",\"role\":\"system\"},{\"content\":\"Create
+      exactly one construction named 'ExtWall_Simple' with a single layer 'Brick_100mm'.\",\"role\":\"user\"},{\"content\":null,\"role\":\"assistant\",\"tool_calls\":[{\"type\":\"function\",\"id\":\"call_630627\",\"function\":{\"name\":\"list_materials\",\"arguments\":\"{}\"}}]},{\"content\":\"{\\\"success\\\":
+      true, \\\"message\\\": \\\"Listed 1 materials.\\\", \\\"data\\\": [{\\\"type\\\":
+      \\\"Material\\\", \\\"name\\\": \\\"Brick_100mm\\\", \\\"roughness\\\": \\\"MediumRough\\\",
+      \\\"thickness\\\": 0.1, \\\"conductivity\\\": 0.89, \\\"density\\\": 1920.0,
+      \\\"specific_heat\\\": 790.0, \\\"thermal_absorptance\\\": 0.9, \\\"solar_absorptance\\\":
+      0.7, \\\"visible_absorptance\\\": 0.7}]}\",\"role\":\"tool\",\"tool_call_id\":\"call_630627\"},{\"content\":null,\"role\":\"assistant\",\"tool_calls\":[{\"type\":\"function\",\"id\":\"call_396789\",\"function\":{\"name\":\"create_construction\",\"arguments\":\"{\\\"name\\\":
+      \\\"ExtWall_Simple\\\", \\\"layers\\\": [\\\"Brick_100mm\\\"]}\"}}]},{\"content\":\"{\\\"success\\\":
+      true, \\\"message\\\": \\\"Construction 'ExtWall_Simple' created.\\\", \\\"data\\\":
+      {\\\"name\\\": \\\"ExtWall_Simple\\\", \\\"outside_layer\\\": \\\"Brick_100mm\\\"}}\",\"role\":\"tool\",\"tool_call_id\":\"call_396789\"},{\"content\":null,\"role\":\"assistant\",\"tool_calls\":[{\"type\":\"function\",\"id\":\"call_18082\",\"function\":{\"name\":\"list_constructions\",\"arguments\":\"{}\"}}]},{\"content\":\"{\\\"success\\\":
+      true, \\\"message\\\": \\\"Listed 1 constructions.\\\", \\\"data\\\": [{\\\"kind\\\":
+      \\\"opaque\\\", \\\"name\\\": \\\"ExtWall_Simple\\\", \\\"outside_layer\\\":
+      \\\"Brick_100mm\\\"}]}\",\"role\":\"tool\",\"tool_call_id\":\"call_18082\"}],\"model\":\"google/gemini-3.8-flash\",\"max_completion_tokens\":16384,\"parallel_tool_calls\":false,\"stream\":false,\"temperature\":0.7,\"tool_choice\":\"required\",\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"create_construction\",\"description\":\"Create
+      a Construction as an ordered list of material layers.\\n\\n        Opaque constructions
+      use opaque materials only. Window constructions\\n        are either one SimpleGlazingSystem,
+      or glazing layers with exactly one\\n        window gas layer between each pair,
+      starting and ending with glazing.\\n\\n        Args:\\n            name: Unique
+      construction name (e.g., 'ExtWall_Brick').\\n            layers: 1 to 10 existing
+      material names, from outside to inside.\",\"parameters\":{\"properties\":{\"name\":{\"type\":\"string\"},\"layers\":{\"items\":{\"type\":\"string\"},\"type\":\"array\"}},\"required\":[\"name\",\"layers\"],\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"list_constructions\",\"description\":\"List
+      all constructions with their kind: window, opaque or mixed.\",\"parameters\":{\"properties\":{},\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"get_construction\",\"description\":\"Read
+      a construction by name.\",\"parameters\":{\"properties\":{\"name\":{\"type\":\"string\"}},\"required\":[\"name\"],\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"delete_construction\",\"description\":\"Delete
+      a construction; refused while surfaces or fenestration use it.\",\"parameters\":{\"properties\":{\"name\":{\"type\":\"string\"}},\"required\":[\"name\"],\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"list_materials\",\"description\":\"List
+      all materials, with their EnergyPlus type.\",\"parameters\":{\"properties\":{},\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"ConstructionResponse\",\"description\":\"Structured
+      summary returned by the construction phase agent.\",\"parameters\":{\"properties\":{\"missing_inputs\":{\"description\":\"Needed
+      objects that do not exist; empty when none\",\"items\":{\"description\":\"An
+      upstream object a phase needed but did not find.\",\"properties\":{\"kind\":{\"description\":\"Kind
+      of object; the phase of that name creates it\",\"enum\":[\"zone\",\"material\",\"construction\",\"schedule\",\"surface\"],\"type\":\"string\"},\"description\":{\"description\":\"What
+      is needed and for what, e.g. 'a window construction (kind window) for the office
+      windows'\",\"type\":\"string\"}},\"required\":[\"kind\",\"description\"],\"type\":\"object\"},\"type\":\"array\"},\"construction_names\":{\"description\":\"Names
+      of all constructions created\",\"items\":{\"type\":\"string\"},\"type\":\"array\"},\"summary\":{\"description\":\"One-line
+      summary of the construction creation result\",\"type\":\"string\"}},\"required\":[\"construction_names\",\"summary\"],\"type\":\"object\"}}}],\"max_thinking_budget\":4096}"
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate, zstd
+      connection:
+      - keep-alive
+      content-length:
+      - '6184'
+      content-type:
+      - application/json
+      host:
+      - one.chat-yu.net
+      user-agent:
+      - OpenAI/Python 2.52.0
+      x-stainless-arch:
+      - x64
+      x-stainless-async:
+      - 'false'
+      x-stainless-lang:
+      - python
+      x-stainless-os:
+      - Linux
+      x-stainless-package-version:
+      - 2.52.0
+      x-stainless-raw-response:
+      - 'true'
+      x-stainless-read-timeout:
+      - '120.0'
+      x-stainless-retry-count:
+      - '0'
+      x-stainless-runtime:
+      - CPython
+      x-stainless-runtime-version:
+      - 3.12.3
+    method: POST
+    uri: https://one.chat-yu.net/v1/chat/completions
+  response:
+    body:
+      string: !!binary |
+        KLUv/QBYRRUAViyFJuCUVgeQwH6RbUniEh9F6gPuMnGzFholbHchFLeCT2FZZJhhCeK9eQBxAH0A
+        DFuksj2L8Zrtd3a1KlezN07ytR17dtrUdS+gBwTI4e2VqRah1To7x764mRRQLJOeLbkS4FhRWr09
+        MkXlWTvF93GFZ5+0L0dLUki5jwPffiGDfNCzU/syFU7GIWM2hFQyDVXGhS0mlQJLwQUjGRBIk8nV
+        26m+BwACCJYtrnrtpApvZ/nmPY1dwgwUVC4uxgfhvDZvZ6tz7+lo1exJ7YvPXhuufCed79q29r2d
+        I633tHP1rGV59oqM5sKxSN83z25jfNBFSu/bJ7WPq+PYnr2xH7RaFY1nUTsJU7Pv6Wi3DJty4Nlv
+        vN6Gqb4uCxwgGRoJC4PDREm1QNHBcICI2GiGt7/7qLNTfK1OhZMp/S5TzuPz+cfj0yeWb7pPzKOj
+        fbL3sma7ara1LT+xT5QAKaNIciGwa0IAVLnzIsSxmm0hzu0RKICjJfvCxfg0LglDAAQhhU/tU6c+
+        KS/7yfN2eyfLq6rv7GwntQKfz6d6ss8+GIIBS2QNJIYhkCyVKKI4hpMrb2Y7+bhea10fplqENnU9
+        vl1HHIso5sAH7+Gr3vYQ2vlwtq+l8MzgYpHiu/SeGVzOosgitdvJIfS6a0larcvjc0lkcp+sdHP2
+        g4ORCZAIstGBGg7MhIYiZmhINEeTwUQXHBJigeJuBDggMILGnN0B91kRdYOCFOCZAzml4mJuA1tg
+        KXTY8WoGjvQc2Y1vbgAf7EYmcVrjpThwcuGN7Ni0gEppn1YEqsoxF3BlNlcYXVsvakKEvvhz+SpX
+        KQcqrEeyoDzm5hI3BW24+ek17bwMKfCCy33VtDACAa272o+L+LYYGtWQRCDh8YwehFCJ/9uAaltK
+        FsYXYAE=
+    headers:
+      access-control-allow-origin:
+      - '*'
+      access-control-expose-headers:
+      - X-Generation-Id,X-Provider-Name,request-id,cf-ray
+      alt-svc:
+      - h3=":443"; ma=86400
+      cf-cache-status:
+      - DYNAMIC
+      cf-ray:
+      - a47d55cf1eb3d2fd-NRT
+      connection:
+      - keep-alive
+      content-encoding:
+      - zstd
+      content-type:
+      - application/json
+      date:
+      - Fri, 09 Oct 2026 12:19:44 GMT
+      nel:
+      - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
+      permissions-policy:
+      - payment=(self "https://checkout.stripe.com" "https://connect-js.stripe.com"
+        "https://js.stripe.com" "https://*.js.stripe.com" "https://hooks.stripe.com")
+      referrer-policy:
+      - no-referrer, strict-origin-when-cross-origin
+      report-to:
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=p8MDW767fnJUvVPsoPc2FiHMC4Xn5pISb61caKybHbY%2F86GoAT6S36A30wH6Gvt5LtTp%2Fz9aSC%2FMpPrRvD%2BG%2BM3A0Q8KvgJq%2FQTCOItCb7WMgBjz3D1alG9a4S7I2KeX92g%3D"}]}'
+      server:
+      - cloudflare
+      set-cookie:
+      - __cf_bm=S9I6Yen_9b3jjKlpugaFfZN4nKe0NDOd4jQJO44.MAM-1791548382.7333095-1.0.1.1-LVl8qRFMhFkyI4WwUWGlQxLWPVmm2PPHYYDPHFPYwFVDUylJ84Msr0P8Y739V.KQZOfSQ.mhTOyUHw3OVBiEHUzjuQM4_2S65l5m3DI0yZ_w4aFzhtCBzQb9_vS5u6Tb;
+        HttpOnly; SameSite=None; Secure; Path=/; Domain=openrouter.ai; Expires=Fri,
+        09 Oct 2026 12:49:44 GMT
+      strict-transport-security:
+      - max-age=31536000
+      transfer-encoding:
+      - chunked
+      via:
+      - 1.1 Caddy
+      x-content-type-options:
+      - nosniff
+      x-generation-id:
+      - gen-1791548382-Re4VgFO2kFnVGOh2Oaso
+      x-new-api-version:
+      - v1.0.0-rc.42
+      x-oneapi-request-id:
+      - 202610091219427176017648268d9d6JQpIcJn8
+    status:
+      code: 200
+      message: OK
+version: 1

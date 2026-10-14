@@ -1,8 +1,13 @@
-from idfpy.models import Material, OutputVariable, Zone
+import pickle
+
+import pytest
+from idfpy.models import Construction, Material, OutputVariable, Zone
+from pydantic import ValidationError
 
 from src.agent import build_graph
-from src.agent.state import merge_config_state
+from src.agent.state import IntakePatch, merge_config_state
 from src.state.config_state import ConfigState
+from tests.agent.intake_data import intake, layout, zone_spec
 
 
 def test_config_states_stay_isolated_after_graph_build():
@@ -99,3 +104,154 @@ def test_merge_does_not_mutate_inputs():
 
     assert set(old.idf.all_of_type(Zone)) == {"Z_OLD"}
     assert set(new.idf.all_of_type(Zone)) == {"Z_NEW"}
+
+
+def test_intake_output_needs_plug_loads():
+    with pytest.raises(ValidationError, match="equipment_specs"):
+        intake(equipment_specs=" ")
+
+
+def test_patch_reports_phases_whose_input_changed():
+    before = intake(
+        zones=[zone_spec("A", [(0, 0), (5, 0), (5, 5), (0, 5)])], hvac_specs="ideal"
+    )
+    patch = IntakePatch.model_validate(
+        {
+            "reason": "r",
+            # Layout given but unchanged.
+            "zone_plans": before.model_dump()["zone_plans"],
+            "storeys": before.model_dump()["storeys"],
+            "hvac_specs": "ideal loads, 20/26 C",
+        }
+    )
+
+    after, changed = patch.apply(before)
+
+    assert changed == {"hvac"}
+    assert after.hvac_specs == "ideal loads, 20/26 C"
+    assert after.zones == before.zones
+
+
+def test_patch_repeating_a_plan_key_is_rejected():
+    square = [(0, 0), (5, 0), (5, 5), (0, 5)]
+    patch = IntakePatch.model_validate(
+        {"reason": "r", **layout(zone_spec("A", square), zone_spec("A", square))}
+    )
+
+    with pytest.raises(ValidationError, match="repeated"):
+        patch.apply(intake())
+
+
+def test_storeys_name_zones_and_carry_level_height_and_multiplier():
+    square = [{"X": x, "Y": y} for x, y in [(0, 0), (5, 0), (5, 5), (0, 5)]]
+    plan = {
+        "plan": square,
+        "exterior_wall_construction": "Wall",
+        "roof_construction": "Wall",
+        "ground_floor_construction": "Slab",
+        "interior_wall_construction": "Wall",
+        "interior_floor_construction": "Slab",
+    }
+    output = intake(
+        zone_plans=[plan | {"key": "Office"}, plan | {"key": "Lobby"}],
+        storeys=[
+            {"name": "G", "height": 4, "zones": [
+                {"plan": "Office"}, {"plan": "Lobby", "height": 7.5}]},
+            {"name": "T", "height": 3.5, "multiplier": 18,
+             "zones": [{"plan": "Office"}]},
+            {"name": "Top", "height": 3.5, "zones": [{"plan": "Office"}]},
+        ],
+    )  # fmt: skip
+
+    assert [(z.name, z.floor_z, z.height, z.multiplier) for z in output.zones] == [
+        ("G_Office", 0, 4, 1),
+        ("G_Lobby", 0, 7.5, 1),
+        ("T_Office", 4, 3.5, 18),
+        ("Top_Office", 4 + 18 * 3.5, 3.5, 1),
+    ]
+    with pytest.raises(ValidationError, match="not defined"):
+        intake(zone_plans=[], storeys=[{"name": "G", "height": 3,
+                                        "zones": [{"plan": "Office"}]}])  # fmt: skip
+
+
+@pytest.mark.parametrize(
+    ("second", "phases"),
+    [
+        ("B", {"surface"}),  # moved: only its geometry changes
+        ("C", {"zone", "surface"}),  # renamed: objects naming it change too
+    ],
+)
+def test_zone_patch_rebuilds_zones_only_when_names_change(second, phases):
+    square = [(0, 0), (5, 0), (5, 5), (0, 5)]
+    before = intake(
+        zones=[zone_spec("A", square), zone_spec("B", [(4, 0), (9, 0), (9, 5), (4, 5)])]
+    )
+    moved = zone_spec(second, [(5, 0), (10, 0), (10, 5), (5, 5)])
+    patch = IntakePatch.model_validate(
+        {"reason": "r", **layout(zone_spec("A", square), moved)}
+    )
+
+    _, changed = patch.apply(before)
+
+    assert changed == phases
+
+
+@pytest.mark.parametrize(
+    ("typical", "phases"),
+    [
+        ({"height": 3.6, "multiplier": 18}, {"surface"}),  # same zones, new levels
+        ({"height": 3.5, "multiplier": 17}, {"zone", "surface"}),  # Zone objects too
+    ],
+)
+def test_storey_patch_rebuilds_zones_when_a_multiplier_changes(typical, phases):
+    square = [{"X": x, "Y": y} for x, y in [(0, 0), (5, 0), (5, 5), (0, 5)]]
+    plan = {
+        "key": "Office",
+        "plan": square,
+        "exterior_wall_construction": "Wall",
+        "roof_construction": "Wall",
+        "ground_floor_construction": "Slab",
+        "interior_wall_construction": "Wall",
+        "interior_floor_construction": "Slab",
+    }
+
+    def storeys(height: float, multiplier: int) -> list[dict]:
+        return [
+            {"name": "G", "height": 4, "zones": [{"plan": "Office"}]},
+            {"name": "T", "height": height, "multiplier": multiplier,
+             "zones": [{"plan": "Office"}]},
+        ]  # fmt: skip
+
+    before = intake(zone_plans=[plan], storeys=storeys(3.5, 18))
+    patch = IntakePatch.model_validate(
+        {"reason": "r", "storeys": storeys(typical["height"], typical["multiplier"])}
+    )
+
+    _, changed = patch.apply(before)
+
+    assert changed == phases
+
+
+def test_copied_and_checkpointed_models_resolve_references_in_themselves():
+    original = ConfigState()
+    original.idf.add(
+        Material(
+            name="Brick",
+            roughness="Rough",
+            thickness=0.1,
+            conductivity=0.9,
+            density=1900.0,
+            specific_heat=800.0,
+        )
+    )
+    original.idf.add(Construction(name="Wall", outside_layer="Brick"))
+
+    for copy in (
+        original.model_copy(deep=True),
+        pickle.loads(pickle.dumps(original)),
+    ):
+        wall = copy.idf.get(Construction, "Wall")
+        assert wall is not None
+        # Phase nodes work on copies, and checkpoints pickle the state; a
+        # lookup must not reach back into the original model.
+        assert wall.outside_layer_ref is copy.idf.get(Material, "Brick")
