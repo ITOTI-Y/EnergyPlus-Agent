@@ -1,15 +1,27 @@
 from __future__ import annotations
 
 import base64
+import re
+from collections.abc import Callable, Iterable
 from pathlib import Path
-from typing import Any, Literal, TypedDict, cast
+from typing import Any, Final, Literal, TypedDict, cast
 
 from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
+from langchain_core.utils.function_calling import convert_to_openai_tool
+from langgraph.runtime import Runtime
 from loguru import logger
+from pydantic import BaseModel
 
 from src.agent._share import language_directive
 from src.agent.llm import create_llm
-from src.agent.state import AgentState, AgentStateUpdate, IntakeOutput
+from src.agent.phases import DEPENDS_ON, PHASE_TYPES, Phase, owner, rerun_closure
+from src.agent.state import (
+    AgentState,
+    AgentStateUpdate,
+    IntakeOutput,
+    IntakePatch,
+    SimContext,
+)
 
 
 class TextContentPart(TypedDict):
@@ -41,7 +53,28 @@ Fields:
 - `building`: EnergyPlus Building object (name, terrain, convergence tolerances)
 - `site_location`: EnergyPlus Site:Location object (latitude, longitude,
   time_zone, elevation)
-- `*_specs`: one natural-language instruction string per subsystem agent
+- `zone_plans` and `storeys`: the zones, as floor plans placed on
+  storeys. Give each distinct plan ONCE in `zone_plans` (key, corners X, Y
+  in meters in order around the zone, and the constructions of its
+  exterior walls, roof, ground floor, interior walls and interior floors),
+  then list EVERY storey bottom up in `storeys` (name, floor-to-floor
+  height, multiplier, and the plan keys on it). Every zone is named
+  '<storey name>_<plan key>' (e.g. 'L2_S1'); use exactly these names in
+  every other field. For a single-storey building, name the storey ''
+  and the zones are named by plan key. Code builds walls, floors and flat
+  roofs from this and pairs faces shared by two zones. Zones must not
+  overlap.
+  Repeated typical floors are modelled once, as the DOE prototypes do:
+  the ground storey and the top storey with multiplier 1, and between
+  them ONE typical storey with `multiplier` = the number of typical
+  floors (e.g. 18 for storeys 3-20). Floor levels are computed from the
+  heights and multipliers of the storeys below. A space through several storeys (atrium) is a plan on each of
+  the ground, typical and top storeys. A zone taller than its storey
+  (e.g. an 8 m lobby through storeys 1-2) sets `height` on its storey
+  entry and is left out of the storey it reaches into.
+- `*_specs`: one natural-language instruction string per subsystem agent.
+  `surface_specs` is only for sloped or pitched roofs and sloped walls;
+  leave it empty when every zone has vertical walls and a flat roof.
 
 Rules:
 1. If latitude/longitude are not given, infer from the city/region mentioned.
@@ -49,19 +82,28 @@ Rules:
    (e.g., tolerance 0.04, terrain 'City', solar distribution 'FullExterior').
 3. Each `*_specs` field must be concrete: list zone names, material types,
    schedule patterns, etc. Do NOT output placeholders like 'TBD'.
+   `equipment_specs` is never empty: when the brief gives no plug loads,
+   give typical densities for the space types (e.g. 10 W/m^2 for offices)
+   on a fraction schedule.
 4. Internal consistency is CRITICAL — the phase agents work from your
    specs. Names referenced across subsystems must MATCH EXACTLY
    (case, underscores, everything):
-   - Constructions named in `surface_specs` / `fenestration_specs` must
-     be defined in `construction_specs` with the IDENTICAL name.
-   - Schedules named in `hvac_specs` / `people_specs` / `lights_specs`
+   - Constructions named in `zone_plans` / `surface_specs` /
+     `fenestration_specs` must be defined in `construction_specs` with
+     the IDENTICAL name, opaque for walls, roofs and floors. Give the
+     interior floor layers from the ceiling below up to the floor above;
+     the face on the other side gets the reversed layers automatically.
+   - Schedules named in `hvac_specs` / `people_specs` / `lights_specs` /
+     `equipment_specs`
      must be defined in `schedule_specs` with the IDENTICAL name.
-   - Zones named in `surface_specs` / `people_specs` / `lights_specs` /
-     `hvac_specs` must be defined in `zone_specs` with the IDENTICAL name.
+   - Zones named in `surface_specs` / `fenestration_specs` /
+     `people_specs` / `lights_specs` / `equipment_specs` / `hvac_specs`
+     must be zones of `storeys` and `zone_plans`, named
+     '<storey>_<plan key>' exactly.
    Pick names once, reuse them verbatim. No synonyms, no pluralization.
 5. Name format — EVERY Name field (building.name, site_location.name,
    zone / material / construction / surface / fenestration / schedule /
-   thermostat / people / lights names) MUST use ONLY word characters
+   thermostat / people / lights / equipment names) MUST use ONLY word characters
    (letters, digits) with `_` as the ONLY word separator. NO spaces,
    NO commas, NO semicolons, NO hyphens, NO slashes, NO parentheses.
    IDF uses `,` and `;` as field delimiters; other punctuation causes
@@ -75,7 +117,7 @@ Rules:
      ✗ "Schedule (Weekday)"  (parentheses)
 6. `schedule_specs` MUST be complete — every schedule referenced by a
    downstream phase has to be described here, because the schedule
-   agent runs FIRST and will not be re-invoked. Checklist of schedule
+   agent runs FIRST. Checklist of schedule
    types the downstream phases will request:
 
      Downstream field                              | Schedule type   | Unit
@@ -84,13 +126,15 @@ Rules:
      thermostat.cooling_setpoint_schedule_name     | Temperature     | degC
      ideal_loads.system_availability_schedule_name | Fraction / OnOff| -
      people.number_of_people_schedule_name         | Fraction        | -
-     people.activity_level_schedule_name           | Activity Level  | W/person
+     people.activity_level_schedule_name           | ActivityLevel   | W/person
      lights.schedule_name                          | Fraction        | -
+     equipment.schedule_name                       | Fraction        | -
 
    For every row where the downstream phase is non-empty, `schedule_specs`
    must (a) name the schedule, (b) state the schedule type limits it
-   uses, and (c) give the value profile (e.g. "weekdays 8-18 at 1.0,
-   else 0.0"). The activity_level schedule is commonly forgotten —
+   uses, and (c) give the value profile for EVERY day type, weekends,
+   holidays and design days included (e.g. "weekdays 8-18 at 1.0, all
+   other days 0.0"). The activity_level schedule is commonly forgotten —
    default ~120 W/person for seated office work.
 """
 
@@ -116,55 +160,205 @@ def _load_image_part(path: str) -> ImageContentPart:
     )
 
 
-def intake_node(state: AgentState) -> AgentStateUpdate:
-    """Parse user_input + image_path into IntakeOutput and seed config_state.
+REVISION_PROMPT = """The specifications below were built and checked. Fix
+the problems listed after them by returning an IntakePatch:
+- set ONLY the fields that must change and omit all others: an omitted
+  field keeps its value, and resending an unchanged field only costs time;
+- `zone_plans` and `storeys` each replace the whole list, so give every
+  plan or storey when you set one;
+- a phase whose field you change is rebuilt from scratch together with
+  the phases that depend on it; keep other fields unchanged so their
+  objects are kept;
+- `reason` says which problem each change fixes.
+A problem in an object a phase built from an unchanged, correct
+specification may need no change here: that phase gets the problem as
+feedback and builds again."""
 
-    The LLM returns the idfpy Building and SiteLocation objects directly;
-    intake_node puts them into the IDF, replacing those of an earlier pass.
-    Phase agents read their own `*_specs` strings from intake_output.
+MAX_STRUCTURED_ATTEMPTS: Final = 2
+"""Calls per intake reply: the first, and one that sends its problem back."""
+
+
+def _without_empty_choices(node: Any) -> Any:
+    """The schema with "" removed from enums.
+
+    idfpy allows "" (leave blank) in many choices; Gemini rejects empty enum
+    values in tool declarations. Replies are still validated by the model.
     """
-    llm = create_llm().with_structured_output(IntakeOutput, include_raw=True)
+    if isinstance(node, dict):
+        return {
+            key: [v for v in value if v != ""]
+            if key == "enum" and isinstance(value, list)
+            else _without_empty_choices(value)
+            for key, value in node.items()
+        }
+    if isinstance(node, list):
+        return [_without_empty_choices(v) for v in node]
+    return node
 
-    text = state.user_input
-    if state.validation_errors:
-        errors = "\n".join(f"- {e}" for e in state.validation_errors)
-        text += (
-            f"\n\nThe previous attempt had these errors. Please address them:\n{errors}"
-        )
 
-    content_parts: list[ContentPart] = [TextContentPart(type="text", text=text)]
-    for path in state.image_paths:
-        content_parts.append(_load_image_part(path))
+def _tool(schema: type[BaseModel]) -> dict[str, Any]:
+    """The schema as a strict tool: every field required, no extra keys.
 
-    result = cast(
-        dict[str, Any],
-        llm.invoke(
-            [
-                SystemMessage(content=INTAKE_SYSTEM_PROMPT + language_directive()),
-                HumanMessage(content=cast("list[str | dict[str, Any]]", content_parts)),
-            ]
-        ),
+    Without strict mode a model can leave required specs out of the call
+    (e.g. construction_specs) and repeat the omission when told.
+    """
+    return _without_empty_choices(convert_to_openai_tool(schema, strict=True))
+
+
+_LEAKED_FIELD_START: Final = re.compile(r'<(?:parameter name="(\w+)"|(\w+))>')
+
+
+def unpack_leaked_fields(args: dict[str, Any], fields: Iterable[str]) -> list[str]:
+    """Move fields written as XML into a string field back to their own keys.
+
+    A model can end a string argument with its closing tag and write the
+    following arguments in its native tool format inside it, e.g.
+    ``'...</lights_specs>\n<parameter name="equipment_specs">...'``, leaving
+    those fields missing. The text after the closing tag is cut off; each
+    field opened there runs to the next field's opening tag or the end, less
+    its closing tag, and fills its key unless the key is set (the first of
+    repeated fields wins).
+
+    Returns:
+        The fields filled, in ``args``, which is changed in place.
+    """
+    known = set(fields)
+    filled: list[str] = []
+    for key in list(args):
+        value = args[key]
+        if not isinstance(value, str) or f"</{key}>" not in value:
+            continue
+        own, _, rest = value.partition(f"</{key}>")
+        args[key] = own.strip()
+        starts = [
+            (m, name)
+            for m in _LEAKED_FIELD_START.finditer(rest)
+            if (name := m[1] or m[2]) in known
+        ]
+        for i, (match, name) in enumerate(starts):
+            stop = starts[i + 1][0].start() if i + 1 < len(starts) else len(rest)
+            text = rest[match.end() : stop].partition(f"</{name}>")[0]
+            if name not in args:
+                args[name] = text.strip()
+                filled.append(name)
+    return filled
+
+
+def _structured[T: BaseModel, R](
+    schema: type[T], messages: list[BaseMessage], check: Callable[[T], R]
+) -> tuple[T, R]:
+    """Call the LLM for ``schema`` as a forced tool call, retrying once.
+
+    The tool is the schema without empty enum values (see
+    ``_without_empty_choices``); the arguments are validated with the full
+    model. ``check`` turns the parsed reply into the result the caller
+    needs; a ValueError from it, like invalid arguments, is sent back to the
+    LLM for one more attempt.
+
+    Raises:
+        RuntimeError: If no attempt gives a usable reply.
+    """
+    llm = create_llm().with_structured_output(
+        _tool(schema), method="function_calling", include_raw=True, strict=True
+    )
+    problem = ""
+    for _ in range(MAX_STRUCTURED_ATTEMPTS):
+        result = cast(dict[str, Any], llm.invoke(messages))
+        try:
+            if result.get("parsed") is None:
+                raw: BaseMessage | None = result.get("raw")
+                raise ValueError(
+                    f"no {schema.__name__} tool call (parsing error "
+                    f"{result.get('parsing_error')!r}; reply "
+                    f"{repr(raw.content if raw is not None else raw)[:300]})"
+                )
+            args = dict(result["parsed"])
+            if filled := unpack_leaked_fields(args, schema.model_fields):
+                logger.warning("intake: fields written inside others: {}", filled)
+            parsed = schema.model_validate(args)
+            return parsed, check(parsed)
+        except ValueError as e:  # pydantic.ValidationError is a ValueError
+            problem = str(e)
+        logger.warning("intake: unusable reply: {}", problem)
+        messages = [
+            *messages,
+            HumanMessage(
+                content=f"Your reply was unusable: {problem}. Call the "
+                f"{schema.__name__} tool again with a corrected argument."
+            ),
+        ]
+    raise RuntimeError(f"intake gave no usable {schema.__name__}: {problem}")
+
+
+def _brief(state: AgentState) -> HumanMessage:
+    parts: list[ContentPart] = [TextContentPart(type="text", text=state.user_input)]
+    parts += [_load_image_part(path) for path in state.image_paths]
+    return HumanMessage(content=cast("list[str | dict[str, Any]]", parts))
+
+
+def _revision(state: AgentState, previous: IntakeOutput) -> HumanMessage:
+    problems = [str(e) for e in state.validation_errors]
+    if state.review_feedback:
+        problems.append(f"Reviewer: {state.review_feedback}")
+    listed = "\n".join(f"- {p}" for p in problems) or "- none reported"
+    return HumanMessage(
+        content=f"{REVISION_PROMPT}\n\nSpecifications:\n"
+        f"{previous.model_dump_json(indent=1)}\n\nProblems:\n{listed}"
     )
 
-    parsed: IntakeOutput | None = result.get("parsed")
-    if parsed is None:
-        raw: BaseMessage | None = result.get("raw")
-        parsing_error = result.get("parsing_error")
-        raw_preview = repr(raw.content if raw is not None else raw)[:500]
-        logger.error(
-            "intake_node: structured output parse failed. "
-            "parsing_error={} raw preview={}",
-            parsing_error,
-            raw_preview,
+
+REFERENCE_INTAKE_RULE: Final = """
+7. A reference library of DOE prototype buildings is available to the
+   material, construction and schedule phases. Where the brief gives no
+   values, do NOT invent material properties, layer thicknesses or
+   schedule profiles: describe each material, construction and schedule by
+   purpose and building type (e.g. "exterior wall insulation of a medium
+   office suited to the site's climate"), still giving the names other
+   specs reference, and let those phases take the values from the library.
+   Values the brief gives are passed on as given.
+"""
+
+
+def intake_node(state: AgentState, runtime: Runtime[SimContext]) -> AgentStateUpdate:
+    """Write the specifications on the first pass, revise them on retries.
+
+    The first pass runs every phase. A revision returns a patch; the phases
+    whose input changed, the phases owning the reported problems, and their
+    dependants run again, and the rest keep their objects. Building and
+    Site:Location go into the model here.
+    """
+    rules = INTAKE_SYSTEM_PROMPT
+    if runtime.context.reference is not None:
+        rules += REFERENCE_INTAKE_RULE
+    system = SystemMessage(content=rules + language_directive())
+    previous = state.intake_output
+    if previous is None:
+        output, _ = _structured(IntakeOutput, [system, _brief(state)], lambda o: o)
+        rerun: set[Phase] = set(PHASE_TYPES)
+    else:
+        patch, (output, changed) = _structured(
+            IntakePatch,
+            [system, _brief(state), _revision(state, previous)],
+            lambda p: p.apply(previous),
         )
-        raise RuntimeError(
-            "IntakeOutput parsing returned None. The LLM likely replied with "
-            "text instead of a tool call — common on retry turns. "
-            f"parsing_error={parsing_error!r}; raw preview: {raw_preview}"
+        logger.info(
+            "intake revision sets {}, changing {}: {}",
+            sorted(patch.model_fields_set - {"reason"}),
+            sorted(changed),
+            patch.reason,
+        )
+        owners = [owner(e) for e in state.validation_errors]
+        # Zones are built from the intake output alone: only a changed zone
+        # list rebuilds them, which `changed` already says.
+        fixing = {p for p in owners if p is not None and p != "zone"}
+        rerun = (
+            set(PHASE_TYPES)
+            if None in owners
+            else rerun_closure(changed | fixing) | set(state.unfinished_phases)
         )
 
     config = state.config_state.model_copy(deep=True)
-    for obj in (parsed.building, parsed.site_location):
+    for obj in (output.building, output.site_location):
         object_type = type(obj)
         for name in config.idf.all_of_type(object_type):
             config.idf.remove(object_type, name)
@@ -172,7 +366,10 @@ def intake_node(state: AgentState) -> AgentStateUpdate:
         config.idf.add(obj.model_copy())
 
     return AgentStateUpdate(
-        intake_output=parsed,
+        intake_output=output,
         config_state=config,
+        pending_phases=[p for p in DEPENDS_ON if p in rerun],
         validation_errors=[],
+        review_feedback="",
+        subgroup_retried=False,
     )

@@ -1,51 +1,54 @@
 from langchain_core.messages import AIMessage
-from pydantic import BaseModel, Field
+from pydantic import Field
 
 from src.agent.llm import build_agent
-from src.agent.nodes._share import invoke_with_self_repair
+from src.agent.nodes._share import (
+    PhaseReport,
+    invoke_with_self_repair,
+    last_message_text,
+    missing_input_issues,
+    skipped,
+    with_feedback,
+)
 from src.agent.state import AgentState, AgentStateUpdate
 from src.agent.tools import make_fenestration_tools
 from src.agent.trace import TraceCollector, record_phase_trace, trace_middleware
 
 FENESTRATION_SYSTEM_PROMPT = """You are a window/door geometry expert for EnergyPlus.
 Given fenestration specifications, create FenestrationSurface:Detailed
-objects (windows, doors, skylights) that lie on existing parent surfaces.
-
-Vertices MUST be a list of dicts with explicit X / Y / Z keys (not a
-bare [x, y, z] list). Example: a 1.5m x 1.2m window centered on a south
-wall that spans x=0..5 at y=0, window sill at 0.8m:
-
-    [
-      {"X": 1.75, "Y": 0.0, "Z": 0.8},
-      {"X": 3.25, "Y": 0.0, "Z": 0.8},
-      {"X": 3.25, "Y": 0.0, "Z": 2.0},
-      {"X": 1.75, "Y": 0.0, "Z": 2.0}
-    ]
+objects (windows, doors) on existing parent surfaces.
 
 Workflow:
-1. FIRST call `list_surfaces` to see parent surface names AND their
-   vertex geometry — you need the parent surface's plane to place the
-   fenestration's coplanar vertices correctly.
-2. THEN call `list_constructions` to find glazing/door construction names.
-3. Create each fenestration via `create_fenestration`.
-4. Call `list_fenestrations` once at the end to confirm.
+1. Call `list_constructions`; each entry has a `kind`.
+2. Windows given by window-to-wall ratio (the usual case): call
+   `create_windows_by_ratio` once per ratio, with the facings and zones it
+   applies to. It sizes and places a strip window on every matching
+   exterior wall; walls it reports in `not_created` (too small for the
+   ratio) get no window, which is acceptable.
+3. Only for openings with given sizes or positions (doors, a specific
+   window): call `list_surfaces` FILTERED to the zone and type you need
+   (never unfiltered: large buildings have hundreds of surfaces), then
+   `create_fenestration` with corners on that surface.
+The replies of the create tools are final: do not list the openings
+again at the end.
 
 Rules:
-- `building_surface_name` and `construction_name` MUST appear verbatim
-  in the list_surfaces / list_constructions results.
-- If a needed surface or construction is missing after list, STOP and
-  report; do NOT invent names.
-- construction_name should be a Glazing construction for windows/skylights.
-- >= 3 vertices, counter-clockwise from OUTSIDE, and MUST lie on the
-  parent surface's plane (coplanar — share one coordinate for walls).
-- surface_type is Window, Door, or GlassDoor.
-- Typical window-to-wall ratio: 0.3-0.4 on facade walls; derive vertex
-  coordinates from the parent wall's corners and the WWR.
-- Naming: '{parent_surface}_Window' or '{zone}_{direction}_Window_{index}'.
+- Construction names MUST appear verbatim in the list_constructions
+  result. If one is missing (e.g. no construction of kind `window`), do
+  NOT invent a name and do NOT list again: give your final answer at once,
+  with it in `missing_inputs`.
+- Window and GlassDoor need a construction of kind `window`; Door needs
+  kind `opaque`.
+- For create_fenestration: 3 or 4 vertices as dicts with X / Y / Z keys,
+  on the parent surface's plane and inside its outline; the order is
+  corrected automatically. On a wall between two zones, create the opening
+  once; the matching opening in the adjacent zone is added automatically.
+- Use the ratios, sizes and names the specification gives. Without a
+  ratio, use 0.3-0.4 on facade walls.
 """
 
 
-class FenestrationResponse(BaseModel):
+class FenestrationResponse(PhaseReport):
     """Structured summary returned by the fenestration phase agent."""
 
     fenestration_names: list[str] = Field(
@@ -57,6 +60,8 @@ class FenestrationResponse(BaseModel):
 
 
 def fenestration_agent(state: AgentState) -> AgentStateUpdate:
+    if skipped(state, "fenestration"):
+        return AgentStateUpdate()
     local = state.config_state.model_copy(deep=True)
     tools = make_fenestration_tools(local)
     collector = TraceCollector(phase="fenestration")
@@ -73,13 +78,16 @@ def fenestration_agent(state: AgentState) -> AgentStateUpdate:
         if state.intake_output
         else state.user_input
     )
-    result = invoke_with_self_repair(agent, local, specs, phase="fenestration")
+    result = invoke_with_self_repair(
+        agent, local, with_feedback(specs, state, "fenestration"), phase="fenestration"
+    )
 
     response: FenestrationResponse | None = result.get("structured_response")
-    summary = response.summary if response else "fenestration done"
+    summary = response.summary if response else last_message_text(result)
 
     record_phase_trace("fenestration", collector.export())
     return AgentStateUpdate(
         config_state=local,
+        build_issues=missing_input_issues("fenestration", response),
         messages=[AIMessage(content=f"[fenestration] {summary}")],
     )

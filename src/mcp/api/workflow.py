@@ -39,10 +39,11 @@ def register_workflow_tools(mcp: FastMCP, workflow_tool: WorkflowTool) -> None:
 
     @mcp.tool
     def validate_config() -> dict:
-        """Validate all cross-references in the current configuration.
+        """Check references, fenestration placement and completeness of the model.
 
         Returns:
-            MCP response with validation result and any errors found.
+            MCP response with the summary, or the problems found, each tied to
+            an object type, name and field.
         """
         return workflow_tool.validate_config().to_mcp_response()
 

@@ -1,20 +1,27 @@
 from langchain_core.messages import AIMessage
+from langgraph.runtime import Runtime
 from pydantic import BaseModel, Field
 
 from src.agent.llm import build_agent
-from src.agent.nodes._share import invoke_with_self_repair
-from src.agent.state import AgentState, AgentStateUpdate
+from src.agent.nodes._share import (
+    invoke_with_self_repair,
+    last_message_text,
+    skipped,
+    with_feedback,
+)
+from src.agent.state import AgentState, AgentStateUpdate, SimContext
 from src.agent.tools import make_schedule_tools
+from src.agent.tools.reference_tools import make_reference_tools, reference_prompt
 from src.agent.trace import TraceCollector, record_phase_trace, trace_middleware
 
 SCHEDULE_SYSTEM_PROMPT = """You are a scheduling expert for EnergyPlus.
 Given schedule specifications, create all ScheduleTypeLimits and
-Schedule:Compact objects required by later phases (HVAC, People, Lights).
+Schedule:Compact objects required by later phases (HVAC, People, Lights, Equipment).
 
 Required type limits to create first (if referenced):
 - 'Fraction' (0.0 to 1.0, CONTINUOUS, Dimensionless)
 - 'Temperature' (-100 to 100, CONTINUOUS, Temperature)
-- 'Activity Level' (0 to 1000, CONTINUOUS, Dimensionless)
+- 'ActivityLevel' (0 to 1000, CONTINUOUS, ActivityLevel)
 - 'OnOff' (0 to 1, DISCRETE, Dimensionless)
 
 Then create Schedule:Compact entries. The `data` argument is a NESTED LIST
@@ -82,8 +89,9 @@ Typical required schedules for a conditioned occupied zone:
   thermostat.cooling_setpoint_schedule_name     | Temperature    | 24 occupied / 28 setback
   ideal_loads.system_availability_schedule_name | Fraction/OnOff | 1 during hours, else 0
   people.number_of_people_schedule_name         | Fraction       | occupancy pattern
-  people.activity_level_schedule_name           | Activity Level | ~120 W/person seated
+  people.activity_level_schedule_name           | ActivityLevel  | ~120 W/person seated
   lights.schedule_name                          | Fraction       | lighting pattern
+  equipment.schedule_name                       | Fraction       | plug-load pattern
 
 If the spec implies occupancy but does not explicitly name an activity-
 level schedule, CREATE ONE anyway (e.g. "Office_Activity_Level" at
@@ -95,8 +103,11 @@ Rules:
   phases will reference non-existent schedules.
 - The LAST "Through" block must be "12/31" (full-year coverage).
 - Within each "For" block, the LAST "Until.Time" must be "24:00".
-- Cover every day type: either use "AllDays", or use specific day types
-  followed by "AllOtherDays" to catch the rest.
+- Every "Through" block must give EVERY day type a value, including
+  weekends, holidays, the summer and winter design days used for sizing,
+  and the custom days: use "AllDays", or list day types and end with
+  "AllOtherDays" (never first). create_schedule_compact rejects a block
+  that misses any of them.
 - Call list_schedules once at the end.
 """
 
@@ -110,14 +121,20 @@ class ScheduleResponse(BaseModel):
     summary: str = Field(description="One-line summary of the schedule creation result")
 
 
-def schedule_agent(state: AgentState) -> AgentStateUpdate:
+def schedule_agent(state: AgentState, runtime: Runtime[SimContext]) -> AgentStateUpdate:
+    if skipped(state, "schedule"):
+        return AgentStateUpdate()
     local = state.config_state.model_copy(deep=True)
     tools = make_schedule_tools(local)
+    prompt = SCHEDULE_SYSTEM_PROMPT
+    if (reference := runtime.context.reference) is not None:
+        tools += make_reference_tools(reference, ("schedule",))
+        prompt += reference_prompt(reference, ("schedule",))
     collector = TraceCollector(phase="schedule")
 
     agent = build_agent(
         tools=tools,
-        system_prompt=SCHEDULE_SYSTEM_PROMPT,
+        system_prompt=prompt,
         response_format=ScheduleResponse,
         middleware=[trace_middleware(collector)],
     )
@@ -131,14 +148,17 @@ def schedule_agent(state: AgentState) -> AgentStateUpdate:
             "phases will reference) ---\n"
             f"[hvac_specs]\n{io.hvac_specs}\n\n"
             f"[people_specs]\n{io.people_specs}\n\n"
-            f"[lights_specs]\n{io.lights_specs}\n"
+            f"[lights_specs]\n{io.lights_specs}\n\n"
+            f"[equipment_specs]\n{io.equipment_specs}\n"
         )
     else:
         specs = state.user_input
-    result = invoke_with_self_repair(agent, local, specs, phase="schedule")
+    result = invoke_with_self_repair(
+        agent, local, with_feedback(specs, state, "schedule"), phase="schedule"
+    )
 
     response: ScheduleResponse | None = result.get("structured_response")
-    summary = response.summary if response else "schedule done"
+    summary = response.summary if response else last_message_text(result)
 
     record_phase_trace("schedule", collector.export())
     return AgentStateUpdate(
