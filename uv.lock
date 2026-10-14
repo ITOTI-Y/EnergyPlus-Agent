@@ -546,7 +546,7 @@ dev = [
 requires-dist = [
     { name = "fastmcp", specifier = ">=2.14.1" },
     { name = "google-genai", specifier = ">=1.68.0" },
-    { name = "idfpy", specifier = "==26.1.*" },
+    { name = "idfpy", specifier = "==26.1.*,>=26.1.6" },
     { name = "langchain", specifier = ">=1.2.13" },
     { name = "langchain-anthropic", specifier = ">=1.4.0" },
     { name = "langchain-openai", specifier = ">=1.1.12" },
@@ -855,7 +855,7 @@ wheels = [
 
 [[package]]
 name = "idfpy"
-version = "26.1.3"
+version = "26.1.6"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "anyio" },
@@ -863,9 +863,9 @@ dependencies = [
     { name = "pydantic" },
     { name = "typer" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/47/2f/881626e3d3ce0e61e54538efe49e0cc08fbc838cfd599a28294ebf4a8600/idfpy-26.1.3.tar.gz", hash = "sha256:fccefb938e4362a2c4b88012af82aaf9be3cd27bcb9925fcddfa96dff76994ae", size = 623052, upload-time = "2026-10-01T14:36:56.713Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/dc/fe/c2bbc110358c477b57e9587e072308128cd4bb1a1cad7bf648a9a267e626/idfpy-26.1.6.tar.gz", hash = "sha256:806878813c35eb80834d4679d96e31e3898b0e8e416e70ba4033fc5afbaf1701", size = 654528, upload-time = "2026-10-13T11:16:06.001Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/2a/09/a19919c29df574c504dfdee007285a5e6f18e5b1961b93ddad8b8fc3d7fe/idfpy-26.1.3-py3-none-any.whl", hash = "sha256:840faf1db40bd0bbe6c7a7621d3e3cc4098ffbe43d6cb8ee2f5bc4232b6adfde", size = 636412, upload-time = "2026-10-01T14:36:54.597Z" },
+    { url = "https://files.pythonhosted.org/packages/61/0c/9b277d5502bcc18ea2e919372d9611de88e9e891838cbb28963d6a5630d1/idfpy-26.1.6-py3-none-any.whl", hash = "sha256:352d71498e556d7f893ab4bf552bf2919c2d32e6006c0b02e9d1b5c60b3ced0b", size = 653289, upload-time = "2026-10-13T11:16:04.28Z" },
 ]
 
 [[package]]
