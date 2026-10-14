@@ -1,13 +1,13 @@
 from typing import Any
 
-from idfpy.models.thermal_zones import (
+from idfpy.models import (
     BuildingSurfaceDetailed,
     BuildingSurfaceDetailedVerticesItem,
     FenestrationSurfaceDetailed,
 )
 
-from src.mcp.state import ConfigState
 from src.mcp.tools.base import BaseTool, normalize_payload
+from src.state.config_state import ConfigState
 
 
 def _vertex_items(

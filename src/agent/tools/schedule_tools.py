@@ -1,20 +1,19 @@
 import json
 from typing import Any
 
-from idfpy.models.hvac_templates import (
+from idfpy.models import (
     HVACTemplateThermostat,
     HVACTemplateZoneIdealLoadsAirSystem,
-)
-from idfpy.models.internal_gains import Lights, People
-from idfpy.models.schedules import (
+    Lights,
+    People,
     ScheduleCompact,
     ScheduleCompactDataItem,
     ScheduleTypeLimits,
 )
 from langchain_core.tools import BaseTool, tool
 
-from src.mcp.state import ConfigState
-from src.validator.data_model import ScheduleCompactSchema
+from src.state.config_state import ConfigState
+from src.state.schedules import flatten_schedule_data
 
 
 def _ok(msg: str, data=None) -> str:
@@ -116,25 +115,26 @@ def make_schedule_tools(config: ConfigState) -> list[BaseTool]:
                 ]
         """
         idf = config.idf
-        if idf.has("Schedule:Compact", name):
+        name = name.strip()
+        schedule_type_limits_name = schedule_type_limits_name.strip()
+        if not name or not schedule_type_limits_name:
+            return _err(
+                "Schedule:Compact name and schedule_type_limits_name must not be empty."
+            )
+        if idf.has(ScheduleCompact, name):
             return _err(f"Schedule:Compact '{name}' already exists.")
         try:
-            # Validate and flatten the nested data structure
-            validated = ScheduleCompactSchema.model_validate(
-                {
-                    "Name": name,
-                    "Schedule Type Limits Name": schedule_type_limits_name,
-                    "Data": data,
-                }
-            )
             idf.add(
                 ScheduleCompact(
-                    name=validated.name,
-                    schedule_type_limits_name=validated.schedule_type_limits_name,
-                    data=[ScheduleCompactDataItem(field=v) for v in validated.data],
+                    name=name,
+                    schedule_type_limits_name=schedule_type_limits_name,
+                    data=[
+                        ScheduleCompactDataItem(field=v)
+                        for v in flatten_schedule_data(data)
+                    ],
                 )
             )
-            obj = idf.get("Schedule:Compact", name)
+            obj = idf.get(ScheduleCompact, name)
             return _ok(
                 f"Schedule:Compact '{name}' created successfully.",
                 obj.model_dump() if obj else None,
@@ -160,7 +160,7 @@ def make_schedule_tools(config: ConfigState) -> list[BaseTool]:
     def get_schedule(name: str) -> str:
         """Read a Schedule:Compact by name."""
         idf = config.idf
-        obj = idf.get("Schedule:Compact", name)
+        obj = idf.get(ScheduleCompact, name)
         if obj is None:
             return _err(f"Schedule:Compact '{name}' not found.")
         return _ok(f"Schedule:Compact '{name}' read successfully.", obj.model_dump())
@@ -169,7 +169,7 @@ def make_schedule_tools(config: ConfigState) -> list[BaseTool]:
     def delete_schedule(name: str) -> str:
         """Delete a Schedule:Compact. Fails if referenced."""
         idf = config.idf
-        if not idf.has("Schedule:Compact", name):
+        if not idf.has(ScheduleCompact, name):
             return _err(f"Schedule:Compact '{name}' not found.")
         refs = []
         for t in idf.all_of_type(HVACTemplateThermostat).values():
@@ -193,7 +193,7 @@ def make_schedule_tools(config: ConfigState) -> list[BaseTool]:
                 f"Schedule:Compact '{name}' is referenced by other components.",
                 {"references": refs},
             )
-        idf.remove("Schedule:Compact", name)
+        idf.remove(ScheduleCompact, name)
         return _ok(f"Schedule:Compact '{name}' deleted successfully.")
 
     return [
