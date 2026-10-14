@@ -7,7 +7,7 @@ from typing import Any
 from pydantic import ValidationError
 
 from src.mcp.interface import SchemaValidationError, ToolResponse
-from src.mcp.state import ConfigState, missing_references
+from src.state.config_state import ConfigState, missing_references
 from src.utils.logging import get_logger
 
 logger = get_logger(__name__)

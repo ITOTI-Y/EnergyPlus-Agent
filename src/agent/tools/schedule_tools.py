@@ -13,7 +13,7 @@ from idfpy.models.schedules import (
 )
 from langchain_core.tools import BaseTool, tool
 
-from src.mcp.state import ConfigState
+from src.state.config_state import ConfigState
 from src.validator.data_model import ScheduleCompactSchema
 
 

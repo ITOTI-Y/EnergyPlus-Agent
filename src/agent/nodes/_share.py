@@ -13,7 +13,7 @@ from langgraph.graph.state import CompiledStateGraph
 from loguru import logger
 
 from src.agent._share import language_directive
-from src.mcp.state import ConfigState
+from src.state.config_state import ConfigState
 
 MAX_SELF_REPAIR_ROUNDS: Final = 2
 """Max extra invokes per phase for cross-ref self-repair.

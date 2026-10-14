@@ -28,13 +28,10 @@ class _PickleSerde:
     """Checkpoint serializer that round-trips via pickle.
 
     LangGraph's default `JsonPlusSerializer` uses msgpack for Pydantic
-    models, which drops nested subclass information (e.g. restoring a
-    `StandardMaterialSchema` instance as `dict` instead of the subclass).
-    That breaks downstream code like `ConfigState.validate_references()`
-    which accesses `material.name` on each entry.
+    models, which serializes declared fields only; `ConfigState` keeps its
+    idfpy model in a private attribute, which would be lost.
 
-    Pickle preserves the full Python object graph — nested Pydantic
-    subclass instances round-trip identically. Acceptable because
+    Pickle preserves the full Python object graph. Acceptable because
     `InMemorySaver` is in-process only (no cross-version / cross-host
     compatibility concerns).
     """

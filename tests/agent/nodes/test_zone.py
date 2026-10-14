@@ -7,13 +7,13 @@ from src.agent.state import AgentState, IntakeOutput
 def test_zone_agent_creates_two_zones():
     intake = IntakeOutput.model_validate(
         {
-            "building": {"Name": "Test"},
+            "building": {"name": "Test"},
             "site_location": {
-                "Name": "Test",
-                "Latitude": 22.5,
-                "Longitude": 114.0,
-                "Time Zone": 8.0,
-                "Elevation": 10.0,
+                "name": "Test",
+                "latitude": 22.5,
+                "longitude": 114.0,
+                "time_zone": 8.0,
+                "elevation": 10.0,
             },
             "zone_specs": "Create two zones: F1_Office (6x6m, ground floor) and F1_Corridor (6x2m, ground floor).",
             "material_specs": "",

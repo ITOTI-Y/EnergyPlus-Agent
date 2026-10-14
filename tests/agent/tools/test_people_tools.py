@@ -4,7 +4,7 @@ from idfpy.models.schedules import ScheduleCompact
 from idfpy.models.thermal_zones import Zone
 
 from src.agent.tools.people_tools import make_people_tools
-from src.mcp.state import ConfigState
+from src.state.config_state import ConfigState
 
 PEOPLE_ARGS = {
     "name": "Office_People",
