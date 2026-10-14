@@ -5,6 +5,7 @@ from idfpy.models import ElectricEquipment, Lights, People
 
 from src.mcp.api.common import Outcome, dump, given, model_tool
 from src.modeling import objects
+from src.modeling.loads import require_level
 from src.state.config_state import ConfigState
 
 type PeopleMethod = Literal["People", "People/Area", "Area/Person"]
@@ -23,9 +24,9 @@ def register_load_tools(mcp: FastMCP, state: ConfigState) -> None:
         number_of_people_schedule_name: str,
         activity_level_schedule_name: str,
         number_of_people_calculation_method: PeopleMethod = "People",
-        number_of_people: float = 0.0,
-        people_per_floor_area: float = 0.0,
-        floor_area_per_person: float = 0.0,
+        number_of_people: float | None = None,
+        people_per_floor_area: float | None = None,
+        floor_area_per_person: float | None = None,
         fraction_radiant: float = 0.3,
     ) -> Outcome:
         """Create a People load.
@@ -41,6 +42,12 @@ def register_load_tools(mcp: FastMCP, state: ConfigState) -> None:
             floor_area_per_person: m^2/person.
             fraction_radiant: Radiant fraction of sensible heat (0-1).
         """
+        require_level(
+            number_of_people_calculation_method,
+            number_of_people=number_of_people,
+            people_per_floor_area=people_per_floor_area,
+            floor_area_per_person=floor_area_per_person,
+        )
         people = People(
             name=name,
             zone_or_zonelist_or_space_or_spacelist_name=zone_name,
@@ -107,9 +114,9 @@ def register_load_tools(mcp: FastMCP, state: ConfigState) -> None:
         zone_name: str,
         schedule_name: str,
         design_level_calculation_method: LightingMethod = "Watts/Area",
-        lighting_level: float = 0.0,
-        watts_per_floor_area: float = 0.0,
-        watts_per_person: float = 0.0,
+        lighting_level: float | None = None,
+        watts_per_floor_area: float | None = None,
+        watts_per_person: float | None = None,
         fraction_radiant: float = 0.0,
         fraction_visible: float = 0.0,
     ) -> Outcome:
@@ -126,6 +133,12 @@ def register_load_tools(mcp: FastMCP, state: ConfigState) -> None:
             fraction_radiant: Radiant fraction (0-1).
             fraction_visible: Visible fraction (0-1).
         """
+        require_level(
+            design_level_calculation_method,
+            lighting_level=lighting_level,
+            watts_per_floor_area=watts_per_floor_area,
+            watts_per_person=watts_per_person,
+        )
         light = Lights(
             name=name,
             zone_or_zonelist_or_space_or_spacelist_name=zone_name,
@@ -192,9 +205,9 @@ def register_load_tools(mcp: FastMCP, state: ConfigState) -> None:
         zone_name: str,
         schedule_name: str,
         design_level_calculation_method: EquipmentMethod = "Watts/Area",
-        design_level: float = 0.0,
-        watts_per_floor_area: float = 0.0,
-        watts_per_person: float = 0.0,
+        design_level: float | None = None,
+        watts_per_floor_area: float | None = None,
+        watts_per_person: float | None = None,
         fraction_latent: float = 0.0,
         fraction_radiant: float = 0.0,
         fraction_lost: float = 0.0,
@@ -213,6 +226,12 @@ def register_load_tools(mcp: FastMCP, state: ConfigState) -> None:
             fraction_radiant: Radiant fraction (0-1).
             fraction_lost: Fraction leaving the zone (0-1).
         """
+        require_level(
+            design_level_calculation_method,
+            design_level=design_level,
+            watts_per_floor_area=watts_per_floor_area,
+            watts_per_person=watts_per_person,
+        )
         equipment = ElectricEquipment(
             name=name,
             zone_or_zonelist_or_space_or_spacelist_name=zone_name,

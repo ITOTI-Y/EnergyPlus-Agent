@@ -11,6 +11,7 @@ from src.agent.tools._share import (
     ok,
 )
 from src.modeling import objects
+from src.modeling.loads import require_level
 from src.state.config_state import ConfigState
 
 
@@ -24,9 +25,9 @@ def make_equipment_tools(config: ConfigState) -> list[BaseTool]:
         design_level_calculation_method: Literal[
             "EquipmentLevel", "Watts/Area", "Watts/Person"
         ] = "Watts/Area",
-        design_level: float = 0.0,
-        watts_per_floor_area: float = 0.0,
-        watts_per_person: float = 0.0,
+        design_level: float | None = None,
+        watts_per_floor_area: float | None = None,
+        watts_per_person: float | None = None,
         fraction_latent: float = 0.0,
         fraction_radiant: float = 0.0,
         fraction_lost: float = 0.0,
@@ -49,6 +50,12 @@ def make_equipment_tools(config: ConfigState) -> list[BaseTool]:
             name_suffix: Name suffix; give another one for a second
                 ElectricEquipment in the same zones.
         """
+        require_level(
+            design_level_calculation_method,
+            design_level=design_level,
+            watts_per_floor_area=watts_per_floor_area,
+            watts_per_person=watts_per_person,
+        )
         return create_in_zones(
             idf,
             "ElectricEquipment",

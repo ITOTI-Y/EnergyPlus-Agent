@@ -100,6 +100,7 @@ EnergyPlus-Agent/
 │   │   ├── envelope.py               # Materials, layers, vertex input
 │   │   ├── schedules.py              # Nested Through/For/Until input -> Schedule:Compact
 │   │   ├── hvac.py                   # Ideal loads systems keyed by zone
+│   │   ├── loads.py                  # The level field each internal load method reads
 │   │   ├── validation.py             # ModelIssue from references, geometry and EnergyPlus
 │   │   ├── ground.py                 # Kiva slab foundations and exposed perimeters
 │   │   ├── surfaces.py               # Base surfaces, interzone pairs, batch creation

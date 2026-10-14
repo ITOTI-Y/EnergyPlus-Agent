@@ -43,3 +43,13 @@ def test_equipment_created_then_updated(call_tool):
     assert updated["success"]
     assert updated["data"]["watts_per_floor_area"] == 12.0
     assert updated["data"]["fraction_radiant"] == 0.5
+
+
+def test_equipment_needs_the_value_its_method_reads(call_tool):
+    result = call_tool(
+        "create_equipment",
+        {**EQUIPMENT, "design_level_calculation_method": "EquipmentLevel"},
+    )
+
+    assert not result["success"]
+    assert "design_level" in result["message"]
