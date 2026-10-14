@@ -8,7 +8,7 @@ from idfpy.models.thermal_zones import (
 )
 from langchain_core.tools import BaseTool, tool
 
-from src.mcp.state import ConfigState
+from src.state.config_state import ConfigState
 
 
 def _ok(msg: str, data=None) -> str:

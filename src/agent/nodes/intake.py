@@ -38,8 +38,9 @@ structured specifications for every subsystem.
 You MUST invoke the IntakeOutput tool to return the structured JSON.
 Do NOT respond with a text/JSON message — always use the tool call.
 Fields:
-- `building`: BuildingSchema with name, terrain, convergence tolerances
-- `site_location`: SiteLocationSchema with latitude, longitude, time_zone, elevation
+- `building`: EnergyPlus Building object (name, terrain, convergence tolerances)
+- `site_location`: EnergyPlus Site:Location object (latitude, longitude,
+  time_zone, elevation)
 - `*_specs`: one natural-language instruction string per subsystem agent
 
 Rules:
@@ -118,9 +119,9 @@ def _load_image_part(path: str) -> ImageContentPart:
 def intake_node(state: AgentState) -> AgentStateUpdate:
     """Parse user_input + image_path into IntakeOutput and seed config_state.
 
-    The LLM returns nested BuildingSchema and SiteLocationSchema directly,
-    which intake_node writes into the shared config_state. Phase agents
-    read their own `*_specs` strings from intake_output.
+    The LLM returns the idfpy Building and SiteLocation objects directly;
+    intake_node puts them into the IDF, replacing those of an earlier pass.
+    Phase agents read their own `*_specs` strings from intake_output.
     """
     llm = create_llm().with_structured_output(IntakeOutput, include_raw=True)
 
@@ -163,8 +164,12 @@ def intake_node(state: AgentState) -> AgentStateUpdate:
         )
 
     config = state.config_state.model_copy(deep=True)
-    config.building = parsed.building
-    config.site_location = parsed.site_location
+    for obj in (parsed.building, parsed.site_location):
+        object_type = type(obj)
+        for name in config.idf.all_of_type(object_type):
+            config.idf.remove(object_type, name)
+        # Copy while unbound so intake_output keeps objects the IDF does not own.
+        config.idf.add(obj.model_copy())
 
     return AgentStateUpdate(
         intake_output=parsed,

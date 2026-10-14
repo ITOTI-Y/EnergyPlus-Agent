@@ -11,8 +11,8 @@ from idfpy.models.schedules import (
     ScheduleTypeLimits,
 )
 
-from src.mcp.state import ConfigState
 from src.mcp.tools.base import BaseTool, normalize_payload
+from src.state.config_state import ConfigState
 
 
 def _flatten_schedule_data(data: Any) -> list[str]:
@@ -40,7 +40,7 @@ def _flatten_schedule_data(data: Any) -> list[str]:
                 time = until["Time"] if "Time" in until else until.get("time")
                 value = until["Value"] if "Value" in until else until.get("value")
                 if time is not None and value is not None:
-                    result.append(f"Until: {time}, {value}")
+                    result.extend((f"Until: {time}", str(value)))
     return result
 
 

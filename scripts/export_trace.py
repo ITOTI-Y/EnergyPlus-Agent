@@ -11,7 +11,7 @@ Usage:
 Requirements:
     - .env has LANGSMITH_API_KEY + LANGSMITH_TRACING=true (optional — the
       callback still collects runs locally even without tracing enabled).
-    - data/dependencies/Energy+.idd present.
+    - EnergyPlus 26.1 on PATH.
 """
 
 from __future__ import annotations

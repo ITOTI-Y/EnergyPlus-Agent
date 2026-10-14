@@ -12,7 +12,7 @@ from idfpy.models.constructions import (
 )
 from langchain_core.tools import BaseTool, tool
 
-from src.mcp.state import ConfigState
+from src.state.config_state import ConfigState
 
 MATERIAL_CLASSES: Final = (
     Material,
