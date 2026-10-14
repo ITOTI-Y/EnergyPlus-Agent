@@ -16,6 +16,7 @@ A RAG knowledge base (Gemini Embedding + Qdrant) and SQLite data tools for stand
 ## Key Features
 
 ### Multi-phase agent (LangGraph)
+
 - **Intake**: one structured LLM call parses text and images into `IntakeOutput`, which carries the `Building` and `Site:Location` objects, natural-language task specs for each downstream phase, and per-zone axis-aligned box geometry hints (`ZoneGeometry`).
 - **Phased construction with parallelism**: independent object types are built by separate ReAct sub-agents. Zone, material and schedule run in parallel; construction, surface and fenestration run sequentially because of their dependencies; HVAC, people and lights run in parallel again.
 - **Parallel-safe state**: a reducer (`merge_config_state`) unions the idfpy models written by concurrent phases; on a name conflict the later branch wins.
@@ -26,24 +27,28 @@ A RAG knowledge base (Gemini Embedding + Qdrant) and SQLite data tools for stand
 - **Provider-agnostic LLM**: `src/configs/llm.yaml` selects provider, model, temperature and token budget; Anthropic and OpenAI integrations are bundled. `AGENT_LANGUAGE` switches the narrative language of all agent output while EnergyPlus identifiers stay ASCII.
 
 ### MCP server
+
 - **FastMCP framework** with `stdio`, `http`, `sse` and `streamable-http` transports.
 - **Full CRUD tool set** for Building, Location, Zone, Surface, Material, Construction, Fenestration, Schedule, HVAC, People and Lights.
 - **Workflow tools** for model export and load (IDF or epJSON), cross-reference validation, simulation and summary.
 - **Resource endpoints** exposing the current configuration and its summary.
 
 ### Model and simulation
+
 - **Default objects**: a new model starts with `Version`, `SimulationControl`, `Timestep`, `GlobalGeometryRules`, an annual `RunPeriod` and the summary-report outputs.
 - **Design days**: before a run, the annual heating 99.6% and cooling 0.4% design days are imported from the `.ddy` file next to the EPW (`Shenzhen.epw` → `Shenzhen.ddy`) unless the model already has design days; a missing `.ddy` stops the run with an error.
 - **Runner**: each run gets its own directory; EnergyPlus runs with `-x` (ExpandObjects, so `HVACTemplate` objects are expanded) and `-r` (ReadVarsESO), and `eplusout.err` is parsed into structured Warning, Severe and Fatal messages.
 - **Default output variables**: when no `Output:Variable` is configured, the simulate step adds an hourly monitoring set (zone temperature and humidity, ideal-loads heating and cooling energy, lighting and people energy, facility HVAC electricity) so results are actually recorded.
 
 ### RAG knowledge base
+
 - **Async embedding pipeline** built on Gemini Embedding and Qdrant.
 - **Rate limiting, concurrency control and retry** on 429 / `RESOURCE_EXHAUSTED`.
 - **Incremental sync** with deletion of stale vectors.
 - **Typed results** using dataclasses (`QdrantData`, `RowRecord`, `VectorizedResult`).
 
 ### Data tools
+
 - SQLite-backed management of standard materials, no-mass materials, constructions, compact schedules, schedule type limits and design days.
 - Partial updates via an `UNSET` sentinel so only provided columns are written.
 
@@ -100,8 +105,7 @@ EnergyPlus-Agent/
 │   ├── weather/Shenzhen.{epw,ddy}    # TMYx 2011-2025 weather and design days
 │   ├── schemas/                      # Example models (epJSON)
 │   └── examples/EP_Agent_data.db     # Example SQLite database
-├── docker/                           # Dockerfile (nrel/energyplus:25.1.0) + docker-compose.yml
-├── docs/_dev/                        # Design documents
+├── docker/                           # Dockerfile (Ubuntu 24.04 + EnergyPlus 26.1) + docker-compose.yml
 ├── output/                           # Models, logs, traces, simulation results
 ├── main.py                           # Typer CLI
 └── pyproject.toml
@@ -110,25 +114,27 @@ EnergyPlus-Agent/
 ## Technology Stack
 
 ### Runtime requirements
+
 - **Python 3.12+**
-- **EnergyPlus 26.1** on `PATH` (matches the pinned `idfpy==26.1.*`)
+- **EnergyPlus 26.1** on `PATH` (matches `idfpy` 26.1, 26.1.6 or later)
 - **uv** for dependency management
 
 ### Main dependencies
-| Library | Version | Purpose |
-|---|---|---|
-| **langgraph** | >=1.1.3 | Agent graph, checkpointing, interrupts |
-| **langchain** | >=1.2.13 | Chat model factory, tools, messages |
-| **langchain-anthropic** / **langchain-openai** | >=1.4.0 / >=1.1.12 | Bundled LLM providers |
-| **fastmcp** | >=2.14.1 | MCP server framework |
-| **idfpy** | ==26.1.* | Typed EnergyPlus objects, IDF and epJSON I/O, reference checks |
-| **pydantic** | >=2.11.7 | Schema validation |
-| **google-genai** | >=1.68.0 | Gemini Embedding API |
-| **qdrant-client** | >=1.17.1 | Vector database client |
-| **omegaconf** | >=2.3.0 | LLM and embedding settings with env interpolation |
-| **typer** | >=0.20.1 | CLI |
-| **numpy** / **trimesh** | — | Geometry helpers |
-| **loguru** | >=0.7.3 | Logging |
+
+| Library                                                    | Version            | Purpose                                                        |
+| ---------------------------------------------------------- | ------------------ | -------------------------------------------------------------- |
+| **langgraph**                                        | >=1.1.3            | Agent graph, checkpointing, interrupts                         |
+| **langchain**                                        | >=1.2.13           | Chat model factory, tools, messages                            |
+| **langchain-anthropic** / **langchain-openai** | >=1.4.0 / >=1.1.12 | Bundled LLM providers                                          |
+| **fastmcp**                                          | >=2.14.1           | MCP server framework                                           |
+| **idfpy**                                            | ==26.1.*,>=26.1.6  | Typed EnergyPlus objects, IDF and epJSON I/O, reference checks |
+| **pydantic**                                         | >=2.11.7           | Schema validation                                              |
+| **google-genai**                                     | >=1.68.0           | Gemini Embedding API                                           |
+| **qdrant-client**                                    | >=1.17.1           | Vector database client                                         |
+| **omegaconf**                                        | >=2.3.0            | LLM and embedding settings with env interpolation              |
+| **typer**                                            | >=0.20.1           | CLI                                                            |
+| **numpy** / **trimesh**                        | —                 | Geometry helpers                                               |
+| **loguru**                                           | >=0.7.3            | Logging                                                        |
 
 Development extras: `pytest`, `pytest-recording`, `ruff`, `ty`, `pre-commit`, `langsmith`, `grandalf`.
 
@@ -237,7 +243,7 @@ uv run main.py embedding --collection energyplus_database --db-path data/example
 
 ```bash
 cd docker
-docker compose up -d    # builds on nrel/energyplus:25.1.0 and serves the MCP server on port 8000
+docker compose up -d    # builds an image with EnergyPlus 26.1 and serves the MCP server on port 8000
 ```
 
 ## Agent Architecture
@@ -277,54 +283,61 @@ START -> intake
 ## MCP Server Tools
 
 ### Core
-| Tool | Description |
-|------|-------------|
-| `create_building` / `get_building` / `update_building` / `delete_building` / `list_buildings` | Building CRUD |
+
+| Tool                                                                                                    | Description        |
+| ------------------------------------------------------------------------------------------------------- | ------------------ |
+| `create_building` / `get_building` / `update_building` / `delete_building` / `list_buildings` | Building CRUD      |
 | `create_location` / `get_location` / `update_location` / `delete_location` / `list_locations` | Site location CRUD |
-| `create_zone` / `get_zone` / `update_zone` / `delete_zone` / `list_zones` | Zone CRUD |
+| `create_zone` / `get_zone` / `update_zone` / `delete_zone` / `list_zones`                     | Zone CRUD          |
 
 ### Envelope
-| Tool | Description |
-|------|-------------|
-| `create_standard_material` / `create_no_mass_material` / `create_air_gap_material` / `create_glazing_material` | Create materials by type |
-| `get_material` / `update_*_material` / `delete_material` / `list_materials` | Material read, update, delete, list |
-| `create_construction` / `get_construction` / `update_construction` / `delete_construction` / `list_constructions` | Construction CRUD |
-| `create_surface` / `get_surface` / `update_surface` / `delete_surface` / `list_surfaces` | Building surface CRUD |
-| `create_fenestration_surface` / `get_fenestration_surface` / `update_fenestration_surface` / `delete_fenestration_surface` / `list_fenestration_surfaces` | Window and door CRUD |
+
+| Tool                                                                                                                                                                | Description                         |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
+| `create_standard_material` / `create_no_mass_material` / `create_air_gap_material` / `create_glazing_material`                                              | Create materials by type            |
+| `get_material` / `update_*_material` / `delete_material` / `list_materials`                                                                                 | Material read, update, delete, list |
+| `create_construction` / `get_construction` / `update_construction` / `delete_construction` / `list_constructions`                                         | Construction CRUD                   |
+| `create_surface` / `get_surface` / `update_surface` / `delete_surface` / `list_surfaces`                                                                  | Building surface CRUD               |
+| `create_fenestration_surface` / `get_fenestration_surface` / `update_fenestration_surface` / `delete_fenestration_surface` / `list_fenestration_surfaces` | Window and door CRUD                |
 
 ### Schedule
-| Tool | Description |
-|------|-------------|
+
+| Tool                                                                                                                                                               | Description             |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------- |
 | `create_schedule_type_limits` / `get_schedule_type_limits` / `update_schedule_type_limits` / `delete_schedule_type_limits` / `list_schedule_type_limits` | ScheduleTypeLimits CRUD |
-| `create_schedule_compact` / `get_schedule_compact` / `update_schedule_compact` / `delete_schedule_compact` / `list_schedule_compacts` | Schedule:Compact CRUD |
+| `create_schedule_compact` / `get_schedule_compact` / `update_schedule_compact` / `delete_schedule_compact` / `list_schedule_compacts`                    | Schedule:Compact CRUD   |
 
 ### HVAC
-| Tool | Description |
-|------|-------------|
-| `create_hvac_thermostat` / `get_hvac_thermostat` / `update_hvac_thermostat` / `delete_hvac_thermostat` / `list_hvac_thermostats` | Thermostat CRUD |
+
+| Tool                                                                                                                                                                               | Description                 |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------- |
+| `create_hvac_thermostat` / `get_hvac_thermostat` / `update_hvac_thermostat` / `delete_hvac_thermostat` / `list_hvac_thermostats`                                         | Thermostat CRUD             |
 | `create_hvac_ideal_loads_system` / `get_hvac_ideal_loads_system` / `update_hvac_ideal_loads_system` / `delete_hvac_ideal_loads_system` / `list_hvac_ideal_loads_systems` | Ideal loads air system CRUD |
 
 ### Loads
-| Tool | Description |
-|------|-------------|
+
+| Tool                                                                                         | Description |
+| -------------------------------------------------------------------------------------------- | ----------- |
 | `create_people` / `get_people` / `update_people` / `delete_people` / `list_people` | People CRUD |
-| `create_light` / `get_light` / `update_light` / `delete_light` / `list_lights` | Lights CRUD |
+| `create_light` / `get_light` / `update_light` / `delete_light` / `list_lights`     | Lights CRUD |
 
 ### Workflow
-| Tool | Description |
-|------|-------------|
-| `export_model` | Save the current model; the suffix `.idf` or `.epJSON` selects the format |
-| `load_model` | Replace the current model with an IDF or epJSON file |
-| `validate_config` | Run all cross-reference checks |
-| `run_simulation` | Validate, add design days, write the IDF and run EnergyPlus |
-| `get_summary` | Return object counts |
-| `clear_all` | Reset the configuration |
+
+| Tool                | Description                                                                  |
+| ------------------- | ---------------------------------------------------------------------------- |
+| `export_model`    | Save the current model; the suffix`.idf` or `.epJSON` selects the format |
+| `load_model`      | Replace the current model with an IDF or epJSON file                         |
+| `validate_config` | Run all cross-reference checks                                               |
+| `run_simulation`  | Validate, add design days, write the IDF and run EnergyPlus                  |
+| `get_summary`     | Return object counts                                                         |
+| `clear_all`       | Reset the configuration                                                      |
 
 ### Resources
-| Resource | Description |
-|----------|-------------|
+
+| Resource             | Description                  |
+| -------------------- | ---------------------------- |
 | `config://current` | Full current model as epJSON |
-| `config://summary` | Configuration summary |
+| `config://summary` | Configuration summary        |
 
 ## Example Models
 
@@ -332,12 +345,12 @@ START -> intake
 
 ## CLI Reference
 
-| Command | Description |
-|---------|-------------|
+| Command                                                                                                         | Description                                                    |
+| --------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
 | `uv run main.py run-agent "<brief>" --epw <file> [--image <file>]... [--output-dir <dir>] [--thread-id <id>]` | Run the multi-phase agent end to end with interactive approval |
-| `uv run main.py mcp-server [--transport] [--host] [--port]` | Start the MCP server |
-| `uv run main.py embedding --collection <name> --db-path <path>` | Build the RAG index |
-| `energyplus-mcp` | MCP server entry point installed by `pyproject.toml` |
+| `uv run main.py mcp-server [--transport] [--host] [--port]`                                                   | Start the MCP server                                           |
+| `uv run main.py embedding --collection <name> --db-path <path>`                                               | Build the RAG index                                            |
+| `energyplus-mcp`                                                                                              | MCP server entry point installed by`pyproject.toml`          |
 
 ## Testing
 
@@ -350,6 +363,7 @@ uv run pytest
 ## Roadmap
 
 ### Done
+
 - idfpy-backed model with IDF and epJSON import and export, default objects and design-day import
 - EnergyPlus runner with per-run directories, ExpandObjects and ReadVarsESO, and structured `eplusout.err` parsing
 - FastMCP server with full CRUD, workflow tools, resources, multi-transport support, CLI and Docker
@@ -360,6 +374,7 @@ uv run pytest
 - Tool-call trace collection and LangSmith trace export
 
 ### Planned
+
 - Simulation result parsing and visualization
 - Broader HVAC coverage beyond `HVACTemplate` ideal loads
 - Agent-side use of the RAG knowledge base and data tools during construction
@@ -375,6 +390,7 @@ uv run pytest
 5. Open a Pull Request
 
 ### Code style
+
 - Python 3.12+ features
 - Ruff for linting and formatting (configuration in `pyproject.toml`)
 - Use idfpy model classes for EnergyPlus objects instead of new schemas
