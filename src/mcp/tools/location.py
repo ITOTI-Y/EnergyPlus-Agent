@@ -1,9 +1,9 @@
 from typing import Any
 
-from idfpy.models.location import SiteLocation
+from idfpy.models import SiteLocation
 
-from src.mcp.state import ConfigState
 from src.mcp.tools.base import BaseTool, normalize_payload
+from src.state.config_state import ConfigState
 
 
 class LocationTool(BaseTool):
