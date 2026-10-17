@@ -25,8 +25,8 @@ class LLMConfig(BaseModel):
     temperature: float | None = Field(
         default=None,
         ge=0.0,
-        description="Sampling temperature; None sends none, as Claude 5.5 "
-        "models reject non-default values",
+        description="Sampling temperature; None sends none, for providers "
+        "that reject one",
     )
     max_tokens: int = Field(
         ..., ge=0, description="The maximum number of tokens to generate"
