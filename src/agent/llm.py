@@ -77,8 +77,8 @@ def create_llm(config: LLMConfig | None = None) -> BaseChatModel:
 def create_vision_llm(config: LLMConfig | None = None) -> BaseChatModel:
     """The chat model that reads input images: the configured one, renamed.
 
-    It sends no temperature: Claude 5.5 models reject any, and reading a
-    photo needs no sampling setting of its own.
+    It sends no temperature: some providers reject one, and reading a photo
+    needs no sampling setting of its own.
 
     Raises:
         ValueError: If no vision model is configured (LLM_VISION_MODEL).
@@ -172,7 +172,7 @@ _ARGUMENT_ECHO: Final = re.compile(
 class FailureLoopGuard(AgentMiddleware):
     """Stop the agent run once tool calls keep failing or keep repeating.
 
-    A model that cannot produce valid arguments tends to resend the same call
+    A model that cannot produce valid arguments may resend the same call
     indefinitely; LangGraph's default step limit is about ten thousand, so
     without this guard the loop only ends when the LLM budget does. Every
     failure is logged, and once tripped the guard ends this and any later run
@@ -299,8 +299,8 @@ def build_agent(
         tools=tools or [],
         system_prompt=(system_prompt or "") + language_directive(),
         # The final answer as a validated tool call, not free text. ToolStrategy
-        # over the provider's JSON-schema mode: Claude's structured outputs
-        # reject the idfpy schema keywords (note, units) that gateways pass on.
+        # over the provider's JSON-schema mode, which can reject the idfpy
+        # schema keywords (note, units) that gateways pass on.
         response_format=ToolStrategy(response_format) if response_format else None,
         middleware=[
             FailureLoopGuard(),

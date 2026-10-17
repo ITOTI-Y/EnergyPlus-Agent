@@ -182,7 +182,7 @@ Copy `.env.example` to `.env` and fill in what you need:
 LLM_API_KEY=
 LLM_BASE_URL=            # optional, for OpenAI-compatible gateways
 # Optional; an empty value is not "unset", so leave unused ones commented out.
-# LLM_TEMPERATURE=null   # default 0.7; null sends none (Claude 5.5 models reject one)
+# LLM_TEMPERATURE=null   # default 0.7; null sends none, for providers that reject one
 # LLM_VISION_MODEL=       # reads --image files, sent without temperature; unset, images are refused
 
 # Prototype reference library: set both URLs, or neither
