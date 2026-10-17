@@ -1,8 +1,8 @@
 """Build the storeys of a photo-read building from its blocks, in code.
 
 Given the reading's blocks (which storeys each spans) and intake's plans
-(each tagged with its block), the storey list is fixed; code builds it,
-since an LLM asked to write it miscounts storeys.
+(each tagged with its block), the storey list is fixed, so code builds it
+rather than asking the LLM to write it.
 """
 
 from itertools import groupby
