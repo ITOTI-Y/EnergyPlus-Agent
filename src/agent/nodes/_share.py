@@ -28,9 +28,9 @@ if TYPE_CHECKING:
 MAX_SELF_REPAIR_ROUNDS: Final = 2
 """Max extra invokes per phase to repair problems in its own objects.
 
-Two rounds is enough for the LLM to see its own error feedback and
-react; repeated failures beyond that point usually mean the intake
-specs are broken, which the outer validate loop handles better.
+Two rounds let the LLM see its own error feedback and react; problems
+left after them go to the outer validate loop, which can also revise the
+intake specs.
 """
 
 
@@ -182,8 +182,8 @@ MAX_STRUCTURED_ATTEMPTS: Final = 2
 def without_empty_choices(node: Any) -> Any:
     """The schema with "" removed from enums.
 
-    idfpy allows "" (leave blank) in many choices; Gemini rejects empty enum
-    values in tool declarations. Replies are still validated by the model.
+    idfpy allows "" (leave blank) in many choices; some providers reject empty
+    enum values in tool declarations. Replies are still validated by the model.
     """
     if isinstance(node, dict):
         return {
