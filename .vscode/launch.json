@@ -36,19 +36,6 @@
             "preLaunchTask": "Start MCP Inspector"
         },
         {
-            "name": "Embedding",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "${workspaceFolder}/main.py",
-            "args": [
-                "embedding",
-                "--collection",
-                "energyplus_database",
-                "--db-path",
-                "${workspaceFolder}/data/examples/EP_Agent_data.db"
-            ]
-        },
-        {
             "name": "Zone Agent",
             "type": "debugpy",
             "request": "launch",
@@ -76,6 +63,17 @@
                 "-v",
             ],
             "cwd": "${workspaceFolder}"
-        }
-    ]
+        },
+        {
+            "name": "Reference",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/main.py",
+            "args": [
+                "reference",
+                "load",
+            ],
+            "cwd": "${workspaceFolder}"
+        },
+    ],
 }

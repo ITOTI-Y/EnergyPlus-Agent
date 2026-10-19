@@ -20,6 +20,7 @@ dependencies = [
     "pydantic-settings>=2.11",
     "huggingface-hub>=0.35",
     "openai>=1.100",
+    "httpx2>=2.13.1",
 ]
 
 [project.scripts]
