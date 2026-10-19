@@ -80,8 +80,6 @@ interactions:
       - '7970'
       content-type:
       - application/json
-      host:
-      - llm.invalid
       user-agent:
       - OpenAI/Python 2.52.0
       x-stainless-arch:
@@ -132,53 +130,10 @@ interactions:
         jurGJzeADoaRaZzWeCkOnFyYgu3gXsC/tS9ZxbH28TboXzbLQ+i69sU7QgQt+Mf5ahoYSwIXdiBk
         2YDIOhenm+3CY2bcg3BQiAv3QdHCOAhAxdVuXLS3JWhUhiSCCo8H6EE4lVcfAWTbUgIwvgAL
     headers:
-      access-control-allow-origin:
-      - '*'
-      access-control-expose-headers:
-      - X-Generation-Id,X-Provider-Name,request-id,cf-ray
-      alt-svc:
-      - h3=":443"; ma=86400
-      cf-cache-status:
-      - DYNAMIC
-      cf-ray:
-      - a487ba778a783f1b-NRT
-      connection:
-      - keep-alive
       content-encoding:
       - zstd
       content-type:
       - application/json
-      date:
-      - Sat, 10 Oct 2026 18:36:06 GMT
-      nel:
-      - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
-      permissions-policy:
-      - payment=(self "https://checkout.stripe.com" "https://connect-js.stripe.com"
-        "https://js.stripe.com" "https://*.js.stripe.com" "https://hooks.stripe.com")
-      referrer-policy:
-      - no-referrer, strict-origin-when-cross-origin
-      report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=uOonri2ijjeNdbV7srghbIDn7395dW0Gnd7MFbIATrh0dQ2W4c7ZEbkXz2ur3AwSL0kUKp5iE%2BDE4CWENTStucipsWyEfdU4I76uKG4v6Tofz5ILMsUzI2r9%2FIL3YGBC9Z0%3D"}]}'
-      server:
-      - cloudflare
-      set-cookie:
-      - __cf_bm=ZEp5hWDClDipVydwGuL8HRDRF2hZi14iAHHGw.KVw50-1791657363.2748-1.0.1.1-DYm5rynK6ctWY1SRzTTMlRRHBd4uzyOgLvC1DDclZxT7LTL_QBbLPHmDkEOgIA2AjyjUzONrxZmdh1r4sY6q7hjaY11M9Vc7YOvz_nSl5KUw6Ja81ibH6D2Jg9e8FdQD;
-        HttpOnly; SameSite=None; Secure; Path=/; Domain=openrouter.ai; Expires=Sat,
-        10 Oct 2026 19:06:06 GMT
-      strict-transport-security:
-      - max-age=31536000
-      transfer-encoding:
-      - chunked
-      via:
-      - 1.1 Caddy
-      x-content-type-options:
-      - nosniff
-      x-generation-id:
-      - gen-1791657363-UplM5KaZG4nLqGlpmF7N
-      x-new-api-version:
-      - v1.0.0-rc.42
-      x-oneapi-request-id:
-      - 202610101836032576520278268d9d6NrNko3r5
     status:
       code: 200
       message: OK
@@ -271,8 +226,6 @@ interactions:
       - '8941'
       content-type:
       - application/json
-      host:
-      - llm.invalid
       user-agent:
       - OpenAI/Python 2.52.0
       x-stainless-arch:
@@ -333,53 +286,10 @@ interactions:
         INJWyNO1NoTiPGniFU29SdlMSxbrQhHQNFZNXAvNXcE7PgKH5gQyvQDFhtuPy8u84IVAzmb3CHn6
         OiYpPyAlSw3qbAxgUGD7VWhsaVq1QQTJ4Sk6hEiv1wOyv5RkFXibmwM=
     headers:
-      access-control-allow-origin:
-      - '*'
-      access-control-expose-headers:
-      - X-Generation-Id,X-Provider-Name,request-id,cf-ray
-      alt-svc:
-      - h3=":443"; ma=86400
-      cf-cache-status:
-      - DYNAMIC
-      cf-ray:
-      - a487ba8c5cfd3f1b-NRT
-      connection:
-      - keep-alive
       content-encoding:
       - zstd
       content-type:
       - application/json
-      date:
-      - Sat, 10 Oct 2026 18:36:11 GMT
-      nel:
-      - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
-      permissions-policy:
-      - payment=(self "https://checkout.stripe.com" "https://connect-js.stripe.com"
-        "https://js.stripe.com" "https://*.js.stripe.com" "https://hooks.stripe.com")
-      referrer-policy:
-      - no-referrer, strict-origin-when-cross-origin
-      report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=vShhtvrP3hsNNQqX67Dwk0j3HOZGAAMaM348hkz3py2wYIactfNSHiGb6lCxcyFiCqPtoXPjsJlKwhDriFBiig8wynQgUadOgsSBVgTyVJe5jpFw0dlp9IF60mNSjxiKC04%3D"}]}'
-      server:
-      - cloudflare
-      set-cookie:
-      - __cf_bm=iZJm4nsKBgCYQTvN_w0sNhiZMdv089Pv7UmcQdNfLN8-1791657366.6180618-1.0.1.1-hyn2KLz46.X.8eUHrgSpYPHKdisFFSglVsOVMU18Q3MPXc5JPAJxZ2kS4A8Bl1Wrr.JkW8ZpaveeFIBf4KlpdH8XWhv_2YTMjrXZNEQce6cCvE7g3T1aOao3OijjGmvW;
-        HttpOnly; SameSite=None; Secure; Path=/; Domain=openrouter.ai; Expires=Sat,
-        10 Oct 2026 19:06:10 GMT
-      strict-transport-security:
-      - max-age=31536000
-      transfer-encoding:
-      - chunked
-      via:
-      - 1.1 Caddy
-      x-content-type-options:
-      - nosniff
-      x-generation-id:
-      - gen-1791657366-8NHHeaBokyQlNdWIkGGh
-      x-new-api-version:
-      - v1.0.0-rc.42
-      x-oneapi-request-id:
-      - 202610101836065964869038268d9d6uXL7ToEh
     status:
       code: 200
       message: OK
@@ -485,8 +395,6 @@ interactions:
       - '10229'
       content-type:
       - application/json
-      host:
-      - llm.invalid
       user-agent:
       - OpenAI/Python 2.52.0
       x-stainless-arch:
@@ -529,53 +437,10 @@ interactions:
         gKPZfGl05bzIASL8/5/nGzGZIqAikEkWN8cHIBUoImCFQg2gWYq9MBIMtLQPihbGIQAlV/viIr8t
         hkY1JBFUeDyiB4FUXj0CCG1LycL4Aiw=
     headers:
-      access-control-allow-origin:
-      - '*'
-      access-control-expose-headers:
-      - X-Generation-Id,X-Provider-Name,request-id,cf-ray
-      alt-svc:
-      - h3=":443"; ma=86400
-      cf-cache-status:
-      - DYNAMIC
-      cf-ray:
-      - a487baaa6a273f1b-NRT
-      connection:
-      - keep-alive
       content-encoding:
       - zstd
       content-type:
       - application/json
-      date:
-      - Sat, 10 Oct 2026 18:36:13 GMT
-      nel:
-      - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
-      permissions-policy:
-      - payment=(self "https://checkout.stripe.com" "https://connect-js.stripe.com"
-        "https://js.stripe.com" "https://*.js.stripe.com" "https://hooks.stripe.com")
-      referrer-policy:
-      - no-referrer, strict-origin-when-cross-origin
-      report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=YjFTbPHGhdIsHkZ%2BusUdTgUdVkY0VKu96v5swEKdzDjQgAFFBT3ka1394KlMOL7rm%2BZUAD4hHuHNUQk0JeL5sAZyW4Fi04jUfBaFifoyRiDtUFuyKqv6IUsRZ%2FZSSIeUo%2BA%3D"}]}'
-      server:
-      - cloudflare
-      set-cookie:
-      - __cf_bm=EaITWZmMPYQTFOke.QhA1c38q8V.e6izpoEZdj2XSIU-1791657371.4228888-1.0.1.1-lMU_khWevFmbUQdtUmQTXVp.dm0_RhSVKOMSUciBwfj3Rk0t59A6f.qh06y9bVXJTaXj6CNmLuy.DnGmMyNLvRne990P_Ag19DfSR_h0iQfgUkgmHslPHREXKKQcJz_E;
-        HttpOnly; SameSite=None; Secure; Path=/; Domain=openrouter.ai; Expires=Sat,
-        10 Oct 2026 19:06:13 GMT
-      strict-transport-security:
-      - max-age=31536000
-      transfer-encoding:
-      - chunked
-      via:
-      - 1.1 Caddy
-      x-content-type-options:
-      - nosniff
-      x-generation-id:
-      - gen-1791657371-8mucxoaDzQqU2q9oJIl6
-      x-new-api-version:
-      - v1.0.0-rc.42
-      x-oneapi-request-id:
-      - 202610101836113991770088268d9d6IIH5ANSu
     status:
       code: 200
       message: OK

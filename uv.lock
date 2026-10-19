@@ -510,6 +510,7 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "fastmcp" },
+    { name = "httpx2" },
     { name = "huggingface-hub" },
     { name = "idfpy" },
     { name = "langchain" },
@@ -542,6 +543,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "fastmcp", specifier = ">=2.14.1" },
+    { name = "httpx2", specifier = ">=2.13.1" },
     { name = "huggingface-hub", specifier = ">=0.35" },
     { name = "idfpy", specifier = "==26.1.*,>=26.1.6" },
     { name = "langchain", specifier = ">=1.2.13" },

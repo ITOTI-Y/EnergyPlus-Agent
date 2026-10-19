@@ -26,7 +26,7 @@ class ReferenceSettings(BaseSettings):
     embedding_url: str | None = None
     embedding_model: str = "qwen3-embedding-8b"
     embedding_api_key: SecretStr | None = None
-    hub_repo: str = "ITOTII/ep-agent-rag"
+    hub_repo: str | None = None
     library_path: Path = DEFAULT_LIBRARY
 
     @model_validator(mode="after")

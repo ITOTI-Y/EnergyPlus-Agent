@@ -75,8 +75,6 @@ interactions:
       - '8866'
       content-type:
       - application/json
-      host:
-      - llm.invalid
       user-agent:
       - OpenAI/Python 2.52.0
       x-stainless-arch:
@@ -130,53 +128,10 @@ interactions:
         7C49Ri7pxnIM9iJtljm2UR1IVoxqVWLnQYRFF6oZmuqeP+0WZuo0EeXJBs0OiuEvZGFiuaWBuE9C
         EKJodJehy3feHUVjHAAX2rKenCgiTY6MVVmtKmUELhAPQEKoMz5IASFUSjoK3DYnBw==
     headers:
-      access-control-allow-origin:
-      - '*'
-      access-control-expose-headers:
-      - X-Generation-Id,X-Provider-Name,request-id,cf-ray
-      alt-svc:
-      - h3=":443"; ma=86400
-      cf-cache-status:
-      - DYNAMIC
-      cf-ray:
-      - a47e5b711e73b006-NRT
-      connection:
-      - keep-alive
       content-encoding:
       - zstd
       content-type:
       - application/json
-      date:
-      - Fri, 09 Oct 2026 15:18:24 GMT
-      nel:
-      - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
-      permissions-policy:
-      - payment=(self "https://checkout.stripe.com" "https://connect-js.stripe.com"
-        "https://js.stripe.com" "https://*.js.stripe.com" "https://hooks.stripe.com")
-      referrer-policy:
-      - no-referrer, strict-origin-when-cross-origin
-      report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=ctajnuiID%2BQlluZLKyIIZ6l7IWrqdHrg9gvQWNQldiLt559IkaA2PohugreTxUML4Z0oYQQIDKWQv3T4H7rcVzsITG8CS3UVrTuBc%2Bvo4hQPtR7N1%2FPDNuOCW71lRV4ee5E%3D"}]}'
-      server:
-      - cloudflare
-      set-cookie:
-      - __cf_bm=C6Fqz_W37nSGKzF0uEnGydnIJfp76DYjp1Y1AHqn7Jo-1791559100.0812902-1.0.1.1-9So4MfXYVT03XHnyKXgVZ4hjLMugKezkyqdVqF6L1B7MGMsjiOOU2ZHRp6TIZKxjWnkHoUHh9yoKbGly5NL7M4z3_Pp2thG56DHmbuVyruRb.7BWoBgMrbBkFEcgvScP;
-        HttpOnly; SameSite=None; Secure; Path=/; Domain=openrouter.ai; Expires=Fri,
-        09 Oct 2026 15:48:24 GMT
-      strict-transport-security:
-      - max-age=31536000
-      transfer-encoding:
-      - chunked
-      via:
-      - 1.1 Caddy
-      x-content-type-options:
-      - nosniff
-      x-generation-id:
-      - gen-1791559100-cFFVzKZn20ILIWWSzpzU
-      x-new-api-version:
-      - v1.0.0-rc.42
-      x-oneapi-request-id:
-      - 202610091518200325080898268d9d68mtgTKIx
     status:
       code: 200
       message: OK
@@ -259,8 +214,6 @@ interactions:
       - '9306'
       content-type:
       - application/json
-      host:
-      - llm.invalid
       user-agent:
       - OpenAI/Python 2.52.0
       x-stainless-arch:
@@ -304,53 +257,10 @@ interactions:
         gA52I9M4reOlNnCywufZsW0B4bTPdAIVyzELOLybW5GuIC7KgAgV9s/zFWK0MgBFUC8LvZHXYlrp
         OUHOJy4YWthXfQvjIaAFV7vior4tQaMqJBEsPB6hB0Eq8b0NCG1LCcB4b7wXCw==
     headers:
-      access-control-allow-origin:
-      - '*'
-      access-control-expose-headers:
-      - X-Generation-Id,X-Provider-Name,request-id,cf-ray
-      alt-svc:
-      - h3=":443"; ma=86400
-      cf-cache-status:
-      - DYNAMIC
-      cf-ray:
-      - a47e5b93cd71b006-NRT
-      connection:
-      - keep-alive
       content-encoding:
       - zstd
       content-type:
       - application/json
-      date:
-      - Fri, 09 Oct 2026 15:18:29 GMT
-      nel:
-      - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
-      permissions-policy:
-      - payment=(self "https://checkout.stripe.com" "https://connect-js.stripe.com"
-        "https://js.stripe.com" "https://*.js.stripe.com" "https://hooks.stripe.com")
-      referrer-policy:
-      - no-referrer, strict-origin-when-cross-origin
-      report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=vQ8Ux9rWjtDh6Nz3IGuoqUrFj7eaB%2BlxDr0KsqVTPSnP411zDJg2H2UZgvkTxPIkqqfOC69xU3NeQYptwwuP9ujMfUI49TyIT1dosgfQeIxsRYrcOdCSiqnghoWqhK3%2FD%2Fg%3D"}]}'
-      server:
-      - cloudflare
-      set-cookie:
-      - __cf_bm=kNcqpsvbcWNt_dqqLNHPmGdRX3L6hOoEqmlZUZNQQlk-1791559105.580839-1.0.1.1-P6uovKsCgPtEU22fXdzg5vxAjdL78PNLZ0IFmLpYpo64maJDdlMCLwwPIfnLvGlww4N6iulgx0Pcz_GkLvVBKacnNb.6s9QQxibvKRbL5KtaytwY28C7LbJ6nHGBskw3;
-        HttpOnly; SameSite=None; Secure; Path=/; Domain=openrouter.ai; Expires=Fri,
-        09 Oct 2026 15:48:29 GMT
-      strict-transport-security:
-      - max-age=31536000
-      transfer-encoding:
-      - chunked
-      via:
-      - 1.1 Caddy
-      x-content-type-options:
-      - nosniff
-      x-generation-id:
-      - gen-1791559105-od5wyIy8BAZ7jbupbK8T
-      x-new-api-version:
-      - v1.0.0-rc.42
-      x-oneapi-request-id:
-      - 202610091518255554260138268d9d6nDgK83G4
     status:
       code: 200
       message: OK
