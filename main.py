@@ -120,6 +120,8 @@ def reference_publish() -> None:
     from src.reference.settings import ReferenceSettings
 
     settings = ReferenceSettings()
+    if settings.hub_repo is None:
+        raise typer.BadParameter("set REFERENCE_HUB_REPO")
     logger.info("Published: {}", publish(settings.library_path, settings.hub_repo))
 
 
@@ -130,6 +132,8 @@ def reference_pull() -> None:
     from src.reference.settings import ReferenceSettings
 
     settings = ReferenceSettings()
+    if settings.hub_repo is None:
+        raise typer.BadParameter("set REFERENCE_HUB_REPO")
     logger.info("Pulled {}", pull(settings.hub_repo, settings.library_path))
 
 

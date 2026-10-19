@@ -8,15 +8,15 @@ to 26.1 so idfpy reads them with the current field layouts.
 
 import re
 import zipfile
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Final, Literal
-from urllib.request import Request, urlopen
 
+import httpx2
 from loguru import logger
 
 BASE_URL: Final = "https://www.energycodes.gov/sites/default/files"
-# energycodes.gov answers 404 to clients without a browser user agent.
 USER_AGENT: Final = "Mozilla/5.0"
 
 COMMERCIAL_TYPES: Final = (
@@ -81,24 +81,28 @@ def archive_urls() -> list[str]:
     return commercial + residential
 
 
-def download(urls: list[str], directory: Path) -> list[Path]:
-    """Download each zip unless it is already there.
+def _fetch(client: httpx2.Client, url: str, directory: Path) -> Path:
+    path = directory / url.rsplit("/", 1)[1]
+    if not path.exists():
+        logger.info("Downloading {}", url)
+        partial = path.with_suffix(".part")
+        with client.stream("GET", url) as reply, partial.open("wb") as out:
+            reply.raise_for_status()
+            for chunk in reply.iter_bytes():
+                out.write(chunk)
+        partial.rename(path)
+    return path
 
-    Raises:
-        urllib.error.URLError: If a download fails.
-    """
+
+def download(urls: list[str], directory: Path, workers: int = 8) -> list[Path]:
     directory.mkdir(parents=True, exist_ok=True)
-    paths = []
-    for url in urls:
-        path = directory / url.rsplit("/", 1)[1]
-        if not path.exists():
-            logger.info("Downloading {}", url)
-            with urlopen(Request(url, headers={"User-Agent": USER_AGENT})) as reply:
-                partial = path.with_suffix(".part")
-                partial.write_bytes(reply.read())
-                partial.rename(path)
-        paths.append(path)
-    return paths
+    with (
+        httpx2.Client(
+            headers={"User-Agent": USER_AGENT}, timeout=60, follow_redirects=True
+        ) as client,
+        ThreadPoolExecutor(workers) as pool,
+    ):
+        return list(pool.map(lambda url: _fetch(client, url, directory), urls))
 
 
 _COMMERCIAL: Final = re.compile(r"ASHRAE901_(\w+?)_STD(\d{4})_(\w+)\.idf")
