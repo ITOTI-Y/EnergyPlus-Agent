@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from typing import Final
 
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -59,6 +60,11 @@ Fields:
 - `*_specs`: one natural-language instruction string per subsystem agent.
   `surface_specs` is only for sloped or pitched roofs and sloped walls;
   leave it empty when every zone has vertical walls and a flat roof.
+  `fenestration_specs` gives windows by zone plan key and facing (north,
+  east, south, west): a window-to-wall ratio and a window construction
+  for each; the fenestration phase applies a ratio to every zone of a
+  plan on every storey at once. Give the size or position of single
+  windows only when the brief does.
 
 Rules:
 1. If latitude/longitude are not given, infer from the city/region mentioned.
@@ -77,13 +83,19 @@ Rules:
      the IDENTICAL name, opaque for walls, roofs and floors. Give the
      interior floor layers from the ceiling below up to the floor above;
      the face on the other side gets the reversed layers automatically.
+   - Every window construction in `construction_specs` has a glazing
+     layer, e.g. a simple glazing system given by U-factor, SHGC and
+     visible transmittance, that `material_specs` defines with the
+     IDENTICAL name.
    - Schedules named in `hvac_specs` / `people_specs` / `lights_specs` /
      `equipment_specs`
      must be defined in `schedule_specs` with the IDENTICAL name.
    - Zones named in `surface_specs` / `fenestration_specs` /
      `people_specs` / `lights_specs` / `equipment_specs` / `hvac_specs`
      must be zones of `storeys` and `zone_plans`, named
-     '<storey>_<plan key>' exactly.
+     '<storey>_<plan key>' exactly. Name all zones of a plan by its key
+     instead ('every zone of plan Tower'): the phases apply it to every
+     zone made from the plan, on every storey, so list no storeys.
    Pick names once, reuse them verbatim. No synonyms, no pluralization.
 5. Name format — EVERY Name field (building.name, site_location.name,
    zone / material / construction / surface / fenestration / schedule /
@@ -119,15 +131,19 @@ Rules:
    uses, and (c) give the value profile for EVERY day type, weekends,
    holidays and design days included (e.g. "weekdays 8-18 at 1.0, all
    other days 0.0"). The activity_level schedule is commonly forgotten —
-   default ~120 W/person for seated office work.
+   default ~120 W/person for seated office work. It is constant at all
+   times, never 0: when people are present follows from the occupancy
+   fraction schedule. The heating setpoint is at most the cooling
+   setpoint at every time of every day type.
 """
 
 PHOTO_READING_INTRO = """Photo reading (a vision model's reading of the attached photos or
-drawings; counts and dimensions are estimates). Build the zones from it:
-- give each block ONE rectangular plan, placed where `position` says, side
-  by side or on top of the others, never overlapping another plan of a
-  block on the same storeys: a core beside the tower is next to the
-  tower's plan, not inside it;
+drawings; counts and dimensions are estimates), and each block's footprint
+computed from it. Build the zones from them:
+- give each block ONE rectangular plan whose corners are its footprint
+  (x0, y0, x1, y1) exactly; only when the text lays out zones in a block,
+  give rectangles that together fill the footprint. The footprints carry
+  the setbacks: do not move or resize them;
 - set each plan's `block` to its block's `name` exactly; every block gets
   a plan;
 - give `storeys` as an empty list: code builds them from the blocks'
@@ -139,7 +155,16 @@ drawings; counts and dimensions are estimates). Build the zones from it:
   `zoning` 'perimeter_core'; a service core and narrow blocks take
   'single';
 - the facade window types and window-to-wall ratios go into
-  `fenestration_specs`.
+  `fenestration_specs`, per plan and facing (front south, back north, left
+  west, right east). A side the reading does not give was not seen: a back
+  takes the front's ratio; an end (west or east) takes the other end's, or
+  0.1 when neither end is given, as the ends of a slab are mostly stairs
+  and service cores;
+- a facade's `space` says what is behind it; stair or service core sides
+  keep their small ratio;
+- each facing's windows in `fenestration_specs` are a ribbon or punched,
+  as the facade's `pattern`; punched windows take the facade's window
+  size, else 1.2 m wide by 1.5 m high.
 Other values the text gives take precedence over the reading."""
 
 REVISION_PROMPT = """The specifications below were built and checked. Fix
@@ -166,9 +191,50 @@ def _brief(state: AgentState) -> HumanMessage:
     if state.photo_reading is None:
         return HumanMessage(content=state.user_input)
     reading = state.photo_reading.model_dump_json(indent=1)
-    return HumanMessage(
-        content=f"{state.user_input}\n\n{PHOTO_READING_INTRO}\n{reading}"
+    footprints = "\n".join(
+        f"- {name}: x0 {x0}, y0 {y0}, x1 {x1}, y1 {y1}"
+        for name, (x0, y0, x1, y1) in state.photo_reading.footprints().items()
     )
+    return HumanMessage(
+        content=f"{state.user_input}\n\n{PHOTO_READING_INTRO}\n{reading}\n\n"
+        f"Block footprints (metres, x east, y north, fronts facing south):\n"
+        f"{footprints}"
+    )
+
+
+PLAN_CONSTRUCTIONS: Final = (
+    "exterior_wall_construction",
+    "roof_construction",
+    "ground_floor_construction",
+    "interior_wall_construction",
+    "interior_floor_construction",
+)
+
+
+def _with_defined_constructions(output: IntakeOutput) -> IntakeOutput:
+    """The output, once every construction its plans name appears in
+    `construction_specs`.
+
+    Caught here, intake fixes it in the same call; otherwise every zone
+    reports it after a whole pass of the phases.
+
+    Raises:
+        ValueError: Naming the constructions `construction_specs` lacks.
+    """
+    named = {
+        getattr(p, field) for p in output.zone_plans for field in PLAN_CONSTRUCTIONS
+    }
+    missing = sorted(
+        n
+        for n in named
+        if not re.search(rf"\b{re.escape(n)}\b", output.construction_specs)
+    )
+    if missing:
+        raise ValueError(
+            f"zone_plans name constructions that construction_specs does not "
+            f"define: {missing}; define them there or use defined ones"
+        )
+    return output
 
 
 def with_reading_storeys(
@@ -230,7 +296,9 @@ def intake_node(state: AgentState, runtime: Runtime[SimContext]) -> AgentStateUp
             create_llm(),
             IntakeOutput,
             [system, _brief(state)],
-            lambda o: with_reading_storeys(o, state.photo_reading),
+            lambda o: _with_defined_constructions(
+                with_reading_storeys(o, state.photo_reading)
+            ),
         )
         rerun: set[Phase] = set(PHASE_TYPES)
     else:
@@ -246,7 +314,8 @@ def intake_node(state: AgentState, runtime: Runtime[SimContext]) -> AgentStateUp
                 )
                 storeys = storeys_from_reading(plans, state.photo_reading)
                 patch = patch.model_copy(update={"storeys": storeys})
-            return patch.apply(previous)
+            output, changed = patch.apply(previous)
+            return _with_defined_constructions(output), changed
 
         patch, (output, changed) = structured(
             create_llm(),

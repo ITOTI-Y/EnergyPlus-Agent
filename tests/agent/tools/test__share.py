@@ -1,3 +1,4 @@
+import inspect
 import json
 from collections.abc import Iterator
 from pathlib import Path
@@ -16,11 +17,13 @@ from src.state.config_state import ConfigState
 
 def _all_tools() -> list[BaseTool]:
     config = ConfigState()
-    return [
-        tool
-        for name in agent_tools.__all__
-        for tool in getattr(agent_tools, name)(config)
-    ]
+    tools = []
+    for name in agent_tools.__all__:
+        factory = getattr(agent_tools, name)
+        # Factories of tools that take zones by plan also take the plans.
+        takes_plans = "plan_zones" in inspect.signature(factory).parameters
+        tools += factory(config, {}) if takes_plans else factory(config)
+    return tools
 
 
 def _bare_objects(schema: Any, path: str) -> Iterator[str]:
@@ -43,7 +46,7 @@ def test_tool_arguments_declare_object_properties(tool: BaseTool):
 
 
 def test_rejected_operation_returns_error_status_with_details():
-    tools = {t.name: t for t in agent_tools.make_lights_tools(ConfigState())}
+    tools = {t.name: t for t in agent_tools.make_lights_tools(ConfigState(), {})}
     call = ToolCall(
         name="delete_light", args={"name": "Nowhere"}, id="1", type="tool_call"
     )
@@ -74,3 +77,37 @@ def test_surface_list_is_filtered_and_compact():
         "name", "zone", "type", "boundary", "construction", "facing", "area",
         "corners",
     }  # fmt: skip
+
+
+def test_misspelt_argument_is_refused_not_dropped():
+    tools = {t.name: t for t in agent_tools.make_lights_tools(ConfigState(), {})}
+    call = ToolCall(
+        name="delete_light", args={"name-": "Nowhere"}, id="1", type="tool_call"
+    )
+
+    message = tools["delete_light"].invoke(call)
+
+    assert "name-: Extra inputs are not permitted" in message.content
+
+
+def test_heat_gain_fractions_over_one_are_refused():
+    tools = {
+        t.name: t for t in agent_tools.make_equipment_tools(ConfigState(), {"A": []})
+    }
+    call = ToolCall(
+        name="create_equipment",
+        args={
+            "schedule_name": "Always",
+            "plans": ["A"],
+            "design_level_calculation_method": "Watts/Area",
+            "watts_per_floor_area": 10,
+            "fraction_radiant": 0.5,
+            "fraction_latent": 0.6,
+        },
+        id="1",
+        type="tool_call",
+    )
+
+    message = tools["create_equipment"].invoke(call)
+
+    assert message.status == "error" and "add up to more than 1" in message.content

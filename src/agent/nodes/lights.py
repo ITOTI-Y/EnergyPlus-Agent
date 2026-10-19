@@ -7,6 +7,7 @@ from src.agent.nodes._share import (
     invoke_with_self_repair,
     last_message_text,
     missing_input_issues,
+    plan_zones,
     skipped,
     with_feedback,
 )
@@ -23,8 +24,10 @@ Workflow:
 2. FIRST call `list_schedules` to see the exact Schedule:Compact names
    (you need a lighting fraction schedule).
 3. Call `create_lights` once per group of zones with the same schedule
-   and values, listing the zones in `zone_names`. Its reply names only
-   zones that failed; the rest got their object. Do not list afterwards.
+   and values, listing the zones by plan key in `plans` (every zone of
+   the plan on every storey) or by name in `zone_names`. Its reply names
+   only zones that failed; the rest got their object. Do not list
+   afterwards.
 
 Rules:
 - Zone names and `schedule_name` MUST appear verbatim in the list_zones /
@@ -54,7 +57,7 @@ def lights_agent(state: AgentState) -> AgentStateUpdate:
     if skipped(state, "lights"):
         return AgentStateUpdate()
     local = state.config_state.model_copy(deep=True)
-    tools = make_lights_tools(local)
+    tools = make_lights_tools(local, plan_zones(state))
     collector = TraceCollector(phase="lights")
 
     agent = build_agent(

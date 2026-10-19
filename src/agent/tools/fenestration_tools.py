@@ -1,6 +1,7 @@
 from typing import Literal
 
 from idfpy.models import (
+    BuildingSurfaceDetailed,
     FenestrationSurfaceDetailed,
 )
 from langchain_core.tools import BaseTool
@@ -11,19 +12,27 @@ from src.agent.tools._share import (
     list_tool,
     model_tool,
     ok,
+    zones_of,
 )
 from src.modeling import objects
 from src.modeling.envelope import VertexSchema, fenestration_from_vertices
 from src.modeling.fenestration import (
     Facing,
+    Point,
     add_fenestration,
     add_windows_by_ratio,
+    punched_windows_for_ratio,
     remove_fenestration,
+    window_for_ratio,
 )
 from src.state.config_state import ConfigState
 
 
-def make_fenestration_tools(config: ConfigState) -> list[BaseTool]:
+def make_fenestration_tools(
+    config: ConfigState, plan_zones: dict[str, list[str]]
+) -> list[BaseTool]:
+    """The fenestration phase's tools; ``plan_zones`` maps each zone plan's
+    key to the zones made from it, so windows can be given per plan."""
     idf = config.idf
 
     @model_tool
@@ -84,31 +93,55 @@ def make_fenestration_tools(config: ConfigState) -> list[BaseTool]:
     def create_windows_by_ratio(
         window_to_wall_ratio: float,
         construction_name: str,
+        plans: list[str] | None = None,
         zone_names: list[str] | None = None,
         facings: list[Facing] | None = None,
         sill_height: float = 0.8,
+        pattern: Literal["ribbon", "punched"] = "ribbon",
+        window_width: float = 1.2,
+        window_height: float = 1.5,
     ) -> str:
-        """Put one strip window on every matching exterior wall, sized by ratio.
+        """Put windows on every matching exterior wall, sized by ratio.
 
-        The window spans the wall's width (5 cm clearance at each edge) at
-        the given sill height, as high as the ratio needs. Prefer this to
-        create_fenestration whenever the specification gives window-to-wall
-        ratios; call it once per ratio, facing and zone group.
+        A ribbon is one strip window spanning the wall's width (5 cm
+        clearance at each edge), as high as the ratio needs. Punched windows
+        are evenly spaced window_width x window_height windows, as many as
+        the ratio holds, scaled alike to cover it exactly. Both start at
+        the given sill height. Prefer this to create_fenestration whenever
+        the specification gives window-to-wall ratios; call it once per
+        ratio, pattern, facing and group of plans or zones.
 
         Args:
             window_to_wall_ratio: Window area over wall area, e.g. 0.4.
             construction_name: Existing window construction.
-            zone_names: Zones whose outdoor walls get windows; all when omitted.
+            plans: Zone plan keys: every zone made from these plans, on every
+                storey, gets windows.
+            zone_names: Zones whose outdoor walls get windows. Give plans,
+                zone_names or both; for every zone, list every plan.
             facings: Compass directions of the walls; all when omitted.
             sill_height: Height of the window bottom above the floor, in m.
+            pattern: 'ribbon' for continuous bands or curtain walls,
+                'punched' for separate windows.
+            window_width: Width of one punched window, in m.
+            window_height: Height of one punched window, in m.
         """
+        # Explicit zones: a call meant for one plan that names none would
+        # put windows on every wall, which takes one deletion each to undo.
+        zones = zones_of(plans, zone_names, plan_zones)
+        if pattern == "ribbon":
+
+            def layout(wall: BuildingSurfaceDetailed) -> list[list[Point]]:
+                return [window_for_ratio(wall, window_to_wall_ratio, sill_height)]
+
+        else:
+
+            def layout(wall: BuildingSurfaceDetailed) -> list[list[Point]]:
+                return punched_windows_for_ratio(
+                    wall, window_to_wall_ratio, sill_height, window_width, window_height
+                )
+
         created, problems = add_windows_by_ratio(
-            idf,
-            zone_names,
-            facings,
-            window_to_wall_ratio,
-            construction_name,
-            sill_height,
+            idf, zones, facings, layout, construction_name
         )
         message = f"Created {len(created)} windows"
         if problems:

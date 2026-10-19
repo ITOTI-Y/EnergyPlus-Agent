@@ -175,8 +175,11 @@ def invoke_with_self_repair(
     return result
 
 
-MAX_STRUCTURED_ATTEMPTS: Final = 2
-"""Calls per structured reply: the first, and one that sends its problem back."""
+MAX_STRUCTURED_ATTEMPTS: Final = 3
+"""Calls per structured reply: the first, and two that send its problem back.
+
+A reply can come without its tool call (e.g. only '<tool_call>'), which
+leaves a single corrected attempt for the content itself."""
 
 
 def without_empty_choices(node: Any) -> Any:
@@ -245,19 +248,37 @@ def unpack_leaked_fields(args: dict[str, Any], fields: Iterable[str]) -> list[st
     return filled
 
 
+def plan_zones(state: AgentState) -> dict[str, list[str]]:
+    """Each zone plan's key and the zones made from it, for the tools that
+    take zones by plan."""
+    return state.intake_output.plan_zones() if state.intake_output else {}
+
+
+def _cut_off(message: BaseMessage) -> bool:
+    """Whether the provider stopped the reply at the output token limit."""
+    return _finish_reason(message) in ("length", "max_tokens")
+
+
+def _finish_reason(message: BaseMessage) -> str | None:
+    """Why the provider ended the reply; OpenAI-style APIs report it as
+    `finish_reason`, Anthropic's as `stop_reason`."""
+    metadata = message.response_metadata
+    return metadata.get("finish_reason") or metadata.get("stop_reason")
+
+
 def structured[T: BaseModel, R](
     llm: BaseChatModel,
     schema: type[T],
     messages: list[BaseMessage],
     check: Callable[[T], R],
 ) -> tuple[T, R]:
-    """Call ``llm`` for ``schema`` as a forced tool call, retrying once.
+    """Call ``llm`` for ``schema`` as a forced tool call, with retries.
 
     The tool is the schema without empty enum values (see
     ``without_empty_choices``); the arguments are validated with the full
     model. ``check`` turns the parsed reply into the result the caller
     needs; a ValueError from it, like invalid arguments, is sent back to the
-    LLM for one more attempt.
+    LLM for another attempt.
 
     Raises:
         RuntimeError: If no attempt gives a usable reply.
@@ -271,10 +292,17 @@ def structured[T: BaseModel, R](
         try:
             if result.get("parsed") is None:
                 raw: BaseMessage | None = result.get("raw")
+                if raw is not None and _cut_off(raw):
+                    raise ValueError(
+                        f"the reply reached the output token limit before the "
+                        f"{schema.__name__} tool call was complete; write the "
+                        f"text fields more briefly"
+                    )
+                finish = _finish_reason(raw) if raw is not None else None
                 raise ValueError(
                     f"no {schema.__name__} tool call (parsing error "
-                    f"{result.get('parsing_error')!r}; reply "
-                    f"{repr(raw.content if raw is not None else raw)[:300]})"
+                    f"{result.get('parsing_error')!r}; finish reason {finish!r}; "
+                    f"reply {repr(raw.content if raw is not None else raw)[:300]})"
                 )
             args = dict(result["parsed"])
             if filled := unpack_leaked_fields(args, schema.model_fields):

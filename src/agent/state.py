@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import operator
+import re
 from collections.abc import Sequence
 from dataclasses import dataclass
-from itertools import accumulate
+from itertools import accumulate, combinations
 from pathlib import Path
 from typing import Annotated, Any, Final, Literal, Self
 
@@ -11,7 +12,8 @@ from idfpy import IDF
 from idfpy.models import Building, SiteLocation
 from langchain_core.messages import AnyMessage
 from langgraph.graph.message import add_messages
-from pydantic import BaseModel, Field, field_validator, model_validator
+from loguru import logger
+from pydantic import AfterValidator, BaseModel, Field, field_validator, model_validator
 from typing_extensions import TypedDict
 
 from src.agent._share import DEFAULT_OUTPUT_DIR, MAX_GLOBAL_RETRIES
@@ -21,6 +23,15 @@ from src.modeling.validation import ModelIssue
 from src.modeling.zoning import perimeter_core
 from src.reference.search import ReferenceSearch
 from src.state.config_state import ConfigState
+
+
+def _block_name(name: str) -> str:
+    """Letters, digits and single spaces: models write the same name with
+    different dashes or spacing, e.g. 'lower-left' with U+2011 or U+002D."""
+    return " ".join(re.findall(r"[^\W_]+", name))
+
+
+type BlockName = Annotated[str, AfterValidator(_block_name)]
 
 
 class ZonePlanSchema(BaseModel):
@@ -40,7 +51,7 @@ class ZonePlanSchema(BaseModel):
         "perimeter zones and a core zone, '<storey>_<key>_N', '_E', '_S', "
         "'_W' and '_Core' (needs both sides of at least 12.14 m)",
     )
-    block: str | None = Field(
+    block: BlockName | None = Field(
         default=None,
         description="Only with a photo reading: the name of the reading's "
         "block this plan belongs to; code then builds the storeys",
@@ -95,6 +106,7 @@ class ZoneGeometrySchema(BaseModel):
     """One thermal zone as a prism, derived from a storey and a plan."""
 
     name: str
+    plan_key: str = Field(description="Key of the zone plan it is made from")
     plan: list[PlanPointSchema]
     floor_z: float
     height: float
@@ -212,6 +224,7 @@ class IntakeOutput(BaseModel):
                 zones += [
                     ZoneGeometrySchema(
                         name=part_name,
+                        plan_key=entry.plan,
                         plan=corners,
                         floor_z=floor_z,
                         height=entry.height or storey.height,
@@ -221,6 +234,13 @@ class IntakeOutput(BaseModel):
                     for part_name, corners in parts
                 ]
         return zones
+
+    def plan_zones(self) -> dict[str, list[str]]:
+        """The zones made from each plan, on every storey it is placed on."""
+        result: dict[str, list[str]] = {p.key: [] for p in self.zone_plans}
+        for zone in self.zones:
+            result[zone.plan_key].append(zone.name)
+        return result
 
     @model_validator(mode="after")
     def _plans_exist_and_names_are_unique(self) -> Self:
@@ -354,10 +374,21 @@ def merge_config_state(old: ConfigState, new: ConfigState) -> ConfigState:
     return merged
 
 
+OVERLAP_TOLERANCE_M: Final = 0.1
+"""Blocks touching within this distance count as side by side."""
+
+MIN_BLOCK_SIDE_M: Final = 3.0
+"""What is left of a trimmed block beside taller ones is at least this wide;
+a narrower strip is a misplaced block, not a zone."""
+
+type Rectangle = tuple[float, float, float, float]
+"""(x0, y0, x1, y1) in metres."""
+
+
 class MassingBlockSchema(BaseModel):
     """A block of the building as a photo shows it."""
 
-    name: str = Field(description="e.g. 'podium', 'tower', 'service core'")
+    name: BlockName = Field(description="e.g. 'podium', 'tower', 'service core'")
     role: Literal["podium", "tower", "core", "wing", "other"]
     storeys: int = Field(
         ge=1, description="Storeys of this block, counted from its window bands"
@@ -367,16 +398,61 @@ class MassingBlockSchema(BaseModel):
     )
     width_m: float = Field(gt=0, description="Estimated length along the front")
     depth_m: float = Field(gt=0, description="Estimated depth from the front")
-    position: str = Field(description="Where it sits relative to the other blocks")
+    x_m: float = Field(
+        description="West end of the block, metres east of the main (tallest) "
+        "block's west end, which is 0; negative further west"
+    )
+    front_setback_m: float = Field(
+        description="How far the block's front face lies behind the main "
+        "block's front face, which is 0: positive when it lies further back, "
+        "negative when it projects in front"
+    )
+    volumes: list[int] = Field(
+        description="Numbers of the boxed volumes this block is made of; empty "
+        "for a block no box shows. Code may set the block's storeys and "
+        "setback from a 3D measurement of these volumes"
+    )
+
+    @property
+    def footprint(self) -> Rectangle:
+        """(x0, y0, x1, y1) in metres, the front facing south at y0."""
+        return (
+            self.x_m,
+            self.front_setback_m,
+            self.x_m + self.width_m,
+            self.front_setback_m + self.depth_m,
+        )
+
+    def spans(self, storey: int) -> bool:
+        return self.bottom_storey <= storey < self.bottom_storey + self.storeys
 
 
 class FacadeSchema(BaseModel):
     """What one side of a block shows."""
 
-    block: str = Field(description="Name of the block")
+    block: BlockName = Field(description="Name of the block")
     side: Literal["front", "left", "right", "back"]
+    # Before the ratio, so the ratio follows from what the side is.
+    space: Literal[
+        "office",
+        "residential",
+        "lobby or retail",
+        "stair or service core",
+        "plant or parking",
+        "other",
+    ] = Field(description="The space behind this side, judged from its windows")
     windows: str = Field(
         description="e.g. 'continuous ribbon', 'punched', 'curtain wall', 'none'"
+    )
+    pattern: Literal["ribbon", "punched"] = Field(
+        description="'ribbon' for continuous bands or curtain walls, 'punched' "
+        "for separate windows"
+    )
+    window_width_m: float | None = Field(
+        gt=0, description="One punched window's width, from the photo; else null"
+    )
+    window_height_m: float | None = Field(
+        gt=0, description="One punched window's height, from the photo; else null"
     )
     window_to_wall_ratio: float = Field(ge=0, le=1)
 
@@ -384,14 +460,21 @@ class FacadeSchema(BaseModel):
 class PhotoReadingSchema(BaseModel):
     """A vision model's reading of the building's photos or drawings."""
 
-    # First, so the model writes its counting before the numbers: the call
-    # is a forced tool call and has no other place to reason.
+    # First, so the model reasons before the numbers: the call is a forced
+    # tool call and has no other place to reason.
     reading: str = Field(
-        description="FIRST, step by step: count each block's window bands "
-        "from the ground up, name the blocks, and name the scale cues "
-        "(doors, people, cars, bays) behind the dimensions"
+        description="FIRST, step by step: how the storeys were counted, the "
+        "blocks and where each stands, and the scale cues (doors, people, "
+        "cars, bays) behind the dimensions"
     )
-    total_storeys: int = Field(ge=1)
+    # A list makes the model count one storey per entry; a free number or
+    # "about 12" in `reading` lets it undercount.
+    storey_rows: list[str] = Field(
+        min_length=1,
+        description="One entry per storey of the highest block, from the roof "
+        "down to the ground: what shows this storey, e.g. 'window band 3', "
+        "'hidden behind the podium, extrapolated from the side wall'",
+    )
     ground_storey_height_m: float = Field(
         gt=0, description="Estimated floor-to-floor height of the ground storey"
     )
@@ -412,6 +495,114 @@ class PhotoReadingSchema(BaseModel):
         if repeated := sorted({n for n in names if names.count(n) > 1}):
             raise ValueError(f"block names must be unique, repeated: {repeated}")
         return self
+
+    @model_validator(mode="after")
+    def _blocks_reach_the_counted_storeys(self) -> Self:
+        top = max(b.bottom_storey + b.storeys - 1 for b in self.blocks)
+        if top != len(self.storey_rows):
+            raise ValueError(
+                f"`storey_rows` counts {len(self.storey_rows)} storeys but the "
+                f"highest block ends on storey {top}; make the blocks' "
+                "`bottom_storey` and `storeys` match the rows, or recount them"
+            )
+        return self
+
+    @model_validator(mode="after")
+    def _hidden_blocks_are_dropped(self) -> Self:
+        # A block with no room beside the taller blocks on its storeys adds
+        # no volume: theirs already fills its place.
+        placed = self._placed()
+        if hidden := [b.name for b in self.blocks if b.name not in placed]:
+            logger.warning(
+                "photo reading: blocks {} lie inside taller blocks and are dropped",
+                hidden,
+            )
+            self.blocks = [b for b in self.blocks if b.name in placed]
+        return self
+
+    def _placed(self) -> dict[str, Rectangle]:
+        """The footprint each block keeps beside the taller blocks sharing its
+        storeys; a block without at least MIN_BLOCK_SIDE_M of room is left
+        out.
+
+        A vision model describes what it sees, e.g. a tower rising out of a
+        podium, while zones on one storey must not overlap. Taller blocks
+        keep their footprint; a lower block keeps the largest rectangle of
+        its footprint beside them.
+        """
+        placed: dict[str, Rectangle] = {}
+        tallest_first = sorted(
+            self.blocks,
+            key=lambda b: (-(b.bottom_storey + b.storeys), -b.width_m * b.depth_m),
+        )
+        for block in tallest_first:
+            taller = [
+                placed[other.name]
+                for other in tallest_first
+                if other.name in placed
+                and any(
+                    other.spans(k)
+                    for k in range(
+                        block.bottom_storey, block.bottom_storey + block.storeys
+                    )
+                )
+            ]
+            free = _largest_free_rectangle(block.footprint, taller)
+            if free is not None:
+                placed[block.name] = free
+        return placed
+
+    def footprints(self) -> dict[str, Rectangle]:
+        """Each block's (x0, y0, x1, y1), shifted so the building starts at 0, 0."""
+        placed = self._placed()
+        dx = min(r[0] for r in placed.values())
+        dy = min(r[1] for r in placed.values())
+        return {
+            b.name: (
+                round(placed[b.name][0] - dx, 2),
+                round(placed[b.name][1] - dy, 2),
+                round(placed[b.name][2] - dx, 2),
+                round(placed[b.name][3] - dy, 2),
+            )
+            for b in self.blocks
+        }
+
+
+def _overlap(a: Rectangle, b: Rectangle) -> bool:
+    return (
+        min(a[2], b[2]) - max(a[0], b[0]) > OVERLAP_TOLERANCE_M
+        and min(a[3], b[3]) - max(a[1], b[1]) > OVERLAP_TOLERANCE_M
+    )
+
+
+def _largest_free_rectangle(
+    rectangle: Rectangle, obstacles: list[Rectangle]
+) -> Rectangle | None:
+    """The largest rectangle inside ``rectangle`` overlapping no obstacle.
+
+    Its sides lie on the edges of the rectangle and of the obstacles, so
+    trying every pair of those coordinates finds it.
+    """
+    hits = [o for o in obstacles if _overlap(rectangle, o)]
+    if not hits:
+        return rectangle
+    x0, y0, x1, y1 = rectangle
+    xs = sorted({x0, x1, *(v for o in hits for v in (o[0], o[2]) if x0 < v < x1)})
+    ys = sorted({y0, y1, *(v for o in hits for v in (o[1], o[3]) if y0 < v < y1)})
+    candidates = [
+        (a, c, b, d)
+        for a, b in combinations(xs, 2)
+        for c, d in combinations(ys, 2)
+        if b - a >= MIN_BLOCK_SIDE_M
+        and d - c >= MIN_BLOCK_SIDE_M
+        and not any(_overlap((a, c, b, d), o) for o in hits)
+    ]
+    return max(candidates, key=_area, default=None)
+
+
+def _area(rectangle: Rectangle) -> float:
+    x0, y0, x1, y1 = rectangle
+    return (x1 - x0) * (y1 - y0)
 
 
 class AgentState(BaseModel):

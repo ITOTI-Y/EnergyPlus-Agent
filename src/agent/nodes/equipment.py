@@ -7,6 +7,7 @@ from src.agent.nodes._share import (
     invoke_with_self_repair,
     last_message_text,
     missing_input_issues,
+    plan_zones,
     skipped,
     with_feedback,
 )
@@ -23,8 +24,9 @@ Workflow:
 2. FIRST call `list_schedules` to see the exact Schedule:Compact names
    (you need an equipment fraction schedule).
 3. Call `create_equipment` once per group of zones with the same
-   schedule and values, listing the zones in `zone_names`. Its reply names
-   only zones that failed; the rest got their object. Do not list
+   schedule and values, listing the zones by plan key in `plans` (every
+   zone of the plan on every storey) or by name in `zone_names`. Its reply
+   names only zones that failed; the rest got their object. Do not list
    afterwards.
 
 Rules:
@@ -58,7 +60,7 @@ def equipment_agent(state: AgentState) -> AgentStateUpdate:
     if skipped(state, "equipment"):
         return AgentStateUpdate()
     local = state.config_state.model_copy(deep=True)
-    tools = make_equipment_tools(local)
+    tools = make_equipment_tools(local, plan_zones(state))
     collector = TraceCollector(phase="equipment")
 
     agent = build_agent(

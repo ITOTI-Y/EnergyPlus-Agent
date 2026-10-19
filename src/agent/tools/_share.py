@@ -3,11 +3,13 @@
 import functools
 import json
 from collections.abc import Callable
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 from idfpy import IDF, IDFBaseModel
 from idfpy.models import Building, BuildingSurfaceDetailed, Construction, Zone
 from langchain_core.tools import BaseTool, ToolException, tool
+from pydantic import BaseModel, ConfigDict, ValidationError
+from pydantic.v1 import ValidationError as ValidationErrorV1
 
 from src.modeling import objects
 from src.modeling.envelope import ConstructionKind, construction_kind
@@ -39,7 +41,26 @@ def model_tool(func: Callable[..., str]) -> BaseTool:
 
     wrapped = tool(run)
     wrapped.handle_tool_error = True
+    # A misspelt argument, e.g. 'plans-', would otherwise be dropped
+    # silently and the call would run without it.
+    schema = cast(type[BaseModel], wrapped.args_schema)
+    wrapped.args_schema = type(
+        schema.__name__,
+        (schema,),
+        {"model_config": ConfigDict(**schema.model_config, extra="forbid")},
+    )
+    wrapped.handle_validation_error = _invalid_arguments
     return wrapped
+
+
+def _invalid_arguments(error: ValidationError | ValidationErrorV1) -> str:
+    problems = [
+        f"{'.'.join(map(str, e['loc'])) or 'arguments'}: {e['msg']}"
+        for e in error.errors()
+    ]
+    return json.dumps(
+        {"success": False, "message": "invalid arguments: " + "; ".join(problems)}
+    )
 
 
 def list_tool(
@@ -75,6 +96,33 @@ def list_zone_names_tool(idf: IDF, description: str) -> BaseTool:
 
     list_zones.__doc__ = description
     return tool(list_zones)
+
+
+def zones_of(
+    plans: list[str] | None,
+    zone_names: list[str] | None,
+    plan_zones: dict[str, list[str]],
+) -> list[str]:
+    """The zones made from ``plans``, on every storey, then ``zone_names``.
+
+    A model asked for a load per plan otherwise expands each plan into
+    storey zones itself and names storeys a multiplied typical storey
+    stands for, which have no zone.
+
+    Raises:
+        ValueError: If a plan is unknown, or neither argument names a zone.
+    """
+    if unknown := sorted(set(plans or []) - set(plan_zones)):
+        raise ValueError(f"unknown plans {unknown}; the plans are {sorted(plan_zones)}")
+    # A zone named both by plan and by name gets one object, not two.
+    zones = list(
+        dict.fromkeys(
+            [z for key in plans or [] for z in plan_zones[key]] + list(zone_names or [])
+        )
+    )
+    if not zones:
+        raise ValueError("give the zones by `plans`, `zone_names` or both")
+    return zones
 
 
 def create_in_zones(

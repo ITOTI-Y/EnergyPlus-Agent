@@ -169,6 +169,10 @@ def test_storeys_name_zones_and_carry_level_height_and_multiplier():
         ("T_Office", 4, 3.5, 18),
         ("Top_Office", 4 + 18 * 3.5, 3.5, 1),
     ]
+    assert output.plan_zones() == {
+        "Office": ["G_Office", "T_Office", "Top_Office"],
+        "Lobby": ["G_Lobby"],
+    }
     with pytest.raises(ValidationError, match="not defined"):
         intake(zone_plans=[], storeys=[{"name": "G", "height": 3,
                                         "zones": [{"plan": "Office"}]}])  # fmt: skip

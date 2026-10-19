@@ -6,8 +6,10 @@ rather than asking the LLM to write it.
 """
 
 from itertools import groupby
+from typing import Final
 
 from loguru import logger
+from shapely import Polygon, box, unary_union
 
 from src.agent.state import (
     PhotoReadingSchema,
@@ -16,11 +18,59 @@ from src.agent.state import (
     ZonePlanSchema,
 )
 
+FOOTPRINT_TOLERANCE_M: Final = 0.05
+"""Plan corners may lie this far outside their block's footprint."""
+
+FOOTPRINT_AREA_TOLERANCE: Final = 0.02
+"""Share of a block's footprint its plans may leave uncovered."""
+
 
 def _runs(storeys: list[tuple[int, float, tuple[str, ...]]]):
     """Consecutive storeys with the same height and plans, as lists."""
     for _, run in groupby(storeys, key=lambda s: (s[1], s[2])):
         yield list(run)
+
+
+def _check_footprints(plans: list[ZonePlanSchema], reading: PhotoReadingSchema) -> None:
+    """Each block's plans lie in its footprint and together fill it.
+
+    The reading fixes where each block stands, setbacks included; intake
+    only chooses how to divide a block into plans.
+    """
+    problems = []
+    for name, (x0, y0, x1, y1) in reading.footprints().items():
+        footprint = box(x0, y0, x1, y1)
+        shapes = {
+            p.key: Polygon([(q.x, q.y) for q in p.plan])
+            for p in plans
+            if p.block == name
+        }
+        # A plan with its corners out of order crosses itself; the union
+        # below fails on it.
+        crossed = sorted(key for key, shape in shapes.items() if not shape.is_valid)
+        if crossed:
+            problems.append(
+                f"plans {crossed} of block '{name}' cross themselves: list "
+                f"their corners in order around the zone"
+            )
+            continue
+        outside = sorted(
+            key
+            for key, shape in shapes.items()
+            if not footprint.buffer(FOOTPRINT_TOLERANCE_M).contains(shape)
+        )
+        covered = unary_union(list(shapes.values())).area / footprint.area
+        if outside or covered < 1 - FOOTPRINT_AREA_TOLERANCE:
+            problems.append(
+                f"block '{name}' stands on x {x0}..{x1}, y {y0}..{y1}"
+                + (f"; plans {outside} reach outside it" if outside else "")
+                + f"; its plans cover {covered:.0%} of it"
+            )
+    if problems:
+        raise ValueError(
+            "each block's plans must exactly fill the block's footprint given "
+            "with the photo reading: " + "; ".join(problems)
+        )
 
 
 def storeys_from_reading(
@@ -39,8 +89,9 @@ def storeys_from_reading(
     A storey no block spans takes the plans of the storey below it.
 
     Raises:
-        ValueError: If a plan names no block of the reading, or a block has
-            no plan; intake can fix both.
+        ValueError: If a plan names no block of the reading, a block has no
+            plan, or a block's plans do not exactly fill its footprint;
+            intake can fix all three.
     """
     blocks = {b.name: b for b in reading.blocks}
     unknown = sorted(f"{p.key} ({p.block!r})" for p in plans if p.block not in blocks)
@@ -52,6 +103,7 @@ def storeys_from_reading(
     unused = sorted(set(blocks) - {p.block for p in plans})
     if unused:
         raise ValueError(f"blocks of the photo reading without a plan: {unused}")
+    _check_footprints(plans, reading)
     top = max(b.bottom_storey + b.storeys - 1 for b in reading.blocks)
     storeys = [
         (

@@ -9,19 +9,23 @@ from src.agent.tools._share import (
     list_zone_names_tool,
     model_tool,
     ok,
+    zones_of,
 )
 from src.modeling import objects
 from src.modeling.loads import require_level
 from src.state.config_state import ConfigState
 
 
-def make_equipment_tools(config: ConfigState) -> list[BaseTool]:
+def make_equipment_tools(
+    config: ConfigState, plan_zones: dict[str, list[str]]
+) -> list[BaseTool]:
     idf = config.idf
 
     @model_tool
     def create_equipment(
-        zone_names: list[str],
         schedule_name: str,
+        plans: list[str] | None = None,
+        zone_names: list[str] | None = None,
         design_level_calculation_method: Literal[
             "EquipmentLevel", "Watts/Area", "Watts/Person"
         ] = "Watts/Area",
@@ -38,6 +42,8 @@ def make_equipment_tools(config: ConfigState) -> list[BaseTool]:
         Call it once per group of zones with the same values.
 
         Args:
+            plans: Zone plan keys: every zone made from these plans, on
+                every storey. Give plans, zone_names or both.
             zone_names: Existing Zone names.
             schedule_name: Existing Schedule:Compact (Fraction).
             design_level_calculation_method: EquipmentLevel / Watts/Area / Watts/Person.
@@ -46,10 +52,17 @@ def make_equipment_tools(config: ConfigState) -> list[BaseTool]:
             watts_per_person: W/person (when method=Watts/Person).
             fraction_latent: Latent fraction of the heat gain (0-1).
             fraction_radiant: Radiant fraction of the heat gain (0-1).
-            fraction_lost: Fraction leaving the zone, e.g. exhausted (0-1).
+            fraction_lost: Fraction leaving the zone, e.g. exhausted (0-1); the
+                three fractions add up to at most 1, the rest being convected.
             name_suffix: Name suffix; give another one for a second
                 ElectricEquipment in the same zones.
         """
+        if fraction_latent + fraction_radiant + fraction_lost > 1:
+            raise ValueError(
+                f"fraction_latent {fraction_latent}, fraction_radiant "
+                f"{fraction_radiant} and fraction_lost {fraction_lost} add up "
+                f"to more than 1"
+            )
         require_level(
             design_level_calculation_method,
             design_level=design_level,
@@ -59,7 +72,7 @@ def make_equipment_tools(config: ConfigState) -> list[BaseTool]:
         return create_in_zones(
             idf,
             "ElectricEquipment",
-            zone_names,
+            zones_of(plans, zone_names, plan_zones),
             lambda zone: ElectricEquipment(
                 name=f"{zone}_{name_suffix}",
                 zone_or_zonelist_or_space_or_spacelist_name=zone,

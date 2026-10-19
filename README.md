@@ -28,7 +28,10 @@ A reference library of materials, constructions and schedules from the DOE proto
 - **Structured validation**: `src/modeling/validation.py` reports each problem as a `ModelIssue` tied to an object type, name and field. Sources are idfpy's reference check, geometric checks (fenestration reversed, off its parent surface's plane or outside its outline, which EnergyPlus would only warn about), empty models, phases that created nothing, and EnergyPlus Severe and Fatal messages, which are tied to the first object they quote. `src/agent/phases.py` maps object types to the phase that owns them; after its run each phase repairs the problems in its own objects, and every phase agent also receives read-only `list_*` tools to inspect what earlier phases created.
 - **Partial retries**: after a pass, problems go to the phases that own them. If those phases can fix them from their unchanged task, only they and the phases depending on their objects run again, with the problems as feedback (zone -> surface -> fenestration and loads; material -> construction -> surface; schedule -> loads). Otherwise intake receives the brief, its previous output and the problems, and returns a patch of the fields to change; the phases fed by changed fields, the phases owning the problems, and their dependants run again. Before a pass, the objects of the phases about to run are removed; the other phases keep their objects and are not prompted. Intake revises at most twice before a human reviews the model, and EnergyPlus Severe errors after approval go through the same loop.
 - **Human-in-the-loop approval**: the validate node raises a LangGraph `interrupt()` with a configuration summary and any errors. Approval continues to simulation; free-text feedback goes to intake as a correction and is handled like a revision.
-- **Photo and drawing input**: PNG, JPEG, WebP and GIF images are read once, before intake, by the vision model `LLM_VISION_MODEL` in its own structured call (`observe`): blocks with their storey counts, estimated dimensions and positions, the window type and window-to-wall ratio of each visible side, and the assumptions for what the images do not show. Intake builds the zones from this reading and never receives the images, so revisions resend none. Without `LLM_VISION_MODEL` images are refused before any LLM call.
+- **Photo and drawing input**: PNG, JPEG, WebP and GIF images are read once, before intake, by the vision model `LLM_VISION_MODEL` (`observe`). Images under 1700 px on their long side are enlarged first, so that window rows span several vision tokens. For each image the model boxes the facade strip that marks its storeys most completely, which is cropped, enlarged and counted three times, and boxes the building's distinct volumes, which are drawn numbered on a copy of the image. A final structured call gets the images, the strips with their counts and the boxed volumes, and returns the reading: one entry per storey, blocks with their storeys, dimensions and placement relative to the main block, for each visible side the space behind it, its window pattern (ribbon or punched, with a punched window's size) and window-to-wall ratio, and the assumptions for what the images do not show. Each block names the boxed volumes it is made of. An optional image-to-3D model refines the blocks:
+  - With `IMAGE_TO_3D_URL`, a [Hunyuan3D-2.1](https://github.com/Tencent-Hunyuan/Hunyuan3D-2.1) shape server turns the first image, cropped to the boxed volumes the blocks are made of, into a mesh: `scripts/hunyuan3d_shape_server.py` on a GPU host (about 10 GB of GPU memory), or the repository's own `api_server.py`, which also loads its texture pipeline. Code scales the mesh to the counted storeys, takes each storey's plan from the mesh's surface points in the middle half of the storey (filled inside, as image-to-3D meshes are often open shells), turns it so its walls run along the axes with the proportions of the largest read block, and covers each plan with rectangles; a rectangle repeated on consecutive storeys becomes a block, so setbacks between storeys are kept. These blocks replace the vision model's and take the facades of the read blocks they match. With `SEGMENT_URL`, a SAM 3 server (`scripts/sam3_segment_server.py`, on a GPU host with transformers 5; weights under Meta's SAM License) segments the buildings in the image first: the one with the most pixels inside the boxed volumes is cut out, each image column filled from its top to its base so that trees in front of it stay part of it, and sent without its background, so neighbouring buildings stay out of the mesh. A mesh that is a filled box, as the model returns when it fails on an image, or that shows nothing to model on the top storey, is not used: the vision model's blocks stay and the reading's assumptions say why. The model's weights are under the Tencent Hunyuan Community License.
+
+  Code turns the blocks into footprints, trimming a lower block beside the taller ones it overlaps and dropping one left inside them, and intake builds the zones on them. The box coordinates follow the 0-1000 convention many vision models ground objects in. Intake never receives the images, so revisions resend none. Without `LLM_VISION_MODEL` images are refused before any LLM call.
 - **Tool-call tracing**: `TraceCollector` wraps every tool call in the ReAct subgraphs and records name, arguments, result and success flag per phase, intended as fine-tuning data. A script also exports full LangSmith run trees to local JSON.
 - **Provider-agnostic LLM**: `src/configs/llm.yaml` selects provider, model, temperature and token budget; Anthropic and OpenAI integrations are bundled. `AGENT_LANGUAGE` switches the narrative language of all agent output while EnergyPlus identifiers stay ASCII.
 
@@ -71,6 +74,8 @@ EnergyPlus-Agent/
 │   │   ├── state.py                  # AgentState, IntakeOutput, SimContext, merge_config_state
 │   │   ├── phases.py                 # Phase -> owned object types, issue routing
 │   │   ├── storeys.py                # Storeys of a photo-read building from its blocks
+│   │   ├── mesh_massing.py           # Blocks from an image-to-3D mesh, storey by storey
+│   │   ├── segmentation.py           # The photographed building cut out of its photo (SAM 3), for image-to-3D
 │   │   ├── react.py                  # 3-node ReAct subgraph (llm -> tools -> llm)
 │   │   ├── runner.py                 # run_session(), interactive_approval(), auto_approval()
 │   │   ├── llm.py                    # create_llm(), create_vision_llm() from src/configs/llm.yaml
@@ -120,6 +125,8 @@ EnergyPlus-Agent/
 ├── scripts/
 │   ├── run_demo.py                   # End-to-end agent demo with auto-approval
 │   ├── export_trace.py               # Run demo and dump LangSmith run trees to output/traces/
+│   ├── hunyuan3d_shape_server.py     # Shape-only Hunyuan3D-2.1 server for IMAGE_TO_3D_URL (GPU host)
+│   ├── sam3_segment_server.py        # SAM 3 segmentation server for SEGMENT_URL (GPU host)
 │   └── _share.py                     # Demo building briefs
 ├── tests/                            # Mirrors src/
 ├── data/
@@ -183,7 +190,10 @@ LLM_API_KEY=
 LLM_BASE_URL=            # optional, for OpenAI-compatible gateways
 # Optional; an empty value is not "unset", so leave unused ones commented out.
 # LLM_TEMPERATURE=null   # default 0.7; null sends none, for providers that reject one
+# LLM_MAX_TOKENS=32768   # output limit per call; intake writes every specification in one call
 # LLM_VISION_MODEL=       # reads --image files, sent without temperature; unset, images are refused
+# IMAGE_TO_3D_URL=http://gpu-host:8081   # scripts/hunyuan3d_shape_server.py; its mesh of the first image gives the blocks
+# SEGMENT_URL=http://gpu-host:8082       # scripts/sam3_segment_server.py; cuts the building out before image-to-3D
 
 # Prototype reference library: set both URLs, or neither
 # REFERENCE_QDRANT_URL=http://localhost:6333

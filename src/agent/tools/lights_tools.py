@@ -9,19 +9,23 @@ from src.agent.tools._share import (
     list_zone_names_tool,
     model_tool,
     ok,
+    zones_of,
 )
 from src.modeling import objects
 from src.modeling.loads import require_level
 from src.state.config_state import ConfigState
 
 
-def make_lights_tools(config: ConfigState) -> list[BaseTool]:
+def make_lights_tools(
+    config: ConfigState, plan_zones: dict[str, list[str]]
+) -> list[BaseTool]:
     idf = config.idf
 
     @model_tool
     def create_lights(
-        zone_names: list[str],
         schedule_name: str,
+        plans: list[str] | None = None,
+        zone_names: list[str] | None = None,
         design_level_calculation_method: Literal[
             "LightingLevel", "Watts/Area", "Watts/Person"
         ] = "Watts/Area",
@@ -37,6 +41,8 @@ def make_lights_tools(config: ConfigState) -> list[BaseTool]:
         Call it once per group of zones with the same values.
 
         Args:
+            plans: Zone plan keys: every zone made from these plans, on
+                every storey. Give plans, zone_names or both.
             zone_names: Existing Zone names.
             schedule_name: Existing Schedule:Compact (Fraction).
             design_level_calculation_method: LightingLevel / Watts/Area / Watts/Person.
@@ -44,10 +50,16 @@ def make_lights_tools(config: ConfigState) -> list[BaseTool]:
             watts_per_floor_area: W/m^2 (when method=Watts/Area).
             watts_per_person: W/person (when method=Watts/Person).
             fraction_radiant: Radiant fraction (0-1).
-            fraction_visible: Visible light fraction (0-1).
+            fraction_visible: Visible light fraction (0-1); with the radiant
+                fraction at most 1, the rest being convected.
             name_suffix: Name suffix; give another one for a second Lights
                 object in the same zones.
         """
+        if fraction_radiant + fraction_visible > 1:
+            raise ValueError(
+                f"fraction_radiant {fraction_radiant} and fraction_visible "
+                f"{fraction_visible} add up to more than 1"
+            )
         require_level(
             design_level_calculation_method,
             lighting_level=lighting_level,
@@ -57,7 +69,7 @@ def make_lights_tools(config: ConfigState) -> list[BaseTool]:
         return create_in_zones(
             idf,
             "Lights",
-            zone_names,
+            zones_of(plans, zone_names, plan_zones),
             lambda zone: Lights(
                 name=f"{zone}_{name_suffix}",
                 zone_or_zonelist_or_space_or_spacelist_name=zone,

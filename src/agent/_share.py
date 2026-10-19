@@ -7,6 +7,16 @@ MAX_GLOBAL_RETRIES: Final[int] = 2
 
 DEFAULT_OUTPUT_DIR: Final[Path] = Path("output")
 
+IMAGE_TO_3D_URL: Final[str] = os.getenv("IMAGE_TO_3D_URL", "")
+"""Hunyuan3D-2.1 API server whose mesh of the first image gives the
+photo-read building's blocks; empty, the vision model's blocks are kept."""
+
+SEGMENT_URL: Final[str] = os.getenv("SEGMENT_URL", "")
+"""SAM 3 server that cuts the photographed building out of its image before
+image-to-3D (see src/agent/segmentation.py); empty, the image is cropped to
+the building's volumes only."""
+
+
 AGENT_LANGUAGE: Final[str] = os.getenv("AGENT_LANGUAGE", "English")
 """Language every agent uses for narrative / summary / explanation text.
 

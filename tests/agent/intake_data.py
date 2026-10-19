@@ -28,10 +28,12 @@ def layout(*zones: dict[str, Any]) -> dict[str, list[dict[str, Any]]]:
 def intake(zones: Sequence[dict[str, Any]] = (), **fields: Any) -> IntakeOutput:
     """An intake output with the given zones, empty specs and other fields.
 
-    ``equipment_specs``, which may not be empty, asks for 10 W/m2 everywhere.
+    ``equipment_specs``, which may not be empty, asks for 10 W/m2 everywhere;
+    ``construction_specs`` defines the 'Wall' and 'Slab' that zone_spec uses.
     """
     empty = {field: "" for field in SPEC_PHASES if field not in _LAYOUT_FIELDS}
     empty["equipment_specs"] = "10 W/m2 in every zone"
+    empty["construction_specs"] = "Wall and Slab: one concrete layer each"
     return IntakeOutput.model_validate(
         {
             "building": {"name": "B"},

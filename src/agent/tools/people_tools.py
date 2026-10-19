@@ -9,20 +9,24 @@ from src.agent.tools._share import (
     list_zone_names_tool,
     model_tool,
     ok,
+    zones_of,
 )
 from src.modeling import objects
 from src.modeling.loads import require_level
 from src.state.config_state import ConfigState
 
 
-def make_people_tools(config: ConfigState) -> list[BaseTool]:
+def make_people_tools(
+    config: ConfigState, plan_zones: dict[str, list[str]]
+) -> list[BaseTool]:
     idf = config.idf
 
     @model_tool
     def create_people(
-        zone_names: list[str],
         number_of_people_schedule_name: str,
         activity_level_schedule_name: str,
+        plans: list[str] | None = None,
+        zone_names: list[str] | None = None,
         number_of_people_calculation_method: Literal[
             "People", "People/Area", "Area/Person"
         ] = "People",
@@ -37,6 +41,8 @@ def make_people_tools(config: ConfigState) -> list[BaseTool]:
         Call it once per group of zones with the same values.
 
         Args:
+            plans: Zone plan keys: every zone made from these plans, on
+                every storey. Give plans, zone_names or both.
             zone_names: Existing Zone names.
             number_of_people_schedule_name: Existing Schedule:Compact (Fraction).
             activity_level_schedule_name: Existing Schedule:Compact (ActivityLevel limits, W/person).
@@ -57,7 +63,7 @@ def make_people_tools(config: ConfigState) -> list[BaseTool]:
         return create_in_zones(
             idf,
             "People",
-            zone_names,
+            zones_of(plans, zone_names, plan_zones),
             lambda zone: People(
                 name=f"{zone}_{name_suffix}",
                 zone_or_zonelist_or_space_or_spacelist_name=zone,

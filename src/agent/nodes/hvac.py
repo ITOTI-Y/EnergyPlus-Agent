@@ -7,6 +7,7 @@ from src.agent.nodes._share import (
     invoke_with_self_repair,
     last_message_text,
     missing_input_issues,
+    plan_zones,
     skipped,
     with_feedback,
 )
@@ -28,8 +29,9 @@ Workflow:
    zone, using schedule names from step 1.
 4. Give every conditioned zone an HVACTemplate:Zone:IdealLoadsAirSystem:
    call `create_ideal_loads_systems` once per thermostat, listing its zones
-   in `zone_names`. Its reply names only zones that failed; the rest got
-   their system. Do not list afterwards.
+   by plan key in `plans` (every zone of the plan on every storey) or by
+   name in `zone_names`. Its reply names only zones that failed; the rest
+   got their system. Do not list afterwards.
 
 Rules:
 - Zone names, `heating_setpoint_schedule_name`, `cooling_setpoint_schedule_name`,
@@ -60,7 +62,7 @@ def hvac_agent(state: AgentState) -> AgentStateUpdate:
     if skipped(state, "hvac"):
         return AgentStateUpdate()
     local = state.config_state.model_copy(deep=True)
-    tools = make_hvac_tools(local)
+    tools = make_hvac_tools(local, plan_zones(state))
     collector = TraceCollector(phase="hvac")
 
     agent = build_agent(

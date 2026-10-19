@@ -7,8 +7,13 @@ from idfpy.models import (
     ScheduleTypeLimits,
 )
 from langchain_core.messages import AIMessage, HumanMessage
+from pydantic import BaseModel
 
-from src.agent.nodes._share import MAX_SELF_REPAIR_ROUNDS, invoke_with_self_repair
+from src.agent.nodes._share import (
+    MAX_SELF_REPAIR_ROUNDS,
+    invoke_with_self_repair,
+    structured,
+)
 from src.state.config_state import ConfigState
 
 
@@ -106,3 +111,45 @@ def test_self_repair_ignores_problems_owned_by_other_phases():
     invoke_with_self_repair(cast(Any, stub), _broken_config(), "specs", phase="surface")
 
     assert len(stub.payloads) == 1
+
+
+class _Answer(BaseModel):
+    text: str
+
+
+class _CutOffThenAnswering:
+    """A chat model whose first structured reply was stopped at the limit."""
+
+    def __init__(self) -> None:
+        self.sent: list[list[Any]] = []
+
+    def with_structured_output(
+        self, *args: Any, **kwargs: Any
+    ) -> "_CutOffThenAnswering":
+        return self
+
+    def invoke(self, messages: list[Any]) -> dict[str, Any]:
+        self.sent.append(messages)
+        if len(self.sent) == 1:
+            cut = AIMessage(content="", response_metadata={"finish_reason": "length"})
+            return {"raw": cut, "parsed": None, "parsing_error": None}
+        return {
+            "raw": AIMessage(content=""),
+            "parsed": {"text": "ok"},
+            "parsing_error": None,
+        }
+
+
+def test_a_reply_cut_off_at_the_token_limit_is_asked_again_more_briefly():
+    llm = _CutOffThenAnswering()
+
+    answer, _ = structured(
+        cast(Any, llm), _Answer, [HumanMessage(content="q")], lambda a: a
+    )
+
+    assert answer.text == "ok"
+    retry = llm.sent[1][-1].content
+    assert (
+        "reached the output token limit before the _Answer tool call was complete"
+        in retry
+    )

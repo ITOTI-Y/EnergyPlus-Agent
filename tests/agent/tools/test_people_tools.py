@@ -14,7 +14,8 @@ PEOPLE_ARGS = {
 
 
 def _create_people_tool(config: ConfigState):
-    return next(t for t in make_people_tools(config) if t.name == "create_people")
+    tools = make_people_tools(config, {"Office": ["Zone_1", "Zone_2"]})
+    return next(t for t in tools if t.name == "create_people")
 
 
 def _with_schedules() -> ConfigState:
@@ -66,3 +67,25 @@ def test_create_people_in_every_zone_names_them_after_the_zone():
         "data": None,
     }
     assert set(config.idf.all_of_type("People")) == {"Zone_1_People", "Zone_2_People"}
+
+
+def test_people_given_by_plan_go_in_every_zone_of_the_plan():
+    config = _with_schedules()
+    for zone in ("Zone_1", "Zone_2"):
+        config.idf.add(Zone(name=zone))
+    by_plan = {k: v for k, v in PEOPLE_ARGS.items() if k != "zone_names"}
+
+    result = json.loads(
+        _create_people_tool(config).invoke(by_plan | {"plans": ["Office"]})
+    )
+
+    assert result["success"]
+    assert set(config.idf.all_of_type("People")) == {"Zone_1_People", "Zone_2_People"}
+
+
+def test_people_without_plans_or_zones_are_refused():
+    by_nothing = {k: v for k, v in PEOPLE_ARGS.items() if k != "zone_names"}
+
+    result = _create_people_tool(_with_schedules()).invoke(by_nothing)
+
+    assert "give the zones by `plans`, `zone_names` or both" in result

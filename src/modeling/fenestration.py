@@ -6,8 +6,8 @@ only warns when a window is off its wall's plane or outside its outline, and
 then computes heat flows for that wrong geometry.
 """
 
-from collections.abc import Sequence
-from typing import Final, Literal
+from collections.abc import Callable, Sequence
+from typing import Final, Literal, NamedTuple
 
 from idfpy import IDF
 from idfpy.models import (
@@ -269,6 +269,48 @@ def facing(surface: BuildingSurfaceDetailed, north_axis: float = 0.0) -> Facing:
     return ("North", "East", "South", "West")[int(((azimuth + 45.0) % 360.0) // 90.0)]
 
 
+class _WallFrame(NamedTuple):
+    """A vertical rectangular wall: its bottom edge from ``origin`` along
+    the unit vector ``along``, and the heights of its bottom and top."""
+
+    origin: tuple[float, float]
+    along: tuple[float, float]
+    length: float
+    bottom: float
+    top: float
+
+    def corners(self, start: float, end: float, z0: float, z1: float) -> list[Point]:
+        """A window from ``start`` to ``end`` along the wall, ``z0`` to
+        ``z1`` above its bottom; add_fenestration orients the corners."""
+        (ax, ay), (ux, uy) = self.origin, self.along
+        a = (ax + ux * start, ay + uy * start)
+        b = (ax + ux * end, ay + uy * end)
+        low, high = self.bottom + z0, self.bottom + z1
+        return [(*a, high), (*a, low), (*b, low), (*b, high)]
+
+
+def _frame(wall: BuildingSurfaceDetailed) -> _WallFrame:
+    points = wall.vertices_as_tuples
+    if abs(wall.tilt - 90.0) > 1.0 or len(points) != 4:
+        raise ValueError(f"'{wall.name}' is not a vertical rectangular wall")
+    bottom = min(z for *_, z in points)
+    top = max(z for *_, z in points)
+    low = [p for p in points if abs(p[2] - bottom) <= PLANE_TOLERANCE_M]
+    if len(low) != 2:
+        raise ValueError(f"'{wall.name}' is not a vertical rectangular wall")
+    (ax, ay, _), (bx, by, _) = low
+    length = ((bx - ax) ** 2 + (by - ay) ** 2) ** 0.5
+    return _WallFrame(
+        (ax, ay), ((bx - ax) / length, (by - ay) / length), length, bottom, top
+    )
+
+
+def _sill(frame: _WallFrame, sill_height: float, height: float) -> float:
+    """The sill, lowered when the window would reach the wall's top edge."""
+    room = frame.top - frame.bottom - EDGE_OFFSET_M - height
+    return min(max(sill_height, EDGE_OFFSET_M), room)
+
+
 def window_for_ratio(
     wall: BuildingSurfaceDetailed, ratio: float, sill_height: float
 ) -> list[Point]:
@@ -282,35 +324,63 @@ def window_for_ratio(
         ValueError: If the wall is not a vertical rectangle, or the ratio
             does not fit inside it.
     """
-    points = wall.vertices_as_tuples
-    if abs(wall.tilt - 90.0) > 1.0 or len(points) != 4:
-        raise ValueError(f"'{wall.name}' is not a vertical rectangular wall")
-    bottom = min(z for *_, z in points)
-    top = max(z for *_, z in points)
-    low = [p for p in points if abs(p[2] - bottom) <= PLANE_TOLERANCE_M]
-    if len(low) != 2:
-        raise ValueError(f"'{wall.name}' is not a vertical rectangular wall")
-    (ax, ay, _), (bx, by, _) = low
-    length = ((bx - ax) ** 2 + (by - ay) ** 2) ** 0.5
-    width = length - 2 * EDGE_OFFSET_M
+    frame = _frame(wall)
+    width = frame.length - 2 * EDGE_OFFSET_M
     height = ratio * wall.area / width if width > 0 else float("inf")
-    room = top - bottom - 2 * EDGE_OFFSET_M
+    room = frame.top - frame.bottom - 2 * EDGE_OFFSET_M
     if not 0 < ratio < 1 or height > room:
         raise ValueError(
             f"a window-to-wall ratio of {ratio} does not fit on '{wall.name}' "
-            f"({length:.2f} m x {top - bottom:.2f} m)"
+            f"({frame.length:.2f} m x {frame.top - frame.bottom:.2f} m)"
         )
-    sill = min(max(sill_height, EDGE_OFFSET_M), top - bottom - EDGE_OFFSET_M - height)
-    ux, uy = (bx - ax) / length, (by - ay) / length
-    start = (ax + ux * EDGE_OFFSET_M, ay + uy * EDGE_OFFSET_M)
-    end = (bx - ux * EDGE_OFFSET_M, by - uy * EDGE_OFFSET_M)
-    z0, z1 = bottom + sill, bottom + sill + height
-    # add_fenestration orients the corners to match the wall.
+    sill = _sill(frame, sill_height, height)
+    return frame.corners(
+        EDGE_OFFSET_M, frame.length - EDGE_OFFSET_M, sill, sill + height
+    )
+
+
+def punched_windows_for_ratio(
+    wall: BuildingSurfaceDetailed,
+    ratio: float,
+    sill_height: float,
+    width: float,
+    height: float,
+) -> list[list[Point]]:
+    """Corners of evenly spaced windows covering ``ratio`` of a vertical wall.
+
+    As many ``width`` x ``height`` windows as the ratio's area holds (at
+    least one), all scaled alike so that together they cover the ratio
+    exactly, centred in equal shares of the wall's width, starting at
+    ``sill_height`` above the wall's bottom; a sill too high is lowered.
+
+    Raises:
+        ValueError: If the wall is not a vertical rectangle, or the windows
+            do not fit on it (a ratio this high wants a strip window).
+    """
+    frame = _frame(wall)
+    if not 0 < ratio < 1:
+        raise ValueError(f"a window-to-wall ratio of {ratio} is not in (0, 1)")
+    if width <= 0 or height <= 0:
+        raise ValueError(f"a window of {width} m x {height} m is not a window")
+    area = ratio * wall.area
+    count = max(1, round(area / (width * height)))
+    scale = (area / (count * width * height)) ** 0.5
+    width, height = width * scale, height * scale
+    share = (frame.length - 2 * EDGE_OFFSET_M) / count
+    if width > share - 2 * EDGE_OFFSET_M or (
+        height > frame.top - frame.bottom - 2 * EDGE_OFFSET_M
+    ):
+        raise ValueError(
+            f"{count} windows of {width:.2f} m x {height:.2f} m for a "
+            f"window-to-wall ratio of {ratio} do not fit on '{wall.name}' "
+            f"({frame.length:.2f} m x {frame.top - frame.bottom:.2f} m); "
+            f"use a strip window"
+        )
+    sill = _sill(frame, sill_height, height)
+    middles = [EDGE_OFFSET_M + share * (i + 0.5) for i in range(count)]
     return [
-        (start[0], start[1], z1),
-        (start[0], start[1], z0),
-        (end[0], end[1], z0),
-        (end[0], end[1], z1),
+        frame.corners(m - width / 2, m + width / 2, sill, sill + height)
+        for m in middles
     ]
 
 
@@ -318,15 +388,16 @@ def add_windows_by_ratio(
     idf: IDF,
     zones: Sequence[str] | None,
     facings: Sequence[Facing] | None,
-    ratio: float,
+    layout: Callable[[BuildingSurfaceDetailed], list[list[Point]]],
     construction_name: str,
-    sill_height: float,
 ) -> tuple[list[str], list[str]]:
-    """One strip window on every matching exterior wall.
+    """The windows ``layout`` gives every matching exterior wall.
 
     Walls are the outdoor walls of ``zones`` (all zones when None) facing
-    one of ``facings`` (all when None). Each wall succeeds or fails on its
-    own, e.g. a wall too narrow for the ratio.
+    one of ``facings`` (all when None). ``layout`` gives a wall's windows'
+    corners, e.g. ``window_for_ratio`` or ``punched_windows_for_ratio``
+    bound to a ratio; a ValueError from it means the wall gets none. Each
+    wall succeeds or fails on its own.
 
     Returns:
         Names of the created windows, and why other walls got none.
@@ -343,26 +414,30 @@ def add_windows_by_ratio(
             or (facings is not None and facing(wall, north) not in facings)
         ):
             continue
-        name = f"{wall.name}_Window"
         try:
-            corners = window_for_ratio(wall, ratio, sill_height)
-            window = FenestrationSurfaceDetailed.model_validate(
-                {
-                    "name": name,
-                    "surface_type": "Window",
-                    "construction_name": construction_name,
-                    "building_surface_name": wall.name,
-                    "number_of_vertices": 4,
-                    **{
-                        f"vertex_{i}_{axis}_coordinate": point[j]
-                        for i, point in enumerate(corners, start=1)
-                        for j, axis in enumerate("xyz")
-                    },
-                }
+            windows = layout(wall)
+            names = (
+                [f"{wall.name}_Window"]
+                if len(windows) == 1
+                else [f"{wall.name}_Window_{i}" for i in range(1, len(windows) + 1)]
             )
-            add_fenestration(idf, window)
+            for name, corners in zip(names, windows, strict=True):
+                window = FenestrationSurfaceDetailed.model_validate(
+                    {
+                        "name": name,
+                        "surface_type": "Window",
+                        "construction_name": construction_name,
+                        "building_surface_name": wall.name,
+                        "number_of_vertices": 4,
+                        **{
+                            f"vertex_{i}_{axis}_coordinate": point[j]
+                            for i, point in enumerate(corners, start=1)
+                            for j, axis in enumerate("xyz")
+                        },
+                    }
+                )
+                add_fenestration(idf, window)
+                created.append(name)
         except (ModelingError, ValueError) as e:
             problems.append(f"{wall.name}: {e}")
-            continue
-        created.append(name)
     return created, problems

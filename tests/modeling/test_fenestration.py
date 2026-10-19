@@ -24,8 +24,10 @@ from src.modeling.fenestration import (
     add_windows_by_ratio,
     facing,
     placement_problem,
+    punched_windows_for_ratio,
     remove_fenestration,
     update_fenestration,
+    window_for_ratio,
 )
 from src.modeling.geometry import (
     PlanPointSchema,
@@ -318,11 +320,15 @@ def _office(width: float = 10.0) -> IDF:
     return idf
 
 
+def _ribbon(ratio: float):
+    return lambda wall: [window_for_ratio(wall, ratio, 0.8)]
+
+
 def test_ratio_windows_cover_the_ratio_on_the_chosen_facings():
     idf = _office()
 
     created, problems = add_windows_by_ratio(
-        idf, None, ["South", "North"], 0.4, "Window", 0.8
+        idf, None, ["South", "North"], _ribbon(0.4), "Window"
     )
 
     assert problems == []
@@ -346,11 +352,51 @@ def test_ratio_too_large_for_a_wall_is_reported_not_raised():
 
     # The east wall is 8 m x 3.5 m: 99% leaves less than the edge clearance.
     created, problems = add_windows_by_ratio(
-        idf, ["Office"], ["East"], 0.99, "Window", 0.8
+        idf, ["Office"], ["East"], _ribbon(0.99), "Window"
     )
 
     assert created == []
     assert len(problems) == 1 and "does not fit" in problems[0]
+
+
+def test_punched_windows_are_spaced_along_the_wall_and_cover_the_ratio():
+    idf = _office()
+
+    created, problems = add_windows_by_ratio(
+        idf,
+        None,
+        ["South"],
+        lambda wall: punched_windows_for_ratio(wall, 0.1, 0.8, 1.2, 1.5),
+        "Window",
+    )
+
+    # 10 m x 3.5 m wall: 3.5 m2 of window is two 1.2 m x 1.5 m windows.
+    assert problems == []
+    windows = idf.all_of_type(FenestrationSurfaceDetailed)
+    assert sorted(created) == sorted(windows) and len(created) == 2
+    wall = idf.get(BuildingSurfaceDetailed, windows[created[0]].building_surface_name)
+    assert wall is not None
+    assert sum(w.area for w in windows.values()) / wall.area == pytest.approx(0.1)
+    for window in windows.values():
+        assert placement_problem(window, wall) is None
+        assert window.area == pytest.approx(1.75)
+    xs = sorted(min(x for x, *_ in w.vertices_as_tuples) for w in windows.values())
+    assert xs[1] - xs[0] == pytest.approx(4.95)
+
+
+def test_punched_windows_too_many_for_a_wall_ask_for_a_strip():
+    idf = _office()
+
+    created, problems = add_windows_by_ratio(
+        idf,
+        None,
+        ["South"],
+        lambda wall: punched_windows_for_ratio(wall, 0.8, 0.8, 1.2, 1.5),
+        "Window",
+    )
+
+    assert created == []
+    assert len(problems) == 1 and "use a strip window" in problems[0]
 
 
 def test_facing_follows_the_building_north_axis():

@@ -7,6 +7,7 @@ from src.agent.nodes._share import (
     invoke_with_self_repair,
     last_message_text,
     missing_input_issues,
+    plan_zones,
     skipped,
     with_feedback,
 )
@@ -21,10 +22,14 @@ objects (windows, doors) on existing parent surfaces.
 Workflow:
 1. Call `list_constructions`; each entry has a `kind`.
 2. Windows given by window-to-wall ratio (the usual case): call
-   `create_windows_by_ratio` once per ratio, with the facings and zones it
-   applies to. It sizes and places a strip window on every matching
-   exterior wall; walls it reports in `not_created` (too small for the
-   ratio) get no window, which is acceptable.
+   `create_windows_by_ratio` once per ratio, pattern, window size and
+   construction, with the facings and the zone plans (`plans`, by key:
+   every zone of the plan on every storey) or zones it applies to; one
+   call can cover several plans. It sizes and places a strip window
+   (`pattern` 'ribbon') or evenly spaced windows of the given size
+   ('punched') on every matching exterior wall; walls it reports in
+   `not_created` (too small for the ratio) get no window, which is
+   acceptable.
 3. Only for openings with given sizes or positions (doors, a specific
    window): call `list_surfaces` FILTERED to the zone and type you need
    (never unfiltered: large buildings have hundreds of surfaces), then
@@ -63,7 +68,7 @@ def fenestration_agent(state: AgentState) -> AgentStateUpdate:
     if skipped(state, "fenestration"):
         return AgentStateUpdate()
     local = state.config_state.model_copy(deep=True)
-    tools = make_fenestration_tools(local)
+    tools = make_fenestration_tools(local, plan_zones(state))
     collector = TraceCollector(phase="fenestration")
 
     agent = build_agent(

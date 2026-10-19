@@ -7,6 +7,7 @@ from src.agent.nodes._share import (
     invoke_with_self_repair,
     last_message_text,
     missing_input_issues,
+    plan_zones,
     skipped,
     with_feedback,
 )
@@ -23,8 +24,10 @@ Workflow:
 2. FIRST call `list_schedules` to see the exact Schedule:Compact names
    (you need occupancy fraction + activity level schedules).
 3. Call `create_people` once per group of zones with the same schedules
-   and values, listing the zones in `zone_names`. Its reply names only
-   zones that failed; the rest got their object. Do not list afterwards.
+   and values, listing the zones by plan key in `plans` (every zone of
+   the plan on every storey) or by name in `zone_names`. Its reply names
+   only zones that failed; the rest got their object. Do not list
+   afterwards.
 
 Rules:
 - Zone names, `number_of_people_schedule_name`, `activity_level_schedule_name`
@@ -52,7 +55,7 @@ def people_agent(state: AgentState) -> AgentStateUpdate:
     if skipped(state, "people"):
         return AgentStateUpdate()
     local = state.config_state.model_copy(deep=True)
-    tools = make_people_tools(local)
+    tools = make_people_tools(local, plan_zones(state))
     collector = TraceCollector(phase="people")
 
     agent = build_agent(

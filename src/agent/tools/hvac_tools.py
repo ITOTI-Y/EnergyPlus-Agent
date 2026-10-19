@@ -11,6 +11,7 @@ from src.agent.tools._share import (
     list_zone_names_tool,
     model_tool,
     ok,
+    zones_of,
 )
 from src.modeling import objects
 from src.modeling.hvac import (
@@ -21,7 +22,9 @@ from src.modeling.hvac import (
 from src.state.config_state import ConfigState
 
 
-def make_hvac_tools(config: ConfigState) -> list[BaseTool]:
+def make_hvac_tools(
+    config: ConfigState, plan_zones: dict[str, list[str]]
+) -> list[BaseTool]:
     idf = config.idf
 
     @model_tool
@@ -55,8 +58,9 @@ def make_hvac_tools(config: ConfigState) -> list[BaseTool]:
 
     @model_tool
     def create_ideal_loads_systems(
-        zone_names: list[str],
         template_thermostat_name: str,
+        plans: list[str] | None = None,
+        zone_names: list[str] | None = None,
         system_availability_schedule_name: str | None = None,
     ) -> str:
         """Create an HVACTemplate:Zone:IdealLoadsAirSystem for each zone.
@@ -64,6 +68,8 @@ def make_hvac_tools(config: ConfigState) -> list[BaseTool]:
         Call it once per group of zones with the same thermostat.
 
         Args:
+            plans: Zone plan keys: every zone made from these plans, on
+                every storey. Give plans, zone_names or both.
             zone_names: Existing Zone names, each without a system yet.
             template_thermostat_name: Existing HVACTemplate:Thermostat name.
             system_availability_schedule_name: Optional availability Schedule:Compact.
@@ -77,7 +83,9 @@ def make_hvac_tools(config: ConfigState) -> list[BaseTool]:
                 system_availability_schedule_name=system_availability_schedule_name,
             )
 
-        return create_in_zones(idf, "IdealLoadsAirSystem", zone_names, system)
+        return create_in_zones(
+            idf, "IdealLoadsAirSystem", zones_of(plans, zone_names, plan_zones), system
+        )
 
     @model_tool
     def delete_thermostat(name: str) -> str:

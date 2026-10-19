@@ -135,7 +135,7 @@ def _run(tmp_path) -> dict[str, Any]:
 SPECS = {
     "material_specs": "brick",
     "schedule_specs": "occupancy",
-    "construction_specs": "walls",
+    "construction_specs": "Wall and Slab: concrete",
 }
 BOX = [(0, 0), (5, 0), (5, 5), (0, 5)]
 

@@ -1,7 +1,11 @@
 import json
 
+import pytest
+
+from src.agent.nodes import intake as intake_module
 from src.agent.nodes._share import strict_tool, unpack_leaked_fields
 from src.agent.state import IntakeOutput, IntakePatch
+from tests.agent.intake_data import intake, zone_spec
 
 
 def test_intake_tools_offer_no_empty_choices():
@@ -35,3 +39,14 @@ def test_fields_written_inside_another_are_moved_back():
         "hvac_specs": "ideal loads",
         "equipment_specs": "12 W/m2 plug loads.",
     }
+
+
+@pytest.mark.parametrize("specs", ["Wall: concrete", "Wall: concrete; Slabs: screed"])
+def test_constructions_the_plans_name_must_be_defined_in_the_specs(specs):
+    output = intake(
+        zones=[zone_spec("A", [(0, 0), (5, 0), (5, 5), (0, 5)])],
+        construction_specs=specs,
+    )
+
+    with pytest.raises(ValueError, match=r"does not define: \['Slab'\]"):
+        intake_module._with_defined_constructions(output)
