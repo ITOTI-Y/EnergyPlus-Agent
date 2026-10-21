@@ -162,7 +162,7 @@ def test_with_an_image_to_3d_server_the_blocks_come_from_its_mesh(
     meshed = READING.model_copy(update={"assumptions": ["from a mesh"]})
     calls: list = []
 
-    def generate_mesh(image, url):
+    def generate_mesh(image, url, api_key):
         calls.append((image.size, url))
         return "mesh"
 
@@ -195,7 +195,7 @@ def test_with_a_segmentation_server_the_3d_model_sees_the_building_cut_out(
     neighbour[200:, 1550:] = True
     shown: list = []
 
-    def generate_mesh(image, url):
+    def generate_mesh(image, url, api_key):
         shown.append((image.mode, image.size))
         return "mesh"
 
@@ -267,7 +267,7 @@ def test_the_3d_model_sees_only_the_volumes_the_blocks_are_made_of(
         }.get(schema, reading)
         return reply, check(reply)
 
-    def generate_mesh(image, url):
+    def generate_mesh(image, url, api_key):
         sizes.append(image.size)
         return "mesh"
 

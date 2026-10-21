@@ -2,8 +2,7 @@
 
 Runs on a GPU host (about 4 GB of GPU memory) with transformers 5 and the
 SAM 3 weights in transformers format, e.g. ModelScope's `facebook/sam3`
-without its `sam3.pt`, not in this project's environment (Hunyuan3D-2.1
-needs transformers 4.46, so the two servers keep separate environments):
+without its `sam3.pt`:
 
     python scripts/sam3_segment_server.py --model /path/to/sam3 --port 8082
 
@@ -18,9 +17,9 @@ import io
 import threading
 
 import numpy as np
-import torch  # ty: ignore[unresolved-import]
+import torch
 import uvicorn
-from fastapi import FastAPI  # ty: ignore[unresolved-import]
+from fastapi import FastAPI
 from PIL import Image
 from pydantic import BaseModel
 
@@ -37,8 +36,7 @@ class Instance(BaseModel):
 
 
 def make_app(model_path: str) -> FastAPI:
-    # transformers 5 lives on the GPU host only.
-    from transformers import (  # ty: ignore[unresolved-import]
+    from transformers import (
         Sam3Model,
         Sam3Processor,
     )

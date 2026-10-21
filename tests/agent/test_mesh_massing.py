@@ -124,34 +124,71 @@ def test_a_filled_box_is_not_taken_as_a_building():
         blocks_from_mesh(_box((0, 2), (0, 2), (0, 1.2)), READING)
 
 
-def test_the_image_is_sent_for_a_shape_only_mesh(monkeypatch):
-    sent = []
+def _tokenhub(monkeypatch, glb: bytes, final: dict) -> list:
+    calls = []
+    replies = iter(
+        [
+            {"id": "job1", "status": "queued"},
+            {"id": "job1", "status": "in_progress"},
+            {"id": "job1", **final},
+        ]
+    )
 
     def urlopen(request, timeout):
-        sent.append((request.full_url, json.loads(request.data)))
-        return nullcontext(io.BytesIO(_glb(_box((0, 1), (0, 2), (0, 1)))))
+        if isinstance(request, str):
+            calls.append((request, None, None))
+            return nullcontext(io.BytesIO(glb))
+        calls.append(
+            (
+                request.full_url,
+                request.get_header("Authorization"),
+                json.loads(request.data),
+            )
+        )
+        return nullcontext(io.BytesIO(json.dumps(next(replies)).encode()))
 
     monkeypatch.setattr(mesh_massing.urllib.request, "urlopen", urlopen)
+    monkeypatch.setattr(mesh_massing, "POLL_INTERVAL_S", 0)
+    return calls
 
-    mesh = generate_mesh(Image.new("RGB", (64, 64)), "http://gpu:8081/")
 
-    [(url, body)] = sent
-    assert url == "http://gpu:8081/generate"
-    assert (body["texture"], body["remove_background"]) == (False, True)
-    assert Image.open(io.BytesIO(base64.b64decode(body["image"]))).size == (64, 64)
+def test_the_image_is_submitted_polled_and_its_mesh_downloaded(monkeypatch):
+    glb = _glb(_box((0, 1), (0, 2), (0, 1)))
+    done = {
+        "status": "completed",
+        "data": [{"type": "glb", "url": "https://cos.example/job1_0.glb?q-sign=x"}],
+    }
+    calls = _tokenhub(monkeypatch, glb, done)
+
+    mesh = generate_mesh(Image.new("RGB", (64, 64)), "https://hub.example/3d/", "k")
+
+    submit, poll, last_poll, download = calls
+    assert submit[0] == "https://hub.example/3d/submit"
+    assert submit[1] == "Bearer k"
+    body = submit[2]
+    assert (body["generate_type"], body["face_count"]) == ("Geometry", 20_000)
+    image = base64.b64decode(body["image_base64"])
+    assert Image.open(io.BytesIO(image)).size == (64, 64)
+    assert poll[0] == last_poll[0] == "https://hub.example/3d/query"
+    assert poll[2] == {"model": body["model"], "id": "job1"}
+    assert download[0] == "https://cos.example/job1_0.glb?q-sign=x"
     assert np.allclose(mesh.extents, (1, 2, 1))
+
+
+def test_a_failed_job_is_refused(monkeypatch):
+    _tokenhub(monkeypatch, b"", {"status": "failed"})
+
+    with pytest.raises(ValueError, match="gave no mesh"):
+        generate_mesh(Image.new("RGB", (64, 64)), "https://hub.example/3d", "k")
 
 
 def test_a_reply_without_a_mesh_is_refused(monkeypatch):
     points = _glb(trimesh.PointCloud(np.random.default_rng(0).random((10, 3))))
-    monkeypatch.setattr(
-        mesh_massing.urllib.request,
-        "urlopen",
-        lambda *_, **__: nullcontext(io.BytesIO(points)),
-    )
+    done = {"status": "completed", "data": [{"type": "glb", "url": "https://c/x.glb"}]}
+    _tokenhub(monkeypatch, points, done)
 
     with pytest.raises(ValueError, match="no mesh"):
-        generate_mesh(Image.new("RGB", (64, 64)), "http://gpu:8081")
+        generate_mesh(Image.new("RGB", (64, 64)), "https://hub.example/3d", "k")
 
 
 def test_the_main_mesh_block_takes_the_slab_facades_even_when_a_core_is_read_higher():

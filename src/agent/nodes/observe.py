@@ -20,6 +20,7 @@ from pydantic import BaseModel, Field, model_validator
 
 from src.agent import mesh_massing, segmentation
 from src.agent._share import (
+    IMAGE_TO_3D_API_KEY,
     IMAGE_TO_3D_URL,
     SEGMENT_URL,
     language_directive,
@@ -405,7 +406,7 @@ def _with_mesh_blocks(
             shown = segmentation.cut_out(image, target)
         else:
             shown = image.crop(_around(building, image))
-        mesh = mesh_massing.generate_mesh(shown, IMAGE_TO_3D_URL)
+        mesh = mesh_massing.generate_mesh(shown, IMAGE_TO_3D_URL, IMAGE_TO_3D_API_KEY)
         meshed = mesh_massing.with_mesh_blocks(reading, mesh)
     # The vision model's reading is complete by now; the 3D model only
     # refines its blocks. OSError covers unreachable or failing servers.

@@ -1,19 +1,20 @@
 """Massing blocks of a photographed building from an image-to-3D mesh.
 
 A vision model counts storeys and reads facades well, but sums up a
-stepped podium as one or two boxes. An image-to-3D model (Hunyuan3D-2.1)
+stepped podium as one or two boxes. An image-to-3D model (HY-3D)
 recovers the setbacks; code takes each storey's plan from the mesh's
 surface points in the storey's middle half and covers it with rectangles,
 a rectangle repeated on consecutive storeys becoming one block.
 
-The mesh comes from a Hunyuan3D-2.1 API server (its `api_server.py`) at
-``IMAGE_TO_3D_URL``: glTF, Y up, the photographed front towards +z. Its
-scale is arbitrary; the counted storeys and their heights set it.
+The mesh comes from TokenHub's HY-3D API at ``IMAGE_TO_3D_URL``: glTF, Y
+up, standing on y = 0. Its scale is arbitrary; the counted storeys and
+their heights set it.
 """
 
 import base64
 import io
 import json
+import time
 import urllib.request
 from collections import Counter
 from dataclasses import dataclass
@@ -31,9 +32,13 @@ from shapely.ops import unary_union
 
 from src.agent.state import MassingBlockSchema, PhotoReadingSchema, Rectangle
 
+MODEL: Final = "hy-3d-3.1"
+
+FACE_COUNT: Final = 20_000
+
+REQUEST_TIMEOUT_S: Final = 60
 GENERATE_TIMEOUT_S: Final = 900
-SEED: Final = 1234
-"""Fixed so a photo gives the same mesh on every run."""
+POLL_INTERVAL_S: Final = 5.0
 
 SAMPLES: Final = 400_000
 """Surface points taken from a mesh: a few thousand per storey."""
@@ -75,34 +80,57 @@ class _Block:
     top: int
 
 
-def generate_mesh(image: Image.Image, url: str) -> trimesh.Trimesh:
-    """The shape-only mesh of an image from a Hunyuan3D-2.1 API server.
+def _call(url: str, path: str, api_key: str, body: dict) -> dict:
+    request = urllib.request.Request(
+        f"{url.rstrip('/')}/{path}",
+        data=json.dumps(body).encode(),
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {api_key}",
+        },
+    )
+    with urllib.request.urlopen(request, timeout=REQUEST_TIMEOUT_S) as response:
+        return json.load(response)
 
-    An image with an alpha channel has its background removed already;
-    the server removes that of any other.
+
+def generate_mesh(image: Image.Image, url: str, api_key: str) -> trimesh.Trimesh:
+    """The untextured mesh of an image from TokenHub's HY-3D API.
 
     Raises:
-        urllib.error.URLError: If the server cannot be reached or fails.
-        ValueError: If its reply holds no mesh.
+        urllib.error.URLError: If the API cannot be reached or refuses a call.
+        TimeoutError: If the job does not complete in GENERATE_TIMEOUT_S.
+        ValueError: If the job fails or its result holds no mesh.
     """
     buffer = io.BytesIO()
     image.save(buffer, "PNG")
-    body = {
-        "image": base64.b64encode(buffer.getvalue()).decode("ascii"),
-        "remove_background": image.mode != "RGBA",
-        "texture": False,
-        "seed": SEED,
-    }
-    request = urllib.request.Request(
-        url.rstrip("/") + "/generate",
-        data=json.dumps(body).encode(),
-        headers={"Content-Type": "application/json"},
+    job = _call(
+        url,
+        "submit",
+        api_key,
+        {
+            "model": MODEL,
+            "image_base64": base64.b64encode(buffer.getvalue()).decode("ascii"),
+            "generate_type": "Geometry",
+            "face_count": FACE_COUNT,
+        },
     )
-    with urllib.request.urlopen(request, timeout=GENERATE_TIMEOUT_S) as response:
+    job_id = job["id"]
+    deadline = time.monotonic() + GENERATE_TIMEOUT_S
+    while job["status"] not in {"completed", "failed"}:
+        if time.monotonic() > deadline:
+            raise TimeoutError(f"3D job {job_id} not done in {GENERATE_TIMEOUT_S} s")
+        time.sleep(POLL_INTERVAL_S)
+        job = _call(url, "query", api_key, {"model": MODEL, "id": job_id})
+    glb_url = next(
+        (d["url"] for d in job.get("data") or [] if d["type"] == "glb"), None
+    )
+    if job["status"] == "failed" or glb_url is None:
+        raise ValueError(f"3D job {job_id} gave no mesh: {json.dumps(job)[:300]}")
+    with urllib.request.urlopen(glb_url, timeout=REQUEST_TIMEOUT_S) as response:
         glb = response.read()
     mesh = trimesh.load(io.BytesIO(glb), file_type="glb", force="mesh")
     if not isinstance(mesh, trimesh.Trimesh) or mesh.is_empty:
-        raise ValueError(f"{url} returned no mesh for the image")
+        raise ValueError(f"3D job {job_id} returned no mesh for the image")
     return mesh
 
 

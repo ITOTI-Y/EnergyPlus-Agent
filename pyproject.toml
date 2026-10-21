@@ -83,3 +83,15 @@ dev = [
     "ruff>=0.16.10",
     "ty>=0.0.84",
 ]
+segment = [
+    "accelerate>=1.15.0",
+    "fastapi>=0.152.0",
+    "torch>=2.14.1",
+    "torchvision>=0.29.1",
+    "transformers>=5.20.2",
+]
+
+[[tool.ty.overrides]]
+include = ["scripts/sam3_segment_server.py"]
+# Its imports come from the optional segment group.
+rules = { unresolved-import = "ignore" }
