@@ -142,10 +142,11 @@ class IntakeOutput(BaseModel):
         description="Every storey, bottom up, with the plans on it"
     )
     material_specs: str = Field(
-        description="Material definitions with thermal properties"
+        description="Material definitions by name, with the values the rules ask for"
     )
     schedule_specs: str = Field(
-        description="Schedule definitions: occupancy, lighting, HVAC operation patterns"
+        description="Schedule definitions: occupancy, lighting, HVAC operation; "
+        "profiles as the rules ask for"
     )
     construction_specs: str = Field(
         description="Construction assembly instructions referencing materials"

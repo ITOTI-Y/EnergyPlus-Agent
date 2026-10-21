@@ -69,9 +69,8 @@ Fields:
 Rules:
 1. If latitude/longitude are not given, infer from the city/region mentioned.
 2. Use reasonable office-building defaults when a parameter is missing
-   (e.g., tolerance 0.04, terrain 'City', solar distribution 'FullExterior').
-3. Each `*_specs` field must be concrete: list zone names, material types,
-   schedule patterns, etc. Do NOT output placeholders like 'TBD'.
+   (e.g., tolerance 0.04, terrain 'City', solar distribution 'FullExterior').{defaults}
+3. Each `*_specs` field must be concrete: list zone names, {contents}, etc. Do NOT output placeholders like 'TBD'.
    `equipment_specs` is never empty: when the brief gives no plug loads,
    give typical densities for the space types (e.g. 10 W/m^2 for offices)
    on a fraction schedule.
@@ -84,8 +83,7 @@ Rules:
      interior floor layers from the ceiling below up to the floor above;
      the face on the other side gets the reversed layers automatically.
    - Every window construction in `construction_specs` has a glazing
-     layer, e.g. a simple glazing system given by U-factor, SHGC and
-     visible transmittance, that `material_specs` defines with the
+     layer, {glazing}, that `material_specs` defines with the
      IDENTICAL name.
    - Schedules named in `hvac_specs` / `people_specs` / `lights_specs` /
      `equipment_specs`
@@ -128,9 +126,7 @@ Rules:
 
    For every row where the downstream phase is non-empty, `schedule_specs`
    must (a) name the schedule, (b) state the schedule type limits it
-   uses, and (c) give the value profile for EVERY day type, weekends,
-   holidays and design days included (e.g. "weekdays 8-18 at 1.0, all
-   other days 0.0"). The activity_level schedule is commonly forgotten —
+   uses, and (c) {profiles}. The activity_level schedule is commonly forgotten —
    default ~120 W/person for seated office work. It is constant at all
    times, never 0: when people are present follows from the occupancy
    fraction schedule. The heating setpoint is at most the cooling
@@ -265,15 +261,33 @@ def _revision(state: AgentState, previous: IntakeOutput) -> HumanMessage:
     )
 
 
+VALUE_RULES: Final = {
+    "defaults": "",
+    "contents": "material types,\n   schedule patterns",
+    "glazing": "e.g. a simple glazing system given by U-factor, SHGC and\n     visible transmittance",
+    "profiles": 'give the value profile for EVERY day type, weekends,\n   holidays and design days included (e.g. "weekdays 8-18 at 1.0, all\n   other days 0.0")',
+}
+
+REFERENCE_RULES: Final = {
+    "defaults": "\n   Material, construction and schedule values follow rule 7.",
+    "contents": "material, construction\n   and schedule names with their purpose",
+    "glazing": "with the U-factor, SHGC and visible transmittance the\n     brief gives, else described by purpose for the library",
+    "profiles": "give the value profile for every day type the brief\n   gives one for; a schedule the brief gives no profile for is described\n   by what it controls and the building type, for the library",
+}
+
 REFERENCE_INTAKE_RULE: Final = """
 7. A reference library of DOE prototype buildings is available to the
-   material, construction and schedule phases. Where the brief gives no
-   values, do NOT invent material properties, layer thicknesses or
-   schedule profiles: describe each material, construction and schedule by
-   purpose and building type (e.g. "exterior wall insulation of a medium
-   office suited to the site's climate"), still giving the names other
-   specs reference, and let those phases take the values from the library.
-   Values the brief gives are passed on as given.
+   material, construction and schedule phases, and they take every value
+   the brief does not give from it, typical values included. In
+   `material_specs`, `construction_specs` and `schedule_specs` write ONLY
+   values the brief states. Write no thickness, conductivity, density,
+   specific heat, glazing value, hour, fraction or profile of your own,
+   not even as a typical or approximate value in parentheses. Describe
+   the rest by purpose and building type (e.g. "exterior wall insulation
+   of a medium office suited to the site's climate", "occupancy of a
+   medium office"), still giving the names other specs reference. Names
+   carry no values the brief does not give (e.g. 'ExtWall_Insulation', not
+   'XPS_100mm').
 """
 
 
@@ -285,9 +299,10 @@ def intake_node(state: AgentState, runtime: Runtime[SimContext]) -> AgentStateUp
     dependants run again, and the rest keep their objects. Building and
     Site:Location go into the model here.
     """
-    rules = INTAKE_SYSTEM_PROMPT
-    if runtime.context.reference is not None:
-        rules += REFERENCE_INTAKE_RULE
+    if runtime.context.reference is None:
+        rules = INTAKE_SYSTEM_PROMPT.format(**VALUE_RULES)
+    else:
+        rules = INTAKE_SYSTEM_PROMPT.format(**REFERENCE_RULES) + REFERENCE_INTAKE_RULE
     system = SystemMessage(content=rules + language_directive())
     previous = state.intake_output
     if previous is None:
