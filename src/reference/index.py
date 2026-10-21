@@ -21,6 +21,7 @@ from qdrant_client.models import (
     Filter,
     MatchAny,
     MatchValue,
+    PayloadSchemaType,
     PointStruct,
     VectorParams,
 )
@@ -72,6 +73,14 @@ def point_id(entry_id: str) -> str:
     return str(uuid.UUID(hex=entry_id))
 
 
+UPSERT_BATCH: Final = 32
+LOAD_TIMEOUT_S: Final = 300
+
+FILTERED_FIELDS: Final = ("kind", "climate_zones")
+"""Payload fields searches filter on; Qdrant Cloud refuses a filter on a
+field without an index."""
+
+
 def load_collection(path: Path, client: QdrantClient, collection: str) -> int:
     """Replace the collection with the library's embedded entries.
 
@@ -87,6 +96,8 @@ def load_collection(path: Path, client: QdrantClient, collection: str) -> int:
     client.create_collection(
         collection, vectors_config=VectorParams(size=size, distance=Distance.COSINE)
     )
+    for field in FILTERED_FIELDS:
+        client.create_payload_index(collection, field, PayloadSchemaType.KEYWORD)
     points = (
         PointStruct(
             id=point_id(e.id),
@@ -109,7 +120,7 @@ def load_collection(path: Path, client: QdrantClient, collection: str) -> int:
         if e.id in vectors
     )
     written = 0
-    for batch in batched(points, 256):
+    for batch in batched(points, UPSERT_BATCH):
         client.upsert(collection, points=list(batch))
         written += len(batch)
     return written

@@ -96,8 +96,7 @@ def reference_load() -> None:
     """Replace the Qdrant collection with the library's embedded entries."""
     from qdrant_client import QdrantClient
 
-    from src.reference.index import load_collection
-    from src.reference.search import QDRANT_TIMEOUT_S
+    from src.reference.index import LOAD_TIMEOUT_S, load_collection
     from src.reference.settings import ReferenceSettings
 
     settings = ReferenceSettings()
@@ -107,7 +106,7 @@ def reference_load() -> None:
     client = QdrantClient(
         url=settings.qdrant_url,
         api_key=key.get_secret_value() if key else None,
-        timeout=QDRANT_TIMEOUT_S,
+        timeout=LOAD_TIMEOUT_S,
     )
     count = load_collection(settings.library_path, client, settings.collection)
     logger.info("Loaded {} points into {}", count, settings.collection)
