@@ -14,6 +14,7 @@ from langchain.agents.middleware import (
     ContextEditingMiddleware,
     ModelRequest,
     ModelResponse,
+    ModelRetryMiddleware,
     hook_config,
     wrap_model_call,
 )
@@ -27,6 +28,12 @@ from langgraph.runtime import Runtime
 from langgraph.types import Command
 from loguru import logger
 from omegaconf import OmegaConf
+from openai import (
+    APIConnectionError,
+    APIError,
+    InternalServerError,
+    RateLimitError,
+)
 from pydantic import BaseModel
 
 from src.agent._share import language_directive
@@ -244,6 +251,17 @@ class FailureLoopGuard(AgentMiddleware):
         }
 
 
+def transient(error: BaseException) -> bool:
+    """Whether a model call failed for a reason a repeat of it can pass.
+
+    An error event inside a streamed reply is raised as a bare APIError.
+    """
+    return (
+        isinstance(error, APIConnectionError | InternalServerError | RateLimitError)
+        or type(error) is APIError
+    )
+
+
 def build_agent(
     config: LLMConfig | None = None,
     system_prompt: str | None = None,
@@ -274,6 +292,7 @@ def build_agent(
         # schema keywords (note, units) that gateways pass on.
         response_format=ToolStrategy(response_format) if response_format else None,
         middleware=[
+            ModelRetryMiddleware(retry_on=transient, on_failure="error"),
             FailureLoopGuard(),
             # Phase agents resend their whole history on every call; this caps
             # what large buildings and failure streaks add to each prompt.

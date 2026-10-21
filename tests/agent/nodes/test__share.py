@@ -1,12 +1,14 @@
 from typing import Any, cast
 
+import httpx
 from idfpy.models import (
     Construction,
     ScheduleCompact,
     ScheduleCompactDataItem,
     ScheduleTypeLimits,
 )
-from langchain_core.messages import AIMessage, HumanMessage
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
+from openai import APIError
 from pydantic import BaseModel
 
 from src.agent.nodes._share import (
@@ -153,3 +155,22 @@ def test_a_reply_cut_off_at_the_token_limit_is_asked_again_more_briefly():
         "reached the output token limit before the _Answer tool call was complete"
         in retry
     )
+
+
+class _FailingMidStreamOnce(_CutOffThenAnswering):
+    def invoke(self, messages: list[Any]) -> dict[str, Any]:
+        self.sent.append(messages)
+        if len(self.sent) == 1:
+            request = httpx.Request("POST", "https://llm.invalid/v1/chat/completions")
+            raise APIError("The operation was aborted", request, body=None)
+        return {"raw": AIMessage(content=""), "parsed": {"text": "ok"}}
+
+
+def test_a_structured_call_failing_mid_stream_is_made_again_unchanged():
+    llm = _FailingMidStreamOnce()
+    messages: list[BaseMessage] = [HumanMessage(content="q")]
+
+    answer, _ = structured(cast(Any, llm), _Answer, messages, lambda a: a)
+
+    assert answer.text == "ok"
+    assert llm.sent == [messages, messages]

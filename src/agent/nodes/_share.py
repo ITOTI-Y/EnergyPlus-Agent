@@ -15,9 +15,11 @@ from langchain_core.messages import AIMessage, AnyMessage, BaseMessage, HumanMes
 from langchain_core.utils.function_calling import convert_to_openai_tool
 from langgraph.graph.state import CompiledStateGraph
 from loguru import logger
+from openai import APIError
 from pydantic import BaseModel, Field
 
 from src.agent._share import language_directive
+from src.agent.llm import transient
 from src.agent.phases import PHASE_TYPES, Phase, owner
 from src.modeling.validation import ModelIssue, model_issues
 from src.state.config_state import ConfigState
@@ -287,8 +289,14 @@ def structured[T: BaseModel, R](
         strict_tool(schema), method="function_calling", include_raw=True, strict=True
     )
     problem = ""
-    for _ in range(MAX_STRUCTURED_ATTEMPTS):
-        result = cast(dict[str, Any], caller.invoke(messages))
+    for attempt in range(1, MAX_STRUCTURED_ATTEMPTS + 1):
+        try:
+            result = cast(dict[str, Any], caller.invoke(messages))
+        except APIError as e:
+            if not transient(e) or attempt == MAX_STRUCTURED_ATTEMPTS:
+                raise
+            logger.warning("{}: call failed, calling again: {}", schema.__name__, e)
+            continue
         try:
             if result.get("parsed") is None:
                 raw: BaseMessage | None = result.get("raw")

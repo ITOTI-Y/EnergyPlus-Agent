@@ -3,11 +3,13 @@ from collections.abc import Callable, Iterator
 from itertools import count
 from typing import Any
 
+import httpx
 from langchain.agents import create_agent
 from langchain_core.language_models.fake_chat_models import GenericFakeChatModel
 from langchain_core.messages import AIMessage, ToolMessage
 from langchain_core.tools import tool
 from langchain_openai import ChatOpenAI
+from openai import APIError, BadRequestError
 
 from src.agent import llm as llm_module
 from src.agent.llm import (
@@ -19,6 +21,7 @@ from src.agent.llm import (
     FailureLoopGuard,
     build_agent,
     create_llm,
+    transient,
 )
 from src.agent.tools import make_surface_tools
 from src.configs.config import LLMConfig
@@ -66,6 +69,48 @@ class _ScriptedModel(GenericFakeChatModel):
 
     def bind_tools(self, tools: Any, **kwargs: Any) -> "_ScriptedModel":
         return self
+
+
+class _FailingOnce:
+    """Message iterator whose first model call fails with ``error``."""
+
+    def __init__(self, error: Exception, reply: AIMessage) -> None:
+        self.error, self.reply, self.calls = error, reply, 0
+
+    def __iter__(self) -> "_FailingOnce":
+        return self
+
+    def __next__(self) -> AIMessage:
+        self.calls += 1
+        if self.calls == 1:
+            raise self.error
+        return self.reply
+
+
+def _stream_error() -> APIError:
+    request = httpx.Request("POST", "https://llm.invalid/v1/chat/completions")
+    return APIError("The service is currently unavailable.", request, body=None)
+
+
+def test_a_call_failing_mid_stream_is_made_again(monkeypatch):
+    replies = _FailingOnce(_stream_error(), AIMessage(content="done"))
+    model = _ScriptedModel(messages=replies)
+    monkeypatch.setattr(llm_module, "create_llm", lambda config=None: model)
+
+    result = build_agent().invoke({"messages": [("user", "go")]})
+
+    assert result["messages"][-1].content == "done"
+    assert replies.calls == 2
+
+
+def test_a_refused_request_is_not_made_again():
+    request = httpx.Request("POST", "https://llm.invalid/v1/chat/completions")
+    refused = BadRequestError(
+        "bad", response=httpx.Response(400, request=request), body=None
+    )
+
+    assert transient(_stream_error())
+    assert not transient(refused)
 
 
 def test_tool_calls_of_one_round_run_in_the_model_order(monkeypatch):
