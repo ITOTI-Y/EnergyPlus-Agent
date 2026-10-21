@@ -48,6 +48,12 @@ def test_create_llm_sends_the_thinking_budget_as_reasoning_max_tokens():
     assert llm.extra_body == {"reasoning": {"max_tokens": 8192}}
 
 
+def test_create_llm_streams_replies():
+    llm = create_llm(_config())
+    assert isinstance(llm, ChatOpenAI)
+    assert llm.streaming
+
+
 def test_create_llm_passes_configured_retries_and_timeout():
     llm = create_llm(_config(max_retries=5, timeout=30.0))
     assert isinstance(llm, ChatOpenAI)

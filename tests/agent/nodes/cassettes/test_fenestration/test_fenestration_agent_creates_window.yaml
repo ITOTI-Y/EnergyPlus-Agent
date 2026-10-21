@@ -4,15 +4,18 @@ interactions:
       fenestration specifications, create FenestrationSurface:Detailed\nobjects (windows,
       doors) on existing parent surfaces.\n\nWorkflow:\n1. Call `list_constructions`;
       each entry has a `kind`.\n2. Windows given by window-to-wall ratio (the usual
-      case): call\n   `create_windows_by_ratio` once per ratio, with the facings and
-      zones it\n   applies to. It sizes and places a strip window on every matching\n   exterior
-      wall; walls it reports in `not_created` (too small for the\n   ratio) get no
-      window, which is acceptable.\n3. Only for openings with given sizes or positions
-      (doors, a specific\n   window): call `list_surfaces` FILTERED to the zone and
-      type you need\n   (never unfiltered: large buildings have hundreds of surfaces),
-      then\n   `create_fenestration` with corners on that surface.\nThe replies of
-      the create tools are final: do not list the openings\nagain at the end.\n\nRules:\n-
-      Construction names MUST appear verbatim in the list_constructions\n  result.
+      case): call\n   `create_windows_by_ratio` once per ratio, pattern, window size
+      and\n   construction, with the facings and the zone plans (`plans`, by key:\n   every
+      zone of the plan on every storey) or zones it applies to; one\n   call can cover
+      several plans. It sizes and places a strip window\n   (`pattern` ''ribbon'')
+      or evenly spaced windows of the given size\n   (''punched'') on every matching
+      exterior wall; walls it reports in\n   `not_created` (too small for the ratio)
+      get no window, which is\n   acceptable.\n3. Only for openings with given sizes
+      or positions (doors, a specific\n   window): call `list_surfaces` FILTERED to
+      the zone and type you need\n   (never unfiltered: large buildings have hundreds
+      of surfaces), then\n   `create_fenestration` with corners on that surface.\nThe
+      replies of the create tools are final: do not list the openings\nagain at the
+      end.\n\nRules:\n- Construction names MUST appear verbatim in the list_constructions\n  result.
       If one is missing (e.g. no construction of kind `window`), do\n  NOT invent
       a name and do NOT list again: give your final answer at once,\n  with it in
       `missing_inputs`.\n- Window and GlassDoor need a construction of kind `window`;
@@ -24,17 +27,24 @@ interactions:
       a\n  ratio, use 0.3-0.4 on facade walls.\n","role":"system"},{"content":"Create
       exactly one window named ''F1_Office_South_Wall_Window'' on surface ''F1_Office_South_Wall''
       with construction ''Window_Simple'': 1.5m wide x 1.2m tall, centered horizontally,
-      sill at 0.8m.","role":"user"}],"model":"google/gemini-3.8-flash","max_completion_tokens":16384,"parallel_tool_calls":false,"stream":false,"temperature":0.7,"tool_choice":"required","tools":[{"type":"function","function":{"name":"create_windows_by_ratio","description":"Put
-      one strip window on every matching exterior wall, sized by ratio.\n\n        The
-      window spans the wall''s width (5 cm clearance at each edge) at\n        the
-      given sill height, as high as the ratio needs. Prefer this to\n        create_fenestration
-      whenever the specification gives window-to-wall\n        ratios; call it once
-      per ratio, facing and zone group.\n\n        Args:\n            window_to_wall_ratio:
-      Window area over wall area, e.g. 0.4.\n            construction_name: Existing
-      window construction.\n            zone_names: Zones whose outdoor walls get
-      windows; all when omitted.\n            facings: Compass directions of the walls;
-      all when omitted.\n            sill_height: Height of the window bottom above
-      the floor, in m.","parameters":{"properties":{"window_to_wall_ratio":{"type":"number"},"construction_name":{"type":"string"},"zone_names":{"anyOf":[{"items":{"type":"string"},"type":"array"},{"type":"null"}],"default":null},"facings":{"anyOf":[{"items":{"enum":["North","East","South","West"],"type":"string"},"type":"array"},{"type":"null"}],"default":null},"sill_height":{"default":0.8,"type":"number"}},"required":["window_to_wall_ratio","construction_name"],"type":"object"}}},{"type":"function","function":{"name":"create_fenestration","description":"Create
+      sill at 0.8m.","role":"user"}],"model":"google/gemini-3.8-flash","max_completion_tokens":32768,"parallel_tool_calls":false,"stream":true,"temperature":1.0,"tool_choice":"required","tools":[{"type":"function","function":{"name":"create_windows_by_ratio","description":"Put
+      windows on every matching exterior wall, sized by ratio.\n\n        A ribbon
+      is one strip window spanning the wall''s width (5 cm\n        clearance at each
+      edge), as high as the ratio needs. Punched windows\n        are evenly spaced
+      window_width x window_height windows, as many as\n        the ratio holds, scaled
+      alike to cover it exactly. Both start at\n        the given sill height. Prefer
+      this to create_fenestration whenever\n        the specification gives window-to-wall
+      ratios; call it once per\n        ratio, pattern, facing and group of plans
+      or zones.\n\n        Args:\n            window_to_wall_ratio: Window area over
+      wall area, e.g. 0.4.\n            construction_name: Existing window construction.\n            plans:
+      Zone plan keys: every zone made from these plans, on every\n                storey,
+      gets windows.\n            zone_names: Zones whose outdoor walls get windows.
+      Give plans,\n                zone_names or both; for every zone, list every
+      plan.\n            facings: Compass directions of the walls; all when omitted.\n            sill_height:
+      Height of the window bottom above the floor, in m.\n            pattern: ''ribbon''
+      for continuous bands or curtain walls,\n                ''punched'' for separate
+      windows.\n            window_width: Width of one punched window, in m.\n            window_height:
+      Height of one punched window, in m.","parameters":{"properties":{"window_to_wall_ratio":{"type":"number"},"construction_name":{"type":"string"},"plans":{"anyOf":[{"items":{"type":"string"},"type":"array"},{"type":"null"}],"default":null},"zone_names":{"anyOf":[{"items":{"type":"string"},"type":"array"},{"type":"null"}],"default":null},"facings":{"anyOf":[{"items":{"enum":["North","East","South","West"],"type":"string"},"type":"array"},{"type":"null"}],"default":null},"sill_height":{"default":0.8,"type":"number"},"pattern":{"default":"ribbon","enum":["ribbon","punched"],"type":"string"},"window_width":{"default":1.2,"type":"number"},"window_height":{"default":1.5,"type":"number"}},"required":["window_to_wall_ratio","construction_name"],"type":"object"}}},{"type":"function","function":{"name":"create_fenestration","description":"Create
       a FenestrationSurface:Detailed (window/door).\n\n        Args:\n            name:
       Unique fenestration name.\n            surface_type: Window / Door / GlassDoor.\n            construction_name:
       Existing construction: a window construction for\n                Window and
@@ -68,7 +78,7 @@ interactions:
       is needed and for what, e.g. ''a window construction (kind window) for the office
       windows''","type":"string"}},"required":["kind","description"],"type":"object"},"type":"array"},"fenestration_names":{"description":"Names
       of all fenestration surfaces created","items":{"type":"string"},"type":"array"},"summary":{"description":"One-line
-      summary of the fenestration creation result","type":"string"}},"required":["fenestration_names","summary"],"type":"object"}}}],"reasoning":{"max_tokens":4096}}'
+      summary of the fenestration creation result","type":"string"}},"required":["fenestration_names","summary"],"type":"object"}}}],"reasoning":{"max_tokens":1024}}'
     headers:
       accept:
       - application/json
@@ -77,7 +87,7 @@ interactions:
       connection:
       - keep-alive
       content-length:
-      - '7970'
+      - '9108'
       content-type:
       - application/json
       user-agent:
@@ -92,8 +102,6 @@ interactions:
       - Linux
       x-stainless-package-version:
       - 2.52.0
-      x-stainless-raw-response:
-      - 'true'
       x-stainless-read-timeout:
       - '120.0'
       x-stainless-retry-count:
@@ -106,34 +114,41 @@ interactions:
     uri: https://llm.invalid/v1/chat/completions
   response:
     body:
-      string: !!binary |
-        KLUv/QBY1SYAqlYUESjQRvI2+P29GqGET4IsqBfQsHSdcP/73UQMiAM8cagV8xR88QB16gET7wAL
-        ARQBu/OsP07nF7/2lqz5DzTpJwu7LIuDcf2+fIavvS1D/Q8GaGK+WfOKKz9Du23POtfOL+f1tbdY
-        7z/Q3oqVc0u+9AQUr4Bj0dtrfuk5xvXjYK37a581r3ZzRn7zDXlH71LU+KVJ+9SC+f7BAO25/a4e
-        v5e+47OGFrydY7+LbstfwvjM2vd8d7mtmG/IIW3nIf7SO177bcGL6l2+9COvOBxACKgGbr6kFQsW
-        i1qLrz22oCZf0h60vdr9vfRZ325xSepPQK/j99r3z3o6+qWfYA2yxA4zki3HpnaXBJeXgepQYdeB
-        yjBqIFvxtQfvHwAIACAcpWsUm5pLyAJc4L7JmKnAdSWtMTMJWR2DaMSuMnLmZUjYBZd6LKImI+p8
-        HQHCqoRQxlAf+ySUHZcUSDAUxmBXRBrRJoN9l+exbahHwXXe4zEqKJN9ZptUkKZpwwbB803jNGH7
-        sOGuysUybM/ig7FoDKBNgYDTslOYKORYq4plPWHjpDgKoDI9KZ6oUrcu9aA2qw4EnUk1eoQLszYj
-        q2lViaa0VtTWdbpvOiWphYRMCoirUGfyLNRoRekVimjha2DdxdCgh3HObnD+NCGjaobQJF772iv4
-        0oO2l6H9ZSvg1m5BToHR6EdPAOOaeQLaE7BlqHOegP1quE9eUdJo9KOD1573bMlT3PWl52cKDmNy
-        tCck8mBUBpeHKlUBS0RMUpNDxahFWTR0kEZpsYZEhKO5QPQuaelprEezACN6Q+3UJZsCnvU9Q13n
-        IPYF+CUWhoLrE7sIQ3bLIUMJUcx2KEDD1fUJ4xNaLJBKeF3o5BJUMAfnLRyURFeiDYOCOkj2AQua
-        cEy/R+XTN2bDXCqmYGKQCFQQbwIj6wRTNhOEdUjBtV0IFn1NFglrRSibxgMSMNyyMmcOXaAEwZdB
-        9JKxHuOaUDymxcFJCBwFnOh8VBCUOEowDXLbm4/uTFFJ4IhsBmaDp5+8z6kiG1M2ubJsOSByZ44I
-        AgXjIsJ4Cu+CuDpRw0BRjuHYoBdSw6gcmqOTp0BIum5YcSOApkjhUpCH+RSj0Uis5H0JUVGjg4Hi
-        hsogXQfEVU2TAI79st02zJdDVrs7L8+RBS+qL3hW2+8GcaQJtONXvz+w5+7af3Sow+G3c/29lFEY
-        rl33lxCHl6jrorTn2X505/SS1Ls8C4yeQgd6JbcOX/pLADkxM0JQgLzvME2U8CE5IZy2zI5+YeIs
-        G6HQUG0lwXKhiMpGTguNIkIG6RQxOFRO3G6XqWQfAuMsyY6lyyAcwTBK7i4GIl7A7GWMhYhRyCiI
-        g+4C0dFoHmgBQRFlEVCBY0yLrZDehIkNNgfMuKm0w8rMkuaHic0NoVOUiUUUj8L2OS+VpWaVTCgM
-        6VoXhoLwOw82a3BMnReHZRlUBfdpEgE4IECCps6oA/nZEVVgoBbgGQd0ksiTOY/YAuo4IbzsglN6
-        jurGJzeADoaRaZzWeCkOnFyYgu3gXsC/tS9ZxbH28TboXzbLQ+i69sU7QgQt+Mf5ahoYSwIXdiBk
-        2YDIOhenm+3CY2bcg3BQiAv3QdHCOAhAxdVuXLS3JWhUhiSCCo8H6EE4lVcfAWTbUgIwvgAL
+      string: 'data: {"id":"gen-1792566600-9NciFG9ylG8ulUBnxbDL","object":"chat.completion.chunk","created":1792566600,"model":"google/gemini-3.8-flash","provider":"Google
+        AI Studio","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":null,"reasoning_details":[{"type":"reasoning.encrypted","data":"EmkKZwFpFH0TrDR3o2lJFi610Kscf46eTKghUpjOqswHJfMbjpe5sEyKnuDrxNSLZeCvML57GsYHpJduUAY0A/RAJs0Rgm/fdiKrKuP55yyV16QmW64AHvs1FCuzEv3rJhno4R43azxdPms=","format":"google-gemini-v1","id":"call_922326","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+
+        data: {"id":"gen-1792566600-9NciFG9ylG8ulUBnxbDL","object":"chat.completion.chunk","created":1792566600,"model":"google/gemini-3.8-flash","provider":"Google
+        AI Studio","choices":[{"index":0,"delta":{"content":null,"role":"assistant","tool_calls":[{"index":0,"id":"call_922326","type":"function","function":{"name":"list_constructions","arguments":""}}]},"finish_reason":null,"native_finish_reason":null}]}
+
+
+        data: {"id":"gen-1792566600-9NciFG9ylG8ulUBnxbDL","object":"chat.completion.chunk","created":1792566600,"model":"google/gemini-3.8-flash","provider":"Google
+        AI Studio","choices":[{"index":0,"delta":{"content":null,"role":"assistant","tool_calls":[{"index":0,"function":{"arguments":"{}"}}]},"finish_reason":null,"native_finish_reason":null}]}
+
+
+        data: {"id":"gen-1792566600-9NciFG9ylG8ulUBnxbDL","object":"chat.completion.chunk","created":1792566600,"model":"google/gemini-3.8-flash","provider":"Google
+        AI Studio","choices":[{"index":0,"delta":{"content":null,"role":"assistant","tool_calls":[{"index":1,"id":"call_922332","type":"function","function":{"name":"list_surfaces","arguments":""}}]},"finish_reason":null,"native_finish_reason":null}]}
+
+
+        data: {"id":"gen-1792566600-9NciFG9ylG8ulUBnxbDL","object":"chat.completion.chunk","created":1792566600,"model":"google/gemini-3.8-flash","provider":"Google
+        AI Studio","choices":[{"index":0,"delta":{"content":null,"role":"assistant","tool_calls":[{"index":1,"function":{"arguments":"{\"surface_type\":\"Wall\"}"}}]},"finish_reason":null,"native_finish_reason":null}]}
+
+
+        data: {"id":"gen-1792566600-9NciFG9ylG8ulUBnxbDL","object":"chat.completion.chunk","created":1792566600,"model":"google/gemini-3.8-flash","provider":"Google
+        AI Studio","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":null},"finish_reason":"tool_calls","native_finish_reason":"STOP"}]}
+
+
+        data: {"id":"gen-1792566600-9NciFG9ylG8ulUBnxbDL","object":"chat.completion.chunk","created":1792566600,"model":"google/gemini-3.8-flash","provider":"Google
+        AI Studio","service_tier":"flex","choices":[{"index":0,"delta":{"content":"","role":"assistant"},"finish_reason":"tool_calls","native_finish_reason":"STOP"}],"usage":{"prompt_tokens":2280,"completion_tokens":30,"total_tokens":2310,"cost":0.00091125,"is_byok":false,"prompt_tokens_details":{"cached_tokens":0,"cache_write_tokens":0,"audio_tokens":0,"video_tokens":0},"cost_details":{"upstream_inference_cost":0.00091125,"upstream_inference_prompt_cost":0.000855,"upstream_inference_completions_cost":0.00005625},"completion_tokens_details":{"reasoning_tokens":0,"image_tokens":0,"audio_tokens":0}}}
+
+
+        data: [DONE]
+
+
+        '
     headers:
-      content-encoding:
-      - zstd
       content-type:
-      - application/json
+      - text/event-stream
     status:
       code: 200
       message: OK
@@ -142,15 +157,18 @@ interactions:
       fenestration specifications, create FenestrationSurface:Detailed\nobjects (windows,
       doors) on existing parent surfaces.\n\nWorkflow:\n1. Call `list_constructions`;
       each entry has a `kind`.\n2. Windows given by window-to-wall ratio (the usual
-      case): call\n   `create_windows_by_ratio` once per ratio, with the facings and
-      zones it\n   applies to. It sizes and places a strip window on every matching\n   exterior
-      wall; walls it reports in `not_created` (too small for the\n   ratio) get no
-      window, which is acceptable.\n3. Only for openings with given sizes or positions
-      (doors, a specific\n   window): call `list_surfaces` FILTERED to the zone and
-      type you need\n   (never unfiltered: large buildings have hundreds of surfaces),
-      then\n   `create_fenestration` with corners on that surface.\nThe replies of
-      the create tools are final: do not list the openings\nagain at the end.\n\nRules:\n-
-      Construction names MUST appear verbatim in the list_constructions\n  result.
+      case): call\n   `create_windows_by_ratio` once per ratio, pattern, window size
+      and\n   construction, with the facings and the zone plans (`plans`, by key:\n   every
+      zone of the plan on every storey) or zones it applies to; one\n   call can cover
+      several plans. It sizes and places a strip window\n   (`pattern` ''ribbon'')
+      or evenly spaced windows of the given size\n   (''punched'') on every matching
+      exterior wall; walls it reports in\n   `not_created` (too small for the ratio)
+      get no window, which is\n   acceptable.\n3. Only for openings with given sizes
+      or positions (doors, a specific\n   window): call `list_surfaces` FILTERED to
+      the zone and type you need\n   (never unfiltered: large buildings have hundreds
+      of surfaces), then\n   `create_fenestration` with corners on that surface.\nThe
+      replies of the create tools are final: do not list the openings\nagain at the
+      end.\n\nRules:\n- Construction names MUST appear verbatim in the list_constructions\n  result.
       If one is missing (e.g. no construction of kind `window`), do\n  NOT invent
       a name and do NOT list again: give your final answer at once,\n  with it in
       `missing_inputs`.\n- Window and GlassDoor need a construction of kind `window`;
@@ -162,25 +180,32 @@ interactions:
       a\n  ratio, use 0.3-0.4 on facade walls.\n","role":"system"},{"content":"Create
       exactly one window named ''F1_Office_South_Wall_Window'' on surface ''F1_Office_South_Wall''
       with construction ''Window_Simple'': 1.5m wide x 1.2m tall, centered horizontally,
-      sill at 0.8m.","role":"user"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_445740","function":{"name":"list_constructions","arguments":"{}"}},{"type":"function","id":"call_445743","function":{"name":"list_surfaces","arguments":"{\"surface_type\":
+      sill at 0.8m.","role":"user"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_922326","function":{"name":"list_constructions","arguments":"{}"}},{"type":"function","id":"call_922332","function":{"name":"list_surfaces","arguments":"{\"surface_type\":
       \"Wall\"}"}}]},{"content":"{\"success\": true, \"message\": \"Listed 2 constructions.\",
       \"data\": [{\"kind\": \"opaque\", \"name\": \"ExtWall_Simple\", \"outside_layer\":
       \"Brick_100mm\"}, {\"kind\": \"window\", \"name\": \"Window_Simple\", \"outside_layer\":
-      \"Glass_U18\"}]}","role":"tool","tool_call_id":"call_445740"},{"content":"{\"success\":
+      \"Glass_U18\"}]}","role":"tool","tool_call_id":"call_922326"},{"content":"{\"success\":
       true, \"message\": \"Listed 1 surfaces.\", \"data\": [{\"name\": \"F1_Office_South_Wall\",
       \"zone\": \"F1_Office\", \"type\": \"Wall\", \"boundary\": \"Outdoors\", \"construction\":
       \"ExtWall_Simple\", \"facing\": \"South\", \"area\": 18.0, \"corners\": [[0.0,
-      0.0, 3.0], [0.0, 0.0, 0.0], [6.0, 0.0, 0.0], [6.0, 0.0, 3.0]]}]}","role":"tool","tool_call_id":"call_445743"}],"model":"google/gemini-3.8-flash","max_completion_tokens":16384,"parallel_tool_calls":false,"stream":false,"temperature":0.7,"tool_choice":"required","tools":[{"type":"function","function":{"name":"create_windows_by_ratio","description":"Put
-      one strip window on every matching exterior wall, sized by ratio.\n\n        The
-      window spans the wall''s width (5 cm clearance at each edge) at\n        the
-      given sill height, as high as the ratio needs. Prefer this to\n        create_fenestration
-      whenever the specification gives window-to-wall\n        ratios; call it once
-      per ratio, facing and zone group.\n\n        Args:\n            window_to_wall_ratio:
-      Window area over wall area, e.g. 0.4.\n            construction_name: Existing
-      window construction.\n            zone_names: Zones whose outdoor walls get
-      windows; all when omitted.\n            facings: Compass directions of the walls;
-      all when omitted.\n            sill_height: Height of the window bottom above
-      the floor, in m.","parameters":{"properties":{"window_to_wall_ratio":{"type":"number"},"construction_name":{"type":"string"},"zone_names":{"anyOf":[{"items":{"type":"string"},"type":"array"},{"type":"null"}],"default":null},"facings":{"anyOf":[{"items":{"enum":["North","East","South","West"],"type":"string"},"type":"array"},{"type":"null"}],"default":null},"sill_height":{"default":0.8,"type":"number"}},"required":["window_to_wall_ratio","construction_name"],"type":"object"}}},{"type":"function","function":{"name":"create_fenestration","description":"Create
+      0.0, 3.0], [0.0, 0.0, 0.0], [6.0, 0.0, 0.0], [6.0, 0.0, 3.0]]}]}","role":"tool","tool_call_id":"call_922332"}],"model":"google/gemini-3.8-flash","max_completion_tokens":32768,"parallel_tool_calls":false,"stream":true,"temperature":1.0,"tool_choice":"required","tools":[{"type":"function","function":{"name":"create_windows_by_ratio","description":"Put
+      windows on every matching exterior wall, sized by ratio.\n\n        A ribbon
+      is one strip window spanning the wall''s width (5 cm\n        clearance at each
+      edge), as high as the ratio needs. Punched windows\n        are evenly spaced
+      window_width x window_height windows, as many as\n        the ratio holds, scaled
+      alike to cover it exactly. Both start at\n        the given sill height. Prefer
+      this to create_fenestration whenever\n        the specification gives window-to-wall
+      ratios; call it once per\n        ratio, pattern, facing and group of plans
+      or zones.\n\n        Args:\n            window_to_wall_ratio: Window area over
+      wall area, e.g. 0.4.\n            construction_name: Existing window construction.\n            plans:
+      Zone plan keys: every zone made from these plans, on every\n                storey,
+      gets windows.\n            zone_names: Zones whose outdoor walls get windows.
+      Give plans,\n                zone_names or both; for every zone, list every
+      plan.\n            facings: Compass directions of the walls; all when omitted.\n            sill_height:
+      Height of the window bottom above the floor, in m.\n            pattern: ''ribbon''
+      for continuous bands or curtain walls,\n                ''punched'' for separate
+      windows.\n            window_width: Width of one punched window, in m.\n            window_height:
+      Height of one punched window, in m.","parameters":{"properties":{"window_to_wall_ratio":{"type":"number"},"construction_name":{"type":"string"},"plans":{"anyOf":[{"items":{"type":"string"},"type":"array"},{"type":"null"}],"default":null},"zone_names":{"anyOf":[{"items":{"type":"string"},"type":"array"},{"type":"null"}],"default":null},"facings":{"anyOf":[{"items":{"enum":["North","East","South","West"],"type":"string"},"type":"array"},{"type":"null"}],"default":null},"sill_height":{"default":0.8,"type":"number"},"pattern":{"default":"ribbon","enum":["ribbon","punched"],"type":"string"},"window_width":{"default":1.2,"type":"number"},"window_height":{"default":1.5,"type":"number"}},"required":["window_to_wall_ratio","construction_name"],"type":"object"}}},{"type":"function","function":{"name":"create_fenestration","description":"Create
       a FenestrationSurface:Detailed (window/door).\n\n        Args:\n            name:
       Unique fenestration name.\n            surface_type: Window / Door / GlassDoor.\n            construction_name:
       Existing construction: a window construction for\n                Window and
@@ -214,7 +239,7 @@ interactions:
       is needed and for what, e.g. ''a window construction (kind window) for the office
       windows''","type":"string"}},"required":["kind","description"],"type":"object"},"type":"array"},"fenestration_names":{"description":"Names
       of all fenestration surfaces created","items":{"type":"string"},"type":"array"},"summary":{"description":"One-line
-      summary of the fenestration creation result","type":"string"}},"required":["fenestration_names","summary"],"type":"object"}}}],"reasoning":{"max_tokens":4096}}'
+      summary of the fenestration creation result","type":"string"}},"required":["fenestration_names","summary"],"type":"object"}}}],"reasoning":{"max_tokens":1024}}'
     headers:
       accept:
       - application/json
@@ -223,7 +248,7 @@ interactions:
       connection:
       - keep-alive
       content-length:
-      - '8941'
+      - '10079'
       content-type:
       - application/json
       user-agent:
@@ -238,8 +263,6 @@ interactions:
       - Linux
       x-stainless-package-version:
       - 2.52.0
-      x-stainless-raw-response:
-      - 'true'
       x-stainless-read-timeout:
       - '120.0'
       x-stainless-retry-count:
@@ -252,44 +275,33 @@ interactions:
     uri: https://llm.invalid/v1/chat/completions
   response:
     body:
-      string: !!binary |
-        KLUv/QBYPTgASoA0GSbQROR6wFuajuBB004iG+rT/ouv5HfcCd2pZptDoU4QuZpBnXrABIABiwGN
-        AX+feqBP/t35NVsu0PfnpySAggJdEEBBhOmBMqoEpEGBJfBgeqDUA4MH0wMRPTCYIoEI0wOkHiAY
-        gOkBmJv9v/zizp+bG31jWJK2/Vx7POGry/ZQIonfD7fe1AMDPSD7s+2jZF33KKH82IcSbnYUXUig
-        Tg9gemCAQGMa/i1n4/Td+/0wbzkqwTRnd6sJsIGuoomaKMm6btNsY1Rjmrvz1wQDsLTtrYf3uuEY
-        5S//rW/3hzsMb41pvvpXE2CapxuGOasHmrF4hBJ+6X+3eqDhdd2mZPX+a0y3Ht78lVDg3nYUnvjX
-        Tf2qBw+mMfxsuyYYgGmYm91TTD3Qf403ys/+Jdzsl5fDerCucYvp3/bXfXnadlTC8g/PsB5og8b0
-        y89+8a+rB5oC7xUVYAlIAnrbWZ46fE29TzWmV356Vg8wffK/+WvqgW59/3x1WW8K/E0xNaa/ySsT
-        rweaYjCoh/FUrI1Z9drmnqewBFCUVE0UdFWQgJanGtNn1wQBAAgQAIAAARQYq2iG7O4zb7FPTzxF
-        J6YyZU3ppWNCjjdMxRD9pvHgyvR3j4Fb++stFLCTL6ijdt/0iEV5gohEjYTT58tcDA960OV0JDq5
-        u0bX0KFuBWRlvv4GZlRcHRvp3hUTJyi62zhJnZOSfTsQ5M98kY0iROaJh9joCAn3USmvMKWUarQQ
-        H70LIwfmG99tTZDwm7FCECIRLJDjcVKP3VZF25BbpQ0veCHG8KNxHxiqZYbRgN+zOBh+hsH5bI78
-        aKfcOmQsB9MtI8e1yX9mY8SrKbydmLsDwTJlPgKnbly1x4qsffTGsCnP9yswQHHl4ATKDG4+nJEC
-        CTood4iolsIiiRSmn95gZeRncDJogqQgDtu3JjnDWQwUebommXOiVMXzTOldLHSF2FB1NAeHJ83R
-        u+R55tCqCgLnfhh78Fgu1kdFdD7UZQhFoy5X7FglBZy9OpnKiuBdwt88QEahJDcsagnIwQFFPMUl
-        MullnLTdHVNLCJnaIQs5z0qgBlrRe1EgfMTSuFv2nQbalxXJNKZ3YNx91KpZn7TADN64gsOHOKVc
-        yipCWNXPne5h0tqN9C4FcamkCOpruPTJqBaVMuyhYii5oOpwrGqakKQcTdzJa1UHIZwxc8oEyH0e
-        RazepkM+w0dhJ3cjZKFVEN03uhbcMyGqZxQHeim0lQY/qLXKpccV7SU2KvMlOSbHt5hELGOVNZPJ
-        K1SuAQLvVqrGxEMhpNAzWA5Mq3huUFFsuR6Fwatz4RQpl6h7YvSJESHccjPDQsnUUysGTsaoFTRz
-        Rd9KZo7P4k/uMfgTsl/O6qTYa2ASMRwjuDStVcklCpAuzTAnFNL3NyzOOHAdflgiDAbKP5euT1Ef
-        wq1YIIQ54m5fjaruWhHsB0Fpiinjh9tVbuTByBRaEgJ1h0SknBxliU4hD1LUuyqSlYxuKHs8ECbC
-        kOiH1mJheULtJNUiGmrUItmI6BoMMNGQX85dTOQps0DGBFL5C/LW+VPK61Mbi+6c6WRcqISenrA5
-        efmGkCrnQCyUfH0LKtAJqE1kpcVolOObXvNQzC0LRTCNifDMHgUFBelmux5IlVQwUZUET9AUDabH
-        iqjnEZBws+UvR9suYTd/P+zGBfzsF9/PePPfX1kyeE5OMbepCXj8fkyrfp5I4P5hb+rBVUHRur//
-        ehA9kx5UFQVhGm656r/ku6x/3TiAAg1dBPA19T7VmP6bfT2qBzqU3Vda/Te+m30MFYU3EiCerGEs
-        mznZMwgWPoOL5+WwVmWiKBa7h80HoRktcpG/x1Idwtj0IG7ZIxzKohw68xaOIfn4zYNJiGoJbRnM
-        ms52doatnBzWVL0UibjMgWTsJ9sYLPmIsKzWxU19fNVZDSPb4wpaDIytlKUD6MaxDzOQgcogqnKr
-        XEqaTSQiU4qEjPBFupiIgMGcGfx1F4YaC40MghG58D6VZfO/RKGaVLxCBoUIM9q0kapVFzmpZCyP
-        8+Gdg9R807nYqBdta/xdwZaRRVXZMlKDsyfEuY04edPjgBrfJrGjws0iW1ob3zFcHAiNfc+FYeLE
-        DQtNGeiyvClDKgtLNh0i7tLHoxQRSFLZxjUY7wYJRKgxGVIIGUVoohERKZKaA0CCRFkxdBIogziQ
-        UzEUTDDR1NatvwH6/eIU52YfXrlzM6+OB6xa3MQXbY5LHj1/uQOoGw7Q4NIe17xLAJFEOa9pQ7rd
-        INJWyNO1NoTiPGniFU29SdlMSxbrQhHQNFZNXAvNXcE7PgKH5gQyvQDFhtuPy8u84IVAzmb3CHn6
-        OiYpPyAlSw3qbAxgUGD7VWhsaVq1QQTJ4Sk6hEiv1wOyv5RkFXibmwM=
+      string: 'data: {"id":"gen-1792566602-i2TDy6Or5hjWVC9fOyfw","object":"chat.completion.chunk","created":1792566602,"model":"google/gemini-3.8-flash","provider":"Google
+        AI Studio","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":null,"reasoning_details":[{"type":"reasoning.encrypted","data":"EmkKZwFpFH0TniX7UfA4bP4uQFlsk7QI+tOAlp1cpI9dHo8SJ777gjqYXjneS8CFfTEOAxkWoKV7XCqriLl3FugB7lD7pNAhAbOMqtRPni7+W54TGTsWfc1pb0P/CnInrAa8DCr7aiisEWg=","format":"google-gemini-v1","id":"call_1288422","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+
+        data: {"id":"gen-1792566602-i2TDy6Or5hjWVC9fOyfw","object":"chat.completion.chunk","created":1792566602,"model":"google/gemini-3.8-flash","provider":"Google
+        AI Studio","choices":[{"index":0,"delta":{"content":null,"role":"assistant","tool_calls":[{"index":0,"id":"call_1288422","type":"function","function":{"name":"create_fenestration","arguments":""}}]},"finish_reason":null,"native_finish_reason":null}]}
+
+
+        data: {"id":"gen-1792566602-i2TDy6Or5hjWVC9fOyfw","object":"chat.completion.chunk","created":1792566602,"model":"google/gemini-3.8-flash","provider":"Google
+        AI Studio","choices":[{"index":0,"delta":{"content":null,"role":"assistant","tool_calls":[{"index":0,"function":{"arguments":"{\"building_surface_name\":\"F1_Office_South_Wall\",\"surface_type\":\"Window\",\"vertices\":[{\"X\":2.25,\"Y\":0,\"Z\":0.8},{\"X\":3.75,\"Y\":0,\"Z\":0.8},{\"Z\":2,\"Y\":0,\"X\":3.75},{\"Y\":0,\"X\":2.25,\"Z\":2}],\"name\":\"F1_Office_South_Wall_Window\",\"construction_name\":\"Window_Simple\"}"}}]},"finish_reason":null,"native_finish_reason":null}]}
+
+
+        data: {"id":"gen-1792566602-i2TDy6Or5hjWVC9fOyfw","object":"chat.completion.chunk","created":1792566602,"model":"google/gemini-3.8-flash","provider":"Google
+        AI Studio","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":null},"finish_reason":"tool_calls","native_finish_reason":"STOP"}]}
+
+
+        data: {"id":"gen-1792566602-i2TDy6Or5hjWVC9fOyfw","object":"chat.completion.chunk","created":1792566602,"model":"google/gemini-3.8-flash","provider":"Google
+        AI Studio","service_tier":"flex","choices":[{"index":0,"delta":{"content":"","role":"assistant"},"finish_reason":"tool_calls","native_finish_reason":"STOP"}],"usage":{"prompt_tokens":2496,"completion_tokens":129,"total_tokens":2625,"cost":0.001177875,"is_byok":false,"prompt_tokens_details":{"cached_tokens":0,"cache_write_tokens":0,"audio_tokens":0,"video_tokens":0},"cost_details":{"upstream_inference_cost":0.001177875,"upstream_inference_prompt_cost":0.000936,"upstream_inference_completions_cost":0.000241875},"completion_tokens_details":{"reasoning_tokens":0,"image_tokens":0,"audio_tokens":0}}}
+
+
+        data: [DONE]
+
+
+        '
     headers:
-      content-encoding:
-      - zstd
       content-type:
-      - application/json
+      - text/event-stream
     status:
       code: 200
       message: OK
@@ -298,15 +310,18 @@ interactions:
       fenestration specifications, create FenestrationSurface:Detailed\nobjects (windows,
       doors) on existing parent surfaces.\n\nWorkflow:\n1. Call `list_constructions`;
       each entry has a `kind`.\n2. Windows given by window-to-wall ratio (the usual
-      case): call\n   `create_windows_by_ratio` once per ratio, with the facings and
-      zones it\n   applies to. It sizes and places a strip window on every matching\n   exterior
-      wall; walls it reports in `not_created` (too small for the\n   ratio) get no
-      window, which is acceptable.\n3. Only for openings with given sizes or positions
-      (doors, a specific\n   window): call `list_surfaces` FILTERED to the zone and
-      type you need\n   (never unfiltered: large buildings have hundreds of surfaces),
-      then\n   `create_fenestration` with corners on that surface.\nThe replies of
-      the create tools are final: do not list the openings\nagain at the end.\n\nRules:\n-
-      Construction names MUST appear verbatim in the list_constructions\n  result.
+      case): call\n   `create_windows_by_ratio` once per ratio, pattern, window size
+      and\n   construction, with the facings and the zone plans (`plans`, by key:\n   every
+      zone of the plan on every storey) or zones it applies to; one\n   call can cover
+      several plans. It sizes and places a strip window\n   (`pattern` ''ribbon'')
+      or evenly spaced windows of the given size\n   (''punched'') on every matching
+      exterior wall; walls it reports in\n   `not_created` (too small for the ratio)
+      get no window, which is\n   acceptable.\n3. Only for openings with given sizes
+      or positions (doors, a specific\n   window): call `list_surfaces` FILTERED to
+      the zone and type you need\n   (never unfiltered: large buildings have hundreds
+      of surfaces), then\n   `create_fenestration` with corners on that surface.\nThe
+      replies of the create tools are final: do not list the openings\nagain at the
+      end.\n\nRules:\n- Construction names MUST appear verbatim in the list_constructions\n  result.
       If one is missing (e.g. no construction of kind `window`), do\n  NOT invent
       a name and do NOT list again: give your final answer at once,\n  with it in
       `missing_inputs`.\n- Window and GlassDoor need a construction of kind `window`;
@@ -318,38 +333,44 @@ interactions:
       a\n  ratio, use 0.3-0.4 on facade walls.\n","role":"system"},{"content":"Create
       exactly one window named ''F1_Office_South_Wall_Window'' on surface ''F1_Office_South_Wall''
       with construction ''Window_Simple'': 1.5m wide x 1.2m tall, centered horizontally,
-      sill at 0.8m.","role":"user"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_445740","function":{"name":"list_constructions","arguments":"{}"}},{"type":"function","id":"call_445743","function":{"name":"list_surfaces","arguments":"{\"surface_type\":
+      sill at 0.8m.","role":"user"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_922326","function":{"name":"list_constructions","arguments":"{}"}},{"type":"function","id":"call_922332","function":{"name":"list_surfaces","arguments":"{\"surface_type\":
       \"Wall\"}"}}]},{"content":"{\"success\": true, \"message\": \"Listed 2 constructions.\",
       \"data\": [{\"kind\": \"opaque\", \"name\": \"ExtWall_Simple\", \"outside_layer\":
       \"Brick_100mm\"}, {\"kind\": \"window\", \"name\": \"Window_Simple\", \"outside_layer\":
-      \"Glass_U18\"}]}","role":"tool","tool_call_id":"call_445740"},{"content":"{\"success\":
+      \"Glass_U18\"}]}","role":"tool","tool_call_id":"call_922326"},{"content":"{\"success\":
       true, \"message\": \"Listed 1 surfaces.\", \"data\": [{\"name\": \"F1_Office_South_Wall\",
       \"zone\": \"F1_Office\", \"type\": \"Wall\", \"boundary\": \"Outdoors\", \"construction\":
       \"ExtWall_Simple\", \"facing\": \"South\", \"area\": 18.0, \"corners\": [[0.0,
-      0.0, 3.0], [0.0, 0.0, 0.0], [6.0, 0.0, 0.0], [6.0, 0.0, 3.0]]}]}","role":"tool","tool_call_id":"call_445743"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_656527","function":{"name":"create_fenestration","arguments":"{\"name\":
-      \"F1_Office_South_Wall_Window\", \"construction_name\": \"Window_Simple\", \"building_surface_name\":
+      0.0, 3.0], [0.0, 0.0, 0.0], [6.0, 0.0, 0.0], [6.0, 0.0, 3.0]]}]}","role":"tool","tool_call_id":"call_922332"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_1288422","function":{"name":"create_fenestration","arguments":"{\"building_surface_name\":
       \"F1_Office_South_Wall\", \"surface_type\": \"Window\", \"vertices\": [{\"X\":
-      2.25, \"Y\": 0, \"Z\": 0.8}, {\"X\": 3.75, \"Y\": 0, \"Z\": 0.8}, {\"X\": 3.75,
-      \"Y\": 0, \"Z\": 2}, {\"Z\": 2, \"Y\": 0, \"X\": 2.25}]}"}}]},{"content":"{\"success\":
-      true, \"message\": \"Fenestration ''F1_Office_South_Wall_Window'' created.\",
-      \"data\": [{\"name\": \"F1_Office_South_Wall_Window\", \"surface_type\": \"Window\",
-      \"construction_name\": \"Window_Simple\", \"building_surface_name\": \"F1_Office_South_Wall\",
-      \"view_factor_to_ground\": \"Autocalculate\", \"multiplier\": 1.0, \"number_of_vertices\":
-      4.0, \"vertex_1_x_coordinate\": 2.25, \"vertex_1_y_coordinate\": 0.0, \"vertex_1_z_coordinate\":
-      0.8, \"vertex_2_x_coordinate\": 3.75, \"vertex_2_y_coordinate\": 0.0, \"vertex_2_z_coordinate\":
-      0.8, \"vertex_3_x_coordinate\": 3.75, \"vertex_3_y_coordinate\": 0.0, \"vertex_3_z_coordinate\":
-      2.0, \"vertex_4_x_coordinate\": 2.25, \"vertex_4_y_coordinate\": 0.0, \"vertex_4_z_coordinate\":
-      2.0}]}","role":"tool","tool_call_id":"call_656527"}],"model":"google/gemini-3.8-flash","max_completion_tokens":16384,"parallel_tool_calls":false,"stream":false,"temperature":0.7,"tool_choice":"required","tools":[{"type":"function","function":{"name":"create_windows_by_ratio","description":"Put
-      one strip window on every matching exterior wall, sized by ratio.\n\n        The
-      window spans the wall''s width (5 cm clearance at each edge) at\n        the
-      given sill height, as high as the ratio needs. Prefer this to\n        create_fenestration
-      whenever the specification gives window-to-wall\n        ratios; call it once
-      per ratio, facing and zone group.\n\n        Args:\n            window_to_wall_ratio:
-      Window area over wall area, e.g. 0.4.\n            construction_name: Existing
-      window construction.\n            zone_names: Zones whose outdoor walls get
-      windows; all when omitted.\n            facings: Compass directions of the walls;
-      all when omitted.\n            sill_height: Height of the window bottom above
-      the floor, in m.","parameters":{"properties":{"window_to_wall_ratio":{"type":"number"},"construction_name":{"type":"string"},"zone_names":{"anyOf":[{"items":{"type":"string"},"type":"array"},{"type":"null"}],"default":null},"facings":{"anyOf":[{"items":{"enum":["North","East","South","West"],"type":"string"},"type":"array"},{"type":"null"}],"default":null},"sill_height":{"default":0.8,"type":"number"}},"required":["window_to_wall_ratio","construction_name"],"type":"object"}}},{"type":"function","function":{"name":"create_fenestration","description":"Create
+      2.25, \"Y\": 0, \"Z\": 0.8}, {\"X\": 3.75, \"Y\": 0, \"Z\": 0.8}, {\"Z\": 2,
+      \"Y\": 0, \"X\": 3.75}, {\"Y\": 0, \"X\": 2.25, \"Z\": 2}], \"name\": \"F1_Office_South_Wall_Window\",
+      \"construction_name\": \"Window_Simple\"}"}}]},{"content":"{\"success\": true,
+      \"message\": \"Fenestration ''F1_Office_South_Wall_Window'' created.\", \"data\":
+      [{\"name\": \"F1_Office_South_Wall_Window\", \"surface_type\": \"Window\", \"construction_name\":
+      \"Window_Simple\", \"building_surface_name\": \"F1_Office_South_Wall\", \"view_factor_to_ground\":
+      \"Autocalculate\", \"multiplier\": 1.0, \"number_of_vertices\": 4.0, \"vertex_1_x_coordinate\":
+      2.25, \"vertex_1_y_coordinate\": 0.0, \"vertex_1_z_coordinate\": 0.8, \"vertex_2_x_coordinate\":
+      3.75, \"vertex_2_y_coordinate\": 0.0, \"vertex_2_z_coordinate\": 0.8, \"vertex_3_x_coordinate\":
+      3.75, \"vertex_3_y_coordinate\": 0.0, \"vertex_3_z_coordinate\": 2.0, \"vertex_4_x_coordinate\":
+      2.25, \"vertex_4_y_coordinate\": 0.0, \"vertex_4_z_coordinate\": 2.0}]}","role":"tool","tool_call_id":"call_1288422"}],"model":"google/gemini-3.8-flash","max_completion_tokens":32768,"parallel_tool_calls":false,"stream":true,"temperature":1.0,"tool_choice":"required","tools":[{"type":"function","function":{"name":"create_windows_by_ratio","description":"Put
+      windows on every matching exterior wall, sized by ratio.\n\n        A ribbon
+      is one strip window spanning the wall''s width (5 cm\n        clearance at each
+      edge), as high as the ratio needs. Punched windows\n        are evenly spaced
+      window_width x window_height windows, as many as\n        the ratio holds, scaled
+      alike to cover it exactly. Both start at\n        the given sill height. Prefer
+      this to create_fenestration whenever\n        the specification gives window-to-wall
+      ratios; call it once per\n        ratio, pattern, facing and group of plans
+      or zones.\n\n        Args:\n            window_to_wall_ratio: Window area over
+      wall area, e.g. 0.4.\n            construction_name: Existing window construction.\n            plans:
+      Zone plan keys: every zone made from these plans, on every\n                storey,
+      gets windows.\n            zone_names: Zones whose outdoor walls get windows.
+      Give plans,\n                zone_names or both; for every zone, list every
+      plan.\n            facings: Compass directions of the walls; all when omitted.\n            sill_height:
+      Height of the window bottom above the floor, in m.\n            pattern: ''ribbon''
+      for continuous bands or curtain walls,\n                ''punched'' for separate
+      windows.\n            window_width: Width of one punched window, in m.\n            window_height:
+      Height of one punched window, in m.","parameters":{"properties":{"window_to_wall_ratio":{"type":"number"},"construction_name":{"type":"string"},"plans":{"anyOf":[{"items":{"type":"string"},"type":"array"},{"type":"null"}],"default":null},"zone_names":{"anyOf":[{"items":{"type":"string"},"type":"array"},{"type":"null"}],"default":null},"facings":{"anyOf":[{"items":{"enum":["North","East","South","West"],"type":"string"},"type":"array"},{"type":"null"}],"default":null},"sill_height":{"default":0.8,"type":"number"},"pattern":{"default":"ribbon","enum":["ribbon","punched"],"type":"string"},"window_width":{"default":1.2,"type":"number"},"window_height":{"default":1.5,"type":"number"}},"required":["window_to_wall_ratio","construction_name"],"type":"object"}}},{"type":"function","function":{"name":"create_fenestration","description":"Create
       a FenestrationSurface:Detailed (window/door).\n\n        Args:\n            name:
       Unique fenestration name.\n            surface_type: Window / Door / GlassDoor.\n            construction_name:
       Existing construction: a window construction for\n                Window and
@@ -383,7 +404,7 @@ interactions:
       is needed and for what, e.g. ''a window construction (kind window) for the office
       windows''","type":"string"}},"required":["kind","description"],"type":"object"},"type":"array"},"fenestration_names":{"description":"Names
       of all fenestration surfaces created","items":{"type":"string"},"type":"array"},"summary":{"description":"One-line
-      summary of the fenestration creation result","type":"string"}},"required":["fenestration_names","summary"],"type":"object"}}}],"reasoning":{"max_tokens":4096}}'
+      summary of the fenestration creation result","type":"string"}},"required":["fenestration_names","summary"],"type":"object"}}}],"reasoning":{"max_tokens":1024}}'
     headers:
       accept:
       - application/json
@@ -392,7 +413,7 @@ interactions:
       connection:
       - keep-alive
       content-length:
-      - '10229'
+      - '11369'
       content-type:
       - application/json
       user-agent:
@@ -407,8 +428,6 @@ interactions:
       - Linux
       x-stainless-package-version:
       - 2.52.0
-      x-stainless-raw-response:
-      - 'true'
       x-stainless-read-timeout:
       - '120.0'
       x-stainless-retry-count:
@@ -421,26 +440,35 @@ interactions:
     uri: https://llm.invalid/v1/chat/completions
   response:
     body:
-      string: !!binary |
-        KLUv/QBYnRcAZvKXKMBUsQ7WMjVSfXk1voXM6lcAACAgEQHwJzXDMMivuTuYTxAEQSTbLgSGAIIA
-        lABOehdpq8qDON5xR2mzePc8N3i1JXPVUXZu47s5t/qeq7zabazKq6Kd8QffXeHvty3ZsVe7e4bh
-        vCSaSUUiq6SNDfTErMX+Ptuy9O7d6gz7xrtXK3NPjdo4yTCLf8+xPzzs3TGTocFSIRSLEImRA2hF
-        4kY1kilTyVwwE5WZJLWxv1vyIIAIIBhVljdLUXWU1xVRTQnncLxzcFNYq+sc0N9xrk037MK7N65W
-        wz1RrczwZty1E/7eFNaDnjuFYsFMmGpOGGPdrr+39skHcTysymoxnBBvV9/O1VaYscQY/r2nvQe9
-        NwYxbnr3TUQFRdUdmWG9O54Txmpam/9eLYZ9qwzLKi/sYa+G2fmSpTaUBYMD3kipPyzFMHUqJCVq
-        lN3sxVjIZBlBBbOxkKHkEIlpUdHIcmCClEaD4O8wQ+vuVmftc2PtiYS5raojFHronElAtRHVTKQo
-        Z5jsLJpT4ijL0hN95oS52hF5bRZZfTvXjlFAQOSJKGUyRSIRvUymyOCcd87nQko3fI7ryJtWZYVV
-        ibGk57iOczzWqhKjmhMGoVAIg1TehS4WjIQtFYriqMylIkmTqmPt21eVFYV9M9a2UFuyY6W1wc7y
-        eionWZ1FGA/q7eZ3EPvxqLDM2MY7ikWiTJhtvsNo7jAXanrHtUFsrrJG7dW2jtCnjiRDeu119wQK
-        iU+BR1KLhfGxDMzsIWNBNGwyaITmAWmG2mRg8kJgHShMjYAR4anxQ1k0ExmSoHMhEDggMILFnNkB
-        9lkNu6FICujMARwl5WZ4AzfLp/YNrjNgTvnRbnzgBrjBYGQqp7W8VAMnLHyVHZsLiFb7NiNQuRy7
-        gKPZfGl05bzIASL8/5/nGzGZIqAikEkWN8cHIBUoImCFQg2gWYq9MBIMtLQPihbGIQAlV/viIr8t
-        hkY1JBFUeDyiB4FUXj0CCG1LycL4Aiw=
+      string: 'data: {"id":"gen-1792566605-DBnWZEbJ8ZDp6t88wc9R","object":"chat.completion.chunk","created":1792566605,"model":"google/gemini-3.8-flash","provider":"Google
+        AI Studio","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":null,"reasoning_details":[{"type":"reasoning.encrypted","data":"EiYKJGUyNDgzMGE3LTVjZDYtNDJmZS05OThiLWVlNTM5ZTcyYjljMw==","format":"google-gemini-v1","id":"call_1121163","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+
+        data: {"id":"gen-1792566605-DBnWZEbJ8ZDp6t88wc9R","object":"chat.completion.chunk","created":1792566605,"model":"google/gemini-3.8-flash","provider":"Google
+        AI Studio","choices":[{"index":0,"delta":{"content":null,"role":"assistant","tool_calls":[{"index":0,"id":"call_1121163","type":"function","function":{"name":"FenestrationResponse","arguments":""}}]},"finish_reason":null,"native_finish_reason":null}]}
+
+
+        data: {"id":"gen-1792566605-DBnWZEbJ8ZDp6t88wc9R","object":"chat.completion.chunk","created":1792566605,"model":"google/gemini-3.8-flash","provider":"Google
+        AI Studio","choices":[{"index":0,"delta":{"content":null,"role":"assistant","tool_calls":[{"index":0,"function":{"arguments":"{\"missing_inputs\":[],\"fenestration_names\":[\"F1_Office_South_Wall_Window\"],\"summary\":\"Created
+        1.5m x 1.2m window ''F1_Office_South_Wall_Window'' centered horizontally with
+        sill at 0.8m on F1_Office_South_Wall.\"}"}}]},"finish_reason":null,"native_finish_reason":null}]}
+
+
+        data: {"id":"gen-1792566605-DBnWZEbJ8ZDp6t88wc9R","object":"chat.completion.chunk","created":1792566605,"model":"google/gemini-3.8-flash","provider":"Google
+        AI Studio","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":null},"finish_reason":"tool_calls","native_finish_reason":"STOP"}]}
+
+
+        data: {"id":"gen-1792566605-DBnWZEbJ8ZDp6t88wc9R","object":"chat.completion.chunk","created":1792566605,"model":"google/gemini-3.8-flash","provider":"Google
+        AI Studio","service_tier":"flex","choices":[{"index":0,"delta":{"content":"","role":"assistant"},"finish_reason":"tool_calls","native_finish_reason":"STOP"}],"usage":{"prompt_tokens":2877,"completion_tokens":85,"total_tokens":2962,"cost":0.00123825,"is_byok":false,"prompt_tokens_details":{"cached_tokens":0,"cache_write_tokens":0,"audio_tokens":0,"video_tokens":0},"cost_details":{"upstream_inference_cost":0.00123825,"upstream_inference_prompt_cost":0.001078875,"upstream_inference_completions_cost":0.000159375},"completion_tokens_details":{"reasoning_tokens":0,"image_tokens":0,"audio_tokens":0}}}
+
+
+        data: [DONE]
+
+
+        '
     headers:
-      content-encoding:
-      - zstd
       content-type:
-      - application/json
+      - text/event-stream
     status:
       code: 200
       message: OK

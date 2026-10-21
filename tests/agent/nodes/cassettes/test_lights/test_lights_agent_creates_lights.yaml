@@ -6,29 +6,33 @@ interactions:
       to see the exact zone names.\n2. FIRST call `list_schedules` to see the exact
       Schedule:Compact names\n   (you need a lighting fraction schedule).\n3. Call
       `create_lights` once per group of zones with the same schedule\n   and values,
-      listing the zones in `zone_names`. Its reply names only\n   zones that failed;
-      the rest got their object. Do not list afterwards.\n\nRules:\n- Zone names and
-      `schedule_name` MUST appear verbatim in the list_zones /\n  list_schedules results.\n-
-      If a needed zone or schedule is missing, do NOT invent a name and do NOT\n  list
-      again: give your final answer at once, with it in `missing_inputs`.\n- Objects
-      are named ''{zone}_Lights''; `name_suffix` changes the suffix,\n  e.g. for a
-      second Lights object in a zone.\n- design_level_calculation_method:\n    * ''LightingLevel''
-      -> supply lighting_level (W, absolute)\n    * ''Watts/Area'' -> supply watts_per_floor_area
-      (W/m^2)\n    * ''Watts/Person'' -> supply watts_per_person (W/person)\n- Typical
-      office LPD: 8-12 W/m^2 (Watts/Area). Use 10 when unspecified.\n- fraction_radiant
-      ~ 0.7 for recessed fluorescent/LED, 0.42 for pendant.\n- fraction_visible ~
-      0.18 for LED.\n","role":"system"},{"content":"Create exactly one Lights object
+      listing the zones by plan key in `plans` (every zone of\n   the plan on every
+      storey) or by name in `zone_names`. Its reply names\n   only zones that failed;
+      the rest got their object. Do not list\n   afterwards.\n\nRules:\n- Zone names
+      and `schedule_name` MUST appear verbatim in the list_zones /\n  list_schedules
+      results.\n- If a needed zone or schedule is missing, do NOT invent a name and
+      do NOT\n  list again: give your final answer at once, with it in `missing_inputs`.\n-
+      Objects are named ''{zone}_Lights''; `name_suffix` changes the suffix,\n  e.g.
+      for a second Lights object in a zone.\n- design_level_calculation_method:\n    *
+      ''LightingLevel'' -> supply lighting_level (W, absolute)\n    * ''Watts/Area''
+      -> supply watts_per_floor_area (W/m^2)\n    * ''Watts/Person'' -> supply watts_per_person
+      (W/person)\n- Typical office LPD: 8-12 W/m^2 (Watts/Area). Use 10 when unspecified.\n-
+      fraction_radiant ~ 0.7 for recessed fluorescent/LED, 0.42 for pendant.\n- fraction_visible
+      ~ 0.18 for LED.\n","role":"system"},{"content":"Create exactly one Lights object
       named ''F1_Office_Lights'' for zone ''F1_Office'': method Watts/Area at 10 W/m2,
-      schedule ''Office_Lighting''.","role":"user"}],"model":"google/gemini-3.8-flash","max_completion_tokens":16384,"parallel_tool_calls":false,"stream":false,"temperature":0.7,"tool_choice":"required","tools":[{"type":"function","function":{"name":"create_lights","description":"Create
+      schedule ''Office_Lighting''.","role":"user"}],"model":"google/gemini-3.8-flash","max_completion_tokens":32768,"parallel_tool_calls":false,"stream":true,"temperature":1.0,"tool_choice":"required","tools":[{"type":"function","function":{"name":"create_lights","description":"Create
       one Lights object, named ''<zone>_<name_suffix>'', per zone.\n\n        Call
-      it once per group of zones with the same values.\n\n        Args:\n            zone_names:
-      Existing Zone names.\n            schedule_name: Existing Schedule:Compact (Fraction).\n            design_level_calculation_method:
+      it once per group of zones with the same values.\n\n        Args:\n            plans:
+      Zone plan keys: every zone made from these plans, on\n                every
+      storey. Give plans, zone_names or both.\n            zone_names: Existing Zone
+      names.\n            schedule_name: Existing Schedule:Compact (Fraction).\n            design_level_calculation_method:
       LightingLevel / Watts/Area / Watts/Person.\n            lighting_level: Absolute
       watts (when method=LightingLevel).\n            watts_per_floor_area: W/m^2
       (when method=Watts/Area).\n            watts_per_person: W/person (when method=Watts/Person).\n            fraction_radiant:
       Radiant fraction (0-1).\n            fraction_visible: Visible light fraction
-      (0-1).\n            name_suffix: Name suffix; give another one for a second
-      Lights\n                object in the same zones.","parameters":{"properties":{"zone_names":{"items":{"type":"string"},"type":"array"},"schedule_name":{"type":"string"},"design_level_calculation_method":{"default":"Watts/Area","enum":["LightingLevel","Watts/Area","Watts/Person"],"type":"string"},"lighting_level":{"default":0.0,"type":"number"},"watts_per_floor_area":{"default":0.0,"type":"number"},"watts_per_person":{"default":0.0,"type":"number"},"fraction_radiant":{"default":0.0,"type":"number"},"fraction_visible":{"default":0.0,"type":"number"},"name_suffix":{"default":"Lights","type":"string"}},"required":["zone_names","schedule_name"],"type":"object"}}},{"type":"function","function":{"name":"list_lights","description":"List
+      (0-1); with the radiant\n                fraction at most 1, the rest being
+      convected.\n            name_suffix: Name suffix; give another one for a second
+      Lights\n                object in the same zones.","parameters":{"properties":{"schedule_name":{"type":"string"},"plans":{"anyOf":[{"items":{"type":"string"},"type":"array"},{"type":"null"}],"default":null},"zone_names":{"anyOf":[{"items":{"type":"string"},"type":"array"},{"type":"null"}],"default":null},"design_level_calculation_method":{"default":"Watts/Area","enum":["LightingLevel","Watts/Area","Watts/Person"],"type":"string"},"lighting_level":{"anyOf":[{"type":"number"},{"type":"null"}],"default":null},"watts_per_floor_area":{"anyOf":[{"type":"number"},{"type":"null"}],"default":null},"watts_per_person":{"anyOf":[{"type":"number"},{"type":"null"}],"default":null},"fraction_radiant":{"default":0.0,"type":"number"},"fraction_visible":{"default":0.0,"type":"number"},"name_suffix":{"default":"Lights","type":"string"}},"required":["schedule_name"],"type":"object"}}},{"type":"function","function":{"name":"list_lights","description":"List
       Lights objects: name, zone, schedule and level.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"delete_light","description":"Delete
       a Lights object.","parameters":{"properties":{"name":{"type":"string"}},"required":["name"],"type":"object"}}},{"type":"function","function":{"name":"list_zones","description":"List
       zone names a Lights load can use.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"list_schedules","description":"List
@@ -40,7 +44,7 @@ interactions:
       is needed and for what, e.g. ''a window construction (kind window) for the office
       windows''","type":"string"}},"required":["kind","description"],"type":"object"},"type":"array"},"lights_names":{"description":"Names
       of all Lights objects created","items":{"type":"string"},"type":"array"},"summary":{"description":"One-line
-      summary of the lights creation result","type":"string"}},"required":["lights_names","summary"],"type":"object"}}}],"max_thinking_budget":4096}'
+      summary of the lights creation result","type":"string"}},"required":["lights_names","summary"],"type":"object"}}}],"reasoning":{"max_tokens":1024}}'
     headers:
       accept:
       - application/json
@@ -49,7 +53,7 @@ interactions:
       connection:
       - keep-alive
       content-length:
-      - '4861'
+      - '5375'
       content-type:
       - application/json
       user-agent:
@@ -64,8 +68,6 @@ interactions:
       - Linux
       x-stainless-package-version:
       - 2.52.0
-      x-stainless-raw-response:
-      - 'true'
       x-stainless-read-timeout:
       - '120.0'
       x-stainless-retry-count:
@@ -78,31 +80,41 @@ interactions:
     uri: https://llm.invalid/v1/chat/completions
   response:
     body:
-      string: !!binary |
-        KLUv/QBY9SAAqkhADijQRtI8vGch8BcTYiRMwFmWarXu7a4mjVo0tQTQbakOlHl4wRXqkHsmygDY
-        AOYAOs/OL+fzt69Y7ydtX+3kvIpPPWVSYNFU0O0zP/Uc40k1WOv+22fNZ90aDr/5hnyj92g1fqra
-        XlTBfJ9EYHte6dUc+tR3TM6wgrdrKr2gXflTGJN5+57vHne1+YYasXZe8qdeX5DslgAdIgDjt98V
-        vCC9x6eewycOBzKCwsDNV6xWQMVWa/vb4wpq8antwdpn3fSpz/r2ikdRU4I+OfS377R2NvqpN9j0
-        AieSgYy2wsEtkPBg4SUGCgQMuy5LO1gDudrfHrxPAhAAQAutIwCsBQOmY9Pk8vjn9Yn4OAOF0Erl
-        UeoK6IFsJpPBER4osJx9IB4taOS2KJwTNTpaQM9VDyr3wV/FyRy3OA3Lx6dfjEyzBIgeZajypkIC
-        XjzdEekJToaX5U147A4i6432RTDQnYyCu8LE6Covc/ocdFZ1FTT45KJ4oYHnQ3DZHsB1XPHbzz7B
-        px6sfSw3zZXgzl5BTQFMgpVDOWZRpdKXSL8977mKpN3zqec165Gm84t/+yrO/KSN+ksjYJilwXhS
-        msnwt69j2Z9EYLP5Zs0nnpwM6649B5hP4vgmkgni8xGFEkdBp7PooYStPBCxmxIOZWDKx405YrGj
-        jchQ4T1xtSMyEoTOQ5QgsztOGlhWQI/vFvTEnVDEELb9VGwh64ZBBg8chYzikoT4NzIQF+Pl6zCW
-        z0YTvVLLdkJ2maHiNB4egYG7UWfrgYhoI8pUNkQaI8B6FB5W0pg0sq1APIuL9wARGItlthVe2WT3
-        QoBE11NVTujzJgkR9JEehBPp8uJREC88B8TEw8k1MYRNlySPSMaUybDHhWlcRSHzUTNsPq/NZCHx
-        OFWZwDU02smAhQHRaXpQTUcIoli1RDiUpVLJTvE+dchKVlbxw8GitOwiVBWBptJcdw3z1Yiz7s5H
-        slTBC9IXJGftd4c0VAVWDp30SZXcfXuPLjcafjvX9CmDRsCz6/5UVj2FZZa1Pc/Vo7umj6LeI/lU
-        gVKpQOkt0ECf4tbhU/8ADxlRxmQ4mohkkK7LWrOVSessjXBCVg706cIEN3wog2LJlCzzDTuD0cEo
-        LMcVaB6jmjqbDEkKmxJUdplNhIIXzOLQ8IiohBJLGnygXCC6LhPByCianTB7JTBhdXmkFwqJl03E
-        hpWCIhZ8QWAsEWTMMzUgUMJSltsB9hkLV6IFC+AEB3CeiANzHN/C1TQ2uJQBE+VHduODGyCD2cgk
-        Tqt4KQ2cSGGg7OByAYrSvicTx7iPeYMU5Wb+ifBgIoJZ/kG+8lyikoDCjpXVVnxVKObwmlnMBH01
-        fNVFGH0DWs+1wywa2fI2qpZEkPbxAD0IoBIftwG1bSkBjK/DAg==
+      string: 'data: {"id":"gen-1792566637-lKbBucorzdXBvRjWsIpU","object":"chat.completion.chunk","created":1792566637,"model":"google/gemini-3.8-flash","provider":"Google
+        AI Studio","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":null,"reasoning_details":[{"type":"reasoning.encrypted","data":"Eq4DCqsDAWkUfRPM5P6ZpMq+a/OtPM/h8kKnqQsM1uyBxZCoZkFsDStjkNlmOZtHsQTIuv9Fc+dNDUQWIAzvie9lZKvL6cDpa57U9XDtEtEzMAoL8fvqCYCvco5bmnoNT1JrIvkuVAVt/SafsAZEdOLBKYIWYv9fN77bN/nzp1EntvljPi73aDAH2jv8zBTRS/sV6CEG17gQMAMB+Hbg1q7USlU3RNiLvhQKYdbIZxK78x8DLmimBxpEn/EOZnJyyYe1/6Crcin4JBplgo2x+mkL1EHHaZ+L8/1v8+UH+b0q0+2aHdXTgatWuevThCpekII3XdGEhW6hpx8OT3d+rrdbYRUBko5dfu3s4jvheW5TVrd3e81BszLBcX/Cs5fgdF45AInxFHyYk8fh4nIcaewGZcc/n40AzPsWZKHYdSYiTvsDhtu/MSmBLq78o18bJfE5W9XUJhWF7E98RKspt18KHbvDgtxBACs1yyqLdpLohDDvlhzwFe6mF08ls1fYbV9An8FsUXfePzJZ99lEPGoEdBX4ConlthibdUn3Heg+LubS0KHMf5IR4BBAMbKghA==","format":"google-gemini-v1","id":"call_1146850","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+
+        data: {"id":"gen-1792566637-lKbBucorzdXBvRjWsIpU","object":"chat.completion.chunk","created":1792566637,"model":"google/gemini-3.8-flash","provider":"Google
+        AI Studio","choices":[{"index":0,"delta":{"content":null,"role":"assistant","tool_calls":[{"index":0,"id":"call_1146850","type":"function","function":{"name":"list_zones","arguments":""}}]},"finish_reason":null,"native_finish_reason":null}]}
+
+
+        data: {"id":"gen-1792566637-lKbBucorzdXBvRjWsIpU","object":"chat.completion.chunk","created":1792566637,"model":"google/gemini-3.8-flash","provider":"Google
+        AI Studio","choices":[{"index":0,"delta":{"content":null,"role":"assistant","tool_calls":[{"index":0,"function":{"arguments":"{}"}}]},"finish_reason":null,"native_finish_reason":null}]}
+
+
+        data: {"id":"gen-1792566637-lKbBucorzdXBvRjWsIpU","object":"chat.completion.chunk","created":1792566637,"model":"google/gemini-3.8-flash","provider":"Google
+        AI Studio","choices":[{"index":0,"delta":{"content":null,"role":"assistant","tool_calls":[{"index":1,"id":"call_1146851","type":"function","function":{"name":"list_schedules","arguments":""}}]},"finish_reason":null,"native_finish_reason":null}]}
+
+
+        data: {"id":"gen-1792566637-lKbBucorzdXBvRjWsIpU","object":"chat.completion.chunk","created":1792566637,"model":"google/gemini-3.8-flash","provider":"Google
+        AI Studio","choices":[{"index":0,"delta":{"content":null,"role":"assistant","tool_calls":[{"index":1,"function":{"arguments":"{}"}}]},"finish_reason":null,"native_finish_reason":null}]}
+
+
+        data: {"id":"gen-1792566637-lKbBucorzdXBvRjWsIpU","object":"chat.completion.chunk","created":1792566637,"model":"google/gemini-3.8-flash","provider":"Google
+        AI Studio","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":null},"finish_reason":"tool_calls","native_finish_reason":"STOP"}]}
+
+
+        data: {"id":"gen-1792566637-lKbBucorzdXBvRjWsIpU","object":"chat.completion.chunk","created":1792566637,"model":"google/gemini-3.8-flash","provider":"Google
+        AI Studio","service_tier":"flex","choices":[{"index":0,"delta":{"content":"","role":"assistant"},"finish_reason":"tool_calls","native_finish_reason":"STOP"}],"usage":{"prompt_tokens":1319,"completion_tokens":104,"total_tokens":1423,"cost":0.000689625,"is_byok":false,"prompt_tokens_details":{"cached_tokens":0,"cache_write_tokens":0,"audio_tokens":0,"video_tokens":0},"cost_details":{"upstream_inference_cost":0.000689625,"upstream_inference_prompt_cost":0.000494625,"upstream_inference_completions_cost":0.000195},"completion_tokens_details":{"reasoning_tokens":83,"image_tokens":0,"audio_tokens":0}}}
+
+
+        data: [DONE]
+
+
+        '
     headers:
-      content-encoding:
-      - zstd
       content-type:
-      - application/json
+      - text/event-stream
     status:
       code: 200
       message: OK
@@ -113,32 +125,36 @@ interactions:
       to see the exact zone names.\n2. FIRST call `list_schedules` to see the exact
       Schedule:Compact names\n   (you need a lighting fraction schedule).\n3. Call
       `create_lights` once per group of zones with the same schedule\n   and values,
-      listing the zones in `zone_names`. Its reply names only\n   zones that failed;
-      the rest got their object. Do not list afterwards.\n\nRules:\n- Zone names and
-      `schedule_name` MUST appear verbatim in the list_zones /\n  list_schedules results.\n-
-      If a needed zone or schedule is missing, do NOT invent a name and do NOT\n  list
-      again: give your final answer at once, with it in `missing_inputs`.\n- Objects
-      are named ''{zone}_Lights''; `name_suffix` changes the suffix,\n  e.g. for a
-      second Lights object in a zone.\n- design_level_calculation_method:\n    * ''LightingLevel''
-      -> supply lighting_level (W, absolute)\n    * ''Watts/Area'' -> supply watts_per_floor_area
-      (W/m^2)\n    * ''Watts/Person'' -> supply watts_per_person (W/person)\n- Typical
-      office LPD: 8-12 W/m^2 (Watts/Area). Use 10 when unspecified.\n- fraction_radiant
-      ~ 0.7 for recessed fluorescent/LED, 0.42 for pendant.\n- fraction_visible ~
-      0.18 for LED.\n","role":"system"},{"content":"Create exactly one Lights object
+      listing the zones by plan key in `plans` (every zone of\n   the plan on every
+      storey) or by name in `zone_names`. Its reply names\n   only zones that failed;
+      the rest got their object. Do not list\n   afterwards.\n\nRules:\n- Zone names
+      and `schedule_name` MUST appear verbatim in the list_zones /\n  list_schedules
+      results.\n- If a needed zone or schedule is missing, do NOT invent a name and
+      do NOT\n  list again: give your final answer at once, with it in `missing_inputs`.\n-
+      Objects are named ''{zone}_Lights''; `name_suffix` changes the suffix,\n  e.g.
+      for a second Lights object in a zone.\n- design_level_calculation_method:\n    *
+      ''LightingLevel'' -> supply lighting_level (W, absolute)\n    * ''Watts/Area''
+      -> supply watts_per_floor_area (W/m^2)\n    * ''Watts/Person'' -> supply watts_per_person
+      (W/person)\n- Typical office LPD: 8-12 W/m^2 (Watts/Area). Use 10 when unspecified.\n-
+      fraction_radiant ~ 0.7 for recessed fluorescent/LED, 0.42 for pendant.\n- fraction_visible
+      ~ 0.18 for LED.\n","role":"system"},{"content":"Create exactly one Lights object
       named ''F1_Office_Lights'' for zone ''F1_Office'': method Watts/Area at 10 W/m2,
-      schedule ''Office_Lighting''.","role":"user"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_166295","function":{"name":"list_zones","arguments":"{}"}},{"type":"function","id":"call_166296","function":{"name":"list_schedules","arguments":"{}"}}]},{"content":"{\"success\":
-      true, \"message\": \"Listed 1 zones.\", \"data\": [\"F1_Office\"]}","role":"tool","tool_call_id":"call_166295"},{"content":"{\"success\":
+      schedule ''Office_Lighting''.","role":"user"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_1146850","function":{"name":"list_zones","arguments":"{}"}},{"type":"function","id":"call_1146851","function":{"name":"list_schedules","arguments":"{}"}}]},{"content":"{\"success\":
+      true, \"message\": \"Listed 1 zones.\", \"data\": [\"F1_Office\"]}","role":"tool","tool_call_id":"call_1146850"},{"content":"{\"success\":
       true, \"message\": \"Listed 1 Schedule:Compact.\", \"data\": [{\"name\": \"Office_Lighting\",
-      \"schedule_type_limits_name\": \"Fraction\"}]}","role":"tool","tool_call_id":"call_166296"}],"model":"google/gemini-3.8-flash","max_completion_tokens":16384,"parallel_tool_calls":false,"stream":false,"temperature":0.7,"tool_choice":"required","tools":[{"type":"function","function":{"name":"create_lights","description":"Create
+      \"schedule_type_limits_name\": \"Fraction\"}]}","role":"tool","tool_call_id":"call_1146851"}],"model":"google/gemini-3.8-flash","max_completion_tokens":32768,"parallel_tool_calls":false,"stream":true,"temperature":1.0,"tool_choice":"required","tools":[{"type":"function","function":{"name":"create_lights","description":"Create
       one Lights object, named ''<zone>_<name_suffix>'', per zone.\n\n        Call
-      it once per group of zones with the same values.\n\n        Args:\n            zone_names:
-      Existing Zone names.\n            schedule_name: Existing Schedule:Compact (Fraction).\n            design_level_calculation_method:
+      it once per group of zones with the same values.\n\n        Args:\n            plans:
+      Zone plan keys: every zone made from these plans, on\n                every
+      storey. Give plans, zone_names or both.\n            zone_names: Existing Zone
+      names.\n            schedule_name: Existing Schedule:Compact (Fraction).\n            design_level_calculation_method:
       LightingLevel / Watts/Area / Watts/Person.\n            lighting_level: Absolute
       watts (when method=LightingLevel).\n            watts_per_floor_area: W/m^2
       (when method=Watts/Area).\n            watts_per_person: W/person (when method=Watts/Person).\n            fraction_radiant:
       Radiant fraction (0-1).\n            fraction_visible: Visible light fraction
-      (0-1).\n            name_suffix: Name suffix; give another one for a second
-      Lights\n                object in the same zones.","parameters":{"properties":{"zone_names":{"items":{"type":"string"},"type":"array"},"schedule_name":{"type":"string"},"design_level_calculation_method":{"default":"Watts/Area","enum":["LightingLevel","Watts/Area","Watts/Person"],"type":"string"},"lighting_level":{"default":0.0,"type":"number"},"watts_per_floor_area":{"default":0.0,"type":"number"},"watts_per_person":{"default":0.0,"type":"number"},"fraction_radiant":{"default":0.0,"type":"number"},"fraction_visible":{"default":0.0,"type":"number"},"name_suffix":{"default":"Lights","type":"string"}},"required":["zone_names","schedule_name"],"type":"object"}}},{"type":"function","function":{"name":"list_lights","description":"List
+      (0-1); with the radiant\n                fraction at most 1, the rest being
+      convected.\n            name_suffix: Name suffix; give another one for a second
+      Lights\n                object in the same zones.","parameters":{"properties":{"schedule_name":{"type":"string"},"plans":{"anyOf":[{"items":{"type":"string"},"type":"array"},{"type":"null"}],"default":null},"zone_names":{"anyOf":[{"items":{"type":"string"},"type":"array"},{"type":"null"}],"default":null},"design_level_calculation_method":{"default":"Watts/Area","enum":["LightingLevel","Watts/Area","Watts/Person"],"type":"string"},"lighting_level":{"anyOf":[{"type":"number"},{"type":"null"}],"default":null},"watts_per_floor_area":{"anyOf":[{"type":"number"},{"type":"null"}],"default":null},"watts_per_person":{"anyOf":[{"type":"number"},{"type":"null"}],"default":null},"fraction_radiant":{"default":0.0,"type":"number"},"fraction_visible":{"default":0.0,"type":"number"},"name_suffix":{"default":"Lights","type":"string"}},"required":["schedule_name"],"type":"object"}}},{"type":"function","function":{"name":"list_lights","description":"List
       Lights objects: name, zone, schedule and level.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"delete_light","description":"Delete
       a Lights object.","parameters":{"properties":{"name":{"type":"string"}},"required":["name"],"type":"object"}}},{"type":"function","function":{"name":"list_zones","description":"List
       zone names a Lights load can use.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"list_schedules","description":"List
@@ -150,7 +166,7 @@ interactions:
       is needed and for what, e.g. ''a window construction (kind window) for the office
       windows''","type":"string"}},"required":["kind","description"],"type":"object"},"type":"array"},"lights_names":{"description":"Names
       of all Lights objects created","items":{"type":"string"},"type":"array"},"summary":{"description":"One-line
-      summary of the lights creation result","type":"string"}},"required":["lights_names","summary"],"type":"object"}}}],"max_thinking_budget":4096}'
+      summary of the lights creation result","type":"string"}},"required":["lights_names","summary"],"type":"object"}}}],"reasoning":{"max_tokens":1024}}'
     headers:
       accept:
       - application/json
@@ -159,7 +175,7 @@ interactions:
       connection:
       - keep-alive
       content-length:
-      - '5444'
+      - '5962'
       content-type:
       - application/json
       user-agent:
@@ -174,8 +190,6 @@ interactions:
       - Linux
       x-stainless-package-version:
       - 2.52.0
-      x-stainless-raw-response:
-      - 'true'
       x-stainless-read-timeout:
       - '120.0'
       x-stainless-retry-count:
@@ -188,84 +202,33 @@ interactions:
     uri: https://llm.invalid/v1/chat/completions
   response:
     body:
-      string: !!binary |
-        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
+      string: 'data: {"id":"gen-1792566639-SlGuqHO0fRm0ekr64n7Z","object":"chat.completion.chunk","created":1792566639,"model":"google/gemini-3.8-flash","provider":"Google
+        AI Studio","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":null,"reasoning_details":[{"type":"reasoning.encrypted","data":"EmkKZwFpFH0TF5bnnhG+LYN+wJmkgx8xEHkAaLlYJ8/9Q4zPxBVezsIDW8UoDlWBtxj0G40bpB8h/RbG+Xr/1LaeqwegcJc51vZMFnNQFOvTrjBZFK9UkRHdnA2VU1R1t8SasGUgWs6gQbQ=","format":"google-gemini-v1","id":"call_15150","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+
+        data: {"id":"gen-1792566639-SlGuqHO0fRm0ekr64n7Z","object":"chat.completion.chunk","created":1792566639,"model":"google/gemini-3.8-flash","provider":"Google
+        AI Studio","choices":[{"index":0,"delta":{"content":null,"role":"assistant","tool_calls":[{"index":0,"id":"call_15150","type":"function","function":{"name":"create_lights","arguments":""}}]},"finish_reason":null,"native_finish_reason":null}]}
+
+
+        data: {"id":"gen-1792566639-SlGuqHO0fRm0ekr64n7Z","object":"chat.completion.chunk","created":1792566639,"model":"google/gemini-3.8-flash","provider":"Google
+        AI Studio","choices":[{"index":0,"delta":{"content":null,"role":"assistant","tool_calls":[{"index":0,"function":{"arguments":"{\"fraction_visible\":0.18,\"name_suffix\":\"Lights\",\"watts_per_floor_area\":10,\"fraction_radiant\":0.7,\"zone_names\":[\"F1_Office\"],\"schedule_name\":\"Office_Lighting\",\"design_level_calculation_method\":\"Watts/Area\"}"}}]},"finish_reason":null,"native_finish_reason":null}]}
+
+
+        data: {"id":"gen-1792566639-SlGuqHO0fRm0ekr64n7Z","object":"chat.completion.chunk","created":1792566639,"model":"google/gemini-3.8-flash","provider":"Google
+        AI Studio","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":null},"finish_reason":"tool_calls","native_finish_reason":"STOP"}]}
+
+
+        data: {"id":"gen-1792566639-SlGuqHO0fRm0ekr64n7Z","object":"chat.completion.chunk","created":1792566639,"model":"google/gemini-3.8-flash","provider":"Google
+        AI Studio","service_tier":"flex","choices":[{"index":0,"delta":{"content":"","role":"assistant"},"finish_reason":"tool_calls","native_finish_reason":"STOP"}],"usage":{"prompt_tokens":1417,"completion_tokens":82,"total_tokens":1499,"cost":0.000685125,"is_byok":false,"prompt_tokens_details":{"cached_tokens":0,"cache_write_tokens":0,"audio_tokens":0,"video_tokens":0},"cost_details":{"upstream_inference_cost":0.000685125,"upstream_inference_prompt_cost":0.000531375,"upstream_inference_completions_cost":0.00015375},"completion_tokens_details":{"reasoning_tokens":0,"image_tokens":0,"audio_tokens":0}}}
+
+
+        data: [DONE]
+
+
+        '
     headers:
-      content-encoding:
-      - zstd
       content-type:
-      - application/json
+      - text/event-stream
     status:
       code: 200
       message: OK
@@ -276,36 +239,40 @@ interactions:
       to see the exact zone names.\n2. FIRST call `list_schedules` to see the exact
       Schedule:Compact names\n   (you need a lighting fraction schedule).\n3. Call
       `create_lights` once per group of zones with the same schedule\n   and values,
-      listing the zones in `zone_names`. Its reply names only\n   zones that failed;
-      the rest got their object. Do not list afterwards.\n\nRules:\n- Zone names and
-      `schedule_name` MUST appear verbatim in the list_zones /\n  list_schedules results.\n-
-      If a needed zone or schedule is missing, do NOT invent a name and do NOT\n  list
-      again: give your final answer at once, with it in `missing_inputs`.\n- Objects
-      are named ''{zone}_Lights''; `name_suffix` changes the suffix,\n  e.g. for a
-      second Lights object in a zone.\n- design_level_calculation_method:\n    * ''LightingLevel''
-      -> supply lighting_level (W, absolute)\n    * ''Watts/Area'' -> supply watts_per_floor_area
-      (W/m^2)\n    * ''Watts/Person'' -> supply watts_per_person (W/person)\n- Typical
-      office LPD: 8-12 W/m^2 (Watts/Area). Use 10 when unspecified.\n- fraction_radiant
-      ~ 0.7 for recessed fluorescent/LED, 0.42 for pendant.\n- fraction_visible ~
-      0.18 for LED.\n","role":"system"},{"content":"Create exactly one Lights object
+      listing the zones by plan key in `plans` (every zone of\n   the plan on every
+      storey) or by name in `zone_names`. Its reply names\n   only zones that failed;
+      the rest got their object. Do not list\n   afterwards.\n\nRules:\n- Zone names
+      and `schedule_name` MUST appear verbatim in the list_zones /\n  list_schedules
+      results.\n- If a needed zone or schedule is missing, do NOT invent a name and
+      do NOT\n  list again: give your final answer at once, with it in `missing_inputs`.\n-
+      Objects are named ''{zone}_Lights''; `name_suffix` changes the suffix,\n  e.g.
+      for a second Lights object in a zone.\n- design_level_calculation_method:\n    *
+      ''LightingLevel'' -> supply lighting_level (W, absolute)\n    * ''Watts/Area''
+      -> supply watts_per_floor_area (W/m^2)\n    * ''Watts/Person'' -> supply watts_per_person
+      (W/person)\n- Typical office LPD: 8-12 W/m^2 (Watts/Area). Use 10 when unspecified.\n-
+      fraction_radiant ~ 0.7 for recessed fluorescent/LED, 0.42 for pendant.\n- fraction_visible
+      ~ 0.18 for LED.\n","role":"system"},{"content":"Create exactly one Lights object
       named ''F1_Office_Lights'' for zone ''F1_Office'': method Watts/Area at 10 W/m2,
-      schedule ''Office_Lighting''.","role":"user"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_166295","function":{"name":"list_zones","arguments":"{}"}},{"type":"function","id":"call_166296","function":{"name":"list_schedules","arguments":"{}"}}]},{"content":"{\"success\":
-      true, \"message\": \"Listed 1 zones.\", \"data\": [\"F1_Office\"]}","role":"tool","tool_call_id":"call_166295"},{"content":"{\"success\":
+      schedule ''Office_Lighting''.","role":"user"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_1146850","function":{"name":"list_zones","arguments":"{}"}},{"type":"function","id":"call_1146851","function":{"name":"list_schedules","arguments":"{}"}}]},{"content":"{\"success\":
+      true, \"message\": \"Listed 1 zones.\", \"data\": [\"F1_Office\"]}","role":"tool","tool_call_id":"call_1146850"},{"content":"{\"success\":
       true, \"message\": \"Listed 1 Schedule:Compact.\", \"data\": [{\"name\": \"Office_Lighting\",
-      \"schedule_type_limits_name\": \"Fraction\"}]}","role":"tool","tool_call_id":"call_166296"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_109998","function":{"name":"create_lights","arguments":"{\"name_suffix\":
-      \"Lights\", \"fraction_visible\": 0.18, \"zone_names\": [\"F1_Office\"], \"fraction_radiant\":
-      0.7, \"watts_per_floor_area\": 10, \"design_level_calculation_method\": \"Watts/Area\",
-      \"schedule_name\": \"Office_Lighting\"}"}}]},{"content":"{\"success\": true,
-      \"message\": \"Created Lights in 1 of 1 zones.\", \"data\": null}","role":"tool","tool_call_id":"call_109998"}],"model":"google/gemini-3.8-flash","max_completion_tokens":16384,"parallel_tool_calls":false,"stream":false,"temperature":0.7,"tool_choice":"required","tools":[{"type":"function","function":{"name":"create_lights","description":"Create
+      \"schedule_type_limits_name\": \"Fraction\"}]}","role":"tool","tool_call_id":"call_1146851"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_15150","function":{"name":"create_lights","arguments":"{\"fraction_visible\":
+      0.18, \"name_suffix\": \"Lights\", \"watts_per_floor_area\": 10, \"fraction_radiant\":
+      0.7, \"zone_names\": [\"F1_Office\"], \"schedule_name\": \"Office_Lighting\",
+      \"design_level_calculation_method\": \"Watts/Area\"}"}}]},{"content":"{\"success\":
+      true, \"message\": \"Created Lights in 1 of 1 zones.\", \"data\": null}","role":"tool","tool_call_id":"call_15150"}],"model":"google/gemini-3.8-flash","max_completion_tokens":32768,"parallel_tool_calls":false,"stream":true,"temperature":1.0,"tool_choice":"required","tools":[{"type":"function","function":{"name":"create_lights","description":"Create
       one Lights object, named ''<zone>_<name_suffix>'', per zone.\n\n        Call
-      it once per group of zones with the same values.\n\n        Args:\n            zone_names:
-      Existing Zone names.\n            schedule_name: Existing Schedule:Compact (Fraction).\n            design_level_calculation_method:
+      it once per group of zones with the same values.\n\n        Args:\n            plans:
+      Zone plan keys: every zone made from these plans, on\n                every
+      storey. Give plans, zone_names or both.\n            zone_names: Existing Zone
+      names.\n            schedule_name: Existing Schedule:Compact (Fraction).\n            design_level_calculation_method:
       LightingLevel / Watts/Area / Watts/Person.\n            lighting_level: Absolute
       watts (when method=LightingLevel).\n            watts_per_floor_area: W/m^2
       (when method=Watts/Area).\n            watts_per_person: W/person (when method=Watts/Person).\n            fraction_radiant:
       Radiant fraction (0-1).\n            fraction_visible: Visible light fraction
-      (0-1).\n            name_suffix: Name suffix; give another one for a second
-      Lights\n                object in the same zones.","parameters":{"properties":{"zone_names":{"items":{"type":"string"},"type":"array"},"schedule_name":{"type":"string"},"design_level_calculation_method":{"default":"Watts/Area","enum":["LightingLevel","Watts/Area","Watts/Person"],"type":"string"},"lighting_level":{"default":0.0,"type":"number"},"watts_per_floor_area":{"default":0.0,"type":"number"},"watts_per_person":{"default":0.0,"type":"number"},"fraction_radiant":{"default":0.0,"type":"number"},"fraction_visible":{"default":0.0,"type":"number"},"name_suffix":{"default":"Lights","type":"string"}},"required":["zone_names","schedule_name"],"type":"object"}}},{"type":"function","function":{"name":"list_lights","description":"List
+      (0-1); with the radiant\n                fraction at most 1, the rest being
+      convected.\n            name_suffix: Name suffix; give another one for a second
+      Lights\n                object in the same zones.","parameters":{"properties":{"schedule_name":{"type":"string"},"plans":{"anyOf":[{"items":{"type":"string"},"type":"array"},{"type":"null"}],"default":null},"zone_names":{"anyOf":[{"items":{"type":"string"},"type":"array"},{"type":"null"}],"default":null},"design_level_calculation_method":{"default":"Watts/Area","enum":["LightingLevel","Watts/Area","Watts/Person"],"type":"string"},"lighting_level":{"anyOf":[{"type":"number"},{"type":"null"}],"default":null},"watts_per_floor_area":{"anyOf":[{"type":"number"},{"type":"null"}],"default":null},"watts_per_person":{"anyOf":[{"type":"number"},{"type":"null"}],"default":null},"fraction_radiant":{"default":0.0,"type":"number"},"fraction_visible":{"default":0.0,"type":"number"},"name_suffix":{"default":"Lights","type":"string"}},"required":["schedule_name"],"type":"object"}}},{"type":"function","function":{"name":"list_lights","description":"List
       Lights objects: name, zone, schedule and level.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"delete_light","description":"Delete
       a Lights object.","parameters":{"properties":{"name":{"type":"string"}},"required":["name"],"type":"object"}}},{"type":"function","function":{"name":"list_zones","description":"List
       zone names a Lights load can use.","parameters":{"properties":{},"type":"object"}}},{"type":"function","function":{"name":"list_schedules","description":"List
@@ -317,7 +284,7 @@ interactions:
       is needed and for what, e.g. ''a window construction (kind window) for the office
       windows''","type":"string"}},"required":["kind","description"],"type":"object"},"type":"array"},"lights_names":{"description":"Names
       of all Lights objects created","items":{"type":"string"},"type":"array"},"summary":{"description":"One-line
-      summary of the lights creation result","type":"string"}},"required":["lights_names","summary"],"type":"object"}}}],"max_thinking_budget":4096}'
+      summary of the lights creation result","type":"string"}},"required":["lights_names","summary"],"type":"object"}}}],"reasoning":{"max_tokens":1024}}'
     headers:
       accept:
       - application/json
@@ -326,7 +293,7 @@ interactions:
       connection:
       - keep-alive
       content-length:
-      - '5968'
+      - '6484'
       content-type:
       - application/json
       user-agent:
@@ -341,8 +308,6 @@ interactions:
       - Linux
       x-stainless-package-version:
       - 2.52.0
-      x-stainless-raw-response:
-      - 'true'
       x-stainless-read-timeout:
       - '120.0'
       x-stainless-retry-count:
@@ -355,28 +320,35 @@ interactions:
     uri: https://llm.invalid/v1/chat/completions
   response:
     body:
-      string: !!binary |
-        KLUv/QBYfRoAxjetKNAM6wEMWIOMg1acrGxqe9HKQ/OZF3cD1QZlcLd51yEXEXoYpa4eagaZAJUA
-        rwCV0yCcP4qtx0p66bdb3QQhXb9Wcad59G3Byf1Wd/ZaJeXXHq0Fr/R9a/7y01u5zPutQ+3Rcd3A
-        zUBdKFSBS8+/VRLOn0fv9LTc4mI8FvVW72nAW4oxden2N+x5lL79np81j35x3W8/D2uMPTvNpW/t
-        QyDs0TsDJAOsCic0HUVjgAldoegiWEAelhWJNCaSxuI+delbdRMABRAZc5RCQVGUxT/SP2Gengdq
-        /8SIDX63ZvRWravnnxjhn+y1ynGZrEHgHwjpH/3evJn1j8ml633fA2meHv31xZ9+jd4drRiX/t68
-        bpLRrYbDclyZtVPTLsi59P/C7SYISW+9WE87Nch9/n3xnVtXradLf4uzm6Q/nVq/59EVMhuG7El1
-        z+vRtbVTyyzG26VfrOfnrNP1BpWmwINpXhjQkSiNKpgmtGkg2Dyz2h8HAZuowI2146KrCn3YQDLF
-        QGQ34QLlwzoEbQnNls9gLKFLRMG7PqsEiuwHO5eEx7yYhGIsFcfFE9IJibXptMNuHsbhgLQLm2gU
-        JpYFBk2o4ekkIw2n9AZzJ2i4BtEDpdIZWSqi0YBLn3tuHn37/YVZu8+oc/+WRZxOfvIPQ0FvVVBv
-        we07TVP0Vg1SDi/ggaoa1J6U4i+eoAKn04lOr3q8TpFIpNKTq4oRCMRyVBUje+1+fu7WzJuft/7A
-        02+VhOsGzt81S2Sx2r7TpuamB/OWLsIhKNN1a6x5lFiQhp0bb48QicfH5NGQru+L8M725+H8gREn
-        b5AWe3oZcx5dQEACZDke5sA2hCqVAXqVQJuGnTEZrBptkBOxMLq5YJIOknGoPopBZsczYvguV8oY
-        ICwUdKDFUsCEFB5zqVSujufyAAY7IDCCBZXZAfiZFVtgVwr4zAEdJfViuMM2uxpXAy8ycEjP0d34
-        5AaowW5kGqd1vNQGTlB4OTs2LEA/7fulQNVyXAHrb/O30jXDRTIQ4cj+eb4K8FYGvAg4kEUIcSoy
-        7r4GkkTowcEyhkjvrK03+I3Y8OpL+6poYRwCWnK1Jy7i20JoVIQkgoXHY/QgSCW+twGpbSlZGF+A
-        BQ==
+      string: 'data: {"id":"gen-1792566642-wF6w3BM46Sbvtl1vLnHG","object":"chat.completion.chunk","created":1792566642,"model":"google/gemini-3.8-flash","provider":"Google
+        AI Studio","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":null,"reasoning_details":[{"type":"reasoning.encrypted","data":"EmkKZwFpFH0TdK5Dj7DDxqUQEAO2Oy32pLiTV890VkrpAMouzcY61ouooQHMUhlggVgcGLJCgsY+8P6y5Q5icuEae+ZfiZSZNf0j3OI67PR+gz7WIzHPd1hbcuUdXHFzb/0Kt+GEbS3L1xs=","format":"google-gemini-v1","id":"call_1033366","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+
+        data: {"id":"gen-1792566642-wF6w3BM46Sbvtl1vLnHG","object":"chat.completion.chunk","created":1792566642,"model":"google/gemini-3.8-flash","provider":"Google
+        AI Studio","choices":[{"index":0,"delta":{"content":null,"role":"assistant","tool_calls":[{"index":0,"id":"call_1033366","type":"function","function":{"name":"LightsResponse","arguments":""}}]},"finish_reason":null,"native_finish_reason":null}]}
+
+
+        data: {"id":"gen-1792566642-wF6w3BM46Sbvtl1vLnHG","object":"chat.completion.chunk","created":1792566642,"model":"google/gemini-3.8-flash","provider":"Google
+        AI Studio","choices":[{"index":0,"delta":{"content":null,"role":"assistant","tool_calls":[{"index":0,"function":{"arguments":"{\"summary\":\"Successfully
+        created Lights object ''F1_Office_Lights'' for zone ''F1_Office'' at 10 W/m2
+        with schedule ''Office_Lighting''.\",\"lights_names\":[\"F1_Office_Lights\"],\"missing_inputs\":[]}"}}]},"finish_reason":null,"native_finish_reason":null}]}
+
+
+        data: {"id":"gen-1792566642-wF6w3BM46Sbvtl1vLnHG","object":"chat.completion.chunk","created":1792566642,"model":"google/gemini-3.8-flash","provider":"Google
+        AI Studio","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":null},"finish_reason":"tool_calls","native_finish_reason":"STOP"}]}
+
+
+        data: {"id":"gen-1792566642-wF6w3BM46Sbvtl1vLnHG","object":"chat.completion.chunk","created":1792566642,"model":"google/gemini-3.8-flash","provider":"Google
+        AI Studio","service_tier":"flex","choices":[{"index":0,"delta":{"content":"","role":"assistant"},"finish_reason":"tool_calls","native_finish_reason":"STOP"}],"usage":{"prompt_tokens":1530,"completion_tokens":67,"total_tokens":1597,"cost":0.000699375,"is_byok":false,"prompt_tokens_details":{"cached_tokens":0,"cache_write_tokens":0,"audio_tokens":0,"video_tokens":0},"cost_details":{"upstream_inference_cost":0.000699375,"upstream_inference_prompt_cost":0.00057375,"upstream_inference_completions_cost":0.000125625},"completion_tokens_details":{"reasoning_tokens":0,"image_tokens":0,"audio_tokens":0}}}
+
+
+        data: [DONE]
+
+
+        '
     headers:
-      content-encoding:
-      - zstd
       content-type:
-      - application/json
+      - text/event-stream
     status:
       code: 200
       message: OK

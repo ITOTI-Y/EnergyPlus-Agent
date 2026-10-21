@@ -58,6 +58,7 @@ def create_llm(config: LLMConfig | None = None) -> BaseChatModel:
         "max_tokens": config.max_tokens,
         "max_retries": config.max_retries,
         "timeout": config.timeout,
+        "streaming": True,
     }
     if config.temperature is not None:
         kwargs["temperature"] = config.temperature

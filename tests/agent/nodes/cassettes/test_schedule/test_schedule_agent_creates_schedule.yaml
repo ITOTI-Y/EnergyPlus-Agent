@@ -66,7 +66,7 @@ interactions:
       them.\\n- Call list_schedules once at the end.\\n\",\"role\":\"system\"},{\"content\":\"Create
       the ScheduleTypeLimits 'Fraction' (0.0 to 1.0, CONTINUOUS, Dimensionless) and
       exactly one Schedule:Compact named 'Office_Occupancy' using it: 1.0 for all
-      days, all year.\",\"role\":\"user\"}],\"model\":\"google/gemini-3.8-flash\",\"max_completion_tokens\":16384,\"parallel_tool_calls\":false,\"stream\":false,\"temperature\":0.7,\"tool_choice\":\"required\",\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"create_schedule_type_limits\",\"description\":\"Create
+      days, all year.\",\"role\":\"user\"}],\"model\":\"google/gemini-3.8-flash\",\"max_completion_tokens\":32768,\"parallel_tool_calls\":false,\"stream\":true,\"temperature\":1.0,\"tool_choice\":\"required\",\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"create_schedule_type_limits\",\"description\":\"Create
       a ScheduleTypeLimits.\\n\\n        Args:\\n            name: Unique name (e.g.,
       'Fraction', 'Temperature', 'OnOff').\\n            lower_limit_value: Minimum
       allowed value (None = unbounded).\\n            upper_limit_value: Maximum allowed
@@ -95,7 +95,7 @@ interactions:
       a Schedule:Compact; refused while another object uses it.\",\"parameters\":{\"properties\":{\"name\":{\"type\":\"string\"}},\"required\":[\"name\"],\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"ScheduleResponse\",\"description\":\"Structured
       summary returned by the schedule phase agent.\",\"parameters\":{\"properties\":{\"schedule_names\":{\"description\":\"Names
       of all Schedule:Compact objects created\",\"items\":{\"type\":\"string\"},\"type\":\"array\"},\"summary\":{\"description\":\"One-line
-      summary of the schedule creation result\",\"type\":\"string\"}},\"required\":[\"schedule_names\",\"summary\"],\"type\":\"object\"}}}],\"max_thinking_budget\":4096}"
+      summary of the schedule creation result\",\"type\":\"string\"}},\"required\":[\"schedule_names\",\"summary\"],\"type\":\"object\"}}}],\"reasoning\":{\"max_tokens\":1024}}"
     headers:
       accept:
       - application/json
@@ -104,7 +104,7 @@ interactions:
       connection:
       - keep-alive
       content-length:
-      - '9357'
+      - '9361'
       content-type:
       - application/json
       user-agent:
@@ -119,8 +119,6 @@ interactions:
       - Linux
       x-stainless-package-version:
       - 2.52.0
-      x-stainless-raw-response:
-      - 'true'
       x-stainless-read-timeout:
       - '120.0'
       x-stainless-retry-count:
@@ -133,44 +131,47 @@ interactions:
     uri: https://llm.invalid/v1/chat/completions
   response:
     body:
-      string: !!binary |
-        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
-        +4EpDDn4pQVV8xEYTZ7pBIH5+CIByklKDL4Kug==
+      string: 'data: {"id":"gen-1792566659-Tjg4z0L2ZySl74998TUb","object":"chat.completion.chunk","created":1792566659,"model":"google/gemini-3.8-flash","provider":"Google
+        AI Studio","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"**Defining
+        Schedule Limits**\n\nI''m currently focused on defining the `ScheduleTypeLimits`
+        named ''Fraction''. My plan is to set its range from 0.0 to 1.0, with a `CONTINUOUS`
+        distribution and a `Dimensionless` unit. Following that, I''ll establish a
+        single `Schedule:Compact` object named ''Office_Occupancy'', utilizing ''Fraction''
+        with a uniform value of 1.0 throughout the entire year.\n\n\n","reasoning_details":[{"type":"reasoning.text","text":"**Defining
+        Schedule Limits**\n\nI''m currently focused on defining the `ScheduleTypeLimits`
+        named ''Fraction''. My plan is to set its range from 0.0 to 1.0, with a `CONTINUOUS`
+        distribution and a `Dimensionless` unit. Following that, I''ll establish a
+        single `Schedule:Compact` object named ''Office_Occupancy'', utilizing ''Fraction''
+        with a uniform value of 1.0 throughout the entire year.\n\n\n","format":"google-gemini-v1","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+
+        data: {"id":"gen-1792566659-Tjg4z0L2ZySl74998TUb","object":"chat.completion.chunk","created":1792566659,"model":"google/gemini-3.8-flash","provider":"Google
+        AI Studio","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":null,"reasoning_details":[{"type":"reasoning.encrypted","data":"EvMFCvAFAWkUfRNOffE6ghCFe7yaIKBP/fJCACP3qSghQXbPxuaB/5WqpKQkLb6Ozm7BCj5T57SsXb63Z5QInvgnIIy7vxkBRypRBFSIaGjPnZyGieHa7bOKJV8jdsqjVPEeBMajdNwdHEFOxtfFXaiibYmMkCMsRcbVzLOm43tdxhStt5ODO0yVOdKRX87Sz3nhq6iblH++OUAsuW+txO9/GyGWt4UTrNa0SwKREVZTw6nDJbXrXsXnQYaywsSxf2Oh4yUVsItK1iX/AN8qAvkvunAnNv6FPBqsgC9WUeFokiJs+A1tnB0gUJehff4Of+rRtenotwkfQgo2CG+InLw701H8w+togCRLA2CC3WUKJo4Y1qIVXghNMWdqlzy5c9uZVfOZJ/p/c76dE7sCGnKJY/W2gM2QPpPSfv3uCGLSzKmkYsllJZFx3sZbleJmzjKDzcOBcFppZH6Neaf9Rc/ZkuIxKqXiIWm1p7gcGC/JnETCKn+PSRaH4fvNTv39iKhqo4VvclDz+vZlzBFU8Zx91fb7JKFZppBGWHLDZTfhS6gRb5hPGtDN4VDf+NkeETM+Xa91A09/UJrNRD4tdOYSZ1aaAtB3pMdFi7FOoldtvJx5+gERADHCXt8sYKDw81zBEOTORUi+iK1H4p4Gd3VnIaLw4D5vP/D9w/hqu8mI82ydCmONvtPPGd3/N6aQYmWKB2I9qt3qZ5uE6wXYTMrd05UgA+ibBeCJQoDCd4GtI8HGgn1xeXwovjNChzLyBO6LGcvUKZ1pYk9l4iWLOBhzhcnG/d5xqKUou4tymBoCxbez2wQZ5Z55qPxiraAKfje9iuOPoJtlk8uoHuuARGtifqfWpbgMA3nYmYHrqOtnvVHI8itXYHbOiaAseLYrfHrR/085a7bgPz/8LjrVt5Ff5IYWp7foOkygumNtD3NFXfET6wnfQYVX2lj8zj8qCH322PY4NioGHh5zi800HBktpwenjbWfN/wV1d/2Bv4iNIBaFZw=","format":"google-gemini-v1","id":"call_769460","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+
+        data: {"id":"gen-1792566659-Tjg4z0L2ZySl74998TUb","object":"chat.completion.chunk","created":1792566659,"model":"google/gemini-3.8-flash","provider":"Google
+        AI Studio","choices":[{"index":0,"delta":{"content":null,"role":"assistant","tool_calls":[{"index":0,"id":"call_769460","type":"function","function":{"name":"create_schedule_type_limits","arguments":""}}]},"finish_reason":null,"native_finish_reason":null}]}
+
+
+        data: {"id":"gen-1792566659-Tjg4z0L2ZySl74998TUb","object":"chat.completion.chunk","created":1792566659,"model":"google/gemini-3.8-flash","provider":"Google
+        AI Studio","choices":[{"index":0,"delta":{"content":null,"role":"assistant","tool_calls":[{"index":0,"function":{"arguments":"{\"upper_limit_value\":1,\"name\":\"Fraction\",\"lower_limit_value\":0,\"unit_type\":\"Dimensionless\",\"numeric_type\":\"Continuous\"}"}}]},"finish_reason":null,"native_finish_reason":null}]}
+
+
+        data: {"id":"gen-1792566659-Tjg4z0L2ZySl74998TUb","object":"chat.completion.chunk","created":1792566659,"model":"google/gemini-3.8-flash","provider":"Google
+        AI Studio","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":null},"finish_reason":"tool_calls","native_finish_reason":"STOP"}]}
+
+
+        data: {"id":"gen-1792566659-Tjg4z0L2ZySl74998TUb","object":"chat.completion.chunk","created":1792566659,"model":"google/gemini-3.8-flash","provider":"Google
+        AI Studio","service_tier":"flex","choices":[{"index":0,"delta":{"content":"","role":"assistant"},"finish_reason":"tool_calls","native_finish_reason":"STOP"}],"usage":{"prompt_tokens":2372,"completion_tokens":218,"total_tokens":2590,"cost":0.00129825,"is_byok":false,"prompt_tokens_details":{"cached_tokens":0,"cache_write_tokens":0,"audio_tokens":0,"video_tokens":0},"cost_details":{"upstream_inference_cost":0.00129825,"upstream_inference_prompt_cost":0.0008895,"upstream_inference_completions_cost":0.00040875},"completion_tokens_details":{"reasoning_tokens":165,"image_tokens":0,"audio_tokens":0}}}
+
+
+        data: [DONE]
+
+
+        '
     headers:
-      content-encoding:
-      - zstd
       content-type:
-      - application/json
+      - text/event-stream
     status:
       code: 200
       message: OK
@@ -241,12 +242,12 @@ interactions:
       them.\\n- Call list_schedules once at the end.\\n\",\"role\":\"system\"},{\"content\":\"Create
       the ScheduleTypeLimits 'Fraction' (0.0 to 1.0, CONTINUOUS, Dimensionless) and
       exactly one Schedule:Compact named 'Office_Occupancy' using it: 1.0 for all
-      days, all year.\",\"role\":\"user\"},{\"content\":null,\"role\":\"assistant\",\"tool_calls\":[{\"type\":\"function\",\"id\":\"call_109937\",\"function\":{\"name\":\"create_schedule_type_limits\",\"arguments\":\"{\\\"unit_type\\\":
-      \\\"Dimensionless\\\", \\\"numeric_type\\\": \\\"Continuous\\\", \\\"upper_limit_value\\\":
-      1, \\\"name\\\": \\\"Fraction\\\", \\\"lower_limit_value\\\": 0}\"}}]},{\"content\":\"{\\\"success\\\":
+      days, all year.\",\"role\":\"user\"},{\"content\":null,\"role\":\"assistant\",\"tool_calls\":[{\"type\":\"function\",\"id\":\"call_769460\",\"function\":{\"name\":\"create_schedule_type_limits\",\"arguments\":\"{\\\"upper_limit_value\\\":
+      1, \\\"name\\\": \\\"Fraction\\\", \\\"lower_limit_value\\\": 0, \\\"unit_type\\\":
+      \\\"Dimensionless\\\", \\\"numeric_type\\\": \\\"Continuous\\\"}\"}}]},{\"content\":\"{\\\"success\\\":
       true, \\\"message\\\": \\\"ScheduleTypeLimits 'Fraction' created.\\\", \\\"data\\\":
       {\\\"name\\\": \\\"Fraction\\\", \\\"lower_limit_value\\\": 0.0, \\\"upper_limit_value\\\":
-      1.0, \\\"numeric_type\\\": \\\"Continuous\\\", \\\"unit_type\\\": \\\"Dimensionless\\\"}}\",\"role\":\"tool\",\"tool_call_id\":\"call_109937\"}],\"model\":\"google/gemini-3.8-flash\",\"max_completion_tokens\":16384,\"parallel_tool_calls\":false,\"stream\":false,\"temperature\":0.7,\"tool_choice\":\"required\",\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"create_schedule_type_limits\",\"description\":\"Create
+      1.0, \\\"numeric_type\\\": \\\"Continuous\\\", \\\"unit_type\\\": \\\"Dimensionless\\\"}}\",\"role\":\"tool\",\"tool_call_id\":\"call_769460\"}],\"model\":\"google/gemini-3.8-flash\",\"max_completion_tokens\":32768,\"parallel_tool_calls\":false,\"stream\":true,\"temperature\":1.0,\"tool_choice\":\"required\",\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"create_schedule_type_limits\",\"description\":\"Create
       a ScheduleTypeLimits.\\n\\n        Args:\\n            name: Unique name (e.g.,
       'Fraction', 'Temperature', 'OnOff').\\n            lower_limit_value: Minimum
       allowed value (None = unbounded).\\n            upper_limit_value: Maximum allowed
@@ -275,7 +276,7 @@ interactions:
       a Schedule:Compact; refused while another object uses it.\",\"parameters\":{\"properties\":{\"name\":{\"type\":\"string\"}},\"required\":[\"name\"],\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"ScheduleResponse\",\"description\":\"Structured
       summary returned by the schedule phase agent.\",\"parameters\":{\"properties\":{\"schedule_names\":{\"description\":\"Names
       of all Schedule:Compact objects created\",\"items\":{\"type\":\"string\"},\"type\":\"array\"},\"summary\":{\"description\":\"One-line
-      summary of the schedule creation result\",\"type\":\"string\"}},\"required\":[\"schedule_names\",\"summary\"],\"type\":\"object\"}}}],\"max_thinking_budget\":4096}"
+      summary of the schedule creation result\",\"type\":\"string\"}},\"required\":[\"schedule_names\",\"summary\"],\"type\":\"object\"}}}],\"reasoning\":{\"max_tokens\":1024}}"
     headers:
       accept:
       - application/json
@@ -284,7 +285,7 @@ interactions:
       connection:
       - keep-alive
       content-length:
-      - '9950'
+      - '9954'
       content-type:
       - application/json
       user-agent:
@@ -299,8 +300,6 @@ interactions:
       - Linux
       x-stainless-package-version:
       - 2.52.0
-      x-stainless-raw-response:
-      - 'true'
       x-stainless-read-timeout:
       - '120.0'
       x-stainless-retry-count:
@@ -313,34 +312,33 @@ interactions:
     uri: https://llm.invalid/v1/chat/completions
   response:
     body:
-      string: !!binary |
-        KLUv/QBY3CUA6lEcECjgZPA2fPRporZlIQMtrI2IW9aEqeqHw20GuLfjRhL94U0MMcYIQ4xx4wD3
-        AAcBX87VWn2Gv/0t0/6iAZuosd685srP8Jq3661r55jz+tvfvM0XbX/Fyvklf/oKpbt8F8W96p+e
-        51ztl/fuv73evF7zGznWOOScbZbizj9R24MuqPGLBmzPr8V7tD99z2cNL4j7dy1Gzct/yvnU23eN
-        zdK8osbhR97OU/7Tbwye/RKgABHA8dubF8ToNsuffuQ1hwKHgUsAa0xekeBmcW/xt88X3ORP24O3
-        12van15v3G8uyW0Heh3tb9/tTeDsn76gmCS6SYHD5IVXjg8Un1wW0LQCZWWVZqgE9BV/exC/CEAA
-        AAEfsNHBjH5QLkSNdKmWy1B+QGQGqyRExaAcmKQTKySRET2Ggm6heY6MwWrzViphNSARWpVplth5
-        AeLgsGCFgpPEjBVRugwoKSEKXa8qXO2SEARCUB2sjLlAIXbhOaiKjFrjxBIadDCIBdUVC8TJ+O2n
-        B28vU9PqO4Brv+CHMBr9CGH0m+oisKpRPLc5dr+ZEEYIo1G1/eaeuXoUtWGWaPtNxl0bXBJ3v5ly
-        Rpi7wdO6+I1owPab2itYzcbHOyZx/m6Z9t9Mv0mtruVpLeW7Foch5Tfbbzai3553fclTNOtP320t
-        yW2/m0/wjpZ/21+y6hdt02cH6jIEHvs5QCAYWnVLelrF5LAYLaGiJHCEHMofJkW6hAbVxPEwXJdB
-        eYGqA7bwDhYj+0SRQTMNpCn1wTEsWLU6HK/wRSKgh0APS4hK8Ggh74CDgiAU74SwijR44/mgNExL
-        KDkCxvSDCd2MVpgQKeUQRmWwUBiSOS4dxBIND48DcYE2RZJGzg4mrybWrLsYdYGJVEwYwepOuI6C
-        IxWZJCI1sK5U78xoCRTVEc/rdAtN6NQ6xyTlCkTLpahII8ZxlAToonAUgxGNeA5MgeMcSj286I0F
-        g8MRSFdETDGclzvZCaHCjNVxHBIL19kr9CHxRDroQgXEJjAkhEXbNFIJGQYI9ujsUOLkQJVjDQGj
-        0UisJP5Jo6pRpl0VzzDDNWUUVmUUNfBdq695Q40/sl6z8/IcXRCjG4NnvR2bn2+iwDvaal90T7Nv
-        39kp5+O4821/ug4FK9e++0+FQ/WTQcOs7bm+nd2/XpLbLE+E0VeoQK+kucOfPlFSGSaTIS+STMfI
-        WBORjpSGIWokAs5t1nPy0cgMs2qj3swSdFV6HlxgzXQwYo2YaWLs3ggpQ1k/JK2RQqGGd35MjkpW
-        njQqD2pKvLuIaDKCE6SpUAiHniyonlFc80gIs6SgUtAYr+TwYAlukriJ6zPhJhcdbi5iHSAunK0w
-        fDKnsDrnUdF4p0hmGCwfPAKkQaghFVIIGURoAhKZIAoL1KwBMEKiGLPaAREUlXOSqgoKSlrYDfpr
-        sXWFmM+ltYNcT9MDcUA7kC8eOnE8qvCtHTDBYErtpe1Q5UjSnXVxGy4twJdiYmostkuL75GcA/ZS
-        kHTx9zuwQUoJ6uYJvrSmjH0lN+r1S3+oUHqMO6fGUBjZ5mJEHVpVHFLXPCYxw8qtijAOUAviLkaq
-        rmRW2Y+Ag+fJJwg0xdcPqPxSAqmUewQBAAA=
+      string: 'data: {"id":"gen-1792566662-fw4vJSjuZro2hTjwI9YC","object":"chat.completion.chunk","created":1792566662,"model":"google/gemini-3.8-flash","provider":"Google
+        AI Studio","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":null,"reasoning_details":[{"type":"reasoning.encrypted","data":"EmkKZwFpFH0TcZ5WHax/jsmtoFkBIKOoQCLDWfUpnrvorh/TtXaPau0cnM/p0YPe8AWykpd+HsImk8BrwpFW9++raXqKiY5b32rHM7/lJsyj+lIQDCwTn6yEdK//spQNJG7bapa51RDD9x4=","format":"google-gemini-v1","id":"call_1060580","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+
+        data: {"id":"gen-1792566662-fw4vJSjuZro2hTjwI9YC","object":"chat.completion.chunk","created":1792566662,"model":"google/gemini-3.8-flash","provider":"Google
+        AI Studio","choices":[{"index":0,"delta":{"content":null,"role":"assistant","tool_calls":[{"index":0,"id":"call_1060580","type":"function","function":{"name":"create_schedule_compact","arguments":""}}]},"finish_reason":null,"native_finish_reason":null}]}
+
+
+        data: {"id":"gen-1792566662-fw4vJSjuZro2hTjwI9YC","object":"chat.completion.chunk","created":1792566662,"model":"google/gemini-3.8-flash","provider":"Google
+        AI Studio","choices":[{"index":0,"delta":{"content":null,"role":"assistant","tool_calls":[{"index":0,"function":{"arguments":"{\"name\":\"Office_Occupancy\",\"data\":[{\"Days\":[{\"Times\":[{\"Until\":{\"Value\":1,\"Time\":\"24:00\"}}],\"For\":\"AllDays\"}],\"Through\":\"12/31\"}],\"schedule_type_limits_name\":\"Fraction\"}"}}]},"finish_reason":null,"native_finish_reason":null}]}
+
+
+        data: {"id":"gen-1792566662-fw4vJSjuZro2hTjwI9YC","object":"chat.completion.chunk","created":1792566662,"model":"google/gemini-3.8-flash","provider":"Google
+        AI Studio","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":null},"finish_reason":"tool_calls","native_finish_reason":"STOP"}]}
+
+
+        data: {"id":"gen-1792566662-fw4vJSjuZro2hTjwI9YC","object":"chat.completion.chunk","created":1792566662,"model":"google/gemini-3.8-flash","provider":"Google
+        AI Studio","service_tier":"flex","choices":[{"index":0,"delta":{"content":"","role":"assistant"},"finish_reason":"tool_calls","native_finish_reason":"STOP"}],"usage":{"prompt_tokens":2495,"completion_tokens":77,"total_tokens":2572,"cost":0.00108,"is_byok":false,"prompt_tokens_details":{"cached_tokens":0,"cache_write_tokens":0,"audio_tokens":0,"video_tokens":0},"cost_details":{"upstream_inference_cost":0.00108,"upstream_inference_prompt_cost":0.000935625,"upstream_inference_completions_cost":0.000144375},"completion_tokens_details":{"reasoning_tokens":0,"image_tokens":0,"audio_tokens":0}}}
+
+
+        data: [DONE]
+
+
+        '
     headers:
-      content-encoding:
-      - zstd
       content-type:
-      - application/json
+      - text/event-stream
     status:
       code: 200
       message: OK
@@ -411,20 +409,20 @@ interactions:
       them.\\n- Call list_schedules once at the end.\\n\",\"role\":\"system\"},{\"content\":\"Create
       the ScheduleTypeLimits 'Fraction' (0.0 to 1.0, CONTINUOUS, Dimensionless) and
       exactly one Schedule:Compact named 'Office_Occupancy' using it: 1.0 for all
-      days, all year.\",\"role\":\"user\"},{\"content\":null,\"role\":\"assistant\",\"tool_calls\":[{\"type\":\"function\",\"id\":\"call_109937\",\"function\":{\"name\":\"create_schedule_type_limits\",\"arguments\":\"{\\\"unit_type\\\":
-      \\\"Dimensionless\\\", \\\"numeric_type\\\": \\\"Continuous\\\", \\\"upper_limit_value\\\":
-      1, \\\"name\\\": \\\"Fraction\\\", \\\"lower_limit_value\\\": 0}\"}}]},{\"content\":\"{\\\"success\\\":
+      days, all year.\",\"role\":\"user\"},{\"content\":null,\"role\":\"assistant\",\"tool_calls\":[{\"type\":\"function\",\"id\":\"call_769460\",\"function\":{\"name\":\"create_schedule_type_limits\",\"arguments\":\"{\\\"upper_limit_value\\\":
+      1, \\\"name\\\": \\\"Fraction\\\", \\\"lower_limit_value\\\": 0, \\\"unit_type\\\":
+      \\\"Dimensionless\\\", \\\"numeric_type\\\": \\\"Continuous\\\"}\"}}]},{\"content\":\"{\\\"success\\\":
       true, \\\"message\\\": \\\"ScheduleTypeLimits 'Fraction' created.\\\", \\\"data\\\":
       {\\\"name\\\": \\\"Fraction\\\", \\\"lower_limit_value\\\": 0.0, \\\"upper_limit_value\\\":
-      1.0, \\\"numeric_type\\\": \\\"Continuous\\\", \\\"unit_type\\\": \\\"Dimensionless\\\"}}\",\"role\":\"tool\",\"tool_call_id\":\"call_109937\"},{\"content\":null,\"role\":\"assistant\",\"tool_calls\":[{\"type\":\"function\",\"id\":\"call_73085\",\"function\":{\"name\":\"create_schedule_compact\",\"arguments\":\"{\\\"name\\\":
-      \\\"Office_Occupancy\\\", \\\"schedule_type_limits_name\\\": \\\"Fraction\\\",
-      \\\"data\\\": [{\\\"Days\\\": [{\\\"For\\\": \\\"AllDays\\\", \\\"Times\\\":
-      [{\\\"Until\\\": {\\\"Time\\\": \\\"24:00\\\", \\\"Value\\\": 1}}]}], \\\"Through\\\":
-      \\\"12/31\\\"}]}\"}}]},{\"content\":\"{\\\"success\\\": true, \\\"message\\\":
-      \\\"Schedule:Compact 'Office_Occupancy' created.\\\", \\\"data\\\": {\\\"name\\\":
-      \\\"Office_Occupancy\\\", \\\"schedule_type_limits_name\\\": \\\"Fraction\\\",
-      \\\"data\\\": [{\\\"field\\\": \\\"Through: 12/31\\\"}, {\\\"field\\\": \\\"For:
-      AllDays\\\"}, {\\\"field\\\": \\\"Until: 24:00\\\"}, {\\\"field\\\": \\\"1.0\\\"}]}}\",\"role\":\"tool\",\"tool_call_id\":\"call_73085\"}],\"model\":\"google/gemini-3.8-flash\",\"max_completion_tokens\":16384,\"parallel_tool_calls\":false,\"stream\":false,\"temperature\":0.7,\"tool_choice\":\"required\",\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"create_schedule_type_limits\",\"description\":\"Create
+      1.0, \\\"numeric_type\\\": \\\"Continuous\\\", \\\"unit_type\\\": \\\"Dimensionless\\\"}}\",\"role\":\"tool\",\"tool_call_id\":\"call_769460\"},{\"content\":null,\"role\":\"assistant\",\"tool_calls\":[{\"type\":\"function\",\"id\":\"call_1060580\",\"function\":{\"name\":\"create_schedule_compact\",\"arguments\":\"{\\\"name\\\":
+      \\\"Office_Occupancy\\\", \\\"data\\\": [{\\\"Days\\\": [{\\\"Times\\\": [{\\\"Until\\\":
+      {\\\"Value\\\": 1, \\\"Time\\\": \\\"24:00\\\"}}], \\\"For\\\": \\\"AllDays\\\"}],
+      \\\"Through\\\": \\\"12/31\\\"}], \\\"schedule_type_limits_name\\\": \\\"Fraction\\\"}\"}}]},{\"content\":\"{\\\"success\\\":
+      true, \\\"message\\\": \\\"Schedule:Compact 'Office_Occupancy' created.\\\",
+      \\\"data\\\": {\\\"name\\\": \\\"Office_Occupancy\\\", \\\"schedule_type_limits_name\\\":
+      \\\"Fraction\\\", \\\"data\\\": [{\\\"field\\\": \\\"Through: 12/31\\\"}, {\\\"field\\\":
+      \\\"For: AllDays\\\"}, {\\\"field\\\": \\\"Until: 24:00\\\"}, {\\\"field\\\":
+      \\\"1.0\\\"}]}}\",\"role\":\"tool\",\"tool_call_id\":\"call_1060580\"}],\"model\":\"google/gemini-3.8-flash\",\"max_completion_tokens\":32768,\"parallel_tool_calls\":false,\"stream\":true,\"temperature\":1.0,\"tool_choice\":\"required\",\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"create_schedule_type_limits\",\"description\":\"Create
       a ScheduleTypeLimits.\\n\\n        Args:\\n            name: Unique name (e.g.,
       'Fraction', 'Temperature', 'OnOff').\\n            lower_limit_value: Minimum
       allowed value (None = unbounded).\\n            upper_limit_value: Maximum allowed
@@ -453,7 +451,7 @@ interactions:
       a Schedule:Compact; refused while another object uses it.\",\"parameters\":{\"properties\":{\"name\":{\"type\":\"string\"}},\"required\":[\"name\"],\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"ScheduleResponse\",\"description\":\"Structured
       summary returned by the schedule phase agent.\",\"parameters\":{\"properties\":{\"schedule_names\":{\"description\":\"Names
       of all Schedule:Compact objects created\",\"items\":{\"type\":\"string\"},\"type\":\"array\"},\"summary\":{\"description\":\"One-line
-      summary of the schedule creation result\",\"type\":\"string\"}},\"required\":[\"schedule_names\",\"summary\"],\"type\":\"object\"}}}],\"max_thinking_budget\":4096}"
+      summary of the schedule creation result\",\"type\":\"string\"}},\"required\":[\"schedule_names\",\"summary\"],\"type\":\"object\"}}}],\"reasoning\":{\"max_tokens\":1024}}"
     headers:
       accept:
       - application/json
@@ -462,7 +460,7 @@ interactions:
       connection:
       - keep-alive
       content-length:
-      - '10671'
+      - '10679'
       content-type:
       - application/json
       user-agent:
@@ -477,8 +475,6 @@ interactions:
       - Linux
       x-stainless-package-version:
       - 2.52.0
-      x-stainless-raw-response:
-      - 'true'
       x-stainless-read-timeout:
       - '120.0'
       x-stainless-retry-count:
@@ -491,23 +487,33 @@ interactions:
     uri: https://llm.invalid/v1/chat/completions
   response:
     body:
-      string: !!binary |
-        KLUv/QBYRRIAxmVxJvCSVgdAlfEFmjWtUvS/wM09I/VkZoc2nUwMlTT+eO3TsjgsXFxoZgBdAGwA
-        1Hbl1LNPhlZTBDAgBFzeThfyZtLq7JrqohQxkAxEWDK1k8DGac7p7XHhpM7a4bZb+s4uJ/fGippP
-        0k7z3t5vOTbm2TOVqkjwqDygvcDFVF4/CDICPZUHokwslUlE7vR2yO8ABAAELrpqSUu35ZSuK9fq
-        3r5x0nfad3K1LnX2CQkMRbQbbifPXmN0L4pz9tvlrG5ppKksWaobk1bTjGdPO8hCye9ktNd9PDXv
-        7B0tJy3kjvbxhm49i9GS7S2ZVnQnyVIUmAwFAhMRLS4eWIORoDwUGapBIaIxFDIcFpiHgYULRMik
-        EMGpuDQ4YPDC2107eHa4XXHokyth1wsjjev61Xl7bbmUNVF39rrRgqt5NerK8e1LOflOYy+wUKBn
-        EsXo3pOW9PatOP1ORpsky1kD13VNjuKziwIZPE+lWB4GWR6C55FE++TSlSRHlFvatbKuhbyZDC23
-        zfQjYg9czXPvnbVot3dMzkZUuet8ZwQGBVB0PftsMjkbqBRA7VVux+yoK2rSytK4PtlE2lF0Smc/
-        OPiA4IgcGJwXMiAwgsZY9vhZFbdhgQV8wgEdp+pmjqNbcH3T4OBSBsyUH9GNT26AGQwj0zit4qUa
-        OEnhje/YYAFGad/CBCqX4xawkTbfSdfWRX5E+Nafy1dBSDlQYQHLUsWxXICvugijN6D1XDvMIpEt
-        baN6SQS3j6foQQCV+N4G1LalBGB8LxY=
+      string: 'data: {"id":"gen-1792566665-PEmBWJIJsReoFfUaWNnE","object":"chat.completion.chunk","created":1792566665,"model":"google/gemini-3.8-flash","provider":"Google
+        AI Studio","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":null,"reasoning_details":[{"type":"reasoning.encrypted","data":"EiYKJGUyNDgzMGE3LTVjZDYtNDJmZS05OThiLWVlNTM5ZTcyYjljMw==","format":"google-gemini-v1","id":"call_558515","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+
+        data: {"id":"gen-1792566665-PEmBWJIJsReoFfUaWNnE","object":"chat.completion.chunk","created":1792566665,"model":"google/gemini-3.8-flash","provider":"Google
+        AI Studio","choices":[{"index":0,"delta":{"content":null,"role":"assistant","tool_calls":[{"index":0,"id":"call_558515","type":"function","function":{"name":"list_schedules","arguments":""}}]},"finish_reason":null,"native_finish_reason":null}]}
+
+
+        data: {"id":"gen-1792566665-PEmBWJIJsReoFfUaWNnE","object":"chat.completion.chunk","created":1792566665,"model":"google/gemini-3.8-flash","provider":"Google
+        AI Studio","choices":[{"index":0,"delta":{"content":null,"role":"assistant","tool_calls":[{"index":0,"function":{"arguments":"{}"}}]},"finish_reason":null,"native_finish_reason":null}]}
+
+
+        data: {"id":"gen-1792566665-PEmBWJIJsReoFfUaWNnE","object":"chat.completion.chunk","created":1792566665,"model":"google/gemini-3.8-flash","provider":"Google
+        AI Studio","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":null},"finish_reason":"tool_calls","native_finish_reason":"STOP"}]}
+
+
+        data: {"id":"gen-1792566665-PEmBWJIJsReoFfUaWNnE","object":"chat.completion.chunk","created":1792566665,"model":"google/gemini-3.8-flash","provider":"Google
+        AI Studio","service_tier":"flex","choices":[{"index":0,"delta":{"content":"","role":"assistant"},"finish_reason":"tool_calls","native_finish_reason":"STOP"}],"usage":{"prompt_tokens":2671,"completion_tokens":11,"total_tokens":2682,"cost":0.00102225,"is_byok":false,"prompt_tokens_details":{"cached_tokens":0,"cache_write_tokens":0,"audio_tokens":0,"video_tokens":0},"cost_details":{"upstream_inference_cost":0.00102225,"upstream_inference_prompt_cost":0.001001625,"upstream_inference_completions_cost":0.000020625},"completion_tokens_details":{"reasoning_tokens":0,"image_tokens":0,"audio_tokens":0}}}
+
+
+        data: [DONE]
+
+
+        '
     headers:
-      content-encoding:
-      - zstd
       content-type:
-      - application/json
+      - text/event-stream
     status:
       code: 200
       message: OK
@@ -578,24 +584,24 @@ interactions:
       them.\\n- Call list_schedules once at the end.\\n\",\"role\":\"system\"},{\"content\":\"Create
       the ScheduleTypeLimits 'Fraction' (0.0 to 1.0, CONTINUOUS, Dimensionless) and
       exactly one Schedule:Compact named 'Office_Occupancy' using it: 1.0 for all
-      days, all year.\",\"role\":\"user\"},{\"content\":null,\"role\":\"assistant\",\"tool_calls\":[{\"type\":\"function\",\"id\":\"call_109937\",\"function\":{\"name\":\"create_schedule_type_limits\",\"arguments\":\"{\\\"unit_type\\\":
-      \\\"Dimensionless\\\", \\\"numeric_type\\\": \\\"Continuous\\\", \\\"upper_limit_value\\\":
-      1, \\\"name\\\": \\\"Fraction\\\", \\\"lower_limit_value\\\": 0}\"}}]},{\"content\":\"{\\\"success\\\":
+      days, all year.\",\"role\":\"user\"},{\"content\":null,\"role\":\"assistant\",\"tool_calls\":[{\"type\":\"function\",\"id\":\"call_769460\",\"function\":{\"name\":\"create_schedule_type_limits\",\"arguments\":\"{\\\"upper_limit_value\\\":
+      1, \\\"name\\\": \\\"Fraction\\\", \\\"lower_limit_value\\\": 0, \\\"unit_type\\\":
+      \\\"Dimensionless\\\", \\\"numeric_type\\\": \\\"Continuous\\\"}\"}}]},{\"content\":\"{\\\"success\\\":
       true, \\\"message\\\": \\\"ScheduleTypeLimits 'Fraction' created.\\\", \\\"data\\\":
       {\\\"name\\\": \\\"Fraction\\\", \\\"lower_limit_value\\\": 0.0, \\\"upper_limit_value\\\":
-      1.0, \\\"numeric_type\\\": \\\"Continuous\\\", \\\"unit_type\\\": \\\"Dimensionless\\\"}}\",\"role\":\"tool\",\"tool_call_id\":\"call_109937\"},{\"content\":null,\"role\":\"assistant\",\"tool_calls\":[{\"type\":\"function\",\"id\":\"call_73085\",\"function\":{\"name\":\"create_schedule_compact\",\"arguments\":\"{\\\"name\\\":
-      \\\"Office_Occupancy\\\", \\\"schedule_type_limits_name\\\": \\\"Fraction\\\",
-      \\\"data\\\": [{\\\"Days\\\": [{\\\"For\\\": \\\"AllDays\\\", \\\"Times\\\":
-      [{\\\"Until\\\": {\\\"Time\\\": \\\"24:00\\\", \\\"Value\\\": 1}}]}], \\\"Through\\\":
-      \\\"12/31\\\"}]}\"}}]},{\"content\":\"{\\\"success\\\": true, \\\"message\\\":
-      \\\"Schedule:Compact 'Office_Occupancy' created.\\\", \\\"data\\\": {\\\"name\\\":
-      \\\"Office_Occupancy\\\", \\\"schedule_type_limits_name\\\": \\\"Fraction\\\",
-      \\\"data\\\": [{\\\"field\\\": \\\"Through: 12/31\\\"}, {\\\"field\\\": \\\"For:
-      AllDays\\\"}, {\\\"field\\\": \\\"Until: 24:00\\\"}, {\\\"field\\\": \\\"1.0\\\"}]}}\",\"role\":\"tool\",\"tool_call_id\":\"call_73085\"},{\"content\":null,\"role\":\"assistant\",\"tool_calls\":[{\"type\":\"function\",\"id\":\"call_102596\",\"function\":{\"name\":\"list_schedules\",\"arguments\":\"{}\"}}]},{\"content\":\"{\\\"success\\\":
+      1.0, \\\"numeric_type\\\": \\\"Continuous\\\", \\\"unit_type\\\": \\\"Dimensionless\\\"}}\",\"role\":\"tool\",\"tool_call_id\":\"call_769460\"},{\"content\":null,\"role\":\"assistant\",\"tool_calls\":[{\"type\":\"function\",\"id\":\"call_1060580\",\"function\":{\"name\":\"create_schedule_compact\",\"arguments\":\"{\\\"name\\\":
+      \\\"Office_Occupancy\\\", \\\"data\\\": [{\\\"Days\\\": [{\\\"Times\\\": [{\\\"Until\\\":
+      {\\\"Value\\\": 1, \\\"Time\\\": \\\"24:00\\\"}}], \\\"For\\\": \\\"AllDays\\\"}],
+      \\\"Through\\\": \\\"12/31\\\"}], \\\"schedule_type_limits_name\\\": \\\"Fraction\\\"}\"}}]},{\"content\":\"{\\\"success\\\":
+      true, \\\"message\\\": \\\"Schedule:Compact 'Office_Occupancy' created.\\\",
+      \\\"data\\\": {\\\"name\\\": \\\"Office_Occupancy\\\", \\\"schedule_type_limits_name\\\":
+      \\\"Fraction\\\", \\\"data\\\": [{\\\"field\\\": \\\"Through: 12/31\\\"}, {\\\"field\\\":
+      \\\"For: AllDays\\\"}, {\\\"field\\\": \\\"Until: 24:00\\\"}, {\\\"field\\\":
+      \\\"1.0\\\"}]}}\",\"role\":\"tool\",\"tool_call_id\":\"call_1060580\"},{\"content\":null,\"role\":\"assistant\",\"tool_calls\":[{\"type\":\"function\",\"id\":\"call_558515\",\"function\":{\"name\":\"list_schedules\",\"arguments\":\"{}\"}}]},{\"content\":\"{\\\"success\\\":
       true, \\\"message\\\": \\\"Listed 1 Schedule:Compact.\\\", \\\"data\\\": [{\\\"name\\\":
       \\\"Office_Occupancy\\\", \\\"schedule_type_limits_name\\\": \\\"Fraction\\\",
       \\\"data\\\": [{\\\"field\\\": \\\"Through: 12/31\\\"}, {\\\"field\\\": \\\"For:
-      AllDays\\\"}, {\\\"field\\\": \\\"Until: 24:00\\\"}, {\\\"field\\\": \\\"1.0\\\"}]}]}\",\"role\":\"tool\",\"tool_call_id\":\"call_102596\"}],\"model\":\"google/gemini-3.8-flash\",\"max_completion_tokens\":16384,\"parallel_tool_calls\":false,\"stream\":false,\"temperature\":0.7,\"tool_choice\":\"required\",\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"create_schedule_type_limits\",\"description\":\"Create
+      AllDays\\\"}, {\\\"field\\\": \\\"Until: 24:00\\\"}, {\\\"field\\\": \\\"1.0\\\"}]}]}\",\"role\":\"tool\",\"tool_call_id\":\"call_558515\"}],\"model\":\"google/gemini-3.8-flash\",\"max_completion_tokens\":32768,\"parallel_tool_calls\":false,\"stream\":true,\"temperature\":1.0,\"tool_choice\":\"required\",\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"create_schedule_type_limits\",\"description\":\"Create
       a ScheduleTypeLimits.\\n\\n        Args:\\n            name: Unique name (e.g.,
       'Fraction', 'Temperature', 'OnOff').\\n            lower_limit_value: Minimum
       allowed value (None = unbounded).\\n            upper_limit_value: Maximum allowed
@@ -624,7 +630,7 @@ interactions:
       a Schedule:Compact; refused while another object uses it.\",\"parameters\":{\"properties\":{\"name\":{\"type\":\"string\"}},\"required\":[\"name\"],\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"ScheduleResponse\",\"description\":\"Structured
       summary returned by the schedule phase agent.\",\"parameters\":{\"properties\":{\"schedule_names\":{\"description\":\"Names
       of all Schedule:Compact objects created\",\"items\":{\"type\":\"string\"},\"type\":\"array\"},\"summary\":{\"description\":\"One-line
-      summary of the schedule creation result\",\"type\":\"string\"}},\"required\":[\"schedule_names\",\"summary\"],\"type\":\"object\"}}}],\"max_thinking_budget\":4096}"
+      summary of the schedule creation result\",\"type\":\"string\"}},\"required\":[\"schedule_names\",\"summary\"],\"type\":\"object\"}}}],\"reasoning\":{\"max_tokens\":1024}}"
     headers:
       accept:
       - application/json
@@ -633,7 +639,7 @@ interactions:
       connection:
       - keep-alive
       content-length:
-      - '11157'
+      - '11165'
       content-type:
       - application/json
       user-agent:
@@ -648,8 +654,6 @@ interactions:
       - Linux
       x-stainless-package-version:
       - 2.52.0
-      x-stainless-raw-response:
-      - 'true'
       x-stainless-read-timeout:
       - '120.0'
       x-stainless-retry-count:
@@ -662,25 +666,35 @@ interactions:
     uri: https://llm.invalid/v1/chat/completions
   response:
     body:
-      string: !!binary |
-        KLUv/QBYfRUAVmyGKMCSsQ5MzQJvP2lzloVMa5opmqIql0tMq5kLkCNkFergXBAEQVAEASp6AHIA
-        fwAtp+g2/qN0q/C5zqvdxuq8qqwz5vDf7bS2zJEcEKTM4W9bU2Sv9ncQjvSSYCYWyawza2ygKWYt
-        dnjals3+4K3Osa/8e7UzN9UyKyc5guThs+wQh/17BKFR5KHhMEIuMgkUBYJg4NFICKbLVKEoBheK
-        pDZ2eGt+BCABBLgpmm5WgyTn8J3F+hF8L7BcLFRFaZSybtfhW+PyRxoQq7NaHGnE29W3c7U1Zjwx
-        jodvau9H8I1FjDv7+8Smw6laNHOsf8eURllRa/Phq8WxbwXCs84Lc9irYZb+TfAgbdX5kQY8bjkt
-        SP490y1ebc1cBZ6FjJBFB8LCkIkIwRYkuIqM5sEzGQ4fc7T+bnXWuCtrT2bMbVUbXfdu459/NOA/
-        uLNYK/zP+2cicGNzEqVRmiYUqVoZIEU4WaO2SbmpWs7r2kSkLKOWWQVYoxSJtyEi4TyzCdEa15EU
-        /oH/cDdm2Yb/GR0e59rZht3498bVagFd12Exm38dVcFYJkxhCiiPQlEE0zSpWta+fdVZZbFvxtrW
-        tTVFdlpb7DzvR/Umq0Eyyo96uxm+w3IcFZ4ZW/k3WTAVGrPNfxTqz+ByqcDj2h02V1nL7NW2je4U
-        kSTH7Nrr7wcHHxEhGvJwspNBRXQkqMUFxAR1NtTEycg0CxI5OSAwguXY3QH4WRW5QcEK+MwBnaTq
-        NsfhLbg+NQ24lAEj5Ud145sbQAe7kWmc1vFSGzi5sIZ3bFuA5bZvKwKVy7EL2HI3X4huTRc5IQKg
-        0Tl3Vaz0ARQ2BFlWHHNjlHKUDAq0VwCJw6LmicjbD6jcVE0D4xDQqqtdcVHflqBRFZIIFh6P0IMg
-        lfjeBoS2pQRgfC8W
+      string: 'data: {"id":"gen-1792566667-ZkEaZPvT3IikY9SAiJfd","object":"chat.completion.chunk","created":1792566667,"model":"google/gemini-3.8-flash","provider":"Google
+        AI Studio","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":null,"reasoning_details":[{"type":"reasoning.encrypted","data":"EiYKJGUyNDgzMGE3LTVjZDYtNDJmZS05OThiLWVlNTM5ZTcyYjljMw==","format":"google-gemini-v1","id":"call_1039535","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+
+        data: {"id":"gen-1792566667-ZkEaZPvT3IikY9SAiJfd","object":"chat.completion.chunk","created":1792566667,"model":"google/gemini-3.8-flash","provider":"Google
+        AI Studio","choices":[{"index":0,"delta":{"content":null,"role":"assistant","tool_calls":[{"index":0,"id":"call_1039535","type":"function","function":{"name":"ScheduleResponse","arguments":""}}]},"finish_reason":null,"native_finish_reason":null}]}
+
+
+        data: {"id":"gen-1792566667-ZkEaZPvT3IikY9SAiJfd","object":"chat.completion.chunk","created":1792566667,"model":"google/gemini-3.8-flash","provider":"Google
+        AI Studio","choices":[{"index":0,"delta":{"content":null,"role":"assistant","tool_calls":[{"index":0,"function":{"arguments":"{\"schedule_names\":[\"Office_Occupancy\"],\"summary\":\"Created
+        ScheduleTypeLimits ''Fraction'' and Schedule:Compact ''Office_Occupancy''
+        (constant 1.0 all days, all year).\"}"}}]},"finish_reason":null,"native_finish_reason":null}]}
+
+
+        data: {"id":"gen-1792566667-ZkEaZPvT3IikY9SAiJfd","object":"chat.completion.chunk","created":1792566667,"model":"google/gemini-3.8-flash","provider":"Google
+        AI Studio","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":null},"finish_reason":"tool_calls","native_finish_reason":"STOP"}]}
+
+
+        data: {"id":"gen-1792566667-ZkEaZPvT3IikY9SAiJfd","object":"chat.completion.chunk","created":1792566667,"model":"google/gemini-3.8-flash","provider":"Google
+        AI Studio","service_tier":"flex","choices":[{"index":0,"delta":{"content":"","role":"assistant"},"finish_reason":"tool_calls","native_finish_reason":"STOP"}],"usage":{"prompt_tokens":2777,"completion_tokens":54,"total_tokens":2831,"cost":0.001142625,"is_byok":false,"prompt_tokens_details":{"cached_tokens":0,"cache_write_tokens":0,"audio_tokens":0,"video_tokens":0},"cost_details":{"upstream_inference_cost":0.001142625,"upstream_inference_prompt_cost":0.001041375,"upstream_inference_completions_cost":0.00010125},"completion_tokens_details":{"reasoning_tokens":0,"image_tokens":0,"audio_tokens":0}}}
+
+
+        data: [DONE]
+
+
+        '
     headers:
-      content-encoding:
-      - zstd
       content-type:
-      - application/json
+      - text/event-stream
     status:
       code: 200
       message: OK

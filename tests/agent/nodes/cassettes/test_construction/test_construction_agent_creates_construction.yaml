@@ -2,12 +2,11 @@ interactions:
 - request:
     body: "{\"messages\":[{\"content\":\"You are a construction-assembly expert for
       EnergyPlus.\\nGiven construction specifications, create all required Construction
-      objects.\\n\\nWorkflow:\\n1. FIRST call `list_materials` to discover which materials
-      are already\\n   defined and their full properties (thickness, conductivity,
-      U-Factor\\n   for glazing, etc.). DO NOT skip this step \u2014 the materials
-      phase uses\\n   names that may differ from what the intake spec suggested.\\n2.
-      Pick the correct layer composition for each construction using the\\n   material
-      names returned by list_materials, verbatim.\\n3. Call `create_construction`
+      objects.\\n\\nWorkflow:\\n1. FIRST call `list_materials` to discover the names
+      and types of the\\n   materials already defined. DO NOT skip this step \u2014
+      the materials phase uses\\n   names that may differ from what the intake spec
+      suggested.\\n2. Pick the correct layer composition for each construction using
+      the\\n   material names returned by list_materials, verbatim.\\n3. Call `create_construction`
       for each construction in the spec.\\n4. Call `list_constructions` once at the
       end to confirm.\\n\\nRules:\\n- Layer names passed to `create_construction`
       MUST appear verbatim in\\n  the list_materials result (exact case, underscores,
@@ -27,7 +26,7 @@ interactions:
       panes with exactly one window gas layer between each pair, starting\\n  and
       ending with glass (e.g., [Glass_6mm, Air_13mm, Glass_6mm]). Never mix\\n  window
       and opaque materials; create_construction rejects such layers.\\n\",\"role\":\"system\"},{\"content\":\"Create
-      exactly one construction named 'ExtWall_Simple' with a single layer 'Brick_100mm'.\",\"role\":\"user\"}],\"model\":\"google/gemini-3.8-flash\",\"max_completion_tokens\":16384,\"parallel_tool_calls\":false,\"stream\":false,\"temperature\":0.7,\"tool_choice\":\"required\",\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"create_construction\",\"description\":\"Create
+      exactly one construction named 'ExtWall_Simple' with a single layer 'Brick_100mm'.\",\"role\":\"user\"}],\"model\":\"google/gemini-3.8-flash\",\"max_completion_tokens\":32768,\"parallel_tool_calls\":false,\"stream\":true,\"temperature\":1.0,\"tool_choice\":\"required\",\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"create_construction\",\"description\":\"Create
       a Construction as an ordered list of material layers.\\n\\n        Opaque constructions
       use opaque materials only. Window constructions\\n        are either one SimpleGlazingSystem,
       or glazing layers with exactly one\\n        window gas layer between each pair,
@@ -37,7 +36,7 @@ interactions:
       all constructions with their kind: window, opaque or mixed.\",\"parameters\":{\"properties\":{},\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"get_construction\",\"description\":\"Read
       a construction by name.\",\"parameters\":{\"properties\":{\"name\":{\"type\":\"string\"}},\"required\":[\"name\"],\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"delete_construction\",\"description\":\"Delete
       a construction; refused while surfaces or fenestration use it.\",\"parameters\":{\"properties\":{\"name\":{\"type\":\"string\"}},\"required\":[\"name\"],\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"list_materials\",\"description\":\"List
-      all materials, with their EnergyPlus type.\",\"parameters\":{\"properties\":{},\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"ConstructionResponse\",\"description\":\"Structured
+      material names with their EnergyPlus type.\",\"parameters\":{\"properties\":{},\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"ConstructionResponse\",\"description\":\"Structured
       summary returned by the construction phase agent.\",\"parameters\":{\"properties\":{\"missing_inputs\":{\"description\":\"Needed
       objects that do not exist; empty when none\",\"items\":{\"description\":\"An
       upstream object a phase needed but did not find.\",\"properties\":{\"kind\":{\"description\":\"Kind
@@ -45,7 +44,7 @@ interactions:
       is needed and for what, e.g. 'a window construction (kind window) for the office
       windows'\",\"type\":\"string\"}},\"required\":[\"kind\",\"description\"],\"type\":\"object\"},\"type\":\"array\"},\"construction_names\":{\"description\":\"Names
       of all constructions created\",\"items\":{\"type\":\"string\"},\"type\":\"array\"},\"summary\":{\"description\":\"One-line
-      summary of the construction creation result\",\"type\":\"string\"}},\"required\":[\"construction_names\",\"summary\"],\"type\":\"object\"}}}],\"max_thinking_budget\":4096}"
+      summary of the construction creation result\",\"type\":\"string\"}},\"required\":[\"construction_names\",\"summary\"],\"type\":\"object\"}}}],\"reasoning\":{\"max_tokens\":1024}}"
     headers:
       accept:
       - application/json
@@ -54,7 +53,7 @@ interactions:
       connection:
       - keep-alive
       content-length:
-      - '4862'
+      - '4799'
       content-type:
       - application/json
       user-agent:
@@ -69,8 +68,6 @@ interactions:
       - Linux
       x-stainless-package-version:
       - 2.52.0
-      x-stainless-raw-response:
-      - 'true'
       x-stainless-read-timeout:
       - '120.0'
       x-stainless-retry-count:
@@ -83,45 +80,44 @@ interactions:
     uri: https://llm.invalid/v1/chat/completions
   response:
     body:
-      string: !!binary |
-        KLUv/QBYFSUAilJUECjQRvI2eKNJXDFjxsAL6xWBTtdMUDOjrZEJAIBIWNcJ5RR88QB16gET5wD+
-        AAUBOVdryxP866+Z9j8gcIUlLjWvufITvPv2Upe1c8x5/etv1vsPrr9h5fySLz1HuXSdi+Jey5ee
-        51xtJ2vd//pS83p3x8NxiUHu6W2GOr80XR+6X4n/gMD1/FqsPfal7/ms4P1w71yL0X35Szmf5fW9
-        xNvcNywx2CFv5yl/6TX+zt4FeDACOP76fT+M6m2+9B5eMziwEFAN4BKTNyzcHGod/vX5fpp86frv
-        9nq3felLjfvNJqmtgF499q/v9oqefukVaNaql7CQGsgmLYgrMZ9tYJGoFgcEZSmogfKGf/2H/wBA
-        AAAAAgAIjDt9n8xEXIzRiLJJhrFTgVJ5Eu5G0MYCQ5iNStBKS+qJTq6k8Hw4GDAcS9tABnM8nJgc
-        STuHiWFYg01VVHCcAsOgEuNIcYWKc2TGUpPpETUNZ5J3yJFlhkeEsbulfbpWFEw4os8jiOAcHjTP
-        wHpoGc5mE3IQLiTJSmxDzwqVjRHFw3IcpUCDZZgFjpXlszlECxEDVZZTMkd13hbyT2Fyley5VLpB
-        6BshHKpyNDBzY6nQS26EPD4VPlNTSHE1mVhAzKhhaHxj2mFrf33t9Xvpv9vNdNvyCsC1369TYDT6
-        0cFfz3t5yTPcteJ9eyU7neP811+yln9wSa8wJKYq0QkhCGLprIwuuE+FkKEug+AnbpKw67oHSFM3
-        /oEp1hA3VD2vaIuWokSsjDkeGXax5BiaeDKTgaFOpsqaDIREQonQ+uVDQzNmBBbnEDdetfgsryGy
-        KiK2dbaajcNBQUJup4RuMKUUCIiVqWh5OutgqLBMDRWcIM9jEiKYLHowTSaFUCBGJzKN0kUu8u6I
-        co6yuVifkHZYBpoK6Vn0kWNmD3FMCVqEBBl0WyoiTASTjVfgtVtdojGhhJGSgWTtiSQgDIvFwYfP
-        wwwPWVJdsOCxvU+2fapkX/PQYcxu0xsLT8MT8q7FiVpp74jgaIZb2M/GiiBUtkOu4MhMIJEvI5ls
-        1rsUKnuTqASj0SisJH4JMVEjhCGxmDgCgUBQ0oI6GKZJQOfa8u4LlrhD1rs7N8/R/TCq8XfW2/EG
-        daTpux5b7R/cc/frR516HY471/YlQ65d95cQ1EuKaqKu5+Udde90k9TbPAuMnkIHeiW3Bl/6AQMY
-        H2HECMqTOw2Yh4VEQLRL5kKRJCwahpsspUfgZ4FFdxtl8zyT0Im071MAsmxWs2A6yHGNS7cdGPZB
-        IEo2URduHbIqFIvMfDhWqNgyuJWOCCmiO4IP4SimEGpLbKjQQGYZrqQO27gXmm9iuSelFZAvI8CJ
-        5BgmJEhRDPVAswhmqByaC8cr4IjsuXUTK6mcwDNn0UI0IECCxdQRD/rZFVkAmwr4FAd2kKqbuQ5t
-        wf1ra4eLGTBRfkQ3vrkBajAYmcppLS/VgRMVRu8dHBfISu2PI8HY+PE2mJU2DyF0Bfci8ifC6v55
-        vkJyo5LAwgIgC8UxgFKIK/uqaWEcBLTiamdctLdl0KiGJAIKjyfoQZBKfNwG9LalZDDeGy/AAg==
+      string: 'data: {"id":"gen-1792566584-NoVUUFXKUJtabTZE3z4j","object":"chat.completion.chunk","created":1792566584,"model":"google/gemini-3.8-flash","provider":"Google
+        AI Studio","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":null,"reasoning_details":[{"type":"reasoning.encrypted","data":"EoQDCoEDAWkUfRMhfh9BAA48LqoLfelI+hAI/U7jKhWAJjRlawV4EUWybsSVPr9GkbpJDVLKHwPzvEeWHlx+J64YKjAAGb5m9OtwMsDNSF5Grm7Ud3fFYgLXs6nK8Yifoq+NOR5p5vf71Llh5OxYI2bqF8oBbIlk077LErq3Tfj41yKPuOaGrdgLALzL3GN90Yth0KVX5kWiQmwf8evwIjpu1sAcl+YJdlhhw3n1vgxfp9Wh3U7cKrhTABVGwTae/QxPwzzF0wpLnfr3V29ZzDTHuy3V5fuHPyNcEdanaV1SoS/zO12qF4/OtZCfp1NtG2v7Rio5F5qDOW7ulNp7q7//52NBQ63ZLXvi51Do3d3gB5MfPdtGmUv1os5Dd/91ysZCRghb+hQfsNlrSUpL73JUv02c2j1x+3/Say+tNl5nsc0ug99Jm05Sh73zytztDIHYGvlvx8dw4bD4e9ocvo4dkVMS+Hj7lEbeqJOKGoE+P2o7CyLoERVXb2euvlode4tPtqm8Qg==","format":"google-gemini-v1","id":"call_1083328","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+
+        data: {"id":"gen-1792566584-NoVUUFXKUJtabTZE3z4j","object":"chat.completion.chunk","created":1792566584,"model":"google/gemini-3.8-flash","provider":"Google
+        AI Studio","choices":[{"index":0,"delta":{"content":null,"role":"assistant","tool_calls":[{"index":0,"id":"call_1083328","type":"function","function":{"name":"list_materials","arguments":""}}]},"finish_reason":null,"native_finish_reason":null}]}
+
+
+        data: {"id":"gen-1792566584-NoVUUFXKUJtabTZE3z4j","object":"chat.completion.chunk","created":1792566584,"model":"google/gemini-3.8-flash","provider":"Google
+        AI Studio","choices":[{"index":0,"delta":{"content":null,"role":"assistant","tool_calls":[{"index":0,"function":{"arguments":"{}"}}]},"finish_reason":null,"native_finish_reason":null}]}
+
+
+        data: {"id":"gen-1792566584-NoVUUFXKUJtabTZE3z4j","object":"chat.completion.chunk","created":1792566584,"model":"google/gemini-3.8-flash","provider":"Google
+        AI Studio","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":null},"finish_reason":"tool_calls","native_finish_reason":"STOP"}]}
+
+
+        data: {"id":"gen-1792566584-NoVUUFXKUJtabTZE3z4j","object":"chat.completion.chunk","created":1792566584,"model":"google/gemini-3.8-flash","provider":"Google
+        AI Studio","service_tier":"flex","choices":[{"index":0,"delta":{"content":"","role":"assistant"},"finish_reason":"tool_calls","native_finish_reason":"STOP"}],"usage":{"prompt_tokens":1028,"completion_tokens":67,"total_tokens":1095,"cost":0.000511125,"is_byok":false,"prompt_tokens_details":{"cached_tokens":0,"cache_write_tokens":0,"audio_tokens":0,"video_tokens":0},"cost_details":{"upstream_inference_cost":0.000511125,"upstream_inference_prompt_cost":0.0003855,"upstream_inference_completions_cost":0.000125625},"completion_tokens_details":{"reasoning_tokens":57,"image_tokens":0,"audio_tokens":0}}}
+
+
+        data: [DONE]
+
+
+        '
     headers:
-      content-encoding:
-      - zstd
       content-type:
-      - application/json
+      - text/event-stream
     status:
       code: 200
       message: OK
 - request:
     body: "{\"messages\":[{\"content\":\"You are a construction-assembly expert for
       EnergyPlus.\\nGiven construction specifications, create all required Construction
-      objects.\\n\\nWorkflow:\\n1. FIRST call `list_materials` to discover which materials
-      are already\\n   defined and their full properties (thickness, conductivity,
-      U-Factor\\n   for glazing, etc.). DO NOT skip this step \u2014 the materials
-      phase uses\\n   names that may differ from what the intake spec suggested.\\n2.
-      Pick the correct layer composition for each construction using the\\n   material
-      names returned by list_materials, verbatim.\\n3. Call `create_construction`
+      objects.\\n\\nWorkflow:\\n1. FIRST call `list_materials` to discover the names
+      and types of the\\n   materials already defined. DO NOT skip this step \u2014
+      the materials phase uses\\n   names that may differ from what the intake spec
+      suggested.\\n2. Pick the correct layer composition for each construction using
+      the\\n   material names returned by list_materials, verbatim.\\n3. Call `create_construction`
       for each construction in the spec.\\n4. Call `list_constructions` once at the
       end to confirm.\\n\\nRules:\\n- Layer names passed to `create_construction`
       MUST appear verbatim in\\n  the list_materials result (exact case, underscores,
@@ -141,12 +137,9 @@ interactions:
       panes with exactly one window gas layer between each pair, starting\\n  and
       ending with glass (e.g., [Glass_6mm, Air_13mm, Glass_6mm]). Never mix\\n  window
       and opaque materials; create_construction rejects such layers.\\n\",\"role\":\"system\"},{\"content\":\"Create
-      exactly one construction named 'ExtWall_Simple' with a single layer 'Brick_100mm'.\",\"role\":\"user\"},{\"content\":null,\"role\":\"assistant\",\"tool_calls\":[{\"type\":\"function\",\"id\":\"call_630627\",\"function\":{\"name\":\"list_materials\",\"arguments\":\"{}\"}}]},{\"content\":\"{\\\"success\\\":
-      true, \\\"message\\\": \\\"Listed 1 materials.\\\", \\\"data\\\": [{\\\"type\\\":
-      \\\"Material\\\", \\\"name\\\": \\\"Brick_100mm\\\", \\\"roughness\\\": \\\"MediumRough\\\",
-      \\\"thickness\\\": 0.1, \\\"conductivity\\\": 0.89, \\\"density\\\": 1920.0,
-      \\\"specific_heat\\\": 790.0, \\\"thermal_absorptance\\\": 0.9, \\\"solar_absorptance\\\":
-      0.7, \\\"visible_absorptance\\\": 0.7}]}\",\"role\":\"tool\",\"tool_call_id\":\"call_630627\"}],\"model\":\"google/gemini-3.8-flash\",\"max_completion_tokens\":16384,\"parallel_tool_calls\":false,\"stream\":false,\"temperature\":0.7,\"tool_choice\":\"required\",\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"create_construction\",\"description\":\"Create
+      exactly one construction named 'ExtWall_Simple' with a single layer 'Brick_100mm'.\",\"role\":\"user\"},{\"content\":null,\"role\":\"assistant\",\"tool_calls\":[{\"type\":\"function\",\"id\":\"call_1083328\",\"function\":{\"name\":\"list_materials\",\"arguments\":\"{}\"}}]},{\"content\":\"{\\\"success\\\":
+      true, \\\"message\\\": \\\"Listed 1 materials.\\\", \\\"data\\\": [{\\\"name\\\":
+      \\\"Brick_100mm\\\", \\\"type\\\": \\\"Material\\\"}]}\",\"role\":\"tool\",\"tool_call_id\":\"call_1083328\"}],\"model\":\"google/gemini-3.8-flash\",\"max_completion_tokens\":32768,\"parallel_tool_calls\":false,\"stream\":true,\"temperature\":1.0,\"tool_choice\":\"required\",\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"create_construction\",\"description\":\"Create
       a Construction as an ordered list of material layers.\\n\\n        Opaque constructions
       use opaque materials only. Window constructions\\n        are either one SimpleGlazingSystem,
       or glazing layers with exactly one\\n        window gas layer between each pair,
@@ -156,7 +149,7 @@ interactions:
       all constructions with their kind: window, opaque or mixed.\",\"parameters\":{\"properties\":{},\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"get_construction\",\"description\":\"Read
       a construction by name.\",\"parameters\":{\"properties\":{\"name\":{\"type\":\"string\"}},\"required\":[\"name\"],\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"delete_construction\",\"description\":\"Delete
       a construction; refused while surfaces or fenestration use it.\",\"parameters\":{\"properties\":{\"name\":{\"type\":\"string\"}},\"required\":[\"name\"],\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"list_materials\",\"description\":\"List
-      all materials, with their EnergyPlus type.\",\"parameters\":{\"properties\":{},\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"ConstructionResponse\",\"description\":\"Structured
+      material names with their EnergyPlus type.\",\"parameters\":{\"properties\":{},\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"ConstructionResponse\",\"description\":\"Structured
       summary returned by the construction phase agent.\",\"parameters\":{\"properties\":{\"missing_inputs\":{\"description\":\"Needed
       objects that do not exist; empty when none\",\"items\":{\"description\":\"An
       upstream object a phase needed but did not find.\",\"properties\":{\"kind\":{\"description\":\"Kind
@@ -164,7 +157,7 @@ interactions:
       is needed and for what, e.g. 'a window construction (kind window) for the office
       windows'\",\"type\":\"string\"}},\"required\":[\"kind\",\"description\"],\"type\":\"object\"},\"type\":\"array\"},\"construction_names\":{\"description\":\"Names
       of all constructions created\",\"items\":{\"type\":\"string\"},\"type\":\"array\"},\"summary\":{\"description\":\"One-line
-      summary of the construction creation result\",\"type\":\"string\"}},\"required\":[\"construction_names\",\"summary\"],\"type\":\"object\"}}}],\"max_thinking_budget\":4096}"
+      summary of the construction creation result\",\"type\":\"string\"}},\"required\":[\"construction_names\",\"summary\"],\"type\":\"object\"}}}],\"reasoning\":{\"max_tokens\":1024}}"
     headers:
       accept:
       - application/json
@@ -173,7 +166,7 @@ interactions:
       connection:
       - keep-alive
       content-length:
-      - '5397'
+      - '5125'
       content-type:
       - application/json
       user-agent:
@@ -188,8 +181,6 @@ interactions:
       - Linux
       x-stainless-package-version:
       - 2.52.0
-      x-stainless-raw-response:
-      - 'true'
       x-stainless-read-timeout:
       - '120.0'
       x-stainless-retry-count:
@@ -202,40 +193,44 @@ interactions:
     uri: https://llm.invalid/v1/chat/completions
   response:
     body:
-      string: !!binary |
-        KLUv/QBY5RsAlru7KNAMbQPMYdBq2xIWTK2BFqyAN5PKZ/yiUbtujGh6DoUHBC0e4BsM4hemAKUA
-        wwDTL9b0M/fR9VZQdziPIbY+UdPL/2510sN0/V7FH88n35ak4H91c+/VUH7tk7Xknb5vzWP+8FaQ
-        E3/rkfbJcf3InQmoQAIMfHr+r4ZwHn3yj6YWFMgGLoF6q/jh4m2IcejT7X9Y9Gn695t+9nzyi+t+
-        O4rYG9j04/n07X1Eh31yhp6ADCShrNxKjIOkOCiO8CJwYVfGaFQPrBK4H/r0rzoJIAAAIAAgm2EB
-        Ygbg2AE1xYUB3IA4EK2DNQ2EJT6dbvr55N/vcZS9+wOV7v84iFLJSxDuEUWKqjiQV3PEPQ/TPTr/
-        iFr3TO55O4o1w1lLObuUuGe6x0Py6XrfF8kwUzJvfbHHTX+RXifNyR8Z5nhcnLXU8y4J+vQfR9tJ
-        DzO89WJNLdUk+Pn3xZduXbWmPv0tzk6a/iHV+kWfXAGjyXAfqpten1xbSz3OYrw9CgvuOomaHWRa
-        BDSZyD5jJcQqeh0gGeeGCIMBXhQmjxKijmXH3IXaqGnIvgWL0pNK1zl0KAsOWVBmn0dILjCGg5Ji
-        qfmwhK8gE0wJbpSFTsgZx8UiQSkxG87DgTnG0jKaaDKKMey2gs1BQhjapptsyo3qKmrohMrSHlaD
-        IfTREY2Lom6fNTJF5SByuTQYQWkiy8CakHwGJApRLksmdxlHoy9Nk0B9vk8yWlx2BGbr6ANbeUlp
-        UD706IDQFTwslYnE14UCpVIppGL1KbtKVYPSF1ZNDYthWRQ1wL13Pz94KyfSz1uPZOm/GsL1I+nv
-        mkXcRH3/8ajnpCfzng7Co47TdWvs+XRZVmXpxtunzOFTo1FV0/V9EN7cHkWcRxKi5FVIYFMxY9An
-        JyCAjBzqghKxySR0OLXzLVi6jUOBPN3wW7lpkMisTGXBbNuFWYz1YgqFhy3WpZrYUIyDJWDk2y4h
-        mNFE0YgjI4XMwrLALS+EwNJhomgENiBAgsXY1QH4GRNZQicFeMqBHCfyZq4jtkAdBwivXXBKz9Fu
-        fOEG+GA2MonTKl5KAycWXqId2xbIT/uDJ1CxHLOA+ruZHOma42IaiMBk/5Cvwr4qAyxCr7Lc8Qg9
-        CJWAcEXnY3lflRZGQUDrrnbERXtbBo1qSCKg8HhCDwKpxPc2oLYtJQAj3ngdFg==
+      string: 'data: {"id":"gen-1792566586-4xtBoLgcAqZCkrGtN2OA","object":"chat.completion.chunk","created":1792566586,"model":"google/gemini-3.8-flash","provider":"Google
+        AI Studio","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":null,"reasoning_details":[{"type":"reasoning.encrypted","data":"EmkKZwFpFH0TJe4JPAXjhHv307Cu+d5AGVmCzh38qOuL8WStnI2fKhNpn9RqNOf4uwW03zbXs6ZaLdLZgWf7m5mTQq3p0gQzIZlpDUmizP89q4jFSngkljDOqdaiD1XKnMx6C/9S1cqyZn0=","format":"google-gemini-v1","id":"call_976949","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+
+        data: {"id":"gen-1792566586-4xtBoLgcAqZCkrGtN2OA","object":"chat.completion.chunk","created":1792566586,"model":"google/gemini-3.8-flash","provider":"Google
+        AI Studio","choices":[{"index":0,"delta":{"content":null,"role":"assistant","tool_calls":[{"index":0,"id":"call_976949","type":"function","function":{"name":"create_construction","arguments":""}}]},"finish_reason":null,"native_finish_reason":null}]}
+
+
+        data: {"id":"gen-1792566586-4xtBoLgcAqZCkrGtN2OA","object":"chat.completion.chunk","created":1792566586,"model":"google/gemini-3.8-flash","provider":"Google
+        AI Studio","choices":[{"index":0,"delta":{"content":null,"role":"assistant","tool_calls":[{"index":0,"function":{"arguments":"{\"name\":\"ExtWall_Simple\",\"layers\":[\"Brick_100mm\"]}"}}]},"finish_reason":null,"native_finish_reason":null}]}
+
+
+        data: {"id":"gen-1792566586-4xtBoLgcAqZCkrGtN2OA","object":"chat.completion.chunk","created":1792566586,"model":"google/gemini-3.8-flash","provider":"Google
+        AI Studio","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":null},"finish_reason":"tool_calls","native_finish_reason":"STOP"}]}
+
+
+        data: {"id":"gen-1792566586-4xtBoLgcAqZCkrGtN2OA","object":"chat.completion.chunk","created":1792566586,"model":"google/gemini-3.8-flash","provider":"Google
+        AI Studio","service_tier":"flex","choices":[{"index":0,"delta":{"content":"","role":"assistant"},"finish_reason":"tool_calls","native_finish_reason":"STOP"}],"usage":{"prompt_tokens":1080,"completion_tokens":30,"total_tokens":1110,"cost":0.00046125,"is_byok":false,"prompt_tokens_details":{"cached_tokens":0,"cache_write_tokens":0,"audio_tokens":0,"video_tokens":0},"cost_details":{"upstream_inference_cost":0.00046125,"upstream_inference_prompt_cost":0.000405,"upstream_inference_completions_cost":0.00005625},"completion_tokens_details":{"reasoning_tokens":0,"image_tokens":0,"audio_tokens":0}}}
+
+
+        data: [DONE]
+
+
+        '
     headers:
-      content-encoding:
-      - zstd
       content-type:
-      - application/json
+      - text/event-stream
     status:
       code: 200
       message: OK
 - request:
     body: "{\"messages\":[{\"content\":\"You are a construction-assembly expert for
       EnergyPlus.\\nGiven construction specifications, create all required Construction
-      objects.\\n\\nWorkflow:\\n1. FIRST call `list_materials` to discover which materials
-      are already\\n   defined and their full properties (thickness, conductivity,
-      U-Factor\\n   for glazing, etc.). DO NOT skip this step \u2014 the materials
-      phase uses\\n   names that may differ from what the intake spec suggested.\\n2.
-      Pick the correct layer composition for each construction using the\\n   material
-      names returned by list_materials, verbatim.\\n3. Call `create_construction`
+      objects.\\n\\nWorkflow:\\n1. FIRST call `list_materials` to discover the names
+      and types of the\\n   materials already defined. DO NOT skip this step \u2014
+      the materials phase uses\\n   names that may differ from what the intake spec
+      suggested.\\n2. Pick the correct layer composition for each construction using
+      the\\n   material names returned by list_materials, verbatim.\\n3. Call `create_construction`
       for each construction in the spec.\\n4. Call `list_constructions` once at the
       end to confirm.\\n\\nRules:\\n- Layer names passed to `create_construction`
       MUST appear verbatim in\\n  the list_materials result (exact case, underscores,
@@ -255,15 +250,12 @@ interactions:
       panes with exactly one window gas layer between each pair, starting\\n  and
       ending with glass (e.g., [Glass_6mm, Air_13mm, Glass_6mm]). Never mix\\n  window
       and opaque materials; create_construction rejects such layers.\\n\",\"role\":\"system\"},{\"content\":\"Create
-      exactly one construction named 'ExtWall_Simple' with a single layer 'Brick_100mm'.\",\"role\":\"user\"},{\"content\":null,\"role\":\"assistant\",\"tool_calls\":[{\"type\":\"function\",\"id\":\"call_630627\",\"function\":{\"name\":\"list_materials\",\"arguments\":\"{}\"}}]},{\"content\":\"{\\\"success\\\":
-      true, \\\"message\\\": \\\"Listed 1 materials.\\\", \\\"data\\\": [{\\\"type\\\":
-      \\\"Material\\\", \\\"name\\\": \\\"Brick_100mm\\\", \\\"roughness\\\": \\\"MediumRough\\\",
-      \\\"thickness\\\": 0.1, \\\"conductivity\\\": 0.89, \\\"density\\\": 1920.0,
-      \\\"specific_heat\\\": 790.0, \\\"thermal_absorptance\\\": 0.9, \\\"solar_absorptance\\\":
-      0.7, \\\"visible_absorptance\\\": 0.7}]}\",\"role\":\"tool\",\"tool_call_id\":\"call_630627\"},{\"content\":null,\"role\":\"assistant\",\"tool_calls\":[{\"type\":\"function\",\"id\":\"call_396789\",\"function\":{\"name\":\"create_construction\",\"arguments\":\"{\\\"name\\\":
+      exactly one construction named 'ExtWall_Simple' with a single layer 'Brick_100mm'.\",\"role\":\"user\"},{\"content\":null,\"role\":\"assistant\",\"tool_calls\":[{\"type\":\"function\",\"id\":\"call_1083328\",\"function\":{\"name\":\"list_materials\",\"arguments\":\"{}\"}}]},{\"content\":\"{\\\"success\\\":
+      true, \\\"message\\\": \\\"Listed 1 materials.\\\", \\\"data\\\": [{\\\"name\\\":
+      \\\"Brick_100mm\\\", \\\"type\\\": \\\"Material\\\"}]}\",\"role\":\"tool\",\"tool_call_id\":\"call_1083328\"},{\"content\":null,\"role\":\"assistant\",\"tool_calls\":[{\"type\":\"function\",\"id\":\"call_976949\",\"function\":{\"name\":\"create_construction\",\"arguments\":\"{\\\"name\\\":
       \\\"ExtWall_Simple\\\", \\\"layers\\\": [\\\"Brick_100mm\\\"]}\"}}]},{\"content\":\"{\\\"success\\\":
       true, \\\"message\\\": \\\"Construction 'ExtWall_Simple' created.\\\", \\\"data\\\":
-      {\\\"name\\\": \\\"ExtWall_Simple\\\", \\\"outside_layer\\\": \\\"Brick_100mm\\\"}}\",\"role\":\"tool\",\"tool_call_id\":\"call_396789\"}],\"model\":\"google/gemini-3.8-flash\",\"max_completion_tokens\":16384,\"parallel_tool_calls\":false,\"stream\":false,\"temperature\":0.7,\"tool_choice\":\"required\",\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"create_construction\",\"description\":\"Create
+      {\\\"name\\\": \\\"ExtWall_Simple\\\", \\\"outside_layer\\\": \\\"Brick_100mm\\\"}}\",\"role\":\"tool\",\"tool_call_id\":\"call_976949\"}],\"model\":\"google/gemini-3.8-flash\",\"max_completion_tokens\":32768,\"parallel_tool_calls\":false,\"stream\":true,\"temperature\":1.0,\"tool_choice\":\"required\",\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"create_construction\",\"description\":\"Create
       a Construction as an ordered list of material layers.\\n\\n        Opaque constructions
       use opaque materials only. Window constructions\\n        are either one SimpleGlazingSystem,
       or glazing layers with exactly one\\n        window gas layer between each pair,
@@ -273,7 +265,7 @@ interactions:
       all constructions with their kind: window, opaque or mixed.\",\"parameters\":{\"properties\":{},\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"get_construction\",\"description\":\"Read
       a construction by name.\",\"parameters\":{\"properties\":{\"name\":{\"type\":\"string\"}},\"required\":[\"name\"],\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"delete_construction\",\"description\":\"Delete
       a construction; refused while surfaces or fenestration use it.\",\"parameters\":{\"properties\":{\"name\":{\"type\":\"string\"}},\"required\":[\"name\"],\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"list_materials\",\"description\":\"List
-      all materials, with their EnergyPlus type.\",\"parameters\":{\"properties\":{},\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"ConstructionResponse\",\"description\":\"Structured
+      material names with their EnergyPlus type.\",\"parameters\":{\"properties\":{},\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"ConstructionResponse\",\"description\":\"Structured
       summary returned by the construction phase agent.\",\"parameters\":{\"properties\":{\"missing_inputs\":{\"description\":\"Needed
       objects that do not exist; empty when none\",\"items\":{\"description\":\"An
       upstream object a phase needed but did not find.\",\"properties\":{\"kind\":{\"description\":\"Kind
@@ -281,7 +273,7 @@ interactions:
       is needed and for what, e.g. 'a window construction (kind window) for the office
       windows'\",\"type\":\"string\"}},\"required\":[\"kind\",\"description\"],\"type\":\"object\"},\"type\":\"array\"},\"construction_names\":{\"description\":\"Names
       of all constructions created\",\"items\":{\"type\":\"string\"},\"type\":\"array\"},\"summary\":{\"description\":\"One-line
-      summary of the construction creation result\",\"type\":\"string\"}},\"required\":[\"construction_names\",\"summary\"],\"type\":\"object\"}}}],\"max_thinking_budget\":4096}"
+      summary of the construction creation result\",\"type\":\"string\"}},\"required\":[\"construction_names\",\"summary\"],\"type\":\"object\"}}}],\"reasoning\":{\"max_tokens\":1024}}"
     headers:
       accept:
       - application/json
@@ -290,7 +282,7 @@ interactions:
       connection:
       - keep-alive
       content-length:
-      - '5817'
+      - '5545'
       content-type:
       - application/json
       user-agent:
@@ -305,8 +297,6 @@ interactions:
       - Linux
       x-stainless-package-version:
       - 2.52.0
-      x-stainless-raw-response:
-      - 'true'
       x-stainless-read-timeout:
       - '120.0'
       x-stainless-retry-count:
@@ -319,35 +309,44 @@ interactions:
     uri: https://llm.invalid/v1/chat/completions
   response:
     body:
-      string: !!binary |
-        KLUv/QBYPBIAhqVwJwCROAdgcdrkdi/FGtL20rWlfCdpd4exKzFZnk6jlqoe1l36d9UyAWcAXABq
-        ANtVU98+WcK6EsCAELBwd7oSZya93l7VF6fHBCJ5sGRrKYGN1JzU3eNK03pzl7bfUvh2Obk3XtaE
-        kH4VvHvDxVzm2zEKRWsoaEhIUAgqFq0aLOqCPQwKJJMB6DEoeB5yqbtL/A1AAECvYtPSbTnl68q1
-        vrtvnPQb96VerWu9XSLCUok2w/3k22uMD0Zxzr67nPUtjarKkqd6mfSiZnxz3DlWkvwNhntdyLOC
-        b++IvWkl7mghZ+jWtxgx6d6S6UWXkjxFVhcQhIUSKSoeuLJEQE7lwmpIoLRFwgWGwvIgUViA6KAS
-        KJqJhQYHC1a4++snvV3avjQUyoXw65WijCx7trl7bbkWRtH39orRrnLCqCvHu6/15DeuPTJxJk8U
-        44NQYtPd99L0NxiOkixnfTFZllHP4rcMikwcp0agSYMkBo/jQKKFculOkiPrLe16YdlKnJksYW+b
-        6UbUHGkr+OA3i9F215iaS1S564RvBAOR+Hr22/MGSSKPe5WrMTvqy5r0wjKyP5lHP4vO6e0HBxsQ
-        mIix0EBLMyAwgsWY9visir5BQQV8zgEdUnU1x/EtOKlpDbiUASPlR7vxxQ1Qg93INE7reKkNnKyw
-        RndsWsCRtI8h4pQ3s3f4aJvzplvroh8iiJkO3FUTpA9Y2EFZNBwbg6Ipb6rSwDgIaOFqb1zEtwVo
-        VEESAYTHI3oQSiW+bgOqbSlJGN+LBQEAAA==
+      string: 'data: {"id":"gen-1792566589-OsSlFn1UeSmRH9SZrM8F","object":"chat.completion.chunk","created":1792566589,"model":"google/gemini-3.8-flash","provider":"Google
+        AI Studio","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":null,"reasoning_details":[{"type":"reasoning.encrypted","data":"EiYKJGUyNDgzMGE3LTVjZDYtNDJmZS05OThiLWVlNTM5ZTcyYjljMw==","format":"google-gemini-v1","id":"call_971003","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+
+        data: {"id":"gen-1792566589-OsSlFn1UeSmRH9SZrM8F","object":"chat.completion.chunk","created":1792566589,"model":"google/gemini-3.8-flash","provider":"Google
+        AI Studio","choices":[{"index":0,"delta":{"content":null,"role":"assistant","tool_calls":[{"index":0,"id":"call_971003","type":"function","function":{"name":"list_constructions","arguments":""}}]},"finish_reason":null,"native_finish_reason":null}]}
+
+
+        data: {"id":"gen-1792566589-OsSlFn1UeSmRH9SZrM8F","object":"chat.completion.chunk","created":1792566589,"model":"google/gemini-3.8-flash","provider":"Google
+        AI Studio","choices":[{"index":0,"delta":{"content":null,"role":"assistant","tool_calls":[{"index":0,"function":{"arguments":"{}"}}]},"finish_reason":null,"native_finish_reason":null}]}
+
+
+        data: {"id":"gen-1792566589-OsSlFn1UeSmRH9SZrM8F","object":"chat.completion.chunk","created":1792566589,"model":"google/gemini-3.8-flash","provider":"Google
+        AI Studio","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":null},"finish_reason":"tool_calls","native_finish_reason":"STOP"}]}
+
+
+        data: {"id":"gen-1792566589-OsSlFn1UeSmRH9SZrM8F","object":"chat.completion.chunk","created":1792566589,"model":"google/gemini-3.8-flash","provider":"Google
+        AI Studio","service_tier":"flex","choices":[{"index":0,"delta":{"content":"","role":"assistant"},"finish_reason":"tool_calls","native_finish_reason":"STOP"}],"usage":{"prompt_tokens":1160,"completion_tokens":11,"total_tokens":1171,"cost":0.000455625,"is_byok":false,"prompt_tokens_details":{"cached_tokens":0,"cache_write_tokens":0,"audio_tokens":0,"video_tokens":0},"cost_details":{"upstream_inference_cost":0.000455625,"upstream_inference_prompt_cost":0.000435,"upstream_inference_completions_cost":0.000020625},"completion_tokens_details":{"reasoning_tokens":0,"image_tokens":0,"audio_tokens":0}}}
+
+
+        data: [DONE]
+
+
+        '
     headers:
-      content-encoding:
-      - zstd
       content-type:
-      - application/json
+      - text/event-stream
     status:
       code: 200
       message: OK
 - request:
     body: "{\"messages\":[{\"content\":\"You are a construction-assembly expert for
       EnergyPlus.\\nGiven construction specifications, create all required Construction
-      objects.\\n\\nWorkflow:\\n1. FIRST call `list_materials` to discover which materials
-      are already\\n   defined and their full properties (thickness, conductivity,
-      U-Factor\\n   for glazing, etc.). DO NOT skip this step \u2014 the materials
-      phase uses\\n   names that may differ from what the intake spec suggested.\\n2.
-      Pick the correct layer composition for each construction using the\\n   material
-      names returned by list_materials, verbatim.\\n3. Call `create_construction`
+      objects.\\n\\nWorkflow:\\n1. FIRST call `list_materials` to discover the names
+      and types of the\\n   materials already defined. DO NOT skip this step \u2014
+      the materials phase uses\\n   names that may differ from what the intake spec
+      suggested.\\n2. Pick the correct layer composition for each construction using
+      the\\n   material names returned by list_materials, verbatim.\\n3. Call `create_construction`
       for each construction in the spec.\\n4. Call `list_constructions` once at the
       end to confirm.\\n\\nRules:\\n- Layer names passed to `create_construction`
       MUST appear verbatim in\\n  the list_materials result (exact case, underscores,
@@ -367,18 +366,15 @@ interactions:
       panes with exactly one window gas layer between each pair, starting\\n  and
       ending with glass (e.g., [Glass_6mm, Air_13mm, Glass_6mm]). Never mix\\n  window
       and opaque materials; create_construction rejects such layers.\\n\",\"role\":\"system\"},{\"content\":\"Create
-      exactly one construction named 'ExtWall_Simple' with a single layer 'Brick_100mm'.\",\"role\":\"user\"},{\"content\":null,\"role\":\"assistant\",\"tool_calls\":[{\"type\":\"function\",\"id\":\"call_630627\",\"function\":{\"name\":\"list_materials\",\"arguments\":\"{}\"}}]},{\"content\":\"{\\\"success\\\":
-      true, \\\"message\\\": \\\"Listed 1 materials.\\\", \\\"data\\\": [{\\\"type\\\":
-      \\\"Material\\\", \\\"name\\\": \\\"Brick_100mm\\\", \\\"roughness\\\": \\\"MediumRough\\\",
-      \\\"thickness\\\": 0.1, \\\"conductivity\\\": 0.89, \\\"density\\\": 1920.0,
-      \\\"specific_heat\\\": 790.0, \\\"thermal_absorptance\\\": 0.9, \\\"solar_absorptance\\\":
-      0.7, \\\"visible_absorptance\\\": 0.7}]}\",\"role\":\"tool\",\"tool_call_id\":\"call_630627\"},{\"content\":null,\"role\":\"assistant\",\"tool_calls\":[{\"type\":\"function\",\"id\":\"call_396789\",\"function\":{\"name\":\"create_construction\",\"arguments\":\"{\\\"name\\\":
+      exactly one construction named 'ExtWall_Simple' with a single layer 'Brick_100mm'.\",\"role\":\"user\"},{\"content\":null,\"role\":\"assistant\",\"tool_calls\":[{\"type\":\"function\",\"id\":\"call_1083328\",\"function\":{\"name\":\"list_materials\",\"arguments\":\"{}\"}}]},{\"content\":\"{\\\"success\\\":
+      true, \\\"message\\\": \\\"Listed 1 materials.\\\", \\\"data\\\": [{\\\"name\\\":
+      \\\"Brick_100mm\\\", \\\"type\\\": \\\"Material\\\"}]}\",\"role\":\"tool\",\"tool_call_id\":\"call_1083328\"},{\"content\":null,\"role\":\"assistant\",\"tool_calls\":[{\"type\":\"function\",\"id\":\"call_976949\",\"function\":{\"name\":\"create_construction\",\"arguments\":\"{\\\"name\\\":
       \\\"ExtWall_Simple\\\", \\\"layers\\\": [\\\"Brick_100mm\\\"]}\"}}]},{\"content\":\"{\\\"success\\\":
       true, \\\"message\\\": \\\"Construction 'ExtWall_Simple' created.\\\", \\\"data\\\":
-      {\\\"name\\\": \\\"ExtWall_Simple\\\", \\\"outside_layer\\\": \\\"Brick_100mm\\\"}}\",\"role\":\"tool\",\"tool_call_id\":\"call_396789\"},{\"content\":null,\"role\":\"assistant\",\"tool_calls\":[{\"type\":\"function\",\"id\":\"call_18082\",\"function\":{\"name\":\"list_constructions\",\"arguments\":\"{}\"}}]},{\"content\":\"{\\\"success\\\":
+      {\\\"name\\\": \\\"ExtWall_Simple\\\", \\\"outside_layer\\\": \\\"Brick_100mm\\\"}}\",\"role\":\"tool\",\"tool_call_id\":\"call_976949\"},{\"content\":null,\"role\":\"assistant\",\"tool_calls\":[{\"type\":\"function\",\"id\":\"call_971003\",\"function\":{\"name\":\"list_constructions\",\"arguments\":\"{}\"}}]},{\"content\":\"{\\\"success\\\":
       true, \\\"message\\\": \\\"Listed 1 constructions.\\\", \\\"data\\\": [{\\\"kind\\\":
       \\\"opaque\\\", \\\"name\\\": \\\"ExtWall_Simple\\\", \\\"outside_layer\\\":
-      \\\"Brick_100mm\\\"}]}\",\"role\":\"tool\",\"tool_call_id\":\"call_18082\"}],\"model\":\"google/gemini-3.8-flash\",\"max_completion_tokens\":16384,\"parallel_tool_calls\":false,\"stream\":false,\"temperature\":0.7,\"tool_choice\":\"required\",\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"create_construction\",\"description\":\"Create
+      \\\"Brick_100mm\\\"}]}\",\"role\":\"tool\",\"tool_call_id\":\"call_971003\"}],\"model\":\"google/gemini-3.8-flash\",\"max_completion_tokens\":32768,\"parallel_tool_calls\":false,\"stream\":true,\"temperature\":1.0,\"tool_choice\":\"required\",\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"create_construction\",\"description\":\"Create
       a Construction as an ordered list of material layers.\\n\\n        Opaque constructions
       use opaque materials only. Window constructions\\n        are either one SimpleGlazingSystem,
       or glazing layers with exactly one\\n        window gas layer between each pair,
@@ -388,7 +384,7 @@ interactions:
       all constructions with their kind: window, opaque or mixed.\",\"parameters\":{\"properties\":{},\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"get_construction\",\"description\":\"Read
       a construction by name.\",\"parameters\":{\"properties\":{\"name\":{\"type\":\"string\"}},\"required\":[\"name\"],\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"delete_construction\",\"description\":\"Delete
       a construction; refused while surfaces or fenestration use it.\",\"parameters\":{\"properties\":{\"name\":{\"type\":\"string\"}},\"required\":[\"name\"],\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"list_materials\",\"description\":\"List
-      all materials, with their EnergyPlus type.\",\"parameters\":{\"properties\":{},\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"ConstructionResponse\",\"description\":\"Structured
+      material names with their EnergyPlus type.\",\"parameters\":{\"properties\":{},\"type\":\"object\"}}},{\"type\":\"function\",\"function\":{\"name\":\"ConstructionResponse\",\"description\":\"Structured
       summary returned by the construction phase agent.\",\"parameters\":{\"properties\":{\"missing_inputs\":{\"description\":\"Needed
       objects that do not exist; empty when none\",\"items\":{\"description\":\"An
       upstream object a phase needed but did not find.\",\"properties\":{\"kind\":{\"description\":\"Kind
@@ -396,7 +392,7 @@ interactions:
       is needed and for what, e.g. 'a window construction (kind window) for the office
       windows'\",\"type\":\"string\"}},\"required\":[\"kind\",\"description\"],\"type\":\"object\"},\"type\":\"array\"},\"construction_names\":{\"description\":\"Names
       of all constructions created\",\"items\":{\"type\":\"string\"},\"type\":\"array\"},\"summary\":{\"description\":\"One-line
-      summary of the construction creation result\",\"type\":\"string\"}},\"required\":[\"construction_names\",\"summary\"],\"type\":\"object\"}}}],\"max_thinking_budget\":4096}"
+      summary of the construction creation result\",\"type\":\"string\"}},\"required\":[\"construction_names\",\"summary\"],\"type\":\"object\"}}}],\"reasoning\":{\"max_tokens\":1024}}"
     headers:
       accept:
       - application/json
@@ -405,7 +401,7 @@ interactions:
       connection:
       - keep-alive
       content-length:
-      - '6184'
+      - '5914'
       content-type:
       - application/json
       user-agent:
@@ -420,8 +416,6 @@ interactions:
       - Linux
       x-stainless-package-version:
       - 2.52.0
-      x-stainless-raw-response:
-      - 'true'
       x-stainless-read-timeout:
       - '120.0'
       x-stainless-retry-count:
@@ -434,25 +428,34 @@ interactions:
     uri: https://llm.invalid/v1/chat/completions
   response:
     body:
-      string: !!binary |
-        KLUv/QBYRRUAViyFJuCUVgeQwH6RbUniEh9F6gPuMnGzFholbHchFLeCT2FZZJhhCeK9eQBxAH0A
-        DFuksj2L8Zrtd3a1KlezN07ytR17dtrUdS+gBwTI4e2VqRah1To7x764mRRQLJOeLbkS4FhRWr09
-        MkXlWTvF93GFZ5+0L0dLUki5jwPffiGDfNCzU/syFU7GIWM2hFQyDVXGhS0mlQJLwQUjGRBIk8nV
-        26m+BwACCJYtrnrtpApvZ/nmPY1dwgwUVC4uxgfhvDZvZ6tz7+lo1exJ7YvPXhuufCed79q29r2d
-        I633tHP1rGV59oqM5sKxSN83z25jfNBFSu/bJ7WPq+PYnr2xH7RaFY1nUTsJU7Pv6Wi3DJty4Nlv
-        vN6Gqb4uCxwgGRoJC4PDREm1QNHBcICI2GiGt7/7qLNTfK1OhZMp/S5TzuPz+cfj0yeWb7pPzKOj
-        fbL3sma7ara1LT+xT5QAKaNIciGwa0IAVLnzIsSxmm0hzu0RKICjJfvCxfg0LglDAAQhhU/tU6c+
-        KS/7yfN2eyfLq6rv7GwntQKfz6d6ss8+GIIBS2QNJIYhkCyVKKI4hpMrb2Y7+bhea10fplqENnU9
-        vl1HHIso5sAH7+Gr3vYQ2vlwtq+l8MzgYpHiu/SeGVzOosgitdvJIfS6a0larcvjc0lkcp+sdHP2
-        g4ORCZAIstGBGg7MhIYiZmhINEeTwUQXHBJigeJuBDggMILGnN0B91kRdYOCFOCZAzml4mJuA1tg
-        KXTY8WoGjvQc2Y1vbgAf7EYmcVrjpThwcuGN7Ni0gEppn1YEqsoxF3BlNlcYXVsvakKEvvhz+SpX
-        KQcqrEeyoDzm5hI3BW24+ek17bwMKfCCy33VtDACAa272o+L+LYYGtWQRCDh8YwehFCJ/9uAaltK
-        FsYXYAE=
+      string: 'data: {"id":"gen-1792566591-tL1IeCseI5TnmuEb7Ega","object":"chat.completion.chunk","created":1792566591,"model":"google/gemini-3.8-flash","provider":"Google
+        AI Studio","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":null,"reasoning_details":[{"type":"reasoning.encrypted","data":"EiYKJGUyNDgzMGE3LTVjZDYtNDJmZS05OThiLWVlNTM5ZTcyYjljMw==","format":"google-gemini-v1","id":"call_881523","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+
+        data: {"id":"gen-1792566591-tL1IeCseI5TnmuEb7Ega","object":"chat.completion.chunk","created":1792566591,"model":"google/gemini-3.8-flash","provider":"Google
+        AI Studio","choices":[{"index":0,"delta":{"content":null,"role":"assistant","tool_calls":[{"index":0,"id":"call_881523","type":"function","function":{"name":"ConstructionResponse","arguments":""}}]},"finish_reason":null,"native_finish_reason":null}]}
+
+
+        data: {"id":"gen-1792566591-tL1IeCseI5TnmuEb7Ega","object":"chat.completion.chunk","created":1792566591,"model":"google/gemini-3.8-flash","provider":"Google
+        AI Studio","choices":[{"index":0,"delta":{"content":null,"role":"assistant","tool_calls":[{"index":0,"function":{"arguments":"{\"summary\":\"Successfully
+        created construction ''ExtWall_Simple'' with layer ''Brick_100mm''.\",\"missing_inputs\":[],\"construction_names\":[\"ExtWall_Simple\"]}"}}]},"finish_reason":null,"native_finish_reason":null}]}
+
+
+        data: {"id":"gen-1792566591-tL1IeCseI5TnmuEb7Ega","object":"chat.completion.chunk","created":1792566591,"model":"google/gemini-3.8-flash","provider":"Google
+        AI Studio","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":null},"finish_reason":"tool_calls","native_finish_reason":"STOP"}]}
+
+
+        data: {"id":"gen-1792566591-tL1IeCseI5TnmuEb7Ega","object":"chat.completion.chunk","created":1792566591,"model":"google/gemini-3.8-flash","provider":"Google
+        AI Studio","service_tier":"flex","choices":[{"index":0,"delta":{"content":"","role":"assistant"},"finish_reason":"tool_calls","native_finish_reason":"STOP"}],"usage":{"prompt_tokens":1225,"completion_tokens":49,"total_tokens":1274,"cost":0.00055125,"is_byok":false,"prompt_tokens_details":{"cached_tokens":0,"cache_write_tokens":0,"audio_tokens":0,"video_tokens":0},"cost_details":{"upstream_inference_cost":0.00055125,"upstream_inference_prompt_cost":0.000459375,"upstream_inference_completions_cost":0.000091875},"completion_tokens_details":{"reasoning_tokens":0,"image_tokens":0,"audio_tokens":0}}}
+
+
+        data: [DONE]
+
+
+        '
     headers:
-      content-encoding:
-      - zstd
       content-type:
-      - application/json
+      - text/event-stream
     status:
       code: 200
       message: OK

@@ -21,7 +21,7 @@ interactions:
       Rough, MediumRough, MediumSmooth, Smooth, VerySmooth.\n- Use typical ASHRAE
       values when the description is vague.\n","role":"system"},{"content":"Create
       exactly one standard material named ''Brick_100mm'': thickness 0.1 m, conductivity
-      0.89 W/m-K, density 1920 kg/m3, specific heat 790 J/kg-K, roughness MediumRough.","role":"user"}],"model":"google/gemini-3.8-flash","max_completion_tokens":16384,"parallel_tool_calls":false,"stream":false,"temperature":0.7,"tool_choice":"required","tools":[{"type":"function","function":{"name":"create_materials","description":"Create
+      0.89 W/m-K, density 1920 kg/m3, specific heat 790 J/kg-K, roughness MediumRough.","role":"user"}],"model":"google/gemini-3.8-flash","max_completion_tokens":32768,"parallel_tool_calls":false,"stream":true,"temperature":1.0,"tool_choice":"required","tools":[{"type":"function","function":{"name":"create_materials","description":"Create
       materials of any types in one call; give all you need at once.\n\n        Each
       material succeeds or fails alone. One that exists with the same\n        values
       is kept; one that exists with other values fails. The reply\n        is final:
@@ -63,7 +63,7 @@ interactions:
       a material; refused while a construction uses it.","parameters":{"properties":{"name":{"type":"string"}},"required":["name"],"type":"object"}}},{"type":"function","function":{"name":"MaterialResponse","description":"Structured
       summary returned by the material phase agent.","parameters":{"properties":{"material_names":{"description":"Names
       of all materials created","items":{"type":"string"},"type":"array"},"summary":{"description":"One-line
-      summary of the material creation result","type":"string"}},"required":["material_names","summary"],"type":"object"}}}],"max_thinking_budget":4096}'
+      summary of the material creation result","type":"string"}},"required":["material_names","summary"],"type":"object"}}}],"reasoning":{"max_tokens":1024}}'
     headers:
       accept:
       - application/json
@@ -72,7 +72,7 @@ interactions:
       connection:
       - keep-alive
       content-length:
-      - '8866'
+      - '8870'
       content-type:
       - application/json
       user-agent:
@@ -87,8 +87,6 @@ interactions:
       - Linux
       x-stainless-package-version:
       - 2.52.0
-      x-stainless-raw-response:
-      - 'true'
       x-stainless-read-timeout:
       - '120.0'
       x-stainless-retry-count:
@@ -101,37 +99,33 @@ interactions:
     uri: https://llm.invalid/v1/chat/completions
   response:
     body:
-      string: !!binary |
-        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
+      string: 'data: {"id":"gen-1792566645-8QCZK3YzWL0zi7wGoc7Z","object":"chat.completion.chunk","created":1792566645,"model":"google/gemini-3.8-flash","provider":"Google
+        AI Studio","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":null,"reasoning_details":[{"type":"reasoning.encrypted","data":"EmkKZwFpFH0T4cRV/0ovOdOLZBdDLNRrGjn4DMMGHGAGgIP8+97FZpv0b6tV4LUv8kPAcnxm2DyPOd5/JrPnbSJes7+jIxble7zJca1IE0f0/2bzrztqS8vMo5DEy+SYI5MrSHkSNaiKymI=","format":"google-gemini-v1","id":"call_176957","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+
+        data: {"id":"gen-1792566645-8QCZK3YzWL0zi7wGoc7Z","object":"chat.completion.chunk","created":1792566645,"model":"google/gemini-3.8-flash","provider":"Google
+        AI Studio","choices":[{"index":0,"delta":{"content":null,"role":"assistant","tool_calls":[{"index":0,"id":"call_176957","type":"function","function":{"name":"create_materials","arguments":""}}]},"finish_reason":null,"native_finish_reason":null}]}
+
+
+        data: {"id":"gen-1792566645-8QCZK3YzWL0zi7wGoc7Z","object":"chat.completion.chunk","created":1792566645,"model":"google/gemini-3.8-flash","provider":"Google
+        AI Studio","choices":[{"index":0,"delta":{"content":null,"role":"assistant","tool_calls":[{"index":0,"function":{"arguments":"{\"standard\":[{\"specific_heat\":790,\"conductivity\":0.89,\"roughness\":\"MediumRough\",\"thickness\":0.1,\"density\":1920,\"name\":\"Brick_100mm\"}]}"}}]},"finish_reason":null,"native_finish_reason":null}]}
+
+
+        data: {"id":"gen-1792566645-8QCZK3YzWL0zi7wGoc7Z","object":"chat.completion.chunk","created":1792566645,"model":"google/gemini-3.8-flash","provider":"Google
+        AI Studio","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":null},"finish_reason":"tool_calls","native_finish_reason":"STOP"}]}
+
+
+        data: {"id":"gen-1792566645-8QCZK3YzWL0zi7wGoc7Z","object":"chat.completion.chunk","created":1792566645,"model":"google/gemini-3.8-flash","provider":"Google
+        AI Studio","service_tier":"flex","choices":[{"index":0,"delta":{"content":"","role":"assistant"},"finish_reason":"tool_calls","native_finish_reason":"STOP"}],"usage":{"prompt_tokens":2317,"completion_tokens":60,"total_tokens":2377,"cost":0.000981375,"is_byok":false,"prompt_tokens_details":{"cached_tokens":0,"cache_write_tokens":0,"audio_tokens":0,"video_tokens":0},"cost_details":{"upstream_inference_cost":0.000981375,"upstream_inference_prompt_cost":0.000868875,"upstream_inference_completions_cost":0.0001125},"completion_tokens_details":{"reasoning_tokens":0,"image_tokens":0,"audio_tokens":0}}}
+
+
+        data: [DONE]
+
+
+        '
     headers:
-      content-encoding:
-      - zstd
       content-type:
-      - application/json
+      - text/event-stream
     status:
       code: 200
       message: OK
@@ -157,10 +151,10 @@ interactions:
       Rough, MediumRough, MediumSmooth, Smooth, VerySmooth.\n- Use typical ASHRAE
       values when the description is vague.\n","role":"system"},{"content":"Create
       exactly one standard material named ''Brick_100mm'': thickness 0.1 m, conductivity
-      0.89 W/m-K, density 1920 kg/m3, specific heat 790 J/kg-K, roughness MediumRough.","role":"user"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_156646","function":{"name":"create_materials","arguments":"{\"standard\":
-      [{\"name\": \"Brick_100mm\", \"conductivity\": 0.89, \"density\": 1920, \"thickness\":
-      0.1, \"roughness\": \"MediumRough\", \"specific_heat\": 790}]}"}}]},{"content":"{\"success\":
-      true, \"message\": \"Created 1 materials.\", \"data\": null}","role":"tool","tool_call_id":"call_156646"}],"model":"google/gemini-3.8-flash","max_completion_tokens":16384,"parallel_tool_calls":false,"stream":false,"temperature":0.7,"tool_choice":"required","tools":[{"type":"function","function":{"name":"create_materials","description":"Create
+      0.89 W/m-K, density 1920 kg/m3, specific heat 790 J/kg-K, roughness MediumRough.","role":"user"},{"content":null,"role":"assistant","tool_calls":[{"type":"function","id":"call_176957","function":{"name":"create_materials","arguments":"{\"standard\":
+      [{\"specific_heat\": 790, \"conductivity\": 0.89, \"roughness\": \"MediumRough\",
+      \"thickness\": 0.1, \"density\": 1920, \"name\": \"Brick_100mm\"}]}"}}]},{"content":"{\"success\":
+      true, \"message\": \"Created 1 materials.\", \"data\": null}","role":"tool","tool_call_id":"call_176957"}],"model":"google/gemini-3.8-flash","max_completion_tokens":32768,"parallel_tool_calls":false,"stream":true,"temperature":1.0,"tool_choice":"required","tools":[{"type":"function","function":{"name":"create_materials","description":"Create
       materials of any types in one call; give all you need at once.\n\n        Each
       material succeeds or fails alone. One that exists with the same\n        values
       is kept; one that exists with other values fails. The reply\n        is final:
@@ -202,7 +196,7 @@ interactions:
       a material; refused while a construction uses it.","parameters":{"properties":{"name":{"type":"string"}},"required":["name"],"type":"object"}}},{"type":"function","function":{"name":"MaterialResponse","description":"Structured
       summary returned by the material phase agent.","parameters":{"properties":{"material_names":{"description":"Names
       of all materials created","items":{"type":"string"},"type":"array"},"summary":{"description":"One-line
-      summary of the material creation result","type":"string"}},"required":["material_names","summary"],"type":"object"}}}],"max_thinking_budget":4096}'
+      summary of the material creation result","type":"string"}},"required":["material_names","summary"],"type":"object"}}}],"reasoning":{"max_tokens":1024}}'
     headers:
       accept:
       - application/json
@@ -211,7 +205,7 @@ interactions:
       connection:
       - keep-alive
       content-length:
-      - '9306'
+      - '9310'
       content-type:
       - application/json
       user-agent:
@@ -226,8 +220,6 @@ interactions:
       - Linux
       x-stainless-package-version:
       - 2.52.0
-      x-stainless-raw-response:
-      - 'true'
       x-stainless-read-timeout:
       - '120.0'
       x-stainless-retry-count:
@@ -240,27 +232,35 @@ interactions:
     uri: https://llm.invalid/v1/chat/completions
   response:
     body:
-      string: !!binary |
-        KLUv/QBYHRoAhresKODu6AE8UXTHmxDFpP1wJWs2k3K+2al9JANU31bt/6EBT2GMMYYREwKYAJMA
-        sgA4cxuu/iboGD8vdVIFdP2SYo/057t2UftJN/aShvJrf7V2F/q+NHP5t0s1zP7WI+3PMZ3dzjQo
-        koaCQ88/aQhnzp97dKxaAETACqCX2t8Gvm4Ybw69/sTWH/T5O36W/vxiur9yFkuBHT3SoW/5nwz7
-        cw2EIeO67POgkEwgI8pIdE0ccE1U5LqoyIMKuL859EmdBNAAAGgABPptvJh3nncERrV2mtYvZacb
-        1k4ThYEkzZOGbcwc541bNwy8A70zytHaTnuH5ND1vm+7LUd//vpiTj9EjTT/jhaH/jZeJ8HnkCkC
-        iUCwWqOUt9Mc+nOj7aQKuF16sY416k77/PviG7emWkeH/hVnJ0H/LWr91p87YDQZ7EN0x+vPda1R
-        YhXj7dAv1vEz5tH0Uk1nARn1uFguCJyMTBWB94Tns7kbAiypPGDk1FF8aLRx0AeVhMTko5miiMRa
-        GQOChpEBxQII4zLI5ybSYSOCGMAP6ysN0kAoDwqWS5V56Ichm5eiKDnByShyQzApMs2nUo52XOxT
-        ngDUYRomPJRO4VKZHFAlk3qbWMwC/ewSZSQoQpju4IM1VqXCZExT5QKhbUAcyURng4kjIzj0uOP0
-        5/M3N8ryvgCN+ydmUSp5ycI73qmA3gmlUmmLlvqjqNL1ILAmfUWq6j0ilzVNAtjL+/m1SzEbP2/N
-        daWfNITp7OJvmkXYm+Z7ZJRO+i5v6CA8yjBNt8bSXzVVVY0bb38Rhz/roiro+j4Ib2xzFmeusyg5
-        FQrY0Was+fOCgofHgs6oWKKFQSHiMnCIPA5WJnNcdJudXbYEW0GahQSLFbrIcIja0jmmrj4Tm0ii
-        RVyHxuLMiIdCJeMQQUwEzsYBNyAwguXY1QH5GRdZ4hoFfMoBHafqZo4jW3B9ahpwKQNGyo/qxjc3
-        gA52I9M4reOlNnCywufZsW0B4bTPdAIVyzELOLybW5GuIC7KgAgV9s/zFWK0MgBFUC8LvZHXYlrp
-        OUHOJy4YWthXfQvjIaAFV7vior4tQaMqJBEsPB6hB0Eq8b0NCG1LCcB4b7wXCw==
+      string: 'data: {"id":"gen-1792566648-TKQH70rprv120MKytlBS","object":"chat.completion.chunk","created":1792566648,"model":"google/gemini-3.8-flash","provider":"Google
+        AI Studio","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":null,"reasoning_details":[{"type":"reasoning.encrypted","data":"EmkKZwFpFH0TfLiiblgSZKKRVIkvwFYbOO9OgQS2mbZzhUfAw2NG3NhWUzkXXFaKxJebHRMtemu6zSyC0ZAltciSKUdsDQebMWck4MW8raODmAbrR3oBbqPIzfsU/UjIvNcg9MF6dHeHJDA=","format":"google-gemini-v1","id":"call_864255","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+
+        data: {"id":"gen-1792566648-TKQH70rprv120MKytlBS","object":"chat.completion.chunk","created":1792566648,"model":"google/gemini-3.8-flash","provider":"Google
+        AI Studio","choices":[{"index":0,"delta":{"content":null,"role":"assistant","tool_calls":[{"index":0,"id":"call_864255","type":"function","function":{"name":"MaterialResponse","arguments":""}}]},"finish_reason":null,"native_finish_reason":null}]}
+
+
+        data: {"id":"gen-1792566648-TKQH70rprv120MKytlBS","object":"chat.completion.chunk","created":1792566648,"model":"google/gemini-3.8-flash","provider":"Google
+        AI Studio","choices":[{"index":0,"delta":{"content":null,"role":"assistant","tool_calls":[{"index":0,"function":{"arguments":"{\"summary\":\"Created
+        standard material ''Brick_100mm'' with thickness 0.1 m, conductivity 0.89
+        W/m-K, density 1920 kg/m3, and specific heat 790 J/kg-K.\",\"material_names\":[\"Brick_100mm\"]}"}}]},"finish_reason":null,"native_finish_reason":null}]}
+
+
+        data: {"id":"gen-1792566648-TKQH70rprv120MKytlBS","object":"chat.completion.chunk","created":1792566648,"model":"google/gemini-3.8-flash","provider":"Google
+        AI Studio","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":null},"finish_reason":"tool_calls","native_finish_reason":"STOP"}]}
+
+
+        data: {"id":"gen-1792566648-TKQH70rprv120MKytlBS","object":"chat.completion.chunk","created":1792566648,"model":"google/gemini-3.8-flash","provider":"Google
+        AI Studio","service_tier":"flex","choices":[{"index":0,"delta":{"content":"","role":"assistant"},"finish_reason":"tool_calls","native_finish_reason":"STOP"}],"usage":{"prompt_tokens":2403,"completion_tokens":82,"total_tokens":2485,"cost":0.001054875,"is_byok":false,"prompt_tokens_details":{"cached_tokens":0,"cache_write_tokens":0,"audio_tokens":0,"video_tokens":0},"cost_details":{"upstream_inference_cost":0.001054875,"upstream_inference_prompt_cost":0.000901125,"upstream_inference_completions_cost":0.00015375},"completion_tokens_details":{"reasoning_tokens":0,"image_tokens":0,"audio_tokens":0}}}
+
+
+        data: [DONE]
+
+
+        '
     headers:
-      content-encoding:
-      - zstd
       content-type:
-      - application/json
+      - text/event-stream
     status:
       code: 200
       message: OK
