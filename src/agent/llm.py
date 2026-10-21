@@ -1,6 +1,5 @@
 import json
 import re
-import threading
 from collections import Counter
 from collections.abc import Callable, Sequence
 from pathlib import Path
@@ -17,7 +16,6 @@ from langchain.agents.middleware import (
     ModelResponse,
     hook_config,
     wrap_model_call,
-    wrap_tool_call,
 )
 from langchain.agents.structured_output import ToolStrategy
 from langchain.chat_models import init_chat_model
@@ -113,34 +111,6 @@ def _sequential_tool_calls(
             model_settings={**request.model_settings, "parallel_tool_calls": False}
         )
     return handler(request)
-
-
-WRITE_TOOL_PREFIXES: Final = ("create_", "update_", "delete_")
-
-
-def serial_write_tools_middleware() -> AgentMiddleware:
-    """Serialize write-tool execution within one agent instance.
-
-    `_sequential_tool_calls` asks the provider for at most one tool call
-    per round, but `parallel_tool_calls` is a hint that OpenAI-compatible
-    endpoints may ignore. When a round still returns several tool calls,
-    the ToolNode executes them concurrently, so create_/update_/delete_
-    tools could race on the shared local ConfigState (e.g. the
-    check-then-add in every create tool). Read tools pass through.
-    """
-    lock = threading.Lock()
-
-    def _serialize(
-        request: ToolCallRequest,
-        handler: Callable[[ToolCallRequest], ToolMessage | Command],
-    ) -> ToolMessage | Command:
-        name = str(request.tool_call.get("name", ""))
-        if name.startswith(WRITE_TOOL_PREFIXES):
-            with lock:
-                return handler(request)
-        return handler(request)
-
-    return wrap_tool_call(name="SerialWriteTools")(_serialize)
 
 
 MAX_REPEATED_FAILURES: Final = 3
@@ -294,7 +264,7 @@ def build_agent(
     Returns:
         A compiled agent graph taking/returning `{"messages": [...]}`.
     """
-    return create_agent(
+    agent = create_agent(
         model=create_llm(config),
         tools=tools or [],
         system_prompt=(system_prompt or "") + language_directive(),
@@ -310,7 +280,8 @@ def build_agent(
                 edits=[ClearToolUsesEdit(trigger=CONTEXT_TRIGGER_TOKENS, keep=5)]
             ),
             _sequential_tool_calls,
-            serial_write_tools_middleware(),
             *middleware,
         ],
     )
+    # Tool calls of one reply share the phase's ConfigState: run them in order.
+    return agent.with_config(max_concurrency=1)

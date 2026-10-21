@@ -1,15 +1,15 @@
-import threading
 import time
 from collections.abc import Callable, Iterator
 from itertools import count
-from typing import Any, cast
+from typing import Any
 
 from langchain.agents import create_agent
 from langchain_core.language_models.fake_chat_models import GenericFakeChatModel
 from langchain_core.messages import AIMessage, ToolMessage
+from langchain_core.tools import tool
 from langchain_openai import ChatOpenAI
-from langgraph.prebuilt.tool_node import ToolCallRequest
 
+from src.agent import llm as llm_module
 from src.agent.llm import (
     MAX_CONSECUTIVE_FAILURES,
     MAX_REPEATED_CALLS,
@@ -17,8 +17,8 @@ from src.agent.llm import (
     MAX_TOTAL_FAILURES,
     REPEAT_NOTICE_AFTER,
     FailureLoopGuard,
+    build_agent,
     create_llm,
-    serial_write_tools_middleware,
 )
 from src.agent.tools import make_surface_tools
 from src.configs.config import LLMConfig
@@ -55,63 +55,38 @@ def test_create_llm_passes_configured_retries_and_timeout():
     assert llm.request_timeout == 30.0
 
 
-def _request(tool_name: str) -> ToolCallRequest:
-    return ToolCallRequest(
-        tool_call={"name": tool_name, "args": {}, "id": "tc1"},
-        tool=None,
-        state=None,
-        runtime=cast(Any, None),
-    )
-
-
-class _OverlapProbe:
-    """Handler that records whether two executions ever overlapped."""
-
-    def __init__(self) -> None:
-        self._lock = threading.Lock()
-        self._active = 0
-        self.max_active = 0
-
-    def __call__(self, _request: ToolCallRequest) -> ToolMessage:
-        with self._lock:
-            self._active += 1
-            self.max_active = max(self.max_active, self._active)
-        time.sleep(0.05)
-        with self._lock:
-            self._active -= 1
-        return ToolMessage(content="ok", tool_call_id="tc1")
-
-
-def _run_concurrently(middleware, tool_name: str) -> int:
-    probe = _OverlapProbe()
-    threads = [
-        threading.Thread(
-            target=middleware.wrap_tool_call, args=(_request(tool_name), probe)
-        )
-        for _ in range(2)
-    ]
-    for t in threads:
-        t.start()
-    for t in threads:
-        t.join()
-    return probe.max_active
-
-
-def test_write_tools_serialized_within_one_agent():
-    middleware = serial_write_tools_middleware()
-    assert _run_concurrently(middleware, "create_zone") == 1
-
-
-def test_read_tools_not_serialized():
-    middleware = serial_write_tools_middleware()
-    assert _run_concurrently(middleware, "list_zones") == 2
-
-
 class _ScriptedModel(GenericFakeChatModel):
     """Fake chat model that accepts tools, as create_agent requires."""
 
     def bind_tools(self, tools: Any, **kwargs: Any) -> "_ScriptedModel":
         return self
+
+
+def test_tool_calls_of_one_round_run_in_the_model_order(monkeypatch):
+    # The first call sleeps longest: only calls run one at a time in the
+    # model's order finish as 0, 1, 2.
+    ran: list[int] = []
+
+    @tool
+    def create_step(i: int) -> str:
+        """Record a step."""
+        time.sleep(0.05 * (3 - i))
+        ran.append(i)
+        return "ok"
+
+    round_ = AIMessage(
+        content="",
+        tool_calls=[
+            {"name": "create_step", "id": f"call_{i}", "args": {"i": i}}
+            for i in range(3)
+        ],
+    )
+    model = _ScriptedModel(messages=iter([round_, AIMessage(content="done")]))
+    monkeypatch.setattr(llm_module, "create_llm", lambda config=None: model)
+
+    build_agent(tools=[create_step]).invoke({"messages": [("user", "go")]})
+
+    assert ran == [0, 1, 2]
 
 
 def _repeating_call(name: str, args_for: Callable[[int], dict]) -> Iterator[AIMessage]:
