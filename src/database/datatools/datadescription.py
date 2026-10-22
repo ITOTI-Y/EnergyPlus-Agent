@@ -1,4 +1,5 @@
 import sqlite3
+from collections.abc import Callable
 from typing import Any
 
 
@@ -162,17 +163,14 @@ def _gen_description_all_materials(data: list[Any]) -> str:
     return f"This is all_materials index data in our EnergyPlus database. {de} EnergyPlus Material Cross-Reference: {content}"
 
 
-def _update_description(table_name, data, gen_func, cur):
-    if cur is None:
-        raise ValueError("cursor cannot be None")
-    try:
-        cur.execute("SELECT 1")
-    except sqlite3.ProgrammingError as e:
-        raise ValueError("Cursor connection is closed or invalid") from e
-    cursor = cur
-    description = gen_func(data)
+def _update_description(
+    table_name: str,
+    data: list[Any],
+    gen_func: Callable[[list[Any]], str],
+    cur: sqlite3.Cursor,
+) -> None:
     sql = "UPDATE " + table_name + " SET description = ? WHERE id = ?"
-    cursor.execute(sql, (description, data[0]))
+    cur.execute(sql, (gen_func(data), data[0]))
 
 
 def update_description_material(data: list[Any], cur: sqlite3.Cursor) -> None:

@@ -36,8 +36,8 @@ class ReferenceSearch:
     collection: str
     embedder: Embedder
     climate: Climate
-    qdrant_url: str = ""
-    embedding_url: str = ""
+    qdrant_url: str
+    embedding_url: str
 
     @classmethod
     def connect(cls, settings: ReferenceSettings, epw_path: Path) -> "ReferenceSearch":
@@ -117,7 +117,7 @@ class ReferenceSearch:
                     if isinstance(e, APIError)
                     else ("Qdrant", self.qdrant_url)
                 )
-                problem = f"{service} at {url or '?'}: {type(e).__name__}: {e}"
+                problem = f"{service} at {url}: {type(e).__name__}: {e}"
                 if attempt == SEARCH_ATTEMPTS:
                     raise ReferenceSearchError(
                         f"Reference search for {kind}s ({query!r}) failed "

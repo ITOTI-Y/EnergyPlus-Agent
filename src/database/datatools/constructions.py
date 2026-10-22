@@ -54,9 +54,7 @@ def create_construction(
     layers: list[str],
 ) -> None:
     if not layers or len(layers) > MAX_LAYERS:
-        raise ValueError(
-            f"layers must contain 1-{MAX_LAYERS} items, got {len(layers) if layers else 0}"
-        )
+        raise ValueError(f"layers must contain 1-{MAX_LAYERS} items, got {len(layers)}")
 
     with sqlite3.connect(db_path) as conn:
         conn.row_factory = sqlite3.Row

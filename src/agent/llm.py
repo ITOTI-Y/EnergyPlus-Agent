@@ -134,7 +134,7 @@ def serial_write_tools_middleware() -> AgentMiddleware:
         request: ToolCallRequest,
         handler: Callable[[ToolCallRequest], ToolMessage | Command],
     ) -> ToolMessage | Command:
-        name = str(request.tool_call.get("name", ""))
+        name = request.tool_call["name"]
         if name.startswith(WRITE_TOOL_PREFIXES):
             with lock:
                 return handler(request)
@@ -274,21 +274,21 @@ class FailureLoopGuard(AgentMiddleware):
 
 
 def build_agent(
+    system_prompt: str,
+    tools: list[BaseTool],
+    response_format: type[BaseModel],
     config: LLMConfig | None = None,
-    system_prompt: str | None = None,
-    tools: list[BaseTool] | None = None,
-    response_format: type[BaseModel] | None = None,
     middleware: Sequence[AgentMiddleware] = (),
 ):
-    """Build a tool-calling agent with optional structured final output.
+    """Build a tool-calling agent with a structured final output.
 
     Args:
-        config: Optional override. If None, reads src/configs/llm.yaml.
         system_prompt: Phase prompt; `language_directive()` is appended here
             so per-phase prompts stay free of language boilerplate.
         tools: Tools bound to the agent.
         response_format: Pydantic schema for the final structured answer,
             surfaced as `result["structured_response"]`.
+        config: Optional override. If None, reads src/configs/llm.yaml.
         middleware: Extra middleware, e.g. `trace_middleware(collector)`.
 
     Returns:
@@ -296,12 +296,12 @@ def build_agent(
     """
     return create_agent(
         model=create_llm(config),
-        tools=tools or [],
-        system_prompt=(system_prompt or "") + language_directive(),
+        tools=tools,
+        system_prompt=system_prompt + language_directive(),
         # The final answer as a validated tool call, not free text. ToolStrategy
         # over the provider's JSON-schema mode, which can reject the idfpy
         # schema keywords (note, units) that gateways pass on.
-        response_format=ToolStrategy(response_format) if response_format else None,
+        response_format=ToolStrategy(response_format),
         middleware=[
             FailureLoopGuard(),
             ContextEditingMiddleware(

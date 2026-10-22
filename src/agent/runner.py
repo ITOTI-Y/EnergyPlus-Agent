@@ -107,5 +107,4 @@ def auto_approval(payload: dict[str, Any]) -> InterruptDecision:
 
 def print_final_messages(state: dict[str, Any], n: int = 5) -> None:
     for m in state.get("messages", [])[-n:]:
-        content = m.content if hasattr(m, "content") else str(m)
-        logger.info("final {}: {}", getattr(m, "type", "msg"), str(content)[:200])
+        logger.info("final {}: {}", m.type, str(m.content)[:200])

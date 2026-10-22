@@ -49,6 +49,8 @@ def test_search_tool_filters_by_the_site_zones_and_returns_data():
         "reference",
         cast(Embedder, FakeEmbedder()),
         Climate(5153.0, 136.0, "1A", ["1A", "2A"]),
+        qdrant_url="http://localhost:6333",
+        embedding_url="http://localhost:8000/v1",
     )
     [find] = make_reference_tools(search, ("material",))
 
@@ -139,6 +141,7 @@ def _search(qdrant: FakeQdrant) -> ReferenceSearch:
         cast(Embedder, FakeEmbedder()),
         Climate(5153.0, 136.0, "1A", ["1A", "2A"]),
         qdrant_url="http://localhost:6333",
+        embedding_url="http://localhost:8000/v1",
     )
 
 

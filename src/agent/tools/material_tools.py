@@ -180,9 +180,7 @@ def make_material_tools(config: ConfigState) -> list[BaseTool]:
                 check_material_name_free(idf, material)
                 _, new = objects.create_or_same(idf, material)
             except (ModelingError, ValueError) as e:
-                failed.append(
-                    f"{getattr(material, 'name', '?')}: {describe_error(e)[0]}"
-                )
+                failed.append(f"{material.name}: {describe_error(e)[0]}")
                 continue
             created += new
             kept += not new
