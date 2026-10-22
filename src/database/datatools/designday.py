@@ -90,7 +90,8 @@ def create_sizingperiod_designday(
         conn.commit()
 
 
-# Column names in DB order (for update merge logic)
+# Order must match the positional indices that
+# _gen_description_sizingperiod_designday reads from the row.
 _DB_COLUMNS = [
     "name",
     "latitude",
@@ -125,7 +126,6 @@ _DB_COLUMNS = [
     "begin_environment_reset_mode",
 ]
 
-# Map: function param name -> DB column name (only where they differ)
 _PARAM_TO_COL = {
     "max_dry_bulb_temp": "max_drybulb_temperature",
     "daily_dry_bulb_range": "daily_drybulb_temperature_range",

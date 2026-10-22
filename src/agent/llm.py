@@ -304,8 +304,6 @@ def build_agent(
         response_format=ToolStrategy(response_format) if response_format else None,
         middleware=[
             FailureLoopGuard(),
-            # Phase agents resend their whole history on every call; this caps
-            # what large buildings and failure streaks add to each prompt.
             ContextEditingMiddleware(
                 edits=[ClearToolUsesEdit(trigger=CONTEXT_TRIGGER_TOKENS, keep=5)]
             ),

@@ -139,7 +139,6 @@ def _label(member: str, text: str) -> tuple[Category, str, str, str, str] | None
     return None
 
 
-# Objects the reference library reads.
 KEPT_TYPES: Final = frozenset(
     t.lower()
     for t in (

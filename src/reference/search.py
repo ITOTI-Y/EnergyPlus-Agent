@@ -13,8 +13,6 @@ from src.reference.index import Embedder, Hit, search
 from src.reference.settings import ReferenceSettings
 
 QDRANT_TIMEOUT_S: Final = 30
-"""Per-request timeout. A search sends a 4096-value query vector as JSON,
-which can take longer than the client's 5 s default on a slow link."""
 
 
 SEARCH_ATTEMPTS: Final = 2
@@ -46,6 +44,7 @@ class ReferenceSearch:
         """Connect and check that the collection and the embedder agree.
 
         Raises:
+            ValueError: If either service URL is not configured.
             RuntimeError: If the collection is missing or its vectors do not
                 match the embedding model's.
             qdrant_client.http.exceptions.ResponseHandlingException,

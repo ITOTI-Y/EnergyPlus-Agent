@@ -23,7 +23,6 @@ def _fetch_ids_batch(
     )
     rows = cursor.fetchall()
 
-    # Detect duplicate material names
     seen: dict[str, int] = {}
     for row in rows:
         if row["name"] in seen:

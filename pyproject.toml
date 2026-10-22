@@ -1,7 +1,7 @@
 [project]
 name = "energyplus-agent"
 version = "0.1.0"
-description = "Add your description here"
+description = "LangGraph agent and MCP server that turn building briefs into EnergyPlus models"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
@@ -35,8 +35,6 @@ packages = ["src"]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
-# tests/ mirrors src/, so basenames such as test_state.py repeat across
-# directories; importlib mode keeps them as distinct modules.
 addopts = ["--import-mode=importlib"]
 
 [tool.ruff]
@@ -57,7 +55,7 @@ select = [
 ]
 
 ignore = [
-    "E501", # Line too long
+    "E501",
     "N805",
     "N806"
 ]

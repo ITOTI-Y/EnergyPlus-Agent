@@ -95,14 +95,7 @@ def interactive_approval(payload: dict[str, Any]) -> InterruptDecision:
 
 
 def auto_approval(payload: dict[str, Any]) -> InterruptDecision:
-    """Auto-approve the validate interrupt.
-
-    Args:
-        payload: Payload from the validate interrupt.
-
-    Returns:
-        InterruptDecision with "approved": True.
-    """
+    """Approve the validate interrupt when it reports no errors; otherwise reject it with the errors as feedback."""
     errors = payload["errors"]
     if not errors:
         return {"approved": True}

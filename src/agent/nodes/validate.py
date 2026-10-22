@@ -57,7 +57,6 @@ def validate_node(state: AgentState) -> ValidateCommand:
     errors = state.validation_errors
     feedback = _feedback(errors)
     if errors:
-        # Each problem is logged: every retry costs a pass of LLM calls.
         logger.warning(
             "validate: {} problems (subgroup retried {}, intake revisions {}):\n{}",
             len(errors),

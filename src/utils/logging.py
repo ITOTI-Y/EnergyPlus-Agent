@@ -23,7 +23,6 @@ def setup_logger(
         level (str, optional): The log level. Defaults to "INFO".
         format_str (str, optional): The format of the log message with color tags.
         console_output (bool, optional): Whether to output to console. Defaults to True.
-        file_output (bool, optional): Whether to output to file. Defaults to False.
         log_file_path (Path | None): The path to the log file. Defaults to None.
         serialize (bool, optional): Whether to serialize the log. Defaults to False.
         **kwargs: Additional keyword arguments to pass to the logger.
@@ -51,7 +50,4 @@ def setup_logger(
 
 
 def get_logger(name: str) -> Any:
-    """
-    Get a logger with the given name.
-    """
     return logger.bind(name=name)

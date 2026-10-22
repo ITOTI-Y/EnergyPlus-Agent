@@ -34,7 +34,6 @@ setup_logger(level="INFO")
 
 
 def _dump_traces(traced_runs: list[Any]) -> None:
-    """Serialize every collected root run to output/traces/ as JSON."""
     logger = get_logger(__name__)
     traces_dir = Path(f"output/traces/{datetime.now().strftime('%Y%m%d_%H%M%S')}")
     traces_dir.mkdir(parents=True, exist_ok=True)
@@ -47,7 +46,6 @@ def _dump_traces(traced_runs: list[Any]) -> None:
 
 
 def _run_to_dict(run: Any) -> dict[str, Any]:
-    """Recursively convert a langsmith Run tree to JSON-friendly dict."""
     return {
         "id": str(run.id),
         "name": run.name,

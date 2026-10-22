@@ -171,8 +171,8 @@ def run_agent(
 ) -> None:
     """Run the multi-phase agent end-to-end.
 
-    Stops at the validate interrupt; print the pending summary and loop
-    until the user types 'approve' or feedback text.
+    Stops at the validate interrupt, prints the pending summary and loops
+    until the user answers 'y' to approve or types feedback text.
     """
     graph = build_graph()
     initial = AgentState(

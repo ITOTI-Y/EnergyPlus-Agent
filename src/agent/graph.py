@@ -47,7 +47,6 @@ class _PickleSerde:
 
 
 def _cross_ref_router(state: AgentState) -> str:
-    """Route after cross_ref_foundations: continue to construction, or short-circuit to validate on error."""
     return "validate" if state.validation_errors else "construction"
 
 

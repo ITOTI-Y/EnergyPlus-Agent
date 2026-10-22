@@ -124,8 +124,7 @@ EnergyPlus-Agent/
 ├── tests/                            # Mirrors src/
 ├── data/
 │   ├── weather/Shenzhen.{epw,ddy}    # TMYx 2011-2025 weather and design days
-│   ├── schemas/                      # Example models (epJSON)
-│   └── examples/EP_Agent_data.db     # Example SQLite database
+│   └── schemas/                      # Example models (epJSON)
 ├── docker/                           # Dockerfile (Ubuntu 24.04 + EnergyPlus 26.1) + docker-compose.yml
 ├── output/                           # Models, logs, traces, simulation results
 ├── main.py                           # Typer CLI
@@ -159,7 +158,7 @@ EnergyPlus-Agent/
 | **shapely**                                    | >=2.2.0            | Polygon overlap and splitting for zone geometry                |
 | **loguru**                                     | >=0.7.3            | Logging                                                        |
 
-Development extras: `pytest`, `pytest-recording`, `ruff`, `ty`, `pre-commit`, `langsmith`, `grandalf`.
+Development extras: `pytest`, `pytest-cov`, `pytest-recording`, `ruff`, `ty`, `prek`, `pre-commit`, `langsmith`, `grandalf`.
 
 ## Quick Start
 
@@ -181,8 +180,10 @@ Copy `.env.example` to `.env` and fill in what you need:
 # Agent LLM (used with src/configs/llm.yaml)
 LLM_API_KEY=
 LLM_BASE_URL=            # optional, for OpenAI-compatible gateways
+LLM_MODEL=
 # Optional; an empty value is not "unset", so leave unused ones commented out.
 # LLM_TEMPERATURE=null   # default 0.7; null sends none, for providers that reject one
+# LLM_REASONING_MAX_TOKENS=1024   # thinking budget; default 4096
 # LLM_VISION_MODEL=       # reads --image files, sent without temperature; unset, images are refused
 
 # Prototype reference library: set both URLs, or neither
@@ -192,10 +193,10 @@ LLM_BASE_URL=            # optional, for OpenAI-compatible gateways
 # REFERENCE_EMBEDDING_MODEL, REFERENCE_HUB_REPO, REFERENCE_LIBRARY_PATH: optional
 
 # Optional LangSmith tracing
-LANGSMITH_API_KEY=
-LANGSMITH_ENDPOINT=
-LANGSMITH_PROJECT=
-LANGSMITH_TRACING=
+# LANGSMITH_API_KEY=
+# LANGSMITH_ENDPOINT=
+# LANGSMITH_PROJECT=
+# LANGSMITH_TRACING=true
 ```
 
 `AGENT_LANGUAGE` (default `English`) controls the language of agent narrative text.
@@ -205,13 +206,15 @@ LANGSMITH_TRACING=
 `src/configs/llm.yaml` selects the model used by every agent phase:
 
 ```yaml
-provider: "anthropic"          # any provider supported by LangChain init_chat_model
+provider: "openai"             # any provider supported by LangChain init_chat_model
 base_url: ${oc.env:LLM_BASE_URL,null}
 api_key: ${oc.env:LLM_API_KEY,null}
-model_name: "gpt-5.4"
-temperature: 0.7
+model_name: ${oc.env:LLM_MODEL,null}
+vision_model_name: ${oc.env:LLM_VISION_MODEL,null}
+temperature: ${oc.decode:${oc.env:LLM_TEMPERATURE,0.7}}
 max_tokens: 16384
 timeout: 120                   # seconds per request
+reasoning_max_tokens: ${oc.decode:${oc.env:LLM_REASONING_MAX_TOKENS,4096}}
 ```
 
 ### Run the agent
@@ -419,9 +422,9 @@ uv run pytest
 ## Contributing
 
 1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'feat: add AmazingFeature'`)
-4. Push the branch (`git push origin feature/AmazingFeature`)
+2. Create a feature branch (`git checkout -b feat/amazing-feature`)
+3. Commit your changes (`git commit -m 'feat: add amazing feature'`)
+4. Push the branch (`git push origin feat/amazing-feature`)
 5. Open a Pull Request
 
 ### Code style

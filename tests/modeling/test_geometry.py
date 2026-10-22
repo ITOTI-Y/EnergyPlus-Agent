@@ -453,8 +453,6 @@ def test_complex_layouts_give_closed_convex_paired_zones(layout):
     assert len(_pairs_all(idf)) == paired_faces
     for name, corners, _, height in zones:
         surfaces = _surfaces(idf, name)
-        # A closed zone with outward normals has zero total area vector, and
-        # the divergence theorem gives its volume.
         closure = [sum(s.area * s.normal[k] for s in surfaces) for k in range(3)]
         volume = (
             sum(

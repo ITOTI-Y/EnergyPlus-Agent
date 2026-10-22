@@ -9,7 +9,6 @@ MAX_FIELDS = 200
 
 
 def _validate_compact_values(compact_values: list[str]) -> list[str | None]:
-    """Validate and pad compact_values to MAX_FIELDS. Raises if exceeds limit."""
     if len(compact_values) > MAX_FIELDS:
         raise ValueError(
             f"compact_values has {len(compact_values)} items, exceeding the maximum of {MAX_FIELDS}. "
