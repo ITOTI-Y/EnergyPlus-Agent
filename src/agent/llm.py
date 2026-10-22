@@ -3,7 +3,6 @@ import re
 import threading
 from collections import Counter
 from collections.abc import Callable, Sequence
-from pathlib import Path
 from typing import Any, Final, override
 
 from dotenv import load_dotenv
@@ -28,7 +27,6 @@ from langgraph.prebuilt.tool_node import ToolCallRequest
 from langgraph.runtime import Runtime
 from langgraph.types import Command
 from loguru import logger
-from omegaconf import OmegaConf
 from pydantic import BaseModel
 
 from src.agent._share import language_directive
@@ -37,24 +35,17 @@ from src.configs.config import LLMConfig
 load_dotenv()
 
 
-def load_llm_config() -> LLMConfig:
-    raw = OmegaConf.load(
-        Path(__file__).resolve().parent.parent / "configs" / "llm.yaml"
-    )
-    return LLMConfig.model_validate(OmegaConf.to_container(raw, resolve=True))
-
-
 def create_llm(config: LLMConfig | None = None) -> BaseChatModel:
     """Create a LangChain chat model from LLMConfig.
 
     Args:
-        config: Optional override. If None, reads src/configs/llm.yaml.
+        config: Optional override. If None, reads the LLM_* environment.
 
     Returns:
         A BaseChatModel routed to the configured provider.
     """
     if config is None:
-        config = load_llm_config()
+        config = LLMConfig()
 
     kwargs: dict[str, Any] = {
         "max_tokens": config.max_tokens,
@@ -84,7 +75,7 @@ def create_vision_llm(config: LLMConfig | None = None) -> BaseChatModel:
         ValueError: If no vision model is configured (LLM_VISION_MODEL).
     """
     if config is None:
-        config = load_llm_config()
+        config = LLMConfig()
     if not config.vision_model_name:
         raise ValueError(
             "images need a vision model; set LLM_VISION_MODEL, or give the "
@@ -288,7 +279,7 @@ def build_agent(
         tools: Tools bound to the agent.
         response_format: Pydantic schema for the final structured answer,
             surfaced as `result["structured_response"]`.
-        config: Optional override. If None, reads src/configs/llm.yaml.
+        config: Optional override. If None, reads the LLM_* environment.
         middleware: Extra middleware, e.g. `trace_middleware(collector)`.
 
     Returns:

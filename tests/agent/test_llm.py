@@ -37,7 +37,7 @@ def _config(**overrides) -> LLMConfig:
 
 
 def test_create_llm_sends_no_thinking_budget_without_one():
-    llm = create_llm(_config())
+    llm = create_llm(_config(reasoning_max_tokens=None))
     assert isinstance(llm, ChatOpenAI)
     assert llm.extra_body is None
 

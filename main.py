@@ -5,21 +5,17 @@ from typing import Annotated, Literal
 import typer
 from dotenv import load_dotenv
 from langchain_core.runnables import RunnableConfig
+from loguru import logger
 from typer import Argument, Exit, Option
 
 from src.agent import AgentState, SimContext, build_graph
 from src.agent.runner import interactive_approval, print_final_messages, run_session
-from src.utils.logging import get_logger, setup_logger
+from src.utils.logging import setup_logger
 
 load_dotenv()
 
 logger_time = time.strftime("%Y%m%d_%H%M%S")
-setup_logger(
-    level="INFO",
-    console_output=True,
-    log_file_path=Path(f"./output/logs/{logger_time}.log"),
-)
-logger = get_logger(__name__)
+setup_logger(level="INFO", log_file_path=Path(f"./output/logs/{logger_time}.log"))
 
 app = typer.Typer()
 

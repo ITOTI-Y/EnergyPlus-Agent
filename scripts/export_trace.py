@@ -22,17 +22,17 @@ from typing import Any
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tracers.context import collect_runs
 from langchain_core.tracers.langchain import wait_for_all_tracers
+from loguru import logger
 
 from scripts._share import HARD_USER_INPUT
 from src.agent import AgentState, SimContext, build_graph
 from src.agent.runner import interactive_approval, print_final_messages, run_session
-from src.utils.logging import get_logger, setup_logger
+from src.utils.logging import setup_logger
 
 setup_logger(level="INFO")
 
 
 def _dump_traces(traced_runs: list[Any]) -> None:
-    logger = get_logger(__name__)
     traces_dir = Path(f"output/traces/{datetime.now().strftime('%Y%m%d_%H%M%S')}")
     traces_dir.mkdir(parents=True, exist_ok=True)
     for i, run in enumerate(traced_runs):

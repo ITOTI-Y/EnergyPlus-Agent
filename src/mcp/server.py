@@ -11,6 +11,7 @@ from src.mcp.api import (
 )
 from src.mcp.tools import WorkflowTool
 from src.state.config_state import ConfigState
+from src.utils.logging import setup_logger
 
 
 def create_mcp_server() -> FastMCP:
@@ -34,5 +35,10 @@ def create_mcp_server() -> FastMCP:
 mcp = create_mcp_server()
 
 
-if __name__ == "__main__":
+def main() -> None:
+    setup_logger(level="WARNING")
     mcp.run()
+
+
+if __name__ == "__main__":
+    main()

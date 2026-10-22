@@ -11,9 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import IO, Final, Literal, cast
 
-from src.utils.logging import get_logger
-
-logger = get_logger(__name__)
+from loguru import logger
 
 SIMULATION_TIMEOUT_S: Final = 3600.0
 

@@ -30,7 +30,7 @@ A reference library of materials, constructions and schedules from the DOE proto
 - **Human-in-the-loop approval**: the validate node raises a LangGraph `interrupt()` with a configuration summary and any errors. Approval continues to simulation; free-text feedback goes to intake as a correction and is handled like a revision.
 - **Photo and drawing input**: PNG, JPEG, WebP and GIF images are read once, before intake, by the vision model `LLM_VISION_MODEL` in its own structured call (`observe`): blocks with their storey counts, estimated dimensions and positions, the window type and window-to-wall ratio of each visible side, and the assumptions for what the images do not show. Intake builds the zones from this reading and never receives the images, so revisions resend none. Without `LLM_VISION_MODEL` images are refused before any LLM call.
 - **Tool-call tracing**: `TraceCollector` wraps every tool call in the ReAct subgraphs and records name, arguments, result and success flag per phase, intended as fine-tuning data. A script also exports full LangSmith run trees to local JSON.
-- **Provider-agnostic LLM**: `src/configs/llm.yaml` selects provider, model, temperature and token budget; Anthropic and OpenAI integrations are bundled. `AGENT_LANGUAGE` switches the narrative language of all agent output while EnergyPlus identifiers stay ASCII.
+- **Provider-agnostic LLM**: `LLMConfig` (`src/configs/config.py`) reads provider, model, temperature and token budget from `LLM_*` environment variables; Anthropic and OpenAI integrations are bundled. `AGENT_LANGUAGE` switches the narrative language of all agent output while EnergyPlus identifiers stay ASCII.
 
 ### MCP server
 
@@ -73,7 +73,7 @@ EnergyPlus-Agent/
 │   │   ├── storeys.py                # Storeys of a photo-read building from its blocks
 │   │   ├── react.py                  # 3-node ReAct subgraph (llm -> tools -> llm)
 │   │   ├── runner.py                 # run_session(), interactive_approval(), auto_approval()
-│   │   ├── llm.py                    # create_llm(), create_vision_llm() from src/configs/llm.yaml
+│   │   ├── llm.py                    # create_llm(), create_vision_llm() from LLMConfig
 │   │   ├── trace.py                  # TraceCollector and per-phase trace registry
 │   │   ├── _share.py                 # AGENT_LANGUAGE directive, constants
 │   │   ├── nodes/                    # observe, intake, plan_rerun, zone, material, schedule, construction,
@@ -114,8 +114,7 @@ EnergyPlus-Agent/
 │   ├── reference/                    # Prototype reference library: download, extract, library, climate, index, search, hub
 │   ├── database/datatools/           # SQLite data tools
 │   ├── configs/
-│   │   ├── config.py                 # LLMConfig
-│   │   └── llm.yaml                  # Agent LLM settings
+│   │   └── config.py                 # LLMConfig: agent LLM settings from LLM_* variables
 │   └── utils/logging.py              # Loguru setup
 ├── scripts/
 │   ├── run_demo.py                   # End-to-end agent demo with auto-approval
@@ -152,13 +151,12 @@ EnergyPlus-Agent/
 | **qdrant-client**                              | >=1.17.1           | Vector database of the reference library                       |
 | **openai**                                     | >=1.100            | Client of the OpenAI-compatible embedding service              |
 | **huggingface-hub**                            | >=0.35             | Publishing and pulling the reference library                   |
-| **pydantic-settings**                          | >=2.11             | Reference library settings from the environment                |
-| **omegaconf**                                  | >=2.3.0            | LLM settings with env interpolation                            |
+| **pydantic-settings**                          | >=2.11             | LLM and reference library settings from the environment        |
 | **typer**                                      | >=0.20.1           | CLI                                                            |
 | **shapely**                                    | >=2.2.0            | Polygon overlap and splitting for zone geometry                |
 | **loguru**                                     | >=0.7.3            | Logging                                                        |
 
-Development extras: `pytest`, `pytest-cov`, `pytest-recording`, `ruff`, `ty`, `prek`, `pre-commit`, `langsmith`, `grandalf`.
+Development extras: `pytest`, `pytest-cov`, `pytest-recording`, `ruff`, `ty`, `prek`, `langsmith`, `grandalf`.
 
 ## Quick Start
 
@@ -177,7 +175,7 @@ Simulation needs an EPW weather file and a `.ddy` design-day file with the same 
 Copy `.env.example` to `.env` and fill in what you need:
 
 ```env
-# Agent LLM (used with src/configs/llm.yaml)
+# Agent LLM (read by LLMConfig in src/configs/config.py)
 LLM_API_KEY=
 LLM_BASE_URL=            # optional, for OpenAI-compatible gateways
 LLM_MODEL=
@@ -203,19 +201,22 @@ LLM_MODEL=
 
 ### LLM configuration
 
-`src/configs/llm.yaml` selects the model used by every agent phase:
+`LLMConfig` in `src/configs/config.py` selects the model used by every agent phase. Each field is read from its environment variable, otherwise it takes the default:
 
-```yaml
-provider: "openai"             # any provider supported by LangChain init_chat_model
-base_url: ${oc.env:LLM_BASE_URL,null}
-api_key: ${oc.env:LLM_API_KEY,null}
-model_name: ${oc.env:LLM_MODEL,null}
-vision_model_name: ${oc.env:LLM_VISION_MODEL,null}
-temperature: ${oc.decode:${oc.env:LLM_TEMPERATURE,0.7}}
-max_tokens: 16384
-timeout: 120                   # seconds per request
-reasoning_max_tokens: ${oc.decode:${oc.env:LLM_REASONING_MAX_TOKENS,4096}}
-```
+| Variable                   | Field                  | Default    |
+| -------------------------- | ---------------------- | ---------- |
+| `LLM_PROVIDER`             | `provider`             | `openai`   |
+| `LLM_BASE_URL`             | `base_url`             | none       |
+| `LLM_API_KEY`              | `api_key`              | none       |
+| `LLM_MODEL`                | `model_name`           | required   |
+| `LLM_VISION_MODEL`         | `vision_model_name`    | none       |
+| `LLM_TEMPERATURE`          | `temperature`          | `0.7`      |
+| `LLM_MAX_TOKENS`           | `max_tokens`           | `16384`    |
+| `LLM_REASONING_MAX_TOKENS` | `reasoning_max_tokens` | `4096`     |
+| `LLM_MAX_RETRIES`          | `max_retries`          | `2`        |
+| `LLM_TIMEOUT`              | `timeout`              | `120` s    |
+
+`LLM_PROVIDER` takes any provider name supported by LangChain `init_chat_model`. `LLM_TEMPERATURE=null` and `LLM_REASONING_MAX_TOKENS=null` send no value, for providers that reject one.
 
 ### Run the agent
 
