@@ -20,7 +20,7 @@ def setup_logger(
         log_file_path: File that also receives the logs.
     """
     logger.remove()
-    logger.add(sys.stderr, level=level.upper(), format=format_str, colorize=True)
+    logger.add(sys.stderr, level=level.upper(), format=format_str)
     if log_file_path:
         log_file_path.parent.mkdir(parents=True, exist_ok=True)
         logger.add(
