@@ -5,8 +5,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class LLMConfig(BaseSettings):
     """Agent LLM settings, read from ``LLM_*`` environment variables.
 
-    ``LLM_TEMPERATURE=null`` and ``LLM_REASONING_MAX_TOKENS=null`` send no
-    value, for providers that reject one.
+    ``LLM_TEMPERATURE=null`` sends no temperature, for providers that reject
+    one. The thinking budget is sent only when ``LLM_REASONING_MAX_TOKENS``
+    is set, as the gateway extension ``reasoning.max_tokens``.
     """
 
     model_config = SettingsConfigDict(
@@ -46,7 +47,7 @@ class LLMConfig(BaseSettings):
         default=None, description="The API key of the LLM model"
     )
     reasoning_max_tokens: int | None = Field(
-        default=4096,
+        default=None,
         gt=0,
         description="Thinking budget, sent as reasoning.max_tokens; None sends none",
     )

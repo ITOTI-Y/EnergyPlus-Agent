@@ -181,7 +181,7 @@ LLM_BASE_URL=            # optional, for OpenAI-compatible gateways
 LLM_MODEL=
 # Optional; an empty value is not "unset", so leave unused ones commented out.
 # LLM_TEMPERATURE=null   # default 0.7; null sends none, for providers that reject one
-# LLM_REASONING_MAX_TOKENS=1024   # thinking budget; default 4096
+# LLM_REASONING_MAX_TOKENS=1024   # thinking budget, sent as reasoning.max_tokens; unset, none is sent
 # LLM_VISION_MODEL=       # reads --image files, sent without temperature; unset, images are refused
 
 # Prototype reference library: set both URLs, or neither
@@ -212,11 +212,11 @@ LLM_MODEL=
 | `LLM_VISION_MODEL`         | `vision_model_name`    | none       |
 | `LLM_TEMPERATURE`          | `temperature`          | `0.7`      |
 | `LLM_MAX_TOKENS`           | `max_tokens`           | `16384`    |
-| `LLM_REASONING_MAX_TOKENS` | `reasoning_max_tokens` | `4096`     |
+| `LLM_REASONING_MAX_TOKENS` | `reasoning_max_tokens` | none       |
 | `LLM_MAX_RETRIES`          | `max_retries`          | `2`        |
 | `LLM_TIMEOUT`              | `timeout`              | `120` s    |
 
-`LLM_PROVIDER` takes any provider name supported by LangChain `init_chat_model`. `LLM_TEMPERATURE=null` and `LLM_REASONING_MAX_TOKENS=null` send no value, for providers that reject one.
+`LLM_PROVIDER` takes any provider name supported by LangChain `init_chat_model`. `LLM_TEMPERATURE=null` sends no temperature, for providers that reject one. `LLM_REASONING_MAX_TOKENS` is sent as the gateway extension `reasoning.max_tokens`; set it only for endpoints that accept that field.
 
 ### Run the agent
 
