@@ -1,6 +1,6 @@
 import json
 from types import SimpleNamespace
-from typing import Any, cast
+from typing import Any, Final, cast, override
 
 import pytest
 from pydantic import ValidationError
@@ -69,7 +69,7 @@ def test_settings_need_both_services_or_neither(monkeypatch: pytest.MonkeyPatch)
         ReferenceSettings(_env_file=None)
 
 
-WALL = Hit(
+WALL: Final = Hit(
     score=0.63218,
     kind="construction",
     object_type="Construction",
@@ -124,6 +124,7 @@ class FlakyQdrant(FakeQdrant):
         super().__init__()
         self.failures = failures
 
+    @override
     def query_points(self, collection: str, **kwargs: Any) -> SimpleNamespace:
         if self.failures:
             self.failures -= 1

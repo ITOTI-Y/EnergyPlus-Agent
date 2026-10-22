@@ -1,11 +1,12 @@
 import zipfile
+from typing import Final
 
 import pytest
 
 from src.reference import prototypes
 
-HEADER = "! Case = ASHRAE901_OfficeSmall_STD2022_HoChiMinh\n!    AnalysisClimateZone = 0A\n!    CZ_Label = 1A\n"
-BODY = """
+HEADER: Final = "! Case = ASHRAE901_OfficeSmall_STD2022_HoChiMinh\n!    AnalysisClimateZone = 0A\n!    CZ_Label = 1A\n"
+BODY: Final = """
 Version,22.1;
 Material, Brick, Rough, 0.1, 0.9, 1900, 800;  ! a comment
 Construction, Wall, Brick;

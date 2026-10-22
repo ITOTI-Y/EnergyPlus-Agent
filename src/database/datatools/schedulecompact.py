@@ -1,11 +1,12 @@
 import sqlite3
 from datetime import datetime
+from typing import Final
 
 from src._share import UNSET, _UnsetType
 from src.database.datatools._share import TIMESTAMP
 from src.database.datatools.datadescription import update_description_schedule_compact
 
-MAX_FIELDS = 200
+MAX_FIELDS: Final = 200
 
 
 def _validate_compact_values(compact_values: list[str]) -> list[str | None]:

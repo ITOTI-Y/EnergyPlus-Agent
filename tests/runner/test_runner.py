@@ -3,12 +3,13 @@ import shutil
 import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from typing import Final
 
 import pytest
 
 from src.runner.runner import EnergyPlusMessage, run_energyplus
 
-_ARG_PARSER = """#!/bin/sh
+_ARG_PARSER: Final = """#!/bin/sh
 while [ $# -gt 0 ]; do
   case "$1" in -d) out="$2"; shift ;; esac
   shift
@@ -16,7 +17,7 @@ done
 pwd > "$out/cwd.txt"
 """
 
-_ERR_FILE = """Program Version,EnergyPlus, Version 26.1.0
+_ERR_FILE: Final = """Program Version,EnergyPlus, Version 26.1.0
    ** Warning ** GetVertices: Floor is upside down! Tilt angle=[0.0]
    **   ~~~   ** Automatic fix is attempted.
    ** Severe  ** ProcessScheduleInput: incomplete day detected, Schedule=OCC

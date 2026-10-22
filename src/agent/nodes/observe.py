@@ -44,7 +44,7 @@ IMAGE_TYPES: Final = {
     ".gif": "image/gif",
 }
 
-OBSERVE_SYSTEM_PROMPT = """You read photos or drawings of a building for an energy model.
+OBSERVE_SYSTEM_PROMPT: Final = """You read photos or drawings of a building for an energy model.
 Report what the images show, and estimates with the cues behind them.
 - Count the storeys of each block from its window bands; count the ground
   storey and any podium storeys separately.

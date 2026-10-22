@@ -1,3 +1,5 @@
+from typing import Final
+
 from langchain_core.messages import AIMessage, HumanMessage
 from langgraph.runtime import Runtime
 from pydantic import BaseModel, Field
@@ -9,7 +11,7 @@ from src.agent.tools import make_material_tools
 from src.agent.tools.reference_tools import make_reference_tools, reference_prompt
 from src.agent.trace import TraceCollector, record_phase_trace, trace_middleware
 
-MATERIAL_SYSTEM_PROMPT = """You are a building material expert for EnergyPlus.
+MATERIAL_SYSTEM_PROMPT: Final = """You are a building material expert for EnergyPlus.
 Given material specifications, create all required materials.
 
 Create them with ONE `create_materials` call holding every material, each

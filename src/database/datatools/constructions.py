@@ -1,11 +1,12 @@
 import sqlite3
 from datetime import datetime
+from typing import Final
 
 from src._share import UNSET, _UnsetType
 from src.database.datatools._share import TIMESTAMP
 from src.database.datatools.datadescription import update_description_construction
 
-MAX_LAYERS = 20
+MAX_LAYERS: Final = 20
 
 
 def _fetch_ids_batch(

@@ -1,4 +1,6 @@
-BRICK = {
+from typing import Final
+
+BRICK: Final = {
     "name": "Brick",
     "roughness": "Rough",
     "thickness": 0.1,

@@ -29,7 +29,7 @@ def mcp_server(
     transport: Literal["stdio", "http", "sse", "streamable-http"] = "stdio",
     host: str = "127.0.0.1",
     port: int = 8000,
-):
+) -> None:
     from src.mcp.server import mcp
 
     if transport == "stdio":
@@ -193,7 +193,7 @@ def run_agent(
             graph, initial, context, config, on_interrupt=interactive_approval
         )
     except ReferenceSearchError as e:
-        logger.error("Run stopped: {}", e)
+        logger.exception("Run stopped")
         raise Exit(1) from e
     print_final_messages(state)
 

@@ -2,6 +2,7 @@ import math
 import random
 import shutil
 from pathlib import Path
+from typing import Final
 
 import pytest
 from idfpy import IDF
@@ -24,8 +25,8 @@ from src.modeling.validation import model_issues
 from src.runner.runner import run_energyplus
 from src.state.defaults import add_design_days, new_model
 
-DATA = Path(__file__).parents[2] / "data"
-CONSTRUCTIONS = ZoneConstructions("Ext", "Roof", "Slab", "Int", "Deck")
+DATA: Final = Path(__file__).parents[2] / "data"
+CONSTRUCTIONS: Final = ZoneConstructions("Ext", "Roof", "Slab", "Int", "Deck")
 
 
 def _model() -> IDF:
@@ -330,7 +331,7 @@ def _plan_area(corners: Corners) -> float:
 
 # Paired-face counts follow from the layouts: e.g. the 3 x 3 x 2 grid has
 # 2 x 12 shared walls and 9 shared floors, two faces each.
-COMPLEX_LAYOUTS: dict[str, tuple[list[ZoneSpec], int]] = {
+COMPLEX_LAYOUTS: Final[dict[str, tuple[list[ZoneSpec], int]]] = {
     "grid_3x3x2": (
         [
             (f"Z{i}{j}_{k}", _box(i * 6, j * 5, i * 6 + 6, j * 5 + 5), k * 3.5, 3.5)
@@ -519,7 +520,7 @@ def _stacked_building(order: list[str]) -> IDF:
     return idf
 
 
-STACK_ORDERS = [
+STACK_ORDERS: Final = [
     [
         "Office_G",
         "Office_2",

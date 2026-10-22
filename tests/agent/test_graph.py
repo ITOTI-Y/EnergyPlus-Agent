@@ -6,7 +6,7 @@ by a function returning a fixed output or patch.
 
 from collections import Counter
 from collections.abc import Callable
-from typing import Any
+from typing import Any, Final
 
 import pytest
 from idfpy import IDF
@@ -132,12 +132,12 @@ def _run(tmp_path) -> dict[str, Any]:
     return snapshot.values
 
 
-SPECS = {
+SPECS: Final = {
     "material_specs": "brick",
     "schedule_specs": "occupancy",
     "construction_specs": "walls",
 }
-BOX = [(0, 0), (5, 0), (5, 5), (0, 5)]
+BOX: Final = [(0, 0), (5, 0), (5, 5), (0, 5)]
 
 
 def test_a_phase_problem_reruns_only_that_phase_and_its_dependants(

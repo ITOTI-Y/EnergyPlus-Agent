@@ -8,7 +8,7 @@ def _format_field(label: str, value: Any, unit: str = "") -> str:
     return f"{label}: {value}{unit}"
 
 
-def _gen_description_material(data: list):
+def _gen_description_material(data: list[Any]) -> str:
     fields = [
         _format_field("ID", data[0]),
         _format_field("Name", data[1]),
@@ -29,7 +29,7 @@ def _gen_description_material(data: list):
     return f"This is a standard material data in our EnergyPlus database. {de} EnergyPlus Standard Material Details: {content}"
 
 
-def _gen_description_nomass_material(data: list):
+def _gen_description_nomass_material(data: list[Any]) -> str:
     fields = [
         _format_field("ID", data[0]),
         _format_field("Name", data[1]),
@@ -47,7 +47,7 @@ def _gen_description_nomass_material(data: list):
     return f"This is a no mass material data in our EnergyPlus database. {de} EnergyPlus No-Mass Material Details: {content}"
 
 
-def _gen_description_construction(data: list):
+def _gen_description_construction(data: list[Any]) -> str:
     layers = [str(layer) for layer in data[5:25] if layer is not None]
     layers_str = f"Layers(All_Materials IDs): {', '.join(layers)}" if layers else ""
 
@@ -65,7 +65,7 @@ def _gen_description_construction(data: list):
     return f"This is a construction data in our EnergyPlus database. {de} EnergyPlus Construction Assembly: {content} | {logic_note}"
 
 
-def _gen_description_schedule_type_limits(data: list):
+def _gen_description_schedule_type_limits(data: list[Any]) -> str:
     fields = [
         _format_field("ID", data[0]),
         _format_field("Name", data[1]),
@@ -82,7 +82,7 @@ def _gen_description_schedule_type_limits(data: list):
     return f"This is a schedule type limits data in our EnergyPlus database. {de} EnergyPlus Schedule Type Limits: {content}"
 
 
-def _gen_description_schedule_compact(data: list):
+def _gen_description_schedule_compact(data: list[Any]) -> str:
     schedule_parts = [
         str(item) for item in data[6:] if item is not None and item != "null"
     ]
@@ -105,7 +105,7 @@ def _gen_description_schedule_compact(data: list):
     return f"This is a schedule compact data in our EnergyPlus database. {de} EnergyPlus Compact Schedule: {content} | {logic_note}"
 
 
-def _gen_description_sizingperiod_designday(data: list):
+def _gen_description_sizingperiod_designday(data: list[Any]) -> str:
     fields = [
         _format_field("ID", data[0]),
         _format_field("Name", data[1]),
@@ -149,7 +149,7 @@ def _gen_description_sizingperiod_designday(data: list):
     return f"This is a sizingperiod designday data in our EnergyPlus database. {de} EnergyPlus Design Day Weather Data: {content}"
 
 
-def _gen_description_all_materials(data: list):
+def _gen_description_all_materials(data: list[Any]) -> str:
     fields = [
         _format_field("Global ID", data[0]),
         _format_field("Name", data[1]),
@@ -175,37 +175,41 @@ def _update_description(table_name, data, gen_func, cur):
     cursor.execute(sql, (description, data[0]))
 
 
-def update_description_material(data: list, cur):
+def update_description_material(data: list[Any], cur: sqlite3.Cursor) -> None:
     _update_description("standard_materials", data, _gen_description_material, cur=cur)
 
 
-def update_description_nomass_material(data: list, cur):
+def update_description_nomass_material(data: list[Any], cur: sqlite3.Cursor) -> None:
     _update_description(
         "no_mass_materials", data, _gen_description_nomass_material, cur=cur
     )
 
 
-def update_description_construction(data: list, cur):
+def update_description_construction(data: list[Any], cur: sqlite3.Cursor) -> None:
     _update_description("constructions", data, _gen_description_construction, cur=cur)
 
 
-def update_description_schedule_type_limits(data: list, cur):
+def update_description_schedule_type_limits(
+    data: list[Any], cur: sqlite3.Cursor
+) -> None:
     _update_description(
         "schedule_type_limits", data, _gen_description_schedule_type_limits, cur=cur
     )
 
 
-def update_description_schedule_compact(data: list, cur):
+def update_description_schedule_compact(data: list[Any], cur: sqlite3.Cursor) -> None:
     _update_description(
         "schedule_compact", data, _gen_description_schedule_compact, cur=cur
     )
 
 
-def update_description_sizingperiod_designday(data: list, cur):
+def update_description_sizingperiod_designday(
+    data: list[Any], cur: sqlite3.Cursor
+) -> None:
     _update_description(
         "sizingperiod_designday", data, _gen_description_sizingperiod_designday, cur=cur
     )
 
 
-def update_description_all_materials(data: list, cur):
+def update_description_all_materials(data: list[Any], cur: sqlite3.Cursor) -> None:
     _update_description("all_materials", data, _gen_description_all_materials, cur=cur)

@@ -1,3 +1,5 @@
+from typing import Final
+
 import pytest
 from idfpy import IDF
 from idfpy.models import (
@@ -22,8 +24,8 @@ type Point = tuple[float, float, float]
 
 # South wall at y=0, 10 m long and 3 m high, vertices counter-clockwise
 # seen from outside (from -y).
-WALL: list[Point] = [(0, 0, 3), (0, 0, 0), (10, 0, 0), (10, 0, 3)]
-WINDOW: list[Point] = [(2, 0, 2), (2, 0, 1), (4, 0, 1), (4, 0, 2)]
+WALL: Final[list[Point]] = [(0, 0, 3), (0, 0, 0), (10, 0, 0), (10, 0, 3)]
+WINDOW: Final[list[Point]] = [(2, 0, 2), (2, 0, 1), (4, 0, 1), (4, 0, 2)]
 
 
 def _model(window: list[Point]) -> IDF:

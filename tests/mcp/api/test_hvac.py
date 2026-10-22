@@ -1,4 +1,6 @@
-FRACTION_SCHEDULE = {
+from typing import Final
+
+FRACTION_SCHEDULE: Final = {
     "schedule_type_limits_name": "Any",
     "times": [
         {
@@ -13,7 +15,7 @@ FRACTION_SCHEDULE = {
     ],
 }
 
-THERMOSTAT = {
+THERMOSTAT: Final = {
     "name": "Office_Thermostat",
     "heating_setpoint_schedule_name": "Heating_SP",
     "cooling_setpoint_schedule_name": "Cooling_SP",

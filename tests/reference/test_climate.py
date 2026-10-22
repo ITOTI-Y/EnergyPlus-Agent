@@ -1,11 +1,12 @@
 import math
 from pathlib import Path
+from typing import Final
 
 import pytest
 
 from src.reference.climate import from_epw
 
-WEATHER = Path(__file__).parents[2] / "data" / "weather"
+WEATHER: Final = Path(__file__).parents[2] / "data" / "weather"
 
 
 def _epw(tmp_path: Path, annual_mean: float, rain_mm: float | None) -> Path:

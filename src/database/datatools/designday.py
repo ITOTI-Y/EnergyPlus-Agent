@@ -1,5 +1,6 @@
 import sqlite3
 from datetime import datetime
+from typing import Final
 
 from src._share import UNSET, _UnsetType
 from src.database.datatools._share import TIMESTAMP
@@ -92,7 +93,7 @@ def create_sizingperiod_designday(
 
 # Order must match the positional indices that
 # _gen_description_sizingperiod_designday reads from the row.
-_DB_COLUMNS = [
+_DB_COLUMNS: Final = [
     "name",
     "latitude",
     "longitude",
@@ -126,7 +127,7 @@ _DB_COLUMNS = [
     "begin_environment_reset_mode",
 ]
 
-_PARAM_TO_COL = {
+_PARAM_TO_COL: Final = {
     "max_dry_bulb_temp": "max_drybulb_temperature",
     "daily_dry_bulb_range": "daily_drybulb_temperature_range",
     "dry_bulb_temp_range_modifier_type": "drybulb_temperature_range_modifier_type",

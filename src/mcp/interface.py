@@ -1,3 +1,5 @@
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 
@@ -6,9 +8,9 @@ class ToolResponse(BaseModel):
 
     success: bool = Field(..., description="Whether the tool call was successful.")
     message: str = Field(..., description="The message from the tool call.")
-    data: dict | list | None = Field(
+    data: dict[str, Any] | list[Any] | None = Field(
         default=None, description="The data from the tool call."
     )
 
-    def to_mcp_response(self) -> dict:
+    def to_mcp_response(self) -> dict[str, Any]:
         return {"result": self.model_dump()}

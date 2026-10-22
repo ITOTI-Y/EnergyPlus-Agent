@@ -9,7 +9,7 @@ lets callers hand it to whoever owns that type.
 import re
 from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Final
+from typing import Final, override
 
 from idfpy import IDF, IDFBaseModel
 from idfpy.models import (
@@ -39,6 +39,7 @@ class ModelIssue:
     field: str | None
     message: str
 
+    @override
     def __str__(self) -> str:
         if self.object_type is None:
             return self.message

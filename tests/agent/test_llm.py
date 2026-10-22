@@ -2,7 +2,7 @@ import threading
 import time
 from collections.abc import Callable, Iterator
 from itertools import count
-from typing import Any, cast
+from typing import Any, cast, override
 
 from langchain.agents import create_agent
 from langchain_core.language_models.fake_chat_models import GenericFakeChatModel
@@ -110,6 +110,7 @@ def test_read_tools_not_serialized():
 class _ScriptedModel(GenericFakeChatModel):
     """Fake chat model that accepts tools, as create_agent requires."""
 
+    @override
     def bind_tools(self, tools: Any, **kwargs: Any) -> "_ScriptedModel":
         return self
 
