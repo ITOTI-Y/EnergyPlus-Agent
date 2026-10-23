@@ -140,21 +140,21 @@ EnergyPlus-Agent/
 
 ### Main dependencies
 
-| Library                                        | Version            | Purpose                                                        |
-| ---------------------------------------------- | ------------------ | -------------------------------------------------------------- |
-| **langgraph**                                  | >=1.1.3            | Agent graph, checkpointing, interrupts                         |
-| **langchain**                                  | >=1.2.13           | Chat model factory, tools, messages                            |
+| Library                                                    | Version            | Purpose                                                        |
+| ---------------------------------------------------------- | ------------------ | -------------------------------------------------------------- |
+| **langgraph**                                        | >=1.1.3            | Agent graph, checkpointing, interrupts                         |
+| **langchain**                                        | >=1.2.13           | Chat model factory, tools, messages                            |
 | **langchain-anthropic** / **langchain-openai** | >=1.4.0 / >=1.1.12 | Bundled LLM providers                                          |
-| **fastmcp**                                    | >=2.14.1           | MCP server framework                                           |
-| **idfpy**                                      | ==26.1.*,>=26.1.6  | Typed EnergyPlus objects, IDF and epJSON I/O, reference checks |
-| **pydantic**                                   | >=2.11.7           | Schema validation                                              |
-| **qdrant-client**                              | >=1.17.1           | Vector database of the reference library                       |
-| **openai**                                     | >=1.100            | Client of the OpenAI-compatible embedding service              |
-| **huggingface-hub**                            | >=0.35             | Publishing and pulling the reference library                   |
-| **pydantic-settings**                          | >=2.11             | LLM and reference library settings from the environment        |
-| **typer**                                      | >=0.20.1           | CLI                                                            |
-| **shapely**                                    | >=2.2.0            | Polygon overlap and splitting for zone geometry                |
-| **loguru**                                     | >=0.7.3            | Logging                                                        |
+| **fastmcp**                                          | >=2.14.1           | MCP server framework                                           |
+| **idfpy**                                            | ==26.1.*,>=26.1.6  | Typed EnergyPlus objects, IDF and epJSON I/O, reference checks |
+| **pydantic**                                         | >=2.11.7           | Schema validation                                              |
+| **qdrant-client**                                    | >=1.17.1           | Vector database of the reference library                       |
+| **openai**                                           | >=1.100            | Client of the OpenAI-compatible embedding service              |
+| **huggingface-hub**                                  | >=0.35             | Publishing and pulling the reference library                   |
+| **pydantic-settings**                                | >=2.11             | LLM and reference library settings from the environment        |
+| **typer**                                            | >=0.20.1           | CLI                                                            |
+| **shapely**                                          | >=2.2.0            | Polygon overlap and splitting for zone geometry                |
+| **loguru**                                           | >=0.7.3            | Logging                                                        |
 
 Development extras: `pytest`, `pytest-cov`, `pytest-recording`, `ruff`, `ty`, `prek`, `langsmith`, `grandalf`.
 
@@ -180,7 +180,7 @@ LLM_API_KEY=
 LLM_BASE_URL=            # optional, for OpenAI-compatible gateways
 LLM_MODEL=
 # Optional; an empty value is not "unset", so leave unused ones commented out.
-# LLM_TEMPERATURE=null   # default 0.7; null sends none, for providers that reject one
+# LLM_TEMPERATURE=null   # default None; null sends none, for providers that reject one
 # LLM_REASONING_MAX_TOKENS=1024   # thinking budget, sent as reasoning.max_tokens; unset, none is sent
 # LLM_VISION_MODEL=       # reads --image files, sent without temperature; unset, images are refused
 
@@ -203,18 +203,18 @@ LLM_MODEL=
 
 `LLMConfig` in `src/configs/config.py` selects the model used by every agent phase. Each field is read from its environment variable, otherwise it takes the default:
 
-| Variable                   | Field                  | Default    |
-| -------------------------- | ---------------------- | ---------- |
-| `LLM_PROVIDER`             | `provider`             | `openai`   |
+| Variable                     | Field                    | Default    |
+| ---------------------------- | ------------------------ | ---------- |
+| `LLM_PROVIDER`             | `provider`             | `openai` |
 | `LLM_BASE_URL`             | `base_url`             | none       |
 | `LLM_API_KEY`              | `api_key`              | none       |
 | `LLM_MODEL`                | `model_name`           | required   |
 | `LLM_VISION_MODEL`         | `vision_model_name`    | none       |
-| `LLM_TEMPERATURE`          | `temperature`          | `0.7`      |
-| `LLM_MAX_TOKENS`           | `max_tokens`           | `16384`    |
+| `LLM_TEMPERATURE`          | `temperature`          | none       |
+| `LLM_MAX_TOKENS`           | `max_tokens`           | `16384`  |
 | `LLM_REASONING_MAX_TOKENS` | `reasoning_max_tokens` | none       |
-| `LLM_MAX_RETRIES`          | `max_retries`          | `2`        |
-| `LLM_TIMEOUT`              | `timeout`              | `120` s    |
+| `LLM_MAX_RETRIES`          | `max_retries`          | `2`      |
+| `LLM_TIMEOUT`              | `timeout`              | `120` s  |
 
 `LLM_PROVIDER` takes any provider name supported by LangChain `init_chat_model`. `LLM_TEMPERATURE=null` sends no temperature, for providers that reject one. `LLM_REASONING_MAX_TOKENS` is sent as the gateway extension `reasoning.max_tokens`; set it only for endpoints that accept that field.
 
@@ -330,15 +330,15 @@ START -> observe                     (reads the images, if any)
 
 ### Envelope
 
-| Tool                                                                                                                                                                             | Description                                                               |
-| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| Tool                                                                                                                                                                                         | Description                                                               |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
 | `create_standard_material` / `create_no_mass_material` / `create_air_gap_material` / `create_glazing_material` / `create_window_glazing_material` / `create_window_gas_material` | Create materials by type; the last two build multi-pane windows           |
-| `get_material` / `update_*_material` / `delete_material` / `list_materials`                                                                                                      | Material read, update, delete, list                                       |
-| `create_construction` / `get_construction` / `update_construction` / `delete_construction` / `list_constructions`                                                                | Construction CRUD                                                         |
-| `create_zone_geometry`                                                                                                                                                           | Extrude a zone from its floor plan and pair faces shared with other zones |
-| `create_surfaces`                                                                                                                                                                | Create several surfaces, each succeeding or failing on its own            |
-| `create_surface` / `get_surface` / `update_surface` / `delete_surface` / `list_surfaces`                                                                                         | Building surface CRUD                                                     |
-| `create_fenestration_surface` / `get_fenestration_surface` / `update_fenestration_surface` / `delete_fenestration_surface` / `list_fenestration_surfaces`                        | Window and door CRUD                                                      |
+| `get_material` / `update_*_material` / `delete_material` / `list_materials`                                                                                                          | Material read, update, delete, list                                       |
+| `create_construction` / `get_construction` / `update_construction` / `delete_construction` / `list_constructions`                                                                  | Construction CRUD                                                         |
+| `create_zone_geometry`                                                                                                                                                                     | Extrude a zone from its floor plan and pair faces shared with other zones |
+| `create_surfaces`                                                                                                                                                                          | Create several surfaces, each succeeding or failing on its own            |
+| `create_surface` / `get_surface` / `update_surface` / `delete_surface` / `list_surfaces`                                                                                           | Building surface CRUD                                                     |
+| `create_fenestration_surface` / `get_fenestration_surface` / `update_fenestration_surface` / `delete_fenestration_surface` / `list_fenestration_surfaces`                          | Window and door CRUD                                                      |
 
 ### Schedule
 
@@ -356,17 +356,17 @@ START -> observe                     (reads the images, if any)
 
 ### Loads
 
-| Tool                                                                                              | Description                        |
-| ------------------------------------------------------------------------------------------------- | ---------------------------------- |
+| Tool                                                                                                        | Description                        |
+| ----------------------------------------------------------------------------------------------------------- | ---------------------------------- |
 | `create_people` / `get_people` / `update_people` / `delete_people` / `list_people`                | People CRUD                        |
 | `create_light` / `get_light` / `update_light` / `delete_light` / `list_lights`                    | Lights CRUD                        |
 | `create_equipment` / `get_equipment` / `update_equipment` / `delete_equipment` / `list_equipment` | ElectricEquipment (plug load) CRUD |
 
 ### Workflow
 
-| Tool              | Description                                                                      |
-| ----------------- | -------------------------------------------------------------------------------- |
-| `export_model`    | Save the current model; the suffix `.idf` or `.epJSON` selects the format        |
+| Tool                | Description                                                                      |
+| ------------------- | -------------------------------------------------------------------------------- |
+| `export_model`    | Save the current model; the suffix `.idf` or `.epJSON` selects the format    |
 | `load_model`      | Replace the current model with an IDF or epJSON file                             |
 | `validate_config` | Check references, fenestration placement and completeness                        |
 | `run_simulation`  | Validate, add design days and Kiva foundations, write the IDF and run EnergyPlus |
@@ -386,12 +386,12 @@ START -> observe                     (reads the images, if any)
 
 ## CLI Reference
 
-| Command                                                                                                       | Description                                                    |
-| ------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| Command                                                                                                         | Description                                                    |
+| --------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
 | `uv run main.py run-agent "<brief>" --epw <file> [--image <file>]... [--output-dir <dir>] [--thread-id <id>]` | Run the multi-phase agent end to end with interactive approval |
 | `uv run main.py mcp-server [--transport] [--host] [--port]`                                                   | Start the MCP server                                           |
-| `uv run main.py reference build\|embed\|load\|publish\|pull`                                                  | Build, embed, index and share the prototype reference library  |
-| `energyplus-mcp`                                                                                              | MCP server entry point installed by `pyproject.toml`           |
+| `uv run main.py reference build\|embed\|load\|publish\|pull`                                                      | Build, embed, index and share the prototype reference library  |
+| `energyplus-mcp`                                                                                              | MCP server entry point installed by `pyproject.toml`         |
 
 ## Testing
 
