@@ -71,7 +71,6 @@ def perimeter_core(
             f"a {shortest:.1f} m side is too short for perimeter_core (needs "
             f"{2 * depth + MIN_CORE_WIDTH_M:.2f} m); use zoning 'single'"
         )
-    # Inward normal of a counterclockwise side is its direction turned left.
     inward = [(-uy, ux) for ux, uy, _ in sides]
     inner = [
         (

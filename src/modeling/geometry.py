@@ -150,15 +150,18 @@ class _Plane:
         )
 
 
-def _cut(polygon: Polygon, x: float | None, y: float | None) -> list[Polygon]:
-    """Split by the vertical line at ``x`` or the horizontal line at ``y``."""
-    minx, miny, maxx, maxy = polygon.bounds
-    line = (
-        LineString([(x, miny - 1.0), (x, maxy + 1.0)])
-        if x is not None
-        else LineString([(minx - 1.0, y), (maxx + 1.0, y)])
-    )
+def _split(polygon: Polygon, line: LineString) -> list[Polygon]:
     return [g for g in ops.split(polygon, line).geoms if isinstance(g, Polygon)]
+
+
+def _cut_vertical(polygon: Polygon, x: float) -> list[Polygon]:
+    _, miny, _, maxy = polygon.bounds
+    return _split(polygon, LineString([(x, miny - 1.0), (x, maxy + 1.0)]))
+
+
+def _cut_horizontal(polygon: Polygon, y: float) -> list[Polygon]:
+    minx, _, maxx, _ = polygon.bounds
+    return _split(polygon, LineString([(minx - 1.0, y), (maxx + 1.0, y)]))
 
 
 def _reflex_vertices(polygon: Polygon) -> list[tuple[float, float]]:
@@ -186,7 +189,7 @@ def _convex_parts(polygon: Polygon, depth: int = 0) -> list[Polygon]:
     if depth > 16 or polygon.convex_hull.area - polygon.area <= MIN_AREA_M2:
         return [polygon]
     for x, y in _reflex_vertices(polygon):
-        for parts in (_cut(polygon, x, None), _cut(polygon, None, y)):
+        for parts in (_cut_vertical(polygon, x), _cut_horizontal(polygon, y)):
             if len(parts) > 1:
                 return [q for part in parts for q in _convex_parts(part, depth + 1)]
     return [polygon]
@@ -202,7 +205,7 @@ def _polygons(geometry: object) -> list[Polygon]:
         case Polygon() if geometry.area < MIN_AREA_M2:
             return []
         case Polygon() if geometry.interiors:
-            return _polygons(_cut(geometry, geometry.interiors[0].centroid.x, None))
+            return _polygons(_cut_vertical(geometry, geometry.interiors[0].centroid.x))
         case Polygon():
             return [
                 p.simplify(1e-9)

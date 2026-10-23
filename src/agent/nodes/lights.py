@@ -1,3 +1,5 @@
+from typing import Final
+
 from langchain_core.messages import AIMessage
 from pydantic import Field
 
@@ -14,7 +16,7 @@ from src.agent.state import AgentState, AgentStateUpdate
 from src.agent.tools import make_lights_tools
 from src.agent.trace import TraceCollector, record_phase_trace, trace_middleware
 
-LIGHTS_SYSTEM_PROMPT = """You are a lighting-load expert for EnergyPlus.
+LIGHTS_SYSTEM_PROMPT: Final = """You are a lighting-load expert for EnergyPlus.
 Create the Lights objects of the specified zones with create_lights,
 one call per group of zones with the same values.
 

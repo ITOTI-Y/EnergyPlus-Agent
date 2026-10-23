@@ -110,7 +110,6 @@ def update[T: IDFBaseModel](idf: IDF, obj: T, changes: dict[str, Any]) -> T:
     if missing := missing_references(idf, candidate, name):
         raise MissingReferenceError(obj.idf_object_type(), name, missing)
     for field in changes:
-        # Assigning a provider name makes idfpy rename every reference to it.
         setattr(obj, field, getattr(candidate, field))
     return obj
 

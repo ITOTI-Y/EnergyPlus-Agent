@@ -1,7 +1,7 @@
 import os
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any
+from typing import Any, Final
 from urllib.parse import urlsplit, urlunsplit
 
 import pytest
@@ -16,8 +16,8 @@ from vcr.request import Request
 
 from src.agent.state import SimContext
 
-CASSETTE_ORIGIN = "https://llm.invalid"
-RECORDED_MODEL = "google/gemini-3.8-flash"
+CASSETTE_ORIGIN: Final = "https://llm.invalid"
+RECORDED_MODEL: Final = "google/gemini-3.8-flash"
 
 
 def _mask_origin(request: Request) -> Request:

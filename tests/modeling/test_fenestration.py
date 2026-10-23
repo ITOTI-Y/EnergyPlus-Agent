@@ -1,6 +1,7 @@
 import json
 import shutil
 from pathlib import Path
+from typing import Final
 
 import pytest
 from idfpy import IDF
@@ -35,12 +36,22 @@ from src.modeling.geometry import (
 from src.runner.runner import run_energyplus
 from src.state.defaults import add_design_days
 
-DATA = Path(__file__).parents[2] / "data"
+DATA: Final = Path(__file__).parents[2] / "data"
 # building_schema has outdoor wall Zone_East_Wall_South (y=0, x 5..10, z 0..3,
 # facing -y) and the shared wall Zone_East_Wall_Internal / Zone_West_Wall_Internal
 # at x=5, y 0..5, z 0..3.
-SOUTH_WINDOW = [(6.0, 0.0, 2.0), (6.0, 0.0, 1.0), (8.0, 0.0, 1.0), (8.0, 0.0, 2.0)]
-INTERNAL_DOOR = [(5.0, 3.0, 2.0), (5.0, 3.0, 0.0), (5.0, 2.0, 0.0), (5.0, 2.0, 2.0)]
+SOUTH_WINDOW: Final = [
+    (6.0, 0.0, 2.0),
+    (6.0, 0.0, 1.0),
+    (8.0, 0.0, 1.0),
+    (8.0, 0.0, 2.0),
+]
+INTERNAL_DOOR: Final = [
+    (5.0, 3.0, 2.0),
+    (5.0, 3.0, 0.0),
+    (5.0, 2.0, 0.0),
+    (5.0, 2.0, 2.0),
+]
 
 
 def _model() -> IDF:

@@ -1,5 +1,5 @@
 from types import SimpleNamespace
-from typing import Any
+from typing import Any, Final
 
 import pytest
 from langchain_core.messages import HumanMessage
@@ -14,7 +14,7 @@ from src.agent.storeys import storeys_from_reading
 from src.configs.config import LLMConfig
 from tests.agent.intake_data import intake, zone_spec
 
-READING = PhotoReadingSchema.model_validate(
+READING: Final = PhotoReadingSchema.model_validate(
     {
         "reading": "3 podium bands, 12 tower bands above",
         "total_storeys": 15,
@@ -117,8 +117,8 @@ def _plan(key: str, block: str | None, corners: list) -> ZonePlanSchema:
     )
 
 
-PODIUM = _plan("Podium", "podium", [(0, 0), (60, 0), (60, 40), (0, 40)])
-TOWER = _plan("Tower", "tower", [(0, 9), (50, 9), (50, 31), (0, 31)])
+PODIUM: Final = _plan("Podium", "podium", [(0, 0), (60, 0), (60, 40), (0, 40)])
+TOWER: Final = _plan("Tower", "tower", [(0, 9), (50, 9), (50, 31), (0, 31)])
 
 
 def test_storeys_follow_the_blocks_as_ground_typical_and_top():
@@ -166,7 +166,7 @@ def test_plans_and_blocks_that_do_not_match_go_back_to_intake():
         storeys_from_reading([PODIUM], READING)
 
 
-TOWER_CORNERS = [(0, 9), (50, 9), (50, 31), (0, 31)]
+TOWER_CORNERS: Final = [(0, 9), (50, 9), (50, 31), (0, 31)]
 
 
 def test_a_gap_between_blocks_takes_the_plans_below():

@@ -1,3 +1,5 @@
+from typing import Final
+
 from langchain_core.messages import AIMessage
 from pydantic import Field
 
@@ -14,7 +16,7 @@ from src.agent.state import AgentState, AgentStateUpdate
 from src.agent.tools import make_people_tools
 from src.agent.trace import TraceCollector, record_phase_trace, trace_middleware
 
-PEOPLE_SYSTEM_PROMPT = """You are an occupancy-load expert for EnergyPlus.
+PEOPLE_SYSTEM_PROMPT: Final = """You are an occupancy-load expert for EnergyPlus.
 Create the People objects of the specified zones with create_people,
 one call per group of zones with the same values.
 

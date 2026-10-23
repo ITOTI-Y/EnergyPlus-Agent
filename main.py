@@ -5,21 +5,17 @@ from typing import Annotated, Literal
 import typer
 from dotenv import load_dotenv
 from langchain_core.runnables import RunnableConfig
+from loguru import logger
 from typer import Argument, Exit, Option
 
 from src.agent import AgentState, SimContext, build_graph
 from src.agent.runner import interactive_approval, print_final_messages, run_session
-from src.utils.logging import get_logger, setup_logger
+from src.utils.logging import setup_logger
 
 load_dotenv()
 
 logger_time = time.strftime("%Y%m%d_%H%M%S")
-setup_logger(
-    level="INFO",
-    console_output=True,
-    log_file_path=Path(f"./output/logs/{logger_time}.log"),
-)
-logger = get_logger(__name__)
+setup_logger(level="INFO", log_file_path=Path(f"./output/logs/{logger_time}.log"))
 
 app = typer.Typer()
 
@@ -29,7 +25,7 @@ def mcp_server(
     transport: Literal["stdio", "http", "sse", "streamable-http"] = "stdio",
     host: str = "127.0.0.1",
     port: int = 8000,
-):
+) -> None:
     from src.mcp.server import mcp
 
     if transport == "stdio":
@@ -171,8 +167,9 @@ def run_agent(
 ) -> None:
     """Run the multi-phase agent end-to-end.
 
-    Stops at the validate interrupt; print the pending summary and loop
-    until the user types 'approve' or feedback text.
+    Stops at the validate interrupt, prints the pending summary and loops
+    until the user answers 'y' to approve or 'q' to abort; other text is
+    sent to intake as feedback.
     """
     graph = build_graph()
     initial = AgentState(
@@ -193,7 +190,7 @@ def run_agent(
             graph, initial, context, config, on_interrupt=interactive_approval
         )
     except ReferenceSearchError as e:
-        logger.error("Run stopped: {}", e)
+        logger.exception("Run stopped")
         raise Exit(1) from e
     print_final_messages(state)
 

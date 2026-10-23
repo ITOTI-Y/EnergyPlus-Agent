@@ -3,7 +3,6 @@ import re
 import threading
 from collections import Counter
 from collections.abc import Callable, Sequence
-from pathlib import Path
 from typing import Any, Final, override
 
 from dotenv import load_dotenv
@@ -28,7 +27,6 @@ from langgraph.prebuilt.tool_node import ToolCallRequest
 from langgraph.runtime import Runtime
 from langgraph.types import Command
 from loguru import logger
-from omegaconf import OmegaConf
 from pydantic import BaseModel
 
 from src.agent._share import language_directive
@@ -37,24 +35,17 @@ from src.configs.config import LLMConfig
 load_dotenv()
 
 
-def load_llm_config() -> LLMConfig:
-    raw = OmegaConf.load(
-        Path(__file__).resolve().parent.parent / "configs" / "llm.yaml"
-    )
-    return LLMConfig.model_validate(OmegaConf.to_container(raw, resolve=True))
-
-
 def create_llm(config: LLMConfig | None = None) -> BaseChatModel:
     """Create a LangChain chat model from LLMConfig.
 
     Args:
-        config: Optional override. If None, reads src/configs/llm.yaml.
+        config: Optional override. If None, reads the LLM_* environment.
 
     Returns:
         A BaseChatModel routed to the configured provider.
     """
     if config is None:
-        config = load_llm_config()
+        config = LLMConfig()
 
     kwargs: dict[str, Any] = {
         "max_tokens": config.max_tokens,
@@ -84,7 +75,7 @@ def create_vision_llm(config: LLMConfig | None = None) -> BaseChatModel:
         ValueError: If no vision model is configured (LLM_VISION_MODEL).
     """
     if config is None:
-        config = load_llm_config()
+        config = LLMConfig()
     if not config.vision_model_name:
         raise ValueError(
             "images need a vision model; set LLM_VISION_MODEL, or give the "
@@ -134,7 +125,7 @@ def serial_write_tools_middleware() -> AgentMiddleware:
         request: ToolCallRequest,
         handler: Callable[[ToolCallRequest], ToolMessage | Command],
     ) -> ToolMessage | Command:
-        name = str(request.tool_call.get("name", ""))
+        name = request.tool_call["name"]
         if name.startswith(WRITE_TOOL_PREFIXES):
             with lock:
                 return handler(request)
@@ -274,21 +265,21 @@ class FailureLoopGuard(AgentMiddleware):
 
 
 def build_agent(
+    system_prompt: str,
+    tools: list[BaseTool],
+    response_format: type[BaseModel],
     config: LLMConfig | None = None,
-    system_prompt: str | None = None,
-    tools: list[BaseTool] | None = None,
-    response_format: type[BaseModel] | None = None,
     middleware: Sequence[AgentMiddleware] = (),
 ):
-    """Build a tool-calling agent with optional structured final output.
+    """Build a tool-calling agent with a structured final output.
 
     Args:
-        config: Optional override. If None, reads src/configs/llm.yaml.
         system_prompt: Phase prompt; `language_directive()` is appended here
             so per-phase prompts stay free of language boilerplate.
         tools: Tools bound to the agent.
         response_format: Pydantic schema for the final structured answer,
             surfaced as `result["structured_response"]`.
+        config: Optional override. If None, reads the LLM_* environment.
         middleware: Extra middleware, e.g. `trace_middleware(collector)`.
 
     Returns:
@@ -296,16 +287,14 @@ def build_agent(
     """
     return create_agent(
         model=create_llm(config),
-        tools=tools or [],
-        system_prompt=(system_prompt or "") + language_directive(),
+        tools=tools,
+        system_prompt=system_prompt + language_directive(),
         # The final answer as a validated tool call, not free text. ToolStrategy
         # over the provider's JSON-schema mode, which can reject the idfpy
         # schema keywords (note, units) that gateways pass on.
-        response_format=ToolStrategy(response_format) if response_format else None,
+        response_format=ToolStrategy(response_format),
         middleware=[
             FailureLoopGuard(),
-            # Phase agents resend their whole history on every call; this caps
-            # what large buildings and failure streaks add to each prompt.
             ContextEditingMiddleware(
                 edits=[ClearToolUsesEdit(trigger=CONTEXT_TRIGGER_TOKENS, keep=5)]
             ),

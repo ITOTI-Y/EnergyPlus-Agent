@@ -1,11 +1,12 @@
 import sqlite3
 from datetime import datetime
+from typing import Final
 
 from src._share import UNSET, _UnsetType
 from src.database.datatools._share import TIMESTAMP
 from src.database.datatools.datadescription import update_description_construction
 
-MAX_LAYERS = 20
+MAX_LAYERS: Final = 20
 
 
 def _fetch_ids_batch(
@@ -23,7 +24,6 @@ def _fetch_ids_batch(
     )
     rows = cursor.fetchall()
 
-    # Detect duplicate material names
     seen: dict[str, int] = {}
     for row in rows:
         if row["name"] in seen:
@@ -54,9 +54,7 @@ def create_construction(
     layers: list[str],
 ) -> None:
     if not layers or len(layers) > MAX_LAYERS:
-        raise ValueError(
-            f"layers must contain 1-{MAX_LAYERS} items, got {len(layers) if layers else 0}"
-        )
+        raise ValueError(f"layers must contain 1-{MAX_LAYERS} items, got {len(layers)}")
 
     with sqlite3.connect(db_path) as conn:
         conn.row_factory = sqlite3.Row

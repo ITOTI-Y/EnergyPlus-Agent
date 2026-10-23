@@ -46,7 +46,6 @@ def _overlap(edge: Segment, other: Segment) -> tuple[float, float] | None:
     length_sq = dx * dx + dy * dy
     params = []
     for px, py, _ in other:
-        # Distance of the point from the edge's line, then its position along it.
         if abs(dx * (py - ay) - dy * (px - ax)) > TOLERANCE_M * length_sq**0.5:
             return None
         params.append(((px - ax) * dx + (py - ay) * dy) / length_sq)

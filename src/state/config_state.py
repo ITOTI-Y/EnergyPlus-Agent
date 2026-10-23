@@ -77,13 +77,13 @@ class ConfigState(BaseModel):
         Raises:
             ValueError: If the suffix is neither ``.idf`` nor ``.epJSON``.
         """
-        if path.suffix.lower() not in (".idf", ".epjson"):
-            raise ValueError(f"Unsupported model file {path}; use .idf or .epJSON")
         match path.suffix.lower():
             case ".idf":
                 self._idf.save(path)
-            case _:
+            case ".epjson":
                 self._idf.save(path, output_type="epjson")
+            case _:
+                raise ValueError(f"Unsupported model file {path}; use .idf or .epJSON")
         logger.info("Saved model to {}", path)
         return path
 

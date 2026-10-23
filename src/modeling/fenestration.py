@@ -180,7 +180,6 @@ def remove_fenestration(idf: IDF, name: str) -> list[str]:
     if partner is not None and partner.outside_boundary_condition_object == name:
         pair.append(partner)
     for item in pair:
-        # The two halves reference each other; only outside referrers block.
         others = [r for r in item.referencing() if all(r is not m for m in pair)]
         if others:
             raise ReferencedObjectError(

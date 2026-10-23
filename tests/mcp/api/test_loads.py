@@ -1,4 +1,6 @@
-FRACTION_SCHEDULE = {
+from typing import Final
+
+FRACTION_SCHEDULE: Final = {
     "name": "Office_Equipment",
     "schedule_type_limits_name": "Any",
     "times": [
@@ -14,7 +16,7 @@ FRACTION_SCHEDULE = {
     ],
 }
 
-EQUIPMENT = {
+EQUIPMENT: Final = {
     "name": "Office_Equipment",
     "zone_name": "Office",
     "schedule_name": "Office_Equipment",

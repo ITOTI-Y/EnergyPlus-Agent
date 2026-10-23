@@ -1,7 +1,8 @@
 from collections import defaultdict
+from dataclasses import dataclass
 from typing import Literal
 
-from langchain_core.messages import RemoveMessage
+from langchain_core.messages import AIMessage, RemoveMessage
 from langgraph.types import Command, interrupt
 from loguru import logger
 
@@ -9,8 +10,28 @@ from src.agent.phases import DEPENDS_ON, Phase, owner, rerun_closure
 from src.agent.state import AgentState, IntakeOutput
 from src.modeling.validation import ModelIssue
 
-Destination = Literal["simulate", "intake", "plan_rerun"]
+Destination = Literal["simulate", "intake", "plan_rerun", "__end__"]
 ValidateCommand = Command[Destination]
+
+
+@dataclass(frozen=True)
+class Approve:
+    """Run the simulation."""
+
+
+@dataclass(frozen=True)
+class Revise:
+    """Send the model back to intake with the reviewer's correction."""
+
+    feedback: str
+
+
+@dataclass(frozen=True)
+class Abort:
+    """End the session with the problems left in the state."""
+
+
+type ReviewDecision = Approve | Revise | Abort
 
 
 def _feedback(issues: list[ModelIssue]) -> dict[str, list[str]]:
@@ -51,13 +72,14 @@ def validate_node(state: AgentState) -> ValidateCommand:
     1. Problems the owning phases can fix -> rerun those phases and their
        dependants with the problems as feedback (once per intake output).
     2. Otherwise, while global retries remain -> intake revises its output.
-    3. Otherwise, or with no problems -> a human reviews: approval runs the
-       simulation, feedback goes to intake as a correction.
+    3. Otherwise, or with no problems -> a reviewer decides: `Approve`
+       runs the simulation, `Revise` sends its feedback to intake as a
+       correction with the retry budget restored, and `Abort` ends the
+       session, keeping `validation_errors` for the caller.
     """
     errors = state.validation_errors
     feedback = _feedback(errors)
     if errors:
-        # Each problem is logged: every retry costs a pass of LLM calls.
         logger.warning(
             "validate: {} problems (subgroup retried {}, intake revisions {}):\n{}",
             len(errors),
@@ -89,25 +111,37 @@ def validate_node(state: AgentState) -> ValidateCommand:
             )
 
     summary = state.config_state.get_summary()
-    decision = interrupt(
+    decision: ReviewDecision = interrupt(
         {
             "summary": summary.model_dump(),
             "errors": [str(e) for e in errors],
             "message": "Review configuration before simulation. "
-            "Respond with {'approved': True} or "
-            "{'approved': False, 'feedback': '...'}.",
+            "Resume with Approve(), Revise(feedback) or Abort().",
         }
     )
 
-    if decision.get("approved"):
-        return ValidateCommand(goto="simulate")
-
-    return ValidateCommand(
-        goto="intake",
-        update={
-            "review_feedback": decision.get("feedback", ""),
-            "phase_feedback": feedback,
-            "global_retries": 0,
-            "messages": _clear_messages(state),
-        },
-    )
+    match decision:
+        case Approve():
+            return ValidateCommand(goto="simulate")
+        case Revise(feedback=text):
+            return ValidateCommand(
+                goto="intake",
+                update={
+                    "review_feedback": text,
+                    "phase_feedback": feedback,
+                    "global_retries": 0,
+                    "messages": _clear_messages(state),
+                },
+            )
+        case Abort():
+            return ValidateCommand(
+                goto="__end__",
+                update={
+                    "messages": [
+                        AIMessage(
+                            content=f"[validate] aborted with {len(errors)} "
+                            "unresolved problems"
+                        )
+                    ]
+                },
+            )

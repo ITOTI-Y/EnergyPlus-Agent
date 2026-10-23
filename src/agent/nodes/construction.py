@@ -1,3 +1,5 @@
+from typing import Final
+
 from langchain_core.messages import AIMessage
 from langgraph.runtime import Runtime
 from pydantic import Field
@@ -16,7 +18,7 @@ from src.agent.tools import make_construction_tools
 from src.agent.tools.reference_tools import make_reference_tools, reference_prompt
 from src.agent.trace import TraceCollector, record_phase_trace, trace_middleware
 
-CONSTRUCTION_SYSTEM_PROMPT = """You are a construction-assembly expert for EnergyPlus.
+CONSTRUCTION_SYSTEM_PROMPT: Final = """You are a construction-assembly expert for EnergyPlus.
 Given construction specifications, create all required Construction objects.
 
 Workflow:

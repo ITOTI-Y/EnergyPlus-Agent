@@ -1,3 +1,5 @@
+from typing import Final
+
 from langchain_core.messages import AIMessage
 from langgraph.runtime import Runtime
 from pydantic import BaseModel, Field
@@ -14,7 +16,7 @@ from src.agent.tools import make_schedule_tools
 from src.agent.tools.reference_tools import make_reference_tools, reference_prompt
 from src.agent.trace import TraceCollector, record_phase_trace, trace_middleware
 
-SCHEDULE_SYSTEM_PROMPT = """You are a scheduling expert for EnergyPlus.
+SCHEDULE_SYSTEM_PROMPT: Final = """You are a scheduling expert for EnergyPlus.
 Given schedule specifications, create all ScheduleTypeLimits and
 Schedule:Compact objects required by later phases (HVAC, People, Lights, Equipment).
 

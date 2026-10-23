@@ -24,7 +24,7 @@ from src.modeling.geometry import ZoneConstructions
 from src.modeling.validation import ModelIssue
 from src.state.config_state import ConfigState
 
-SURFACE_SYSTEM_PROMPT = """You are a building geometry expert for EnergyPlus.
+SURFACE_SYSTEM_PROMPT: Final = """You are a building geometry expert for EnergyPlus.
 Every zone already has vertical walls, a floor and a flat roof, extruded
 from its floor plan; faces shared by two zones are interzone pairs. Your
 task is only the geometry an extrusion cannot express: sloped or pitched
