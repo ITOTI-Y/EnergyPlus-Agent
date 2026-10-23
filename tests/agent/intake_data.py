@@ -1,11 +1,11 @@
 """Intake outputs for tests, so each test states only the fields it uses."""
 
 from collections.abc import Sequence
-from typing import Any
+from typing import Any, Final
 
 from src.agent.state import SPEC_PHASES, IntakeOutput
 
-_LAYOUT_FIELDS = ("zone_plans", "storeys")
+_LAYOUT_FIELDS: Final = ("zone_plans", "storeys")
 
 
 def layout(*zones: dict[str, Any]) -> dict[str, list[dict[str, Any]]]:

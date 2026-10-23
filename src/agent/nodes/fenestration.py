@@ -1,3 +1,5 @@
+from typing import Final
+
 from langchain_core.messages import AIMessage
 from pydantic import Field
 
@@ -15,7 +17,7 @@ from src.agent.state import AgentState, AgentStateUpdate
 from src.agent.tools import make_fenestration_tools
 from src.agent.trace import TraceCollector, record_phase_trace, trace_middleware
 
-FENESTRATION_SYSTEM_PROMPT = """You are a window/door geometry expert for EnergyPlus.
+FENESTRATION_SYSTEM_PROMPT: Final = """You are a window/door geometry expert for EnergyPlus.
 Given fenestration specifications, create FenestrationSurface:Detailed
 objects (windows, doors) on existing parent surfaces.
 

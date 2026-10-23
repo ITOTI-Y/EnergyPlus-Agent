@@ -163,7 +163,9 @@ def search(
         with_payload=True,
     )
     for point in result.points:
-        payload = point.payload or {}
+        payload = point.payload
+        if payload is None:
+            raise ValueError(f"point {point.id} in '{collection}' has no payload")
         yield Hit(
             point.score,
             payload["kind"],

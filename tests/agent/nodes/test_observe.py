@@ -2,7 +2,7 @@ import base64
 import io
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any
+from typing import Any, Final
 
 import numpy as np
 import pytest
@@ -27,7 +27,7 @@ from src.agent.storeys import storeys_from_reading
 from src.configs.config import LLMConfig
 from tests.agent.intake_data import intake, zone_spec
 
-READING = PhotoReadingSchema.model_validate(
+READING: Final = PhotoReadingSchema.model_validate(
     {
         "reading": "3 podium bands, 12 tower bands above",
         "storey_rows": [f"band {k}" for k in range(15, 0, -1)],
@@ -320,8 +320,8 @@ def _plan(key: str, block: str | None, corners: list) -> ZonePlanSchema:
     )
 
 
-PODIUM = _plan("Podium", "podium", [(0, 0), (60, 0), (60, 40), (0, 40)])
-TOWER = _plan("Tower", "tower", [(0, 9), (50, 9), (50, 31), (0, 31)])
+PODIUM: Final = _plan("Podium", "podium", [(0, 0), (60, 0), (60, 40), (0, 40)])
+TOWER: Final = _plan("Tower", "tower", [(0, 9), (50, 9), (50, 31), (0, 31)])
 
 
 def test_storeys_follow_the_blocks_as_ground_typical_and_top():
@@ -439,7 +439,7 @@ def test_footprints_place_setbacks_from_the_blocks():
     }
 
 
-TOWER_CORNERS = [(0, 9), (50, 9), (50, 31), (0, 31)]
+TOWER_CORNERS: Final = [(0, 9), (50, 9), (50, 31), (0, 31)]
 
 
 def test_a_gap_between_blocks_takes_the_plans_below():

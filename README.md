@@ -27,13 +27,13 @@ A reference library of materials, constructions and schedules from the DOE proto
 - **Failure-loop guard**: every phase agent stops when the same tool call fails three times, ten calls fail in a row, twenty fail in total or one call is repeated unchanged six times, logs each failure, and reports the last error as the phase summary instead of retrying until the LLM budget runs out.
 - **Structured validation**: `src/modeling/validation.py` reports each problem as a `ModelIssue` tied to an object type, name and field. Sources are idfpy's reference check, geometric checks (fenestration reversed, off its parent surface's plane or outside its outline, which EnergyPlus would only warn about), empty models, phases that created nothing, and EnergyPlus Severe and Fatal messages, which are tied to the first object they quote. `src/agent/phases.py` maps object types to the phase that owns them; after its run each phase repairs the problems in its own objects, and every phase agent also receives read-only `list_*` tools to inspect what earlier phases created.
 - **Partial retries**: after a pass, problems go to the phases that own them. If those phases can fix them from their unchanged task, only they and the phases depending on their objects run again, with the problems as feedback (zone -> surface -> fenestration and loads; material -> construction -> surface; schedule -> loads). Otherwise intake receives the brief, its previous output and the problems, and returns a patch of the fields to change; the phases fed by changed fields, the phases owning the problems, and their dependants run again. Before a pass, the objects of the phases about to run are removed; the other phases keep their objects and are not prompted. Intake revises at most twice before a human reviews the model, and EnergyPlus Severe errors after approval go through the same loop.
-- **Human-in-the-loop approval**: the validate node raises a LangGraph `interrupt()` with a configuration summary and any errors. Approval continues to simulation; free-text feedback goes to intake as a correction and is handled like a revision.
+- **Human-in-the-loop approval**: the validate node raises a LangGraph `interrupt()` with a configuration summary and any errors. Approval continues to simulation; free-text feedback goes to intake as a correction and is handled like a revision, with the intake retry budget restored; aborting ends the session and leaves the problems in the final state.
 - **Photo and drawing input**: PNG, JPEG, WebP and GIF images are read once, before intake, by the vision model `LLM_VISION_MODEL` (`observe`). Images under 1700 px on their long side are enlarged first, so that window rows span several vision tokens. For each image the model boxes the facade strip that marks its storeys most completely, which is cropped, enlarged and counted three times, and boxes the building's distinct volumes, which are drawn numbered on a copy of the image. A final structured call gets the images, the strips with their counts and the boxed volumes, and returns the reading: one entry per storey, blocks with their storeys, dimensions and placement relative to the main block, for each visible side the space behind it, its window pattern (ribbon or punched, with a punched window's size) and window-to-wall ratio, and the assumptions for what the images do not show. Each block names the boxed volumes it is made of. An optional image-to-3D model refines the blocks:
   - With `IMAGE_TO_3D_URL` and `IMAGE_TO_3D_API_KEY`, TokenHub's [HY-3D API](https://cloud.tencent.com/document/product/1823/137181) turns the first image, cropped to the boxed volumes the blocks are made of, into an untextured mesh of 20,000 faces; as the API takes no seed, a photo can give slightly different blocks on each run. Code scales the mesh to the counted storeys, takes each storey's plan from the mesh's surface points in the middle half of the storey (filled inside, as image-to-3D meshes are often open shells), turns it so its walls run along the axes with the proportions of the largest read block, and covers each plan with rectangles; a rectangle repeated on consecutive storeys becomes a block, so setbacks between storeys are kept. These blocks replace the vision model's and take the facades of the read blocks they match. With `SEGMENT_URL`, a SAM 3 server (`scripts/sam3_segment_server.py`, on a GPU host with transformers 5; weights under Meta's SAM License) segments the buildings in the image first: the one with the most pixels inside the boxed volumes is cut out, each image column filled from its top to its base so that trees in front of it stay part of it, and sent without its background, so neighbouring buildings stay out of the mesh. A mesh that is a filled box, as the model returns when it fails on an image, or that shows nothing to model on the top storey, is not used: the vision model's blocks stay and the reading's assumptions say why.
 
   Code turns the blocks into footprints, trimming a lower block beside the taller ones it overlaps and dropping one left inside them, and intake builds the zones on them. The box coordinates follow the 0-1000 convention many vision models ground objects in. Intake never receives the images, so revisions resend none. Without `LLM_VISION_MODEL` images are refused before any LLM call.
 - **Tool-call tracing**: `TraceCollector` wraps every tool call in the ReAct subgraphs and records name, arguments, result and success flag per phase, intended as fine-tuning data. A script also exports full LangSmith run trees to local JSON.
-- **Provider-agnostic LLM**: `src/configs/llm.yaml` selects provider, model, temperature and token budget; Anthropic and OpenAI integrations are bundled. `AGENT_LANGUAGE` switches the narrative language of all agent output while EnergyPlus identifiers stay ASCII.
+- **Provider-agnostic LLM**: `LLMConfig` (`src/configs/config.py`) reads provider, model, temperature and token budget from `LLM_*` environment variables; Anthropic and OpenAI integrations are bundled. `AGENT_LANGUAGE` switches the narrative language of all agent output while EnergyPlus identifiers stay ASCII.
 
 ### MCP server
 
@@ -78,7 +78,7 @@ EnergyPlus-Agent/
 │   │   ├── segmentation.py           # The photographed building cut out of its photo (SAM 3), for image-to-3D
 │   │   ├── react.py                  # 3-node ReAct subgraph (llm -> tools -> llm)
 │   │   ├── runner.py                 # run_session(), interactive_approval(), auto_approval()
-│   │   ├── llm.py                    # create_llm(), create_vision_llm() from src/configs/llm.yaml
+│   │   ├── llm.py                    # create_llm(), create_vision_llm() from LLMConfig
 │   │   ├── trace.py                  # TraceCollector and per-phase trace registry
 │   │   ├── _share.py                 # AGENT_LANGUAGE directive, constants
 │   │   ├── nodes/                    # observe, intake, plan_rerun, zone, material, schedule, construction,
@@ -119,8 +119,7 @@ EnergyPlus-Agent/
 │   ├── reference/                    # Prototype reference library: download, extract, library, climate, index, search, hub
 │   ├── database/datatools/           # SQLite data tools
 │   ├── configs/
-│   │   ├── config.py                 # LLMConfig
-│   │   └── llm.yaml                  # Agent LLM settings
+│   │   └── config.py                 # LLMConfig: agent LLM settings from LLM_* variables
 │   └── utils/logging.py              # Loguru setup
 ├── scripts/
 │   ├── run_demo.py                   # End-to-end agent demo with auto-approval
@@ -130,8 +129,7 @@ EnergyPlus-Agent/
 ├── tests/                            # Mirrors src/
 ├── data/
 │   ├── weather/Shenzhen.{epw,ddy}    # TMYx 2011-2025 weather and design days
-│   ├── schemas/                      # Example models (epJSON)
-│   └── examples/EP_Agent_data.db     # Example SQLite database
+│   └── schemas/                      # Example models (epJSON)
 ├── docker/                           # Dockerfile (Ubuntu 24.04 + EnergyPlus 26.1) + docker-compose.yml
 ├── output/                           # Models, logs, traces, simulation results
 ├── main.py                           # Typer CLI
@@ -148,24 +146,23 @@ EnergyPlus-Agent/
 
 ### Main dependencies
 
-| Library                                        | Version            | Purpose                                                        |
-| ---------------------------------------------- | ------------------ | -------------------------------------------------------------- |
-| **langgraph**                                  | >=1.1.3            | Agent graph, checkpointing, interrupts                         |
-| **langchain**                                  | >=1.2.13           | Chat model factory, tools, messages                            |
+| Library                                                    | Version            | Purpose                                                        |
+| ---------------------------------------------------------- | ------------------ | -------------------------------------------------------------- |
+| **langgraph**                                        | >=1.1.3            | Agent graph, checkpointing, interrupts                         |
+| **langchain**                                        | >=1.2.13           | Chat model factory, tools, messages                            |
 | **langchain-anthropic** / **langchain-openai** | >=1.4.0 / >=1.1.12 | Bundled LLM providers                                          |
-| **fastmcp**                                    | >=2.14.1           | MCP server framework                                           |
-| **idfpy**                                      | ==26.1.*,>=26.1.6  | Typed EnergyPlus objects, IDF and epJSON I/O, reference checks |
-| **pydantic**                                   | >=2.11.7           | Schema validation                                              |
-| **qdrant-client**                              | >=1.17.1           | Vector database of the reference library                       |
-| **openai**                                     | >=1.100            | Client of the OpenAI-compatible embedding service              |
-| **huggingface-hub**                            | >=0.35             | Publishing and pulling the reference library                   |
-| **pydantic-settings**                          | >=2.11             | Reference library settings from the environment                |
-| **omegaconf**                                  | >=2.3.0            | LLM settings with env interpolation                            |
-| **typer**                                      | >=0.20.1           | CLI                                                            |
-| **shapely**                                    | >=2.2.0            | Polygon overlap and splitting for zone geometry                |
-| **loguru**                                     | >=0.7.3            | Logging                                                        |
+| **fastmcp**                                          | >=2.14.1           | MCP server framework                                           |
+| **idfpy**                                            | ==26.1.*,>=26.1.6  | Typed EnergyPlus objects, IDF and epJSON I/O, reference checks |
+| **pydantic**                                         | >=2.11.7           | Schema validation                                              |
+| **qdrant-client**                                    | >=1.17.1           | Vector database of the reference library                       |
+| **openai**                                           | >=1.100            | Client of the OpenAI-compatible embedding service              |
+| **huggingface-hub**                                  | >=0.35             | Publishing and pulling the reference library                   |
+| **pydantic-settings**                                | >=2.11             | LLM and reference library settings from the environment        |
+| **typer**                                            | >=0.20.1           | CLI                                                            |
+| **shapely**                                          | >=2.2.0            | Polygon overlap and splitting for zone geometry                |
+| **loguru**                                           | >=0.7.3            | Logging                                                        |
 
-Development extras: `pytest`, `pytest-recording`, `ruff`, `ty`, `pre-commit`, `langsmith`, `grandalf`.
+Development extras: `pytest`, `pytest-cov`, `pytest-recording`, `ruff`, `ty`, `prek`, `langsmith`, `grandalf`.
 
 ## Quick Start
 
@@ -184,12 +181,14 @@ Simulation needs an EPW weather file and a `.ddy` design-day file with the same 
 Copy `.env.example` to `.env` and fill in what you need:
 
 ```env
-# Agent LLM (used with src/configs/llm.yaml)
+# Agent LLM (read by LLMConfig in src/configs/config.py)
 LLM_API_KEY=
 LLM_BASE_URL=            # optional, for OpenAI-compatible gateways
+LLM_MODEL=
 # Optional; an empty value is not "unset", so leave unused ones commented out.
-# LLM_TEMPERATURE=null   # default 0.7; null sends none, for providers that reject one
+# LLM_TEMPERATURE=null   # default None; null sends none, for providers that reject one
 # LLM_MAX_TOKENS=32768   # output limit per call; intake writes every specification in one call
+# LLM_REASONING_MAX_TOKENS=1024   # thinking budget, sent as reasoning.max_tokens; unset, none is sent
 # LLM_VISION_MODEL=       # reads --image files, sent without temperature; unset, images are refused
 # IMAGE_TO_3D_URL=https://tokenhub.tencentmaas.com/v1/api/3d   # TokenHub HY-3D; its mesh of the first image gives the blocks
 # IMAGE_TO_3D_API_KEY=
@@ -202,27 +201,32 @@ LLM_BASE_URL=            # optional, for OpenAI-compatible gateways
 # REFERENCE_EMBEDDING_MODEL, REFERENCE_HUB_REPO, REFERENCE_LIBRARY_PATH: optional
 
 # Optional LangSmith tracing
-LANGSMITH_API_KEY=
-LANGSMITH_ENDPOINT=
-LANGSMITH_PROJECT=
-LANGSMITH_TRACING=
+# LANGSMITH_API_KEY=
+# LANGSMITH_ENDPOINT=
+# LANGSMITH_PROJECT=
+# LANGSMITH_TRACING=true
 ```
 
 `AGENT_LANGUAGE` (default `English`) controls the language of agent narrative text.
 
 ### LLM configuration
 
-`src/configs/llm.yaml` selects the model used by every agent phase:
+`LLMConfig` in `src/configs/config.py` selects the model used by every agent phase. Each field is read from its environment variable, otherwise it takes the default:
 
-```yaml
-provider: "anthropic"          # any provider supported by LangChain init_chat_model
-base_url: ${oc.env:LLM_BASE_URL,null}
-api_key: ${oc.env:LLM_API_KEY,null}
-model_name: "gpt-5.4"
-temperature: 0.7
-max_tokens: 16384
-timeout: 120                   # seconds per request
-```
+| Variable                     | Field                    | Default    |
+| ---------------------------- | ------------------------ | ---------- |
+| `LLM_PROVIDER`             | `provider`             | `openai` |
+| `LLM_BASE_URL`             | `base_url`             | none       |
+| `LLM_API_KEY`              | `api_key`              | none       |
+| `LLM_MODEL`                | `model_name`           | required   |
+| `LLM_VISION_MODEL`         | `vision_model_name`    | none       |
+| `LLM_TEMPERATURE`          | `temperature`          | none       |
+| `LLM_MAX_TOKENS`           | `max_tokens`           | `32768`  |
+| `LLM_REASONING_MAX_TOKENS` | `reasoning_max_tokens` | none       |
+| `LLM_MAX_RETRIES`          | `max_retries`          | `2`      |
+| `LLM_TIMEOUT`              | `timeout`              | `120` s  |
+
+`LLM_PROVIDER` takes any provider name supported by LangChain `init_chat_model`. `LLM_TEMPERATURE=null` sends no temperature, for providers that reject one. `LLM_REASONING_MAX_TOKENS` is sent as the gateway extension `reasoning.max_tokens`; set it only for endpoints that accept that field.
 
 ### Run the agent
 
@@ -238,12 +242,12 @@ LLM_VISION_MODEL=google/gemini-3.8-flash uv run main.py run-agent "Office buildi
   --output-dir output/run1 --thread-id run1
 ```
 
-The command stops at the validate step, prints a configuration summary and any validation problems, and waits for input. Type `y` to approve and simulate, or type feedback text to send the graph back to intake with your correction. The generated IDF and the EnergyPlus results are written to a new `run_*` directory under `--output-dir`.
+The command stops at the validate step, prints a configuration summary and any validation problems, and waits for input. Type `y` to approve and simulate, `q` to abort, or feedback text to send the graph back to intake with your correction. The generated IDF and the EnergyPlus results are written to a new `run_*` directory under `--output-dir`.
 
 Two scripts cover non-interactive use:
 
 ```bash
-uv run python scripts/run_demo.py       # auto-approves when there are no errors
+uv run python scripts/run_demo.py       # approves a model without errors, aborts when errors remain after the retries
 uv run python scripts/export_trace.py   # interactive approval, dumps run trees to output/traces/
 ```
 
@@ -315,7 +319,8 @@ START -> observe                     (reads the images, if any)
                                      |----[needs new specs, <= 2]--> intake
                                      +--[interrupt]--> approved -> simulate -> END
                                                     |                 +--[Severe]--> validate
-                                                    +-- feedback -> intake
+                                                    |-- feedback -> intake
+                                                    +-- abort -> END
 ```
 
 - **State**: `AgentState` holds the message list (intake conversation and phase summaries only), the user brief, image paths, the photo reading, `ConfigState`, `IntakeOutput`, validation errors, problems found while building in code, the phases pending in this pass with their feedback, and the retry counters. `plan_rerun` writes the model with LangGraph's `Overwrite`, since the parallel-branch reducer is a union and would bring removed objects back.
@@ -335,15 +340,15 @@ START -> observe                     (reads the images, if any)
 
 ### Envelope
 
-| Tool                                                                                                                                                                             | Description                                                               |
-| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| Tool                                                                                                                                                                                         | Description                                                               |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
 | `create_standard_material` / `create_no_mass_material` / `create_air_gap_material` / `create_glazing_material` / `create_window_glazing_material` / `create_window_gas_material` | Create materials by type; the last two build multi-pane windows           |
-| `get_material` / `update_*_material` / `delete_material` / `list_materials`                                                                                                      | Material read, update, delete, list                                       |
-| `create_construction` / `get_construction` / `update_construction` / `delete_construction` / `list_constructions`                                                                | Construction CRUD                                                         |
-| `create_zone_geometry`                                                                                                                                                           | Extrude a zone from its floor plan and pair faces shared with other zones |
-| `create_surfaces`                                                                                                                                                                | Create several surfaces, each succeeding or failing on its own            |
-| `create_surface` / `get_surface` / `update_surface` / `delete_surface` / `list_surfaces`                                                                                         | Building surface CRUD                                                     |
-| `create_fenestration_surface` / `get_fenestration_surface` / `update_fenestration_surface` / `delete_fenestration_surface` / `list_fenestration_surfaces`                        | Window and door CRUD                                                      |
+| `get_material` / `update_*_material` / `delete_material` / `list_materials`                                                                                                          | Material read, update, delete, list                                       |
+| `create_construction` / `get_construction` / `update_construction` / `delete_construction` / `list_constructions`                                                                  | Construction CRUD                                                         |
+| `create_zone_geometry`                                                                                                                                                                     | Extrude a zone from its floor plan and pair faces shared with other zones |
+| `create_surfaces`                                                                                                                                                                          | Create several surfaces, each succeeding or failing on its own            |
+| `create_surface` / `get_surface` / `update_surface` / `delete_surface` / `list_surfaces`                                                                                           | Building surface CRUD                                                     |
+| `create_fenestration_surface` / `get_fenestration_surface` / `update_fenestration_surface` / `delete_fenestration_surface` / `list_fenestration_surfaces`                          | Window and door CRUD                                                      |
 
 ### Schedule
 
@@ -361,17 +366,17 @@ START -> observe                     (reads the images, if any)
 
 ### Loads
 
-| Tool                                                                                              | Description                        |
-| ------------------------------------------------------------------------------------------------- | ---------------------------------- |
+| Tool                                                                                                        | Description                        |
+| ----------------------------------------------------------------------------------------------------------- | ---------------------------------- |
 | `create_people` / `get_people` / `update_people` / `delete_people` / `list_people`                | People CRUD                        |
 | `create_light` / `get_light` / `update_light` / `delete_light` / `list_lights`                    | Lights CRUD                        |
 | `create_equipment` / `get_equipment` / `update_equipment` / `delete_equipment` / `list_equipment` | ElectricEquipment (plug load) CRUD |
 
 ### Workflow
 
-| Tool              | Description                                                                      |
-| ----------------- | -------------------------------------------------------------------------------- |
-| `export_model`    | Save the current model; the suffix `.idf` or `.epJSON` selects the format        |
+| Tool                | Description                                                                      |
+| ------------------- | -------------------------------------------------------------------------------- |
+| `export_model`    | Save the current model; the suffix `.idf` or `.epJSON` selects the format    |
 | `load_model`      | Replace the current model with an IDF or epJSON file                             |
 | `validate_config` | Check references, fenestration placement and completeness                        |
 | `run_simulation`  | Validate, add design days and Kiva foundations, write the IDF and run EnergyPlus |
@@ -391,12 +396,12 @@ START -> observe                     (reads the images, if any)
 
 ## CLI Reference
 
-| Command                                                                                                       | Description                                                    |
-| ------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| Command                                                                                                         | Description                                                    |
+| --------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
 | `uv run main.py run-agent "<brief>" --epw <file> [--image <file>]... [--output-dir <dir>] [--thread-id <id>]` | Run the multi-phase agent end to end with interactive approval |
 | `uv run main.py mcp-server [--transport] [--host] [--port]`                                                   | Start the MCP server                                           |
-| `uv run main.py reference build\|embed\|load\|publish\|pull`                                                  | Build, embed, index and share the prototype reference library  |
-| `energyplus-mcp`                                                                                              | MCP server entry point installed by `pyproject.toml`           |
+| `uv run main.py reference build\|embed\|load\|publish\|pull`                                                      | Build, embed, index and share the prototype reference library  |
+| `energyplus-mcp`                                                                                              | MCP server entry point installed by `pyproject.toml`         |
 
 ## Testing
 
@@ -429,9 +434,9 @@ uv run pytest
 ## Contributing
 
 1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'feat: add AmazingFeature'`)
-4. Push the branch (`git push origin feature/AmazingFeature`)
+2. Create a feature branch (`git checkout -b feat/amazing-feature`)
+3. Commit your changes (`git commit -m 'feat: add amazing feature'`)
+4. Push the branch (`git push origin feat/amazing-feature`)
 5. Open a Pull Request
 
 ### Code style

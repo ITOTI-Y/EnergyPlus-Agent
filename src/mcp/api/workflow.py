@@ -1,3 +1,5 @@
+from typing import Any
+
 from fastmcp import FastMCP
 
 from src.mcp.tools import WorkflowTool
@@ -12,7 +14,9 @@ def register_workflow_tools(mcp: FastMCP, workflow_tool: WorkflowTool) -> None:
     """
 
     @mcp.tool
-    def export_model(output_path: str = "./output/model/output.epJSON") -> dict:
+    def export_model(
+        output_path: str = "./output/model/output.epJSON",
+    ) -> dict[str, Any]:
         """Export the current model to an IDF or epJSON file.
 
         Args:
@@ -25,7 +29,9 @@ def register_workflow_tools(mcp: FastMCP, workflow_tool: WorkflowTool) -> None:
         return workflow_tool.export_model(output_path).to_mcp_response()
 
     @mcp.tool
-    def load_model(input_path: str = "data/schemas/building_schema.epJSON") -> dict:
+    def load_model(
+        input_path: str = "data/schemas/building_schema.epJSON",
+    ) -> dict[str, Any]:
         """Replace the current model with an IDF or epJSON file.
 
         Args:
@@ -38,7 +44,7 @@ def register_workflow_tools(mcp: FastMCP, workflow_tool: WorkflowTool) -> None:
         return workflow_tool.load_model(input_path).to_mcp_response()
 
     @mcp.tool
-    def validate_config() -> dict:
+    def validate_config() -> dict[str, Any]:
         """Check references, fenestration placement and completeness of the model.
 
         Returns:
@@ -51,7 +57,7 @@ def register_workflow_tools(mcp: FastMCP, workflow_tool: WorkflowTool) -> None:
     def run_simulation(
         epw_path: str = "data/weather/Shenzhen.epw",
         output_dir: str = "./output",
-    ) -> dict:
+    ) -> dict[str, Any]:
         """Run an EnergyPlus simulation with the current configuration.
 
         Args:
@@ -65,7 +71,7 @@ def register_workflow_tools(mcp: FastMCP, workflow_tool: WorkflowTool) -> None:
         return workflow_tool.run_simulation(epw_path, output_dir).to_mcp_response()
 
     @mcp.tool
-    def get_summary() -> dict:
+    def get_summary() -> dict[str, Any]:
         """Get a summary of the current configuration state.
 
         Returns:
@@ -74,7 +80,7 @@ def register_workflow_tools(mcp: FastMCP, workflow_tool: WorkflowTool) -> None:
         return workflow_tool.get_summary().to_mcp_response()
 
     @mcp.tool
-    def clear_all() -> dict:
+    def clear_all() -> dict[str, Any]:
         """Clear all configuration state, resetting to defaults.
 
         Returns:

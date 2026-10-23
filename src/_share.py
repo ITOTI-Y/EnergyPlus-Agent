@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import ClassVar, Final
+from typing import ClassVar, Final, override
 
 
 class _UnsetType:
@@ -8,11 +8,13 @@ class _UnsetType:
 
     _instance: ClassVar[_UnsetType | None] = None
 
+    @override
     def __new__(cls) -> _UnsetType:
         if cls._instance is None:
             cls._instance = super().__new__(cls)
         return cls._instance
 
+    @override
     def __repr__(self) -> str:
         return "UNSET"
 

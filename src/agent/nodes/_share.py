@@ -1,8 +1,4 @@
-"""Shared helpers for phase-agent nodes.
-
-Kept here (rather than `src/agent/_share.py`) because the scope is
-nodes-internal — no other part of the agent package uses these.
-"""
+"""Shared helpers for phase-agent nodes."""
 
 from __future__ import annotations
 
@@ -28,12 +24,7 @@ if TYPE_CHECKING:
     from src.agent.state import AgentState
 
 MAX_SELF_REPAIR_ROUNDS: Final = 2
-"""Max extra invokes per phase to repair problems in its own objects.
-
-Two rounds let the LLM see its own error feedback and react; problems
-left after them go to the outer validate loop, which can also revise the
-intake specs.
-"""
+"""Max extra invokes per phase to repair problems in its own objects."""
 
 
 class MissingInput(BaseModel):
@@ -319,7 +310,7 @@ def structured[T: BaseModel, R](
                 )
             parsed = schema.model_validate(args)
             return parsed, check(parsed)
-        except ValueError as e:  # pydantic.ValidationError is a ValueError
+        except ValueError as e:
             problem = str(e)
         logger.warning("{}: unusable reply: {}", schema.__name__, problem)
         messages = [

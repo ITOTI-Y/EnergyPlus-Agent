@@ -1,10 +1,12 @@
+from typing import Final
+
 from idfpy.models import Zone
 
 from src.agent.nodes.zone import zone_node
 from src.agent.state import AgentState
 from tests.agent.intake_data import intake, zone_spec
 
-SQUARE = [(0, 0), (5, 0), (5, 5), (0, 5)]
+SQUARE: Final = [(0, 0), (5, 0), (5, 5), (0, 5)]
 
 
 def test_zones_come_from_the_intake_output():

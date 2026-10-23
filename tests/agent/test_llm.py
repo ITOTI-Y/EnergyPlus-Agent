@@ -1,7 +1,7 @@
 import time
 from collections.abc import Callable, Iterator
 from itertools import count
-from typing import Any
+from typing import Any, Final, override
 
 import httpx
 from langchain.agents import create_agent
@@ -10,6 +10,7 @@ from langchain_core.messages import AIMessage, ToolMessage
 from langchain_core.tools import tool
 from langchain_openai import ChatOpenAI
 from openai import APIError, BadRequestError
+from pydantic import BaseModel
 
 from src.agent import llm as llm_module
 from src.agent.llm import (
@@ -40,7 +41,7 @@ def _config(**overrides) -> LLMConfig:
 
 
 def test_create_llm_sends_no_thinking_budget_without_one():
-    llm = create_llm(_config())
+    llm = create_llm(_config(reasoning_max_tokens=None))
     assert isinstance(llm, ChatOpenAI)
     assert llm.extra_body is None
 
@@ -67,6 +68,7 @@ def test_create_llm_passes_configured_retries_and_timeout():
 class _ScriptedModel(GenericFakeChatModel):
     """Fake chat model that accepts tools, as create_agent requires."""
 
+    @override
     def bind_tools(self, tools: Any, **kwargs: Any) -> "_ScriptedModel":
         return self
 
@@ -87,19 +89,30 @@ class _FailingOnce:
         return self.reply
 
 
+class Done(BaseModel):
+    text: str
+
+
+DONE: Final = AIMessage(
+    content="",
+    tool_calls=[{"name": "Done", "id": "call_done", "args": {"text": "done"}}],
+)
+
+
 def _stream_error() -> APIError:
     request = httpx.Request("POST", "https://llm.invalid/v1/chat/completions")
     return APIError("The service is currently unavailable.", request, body=None)
 
 
 def test_a_call_failing_mid_stream_is_made_again(monkeypatch):
-    replies = _FailingOnce(_stream_error(), AIMessage(content="done"))
+    replies = _FailingOnce(_stream_error(), DONE)
     model = _ScriptedModel(messages=replies)
     monkeypatch.setattr(llm_module, "create_llm", lambda config=None: model)
 
-    result = build_agent().invoke({"messages": [("user", "go")]})
+    agent = build_agent("", [], Done)
+    result = agent.invoke({"messages": [("user", "go")]})
 
-    assert result["messages"][-1].content == "done"
+    assert result["structured_response"].text == "done"
     assert replies.calls == 2
 
 
@@ -132,10 +145,10 @@ def test_tool_calls_of_one_round_run_in_the_model_order(monkeypatch):
             for i in range(3)
         ],
     )
-    model = _ScriptedModel(messages=iter([round_, AIMessage(content="done")]))
+    model = _ScriptedModel(messages=iter([round_, DONE]))
     monkeypatch.setattr(llm_module, "create_llm", lambda config=None: model)
 
-    build_agent(tools=[create_step]).invoke({"messages": [("user", "go")]})
+    build_agent("", [create_step], Done).invoke({"messages": [("user", "go")]})
 
     assert ran == [0, 1, 2]
 

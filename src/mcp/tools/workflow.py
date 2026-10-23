@@ -4,6 +4,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from idfpy.models import OutputVariable, SizingPeriodDesignDay
+from loguru import logger
 
 from src.mcp.interface import ToolResponse
 from src.modeling.ground import use_kiva_foundations
@@ -15,9 +16,6 @@ from src.modeling.validation import (
 from src.runner.runner import run_energyplus
 from src.state.config_state import ConfigState
 from src.state.defaults import add_design_days, add_output_variables
-from src.utils.logging import get_logger
-
-logger = get_logger(__name__)
 
 
 class WorkflowTool:

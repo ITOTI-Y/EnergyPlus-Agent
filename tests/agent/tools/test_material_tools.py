@@ -1,4 +1,5 @@
 import json
+from typing import Final
 
 from idfpy.models import Material, MaterialNoMass
 from langchain_core.messages import ToolCall, ToolMessage
@@ -7,7 +8,7 @@ from langchain_core.tools import BaseTool
 from src.agent.tools import make_material_tools
 from src.state.config_state import ConfigState
 
-BRICK = {
+BRICK: Final = {
     "name": "Brick_100mm",
     "roughness": "MediumRough",
     "thickness": 0.1,

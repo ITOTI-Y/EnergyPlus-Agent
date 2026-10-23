@@ -1,4 +1,4 @@
-from typing import Any, cast
+from typing import Any, cast, override
 
 import httpx
 from idfpy.models import (
@@ -71,6 +71,7 @@ def test_self_repair_fixes_missing_schedule_type_limits():
     class _RepairingAgent(_StubAgent):
         """Creates the missing ScheduleTypeLimits when re-invoked."""
 
+        @override
         def invoke(self, payload: Any) -> dict[str, Any]:
             if self.payloads:
                 config.idf.add(

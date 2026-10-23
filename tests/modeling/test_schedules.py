@@ -1,3 +1,5 @@
+from typing import Final
+
 import pytest
 from idfpy import IDF
 from idfpy.models import ScheduleTypeLimits
@@ -15,7 +17,7 @@ def _period(through: str, times: list[tuple[str, float]], day="AllDays") -> dict
     return {"Through": through, "Days": [_day(day, times)]}
 
 
-OFF = [("24:00", 0.0)]
+OFF: Final = [("24:00", 0.0)]
 
 
 def test_fields_separate_until_time_and_value():

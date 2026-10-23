@@ -13,8 +13,6 @@ from src.reference.index import Embedder, Hit, search
 from src.reference.settings import ReferenceSettings
 
 QDRANT_TIMEOUT_S: Final = 30
-"""Per-request timeout. A search sends a 4096-value query vector as JSON,
-which can take longer than the client's 5 s default on a slow link."""
 
 
 SEARCH_ATTEMPTS: Final = 2
@@ -38,14 +36,15 @@ class ReferenceSearch:
     collection: str
     embedder: Embedder
     climate: Climate
-    qdrant_url: str = ""
-    embedding_url: str = ""
+    qdrant_url: str
+    embedding_url: str
 
     @classmethod
     def connect(cls, settings: ReferenceSettings, epw_path: Path) -> "ReferenceSearch":
         """Connect and check that the collection and the embedder agree.
 
         Raises:
+            ValueError: If either service URL is not configured.
             RuntimeError: If the collection is missing or its vectors do not
                 match the embedding model's.
             qdrant_client.http.exceptions.ResponseHandlingException,
@@ -118,7 +117,7 @@ class ReferenceSearch:
                     if isinstance(e, APIError)
                     else ("Qdrant", self.qdrant_url)
                 )
-                problem = f"{service} at {url or '?'}: {type(e).__name__}: {e}"
+                problem = f"{service} at {url}: {type(e).__name__}: {e}"
                 if attempt == SEARCH_ATTEMPTS:
                     raise ReferenceSearchError(
                         f"Reference search for {kind}s ({query!r}) failed "

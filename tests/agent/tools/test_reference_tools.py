@@ -1,6 +1,6 @@
 import json
 from types import SimpleNamespace
-from typing import Any, cast
+from typing import Any, Final, cast, override
 
 import pytest
 from pydantic import ValidationError
@@ -49,6 +49,8 @@ def test_search_tool_filters_by_the_site_zones_and_returns_data():
         "reference",
         cast(Embedder, FakeEmbedder()),
         Climate(5153.0, 136.0, "1A", ["1A", "2A"]),
+        qdrant_url="http://localhost:6333",
+        embedding_url="http://localhost:8000/v1",
     )
     [find] = make_reference_tools(search, ("material",))
 
@@ -69,7 +71,7 @@ def test_settings_need_both_services_or_neither(monkeypatch: pytest.MonkeyPatch)
         ReferenceSettings(_env_file=None)
 
 
-WALL = Hit(
+WALL: Final = Hit(
     score=0.63218,
     kind="construction",
     object_type="Construction",
@@ -124,6 +126,7 @@ class FlakyQdrant(FakeQdrant):
         super().__init__()
         self.failures = failures
 
+    @override
     def query_points(self, collection: str, **kwargs: Any) -> SimpleNamespace:
         if self.failures:
             self.failures -= 1
@@ -138,6 +141,7 @@ def _search(qdrant: FakeQdrant) -> ReferenceSearch:
         cast(Embedder, FakeEmbedder()),
         Climate(5153.0, 136.0, "1A", ["1A", "2A"]),
         qdrant_url="http://localhost:6333",
+        embedding_url="http://localhost:8000/v1",
     )
 
 

@@ -6,7 +6,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from itertools import accumulate, combinations
 from pathlib import Path
-from typing import Annotated, Any, Final, Literal, Self
+from typing import Annotated, Any, Final, Literal, Self, TypedDict
 
 from idfpy import IDF
 from idfpy.models import Building, SiteLocation
@@ -14,7 +14,6 @@ from langchain_core.messages import AnyMessage
 from langgraph.graph.message import add_messages
 from loguru import logger
 from pydantic import AfterValidator, BaseModel, Field, field_validator, model_validator
-from typing_extensions import TypedDict
 
 from src.agent._share import DEFAULT_OUTPUT_DIR, MAX_GLOBAL_RETRIES
 from src.agent.phases import Phase

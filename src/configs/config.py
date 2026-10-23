@@ -1,25 +1,37 @@
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-class LLMConfig(BaseModel):
-    model_config = ConfigDict(
-        from_attributes=True,
-        validate_assignment=True,
-        arbitrary_types_allowed=True,
-        str_strip_whitespace=True,
-        use_enum_values=True,
+class LLMConfig(BaseSettings):
+    """Agent LLM settings, read from ``LLM_*`` environment variables.
+
+    ``LLM_TEMPERATURE=null`` sends no temperature, for providers that reject
+    one. The thinking budget is sent only when ``LLM_REASONING_MAX_TOKENS``
+    is set, as the gateway extension ``reasoning.max_tokens``.
+    """
+
+    model_config = SettingsConfigDict(
+        env_prefix="LLM_",
+        env_parse_none_str="null",
         populate_by_name=True,
+        str_strip_whitespace=True,
         extra="forbid",
         frozen=True,
     )
 
-    provider: str = Field(..., description="The provider of the LLM model")
+    provider: str = Field(
+        default="openai",
+        description="Provider name passed to LangChain init_chat_model",
+    )
     base_url: str | None = Field(
         default=None, description="The base URL of the LLM model"
     )
-    model_name: str = Field(..., description="The name of the LLM model to use")
+    model_name: str = Field(
+        validation_alias="LLM_MODEL", description="The name of the LLM model to use"
+    )
     vision_model_name: str | None = Field(
         default=None,
+        validation_alias="LLM_VISION_MODEL",
         description="Model that reads input images; without one, images are refused",
     )
     temperature: float | None = Field(
@@ -29,7 +41,7 @@ class LLMConfig(BaseModel):
         "that reject one",
     )
     max_tokens: int = Field(
-        ..., ge=0, description="The maximum number of tokens to generate"
+        default=32768, ge=0, description="The maximum number of tokens to generate"
     )
     api_key: str | None = Field(
         default=None, description="The API key of the LLM model"

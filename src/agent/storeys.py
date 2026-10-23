@@ -25,12 +25,6 @@ FOOTPRINT_AREA_TOLERANCE: Final = 0.02
 """Share of a block's footprint its plans may leave uncovered."""
 
 
-def _runs(storeys: list[tuple[int, float, tuple[str, ...]]]):
-    """Consecutive storeys with the same height and plans, as lists."""
-    for _, run in groupby(storeys, key=lambda s: (s[1], s[2])):
-        yield list(run)
-
-
 def _check_footprints(plans: list[ZonePlanSchema], reading: PhotoReadingSchema) -> None:
     """Each block's plans lie in its footprint and together fill it.
 
@@ -132,7 +126,8 @@ def storeys_from_reading(
             (k, h, keys) for (k, h, _), keys in zip(storeys, filled, strict=True)
         ]
     result = []
-    for run in _runs(storeys):
+    for _, group in groupby(storeys, key=lambda s: (s[1], s[2])):
+        run = list(group)
         if len(run) >= 3:
             first, *middle, last = run
             groups = [(first, 1), (middle[0], len(middle)), (last, 1)]

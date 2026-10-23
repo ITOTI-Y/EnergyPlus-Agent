@@ -39,7 +39,7 @@ class TraceCollector:
     cross-phase contamination under parallel execution.
     """
 
-    def __init__(self, phase: str = "unknown") -> None:
+    def __init__(self, phase: str) -> None:
         self.phase = phase
         self.traces: list[dict[str, Any]] = []
 
@@ -49,11 +49,11 @@ class TraceCollector:
         execute: Callable[[ToolCallRequest], ToolMessage | Command],
     ) -> ToolMessage | Command:
         """Intercept tool execution, record trace, pass through result."""
-        tool_name = request.tool_call.get("name", "<unknown>")
+        tool_name = request.tool_call["name"]
         entry: dict[str, Any] = {
             "phase": self.phase,
             "tool_name": tool_name,
-            "tool_args": request.tool_call.get("args", {}),
+            "tool_args": request.tool_call["args"],
         }
 
         result = execute(request)

@@ -21,7 +21,7 @@ from src.agent.state import (
 )
 from src.agent.storeys import storeys_from_reading
 
-INTAKE_SYSTEM_PROMPT = """You are an EnergyPlus building-simulation intake specialist.
+INTAKE_SYSTEM_PROMPT: Final = """You are an EnergyPlus building-simulation intake specialist.
 Given a building description in text, and optionally a reading of its
 photos or drawings by a vision model, extract structured specifications
 for every subsystem.
@@ -133,7 +133,7 @@ Rules:
    setpoint at every time of every day type.
 """
 
-PHOTO_READING_INTRO = """Photo reading (a vision model's reading of the attached photos or
+PHOTO_READING_INTRO: Final = """Photo reading (a vision model's reading of the attached photos or
 drawings; counts and dimensions are estimates), and each block's footprint
 computed from it. Build the zones from them:
 - give each block ONE rectangular plan whose corners are its footprint
@@ -163,7 +163,7 @@ computed from it. Build the zones from them:
   size, else 1.2 m wide by 1.5 m high.
 Other values the text gives take precedence over the reading."""
 
-REVISION_PROMPT = """The specifications below were built and checked. Fix
+REVISION_PROMPT: Final = """The specifications below were built and checked. Fix
 the problems listed after them by returning an IntakePatch:
 - set ONLY the fields that must change and omit all others: an omitted
   field keeps its value, and resending an unchanged field only costs time;

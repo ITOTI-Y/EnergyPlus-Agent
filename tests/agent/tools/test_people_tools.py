@@ -1,11 +1,12 @@
 import json
+from typing import Final
 
 from idfpy.models import ScheduleCompact, Zone
 
 from src.agent.tools.people_tools import make_people_tools
 from src.state.config_state import ConfigState
 
-PEOPLE_ARGS = {
+PEOPLE_ARGS: Final = {
     "zone_names": ["Zone_1", "Zone_2"],
     "number_of_people_schedule_name": "Occupancy",
     "activity_level_schedule_name": "Activity",

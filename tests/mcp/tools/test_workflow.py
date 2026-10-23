@@ -1,5 +1,6 @@
 import shutil
 from pathlib import Path
+from typing import Final
 
 import pytest
 from idfpy import IDF
@@ -16,8 +17,8 @@ from src.mcp.tools.workflow import WorkflowTool
 from src.runner.runner import SimulationResult
 from src.state.config_state import ConfigState
 
-DATA_DIR = Path(__file__).parents[3] / "data"
-SHENZHEN_EPW = DATA_DIR / "weather" / "Shenzhen.epw"
+DATA_DIR: Final = Path(__file__).parents[3] / "data"
+SHENZHEN_EPW: Final = DATA_DIR / "weather" / "Shenzhen.epw"
 
 
 @pytest.fixture

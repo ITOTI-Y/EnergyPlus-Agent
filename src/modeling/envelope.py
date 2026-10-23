@@ -44,8 +44,6 @@ WINDOW_LAYERING: Final = (
     "each pair, starting and ending with glazing."
 )
 
-# Fenestration types whose construction must transmit light; every other
-# surface and the Door type need an opaque construction.
 _GLAZED_TYPES: Final = frozenset({"Window", "GlassDoor"})
 
 type ConstructionKind = Literal["window", "opaque", "mixed"]

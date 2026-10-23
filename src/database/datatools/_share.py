@@ -1,1 +1,3 @@
-TIMESTAMP = r"%Y%m%d%H%M%S"
+from typing import Final
+
+TIMESTAMP: Final = r"%Y%m%d%H%M%S"

@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+from typing import Final
 
 import pytest
 from idfpy import IDF
@@ -14,8 +15,9 @@ from src.modeling.surfaces import (
 )
 from src.modeling.validation import interzone_issues
 
-DATA = Path(__file__).parents[2] / "data"
-EAST, WEST = "Zone_East_Wall_Internal", "Zone_West_Wall_Internal"
+DATA: Final = Path(__file__).parents[2] / "data"
+EAST: Final = "Zone_East_Wall_Internal"
+WEST: Final = "Zone_West_Wall_Internal"
 
 
 def _model_without_shared_wall() -> tuple[

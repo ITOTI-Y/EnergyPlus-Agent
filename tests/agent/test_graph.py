@@ -6,7 +6,7 @@ by a function returning a fixed output or patch.
 
 from collections import Counter
 from collections.abc import Callable
-from typing import Any
+from typing import Any, Final
 
 import pytest
 from idfpy import IDF
@@ -24,7 +24,9 @@ from langchain_core.runnables import RunnableConfig
 from src.agent import graph as graph_module
 from src.agent.nodes import intake as intake_module
 from src.agent.nodes._share import skipped
+from src.agent.nodes.validate import Abort
 from src.agent.phases import Phase
+from src.agent.runner import run_session
 from src.agent.state import AgentState, IntakeOutput, IntakePatch, SimContext
 from tests.agent.intake_data import intake, layout, zone_spec
 
@@ -132,12 +134,12 @@ def _run(tmp_path) -> dict[str, Any]:
     return snapshot.values
 
 
-SPECS = {
+SPECS: Final = {
     "material_specs": "brick",
     "schedule_specs": "occupancy",
     "construction_specs": "Wall and Slab: concrete",
 }
-BOX = [(0, 0), (5, 0), (5, 5), (0, 5)]
+BOX: Final = [(0, 0), (5, 0), (5, 5), (0, 5)]
 
 
 def test_a_phase_problem_reruns_only_that_phase_and_its_dependants(
@@ -189,3 +191,19 @@ def test_a_zone_problem_revises_intake_and_keeps_unaffected_phases(
         if s.outside_boundary_condition == "Surface"
     ]
     assert len(paired) == 2
+
+
+def test_an_aborted_review_ends_the_session(monkeypatch, runs, tmp_path):
+    _intake_llm(monkeypatch, intake(zones=[zone_spec("A", BOX)], **SPECS), None)
+
+    state = run_session(
+        graph_module.build_graph(),
+        AgentState(user_input="brief"),
+        SimContext(epw_path=tmp_path / "w.epw"),
+        {"configurable": {"thread_id": "t"}},
+        on_interrupt=lambda payload: Abort(),
+    )
+
+    assert (
+        state["messages"][-1].content == "[validate] aborted with 0 unresolved problems"
+    )

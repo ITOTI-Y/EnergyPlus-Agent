@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Final
 
 import pytest
 from idfpy import IDF
@@ -12,7 +13,7 @@ from idfpy.models import (
 
 from src.state.defaults import add_design_days, add_output_variables, new_model
 
-SHENZHEN_DDY = Path(__file__).parents[2] / "data" / "weather" / "Shenzhen.ddy"
+SHENZHEN_DDY: Final = Path(__file__).parents[2] / "data" / "weather" / "Shenzhen.ddy"
 
 
 def test_new_model_has_global_objects():

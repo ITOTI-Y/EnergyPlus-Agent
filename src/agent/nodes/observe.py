@@ -51,7 +51,7 @@ type ContentPart = TextContentPart | ImageContentPart
 IMAGE_TYPES: Final = (".png", ".jpg", ".jpeg", ".webp", ".gif")
 """Accepted file types; every image is sent as a JPEG."""
 
-OBSERVE_SYSTEM_PROMPT = """You read photos or drawings of a building for an energy model.
+OBSERVE_SYSTEM_PROMPT: Final = """You read photos or drawings of a building for an energy model.
 Report what the images show, and estimates with the cues behind them.
 - Count storeys one by one from the roof down to the ground, one entry per
   storey in `storey_rows`. The repeated counts of an enlarged facade strip

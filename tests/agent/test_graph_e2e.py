@@ -33,7 +33,8 @@ from vcr.request import Request
 from src.agent import AgentState, SimContext, build_graph, mesh_massing
 from src.agent import _share as agent_share
 from src.agent.nodes import observe
-from src.agent.runner import InterruptDecision, auto_approval, run_session
+from src.agent.nodes.validate import ReviewDecision
+from src.agent.runner import auto_approval, run_session
 from src.reference.search import ReferenceSearch
 from src.reference.settings import ReferenceSettings
 from tests.agent.recording import CASSETTE_ORIGIN, RECORDED_MODEL
@@ -183,7 +184,7 @@ def test_office_from_brief_and_photo_runs_to_a_simulation(
     reviews: list[dict[str, Any]] = []
     nodes: list[str] = []
 
-    def review(payload: dict[str, Any]) -> InterruptDecision:
+    def review(payload: dict[str, Any]) -> ReviewDecision:
         reviews.append(payload)
         if len(reviews) > MAX_REVIEWS:
             pytest.fail(f"still not approved after {MAX_REVIEWS} reviews: {payload}")

@@ -163,7 +163,7 @@ def _hourly(day: ScheduleDayHourly) -> list[dict[str, Any]]:
     times = []
     for hour, value in enumerate(values, start=1):
         if hour < 24 and values[hour] == value:
-            continue  # merge equal consecutive hours
+            continue
         times.append({"Until": {"Time": f"{hour:02d}:00", "Value": float(value)}})
     return times
 
@@ -219,7 +219,7 @@ def _schedules(idf: IDF, skipped: list[str]) -> Iterator[ReferenceObject]:
             # The schedule tool rejects what ThroughSchema rejects.
             for period in periods:
                 ThroughSchema.model_validate(period)
-        except ValueError as e:  # pydantic's ValidationError included
+        except ValueError as e:
             skipped.append(f"{schedule.name}: {str(e).splitlines()[0]}")
             continue
         yield ReferenceObject(

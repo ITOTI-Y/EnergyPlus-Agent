@@ -1,3 +1,5 @@
+from typing import Final
+
 from langchain_core.messages import AIMessage
 from pydantic import Field
 
@@ -15,7 +17,7 @@ from src.agent.state import AgentState, AgentStateUpdate
 from src.agent.tools import make_hvac_tools
 from src.agent.trace import TraceCollector, record_phase_trace, trace_middleware
 
-HVAC_SYSTEM_PROMPT = """You are an HVAC configuration expert for EnergyPlus.
+HVAC_SYSTEM_PROMPT: Final = """You are an HVAC configuration expert for EnergyPlus.
 Given HVAC specifications, create thermostat templates and one
 IdealLoadsAirSystem per conditioned zone.
 
