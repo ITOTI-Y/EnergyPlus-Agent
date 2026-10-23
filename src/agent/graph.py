@@ -63,6 +63,7 @@ def build_graph() -> CompiledStateGraph[AgentState, SimContext, AgentState, Agen
                  -> intake          intake revises its output
                  -> (approved) simulate -> END, or validate on Severe errors
                  -> (feedback) intake
+                 -> (aborted) END
 
     Every pass runs only ``pending_phases``; the others return at once
     and keep their objects, so the static joins still fire.

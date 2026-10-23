@@ -35,7 +35,7 @@ class LLMConfig(BaseSettings):
         description="Model that reads input images; without one, images are refused",
     )
     temperature: float | None = Field(
-        default=0.7,
+        default=None,
         ge=0.0,
         description="Sampling temperature; None sends none, for providers "
         "that reject one",

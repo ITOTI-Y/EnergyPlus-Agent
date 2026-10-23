@@ -27,7 +27,7 @@ A reference library of materials, constructions and schedules from the DOE proto
 - **Failure-loop guard**: every phase agent stops when the same tool call fails three times, ten calls fail in a row, twenty fail in total or one call is repeated unchanged six times, logs each failure, and reports the last error as the phase summary instead of retrying until the LLM budget runs out.
 - **Structured validation**: `src/modeling/validation.py` reports each problem as a `ModelIssue` tied to an object type, name and field. Sources are idfpy's reference check, geometric checks (fenestration reversed, off its parent surface's plane or outside its outline, which EnergyPlus would only warn about), empty models, phases that created nothing, and EnergyPlus Severe and Fatal messages, which are tied to the first object they quote. `src/agent/phases.py` maps object types to the phase that owns them; after its run each phase repairs the problems in its own objects, and every phase agent also receives read-only `list_*` tools to inspect what earlier phases created.
 - **Partial retries**: after a pass, problems go to the phases that own them. If those phases can fix them from their unchanged task, only they and the phases depending on their objects run again, with the problems as feedback (zone -> surface -> fenestration and loads; material -> construction -> surface; schedule -> loads). Otherwise intake receives the brief, its previous output and the problems, and returns a patch of the fields to change; the phases fed by changed fields, the phases owning the problems, and their dependants run again. Before a pass, the objects of the phases about to run are removed; the other phases keep their objects and are not prompted. Intake revises at most twice before a human reviews the model, and EnergyPlus Severe errors after approval go through the same loop.
-- **Human-in-the-loop approval**: the validate node raises a LangGraph `interrupt()` with a configuration summary and any errors. Approval continues to simulation; free-text feedback goes to intake as a correction and is handled like a revision.
+- **Human-in-the-loop approval**: the validate node raises a LangGraph `interrupt()` with a configuration summary and any errors. Approval continues to simulation; free-text feedback goes to intake as a correction and is handled like a revision, with the intake retry budget restored; aborting ends the session and leaves the problems in the final state.
 - **Photo and drawing input**: PNG, JPEG, WebP and GIF images are read once, before intake, by the vision model `LLM_VISION_MODEL` in its own structured call (`observe`): blocks with their storey counts, estimated dimensions and positions, the window type and window-to-wall ratio of each visible side, and the assumptions for what the images do not show. Intake builds the zones from this reading and never receives the images, so revisions resend none. Without `LLM_VISION_MODEL` images are refused before any LLM call.
 - **Tool-call tracing**: `TraceCollector` wraps every tool call in the ReAct subgraphs and records name, arguments, result and success flag per phase, intended as fine-tuning data. A script also exports full LangSmith run trees to local JSON.
 - **Provider-agnostic LLM**: `LLMConfig` (`src/configs/config.py`) reads provider, model, temperature and token budget from `LLM_*` environment variables; Anthropic and OpenAI integrations are bundled. `AGENT_LANGUAGE` switches the narrative language of all agent output while EnergyPlus identifiers stay ASCII.
@@ -232,12 +232,12 @@ LLM_VISION_MODEL=google/gemini-3.8-flash uv run main.py run-agent "Office buildi
   --output-dir output/run1 --thread-id run1
 ```
 
-The command stops at the validate step, prints a configuration summary and any validation problems, and waits for input. Type `y` to approve and simulate, or type feedback text to send the graph back to intake with your correction. The generated IDF and the EnergyPlus results are written to a new `run_*` directory under `--output-dir`.
+The command stops at the validate step, prints a configuration summary and any validation problems, and waits for input. Type `y` to approve and simulate, `q` to abort, or feedback text to send the graph back to intake with your correction. The generated IDF and the EnergyPlus results are written to a new `run_*` directory under `--output-dir`.
 
 Two scripts cover non-interactive use:
 
 ```bash
-uv run python scripts/run_demo.py       # auto-approves when there are no errors
+uv run python scripts/run_demo.py       # approves a model without errors, aborts when errors remain after the retries
 uv run python scripts/export_trace.py   # interactive approval, dumps run trees to output/traces/
 ```
 
@@ -309,7 +309,8 @@ START -> observe                     (reads the images, if any)
                                      |----[needs new specs, <= 2]--> intake
                                      +--[interrupt]--> approved -> simulate -> END
                                                     |                 +--[Severe]--> validate
-                                                    +-- feedback -> intake
+                                                    |-- feedback -> intake
+                                                    +-- abort -> END
 ```
 
 - **State**: `AgentState` holds the message list (intake conversation and phase summaries only), the user brief, image paths, the photo reading, `ConfigState`, `IntakeOutput`, validation errors, problems found while building in code, the phases pending in this pass with their feedback, and the retry counters. `plan_rerun` writes the model with LangGraph's `Overwrite`, since the parallel-branch reducer is a union and would bring removed objects back.

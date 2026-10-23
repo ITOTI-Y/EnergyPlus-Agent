@@ -8,11 +8,11 @@ from langgraph.graph.state import CompiledStateGraph
 from langgraph.types import Command
 from loguru import logger
 
+from src.agent.nodes.validate import Abort, Approve, ReviewDecision, Revise
 from src.agent.state import AgentState, SimContext
 from src.agent.trace import reset_traces
 
-type InterruptDecision = dict[str, Any]
-type InterruptHandler = Callable[[dict[str, Any]], InterruptDecision]
+type InterruptHandler = Callable[[dict[str, Any]], ReviewDecision]
 type NodeEventHandler = Callable[[str, dict[str, Any]], None]
 type AgentGraph = CompiledStateGraph[AgentState, SimContext, AgentState, AgentState]
 
@@ -33,8 +33,8 @@ def run_session(
         context: Runtime context (epw_path, output_dir).
         config: RunnableConfig carrying thread_id for checkpointer.
         on_interrupt: Called at each validate interrupt. Receives the
-            interrupt payload `{"summary": ..., "errors": [...], "message": ...}`,
-            returns `{"approved": bool, ...}`.
+            interrupt payload `{"summary": ..., "errors": [...], "message": ...}`
+            and returns `Approve()`, `Revise(feedback)` or `Abort()`.
         on_event: Optional debug hook called as `on_event(node_name, update)`
             after every non-interrupt node. `update` is the partial state
             dict that node returned. Default None = silent.
@@ -64,11 +64,11 @@ def run_session(
         payload = Command(resume=decision)
 
 
-def interactive_approval(payload: dict[str, Any]) -> InterruptDecision:
+def interactive_approval(payload: dict[str, Any]) -> ReviewDecision:
     """Console approval prompt for the validate interrupt.
 
     Prints a one-line ConfigSummary + any validation problems, then reads
-    y / yes to approve or any other text as rejection feedback.
+    y / yes to approve, q / quit to abort, or any other text as feedback.
     """
 
     summary = payload["summary"]
@@ -87,22 +87,23 @@ def interactive_approval(payload: dict[str, Any]) -> InterruptDecision:
     else:
         logger.info("no validation problems")
 
-    answer = input("Approve? [y/N or feedback text] > ").strip()
-    if answer.lower() in ["y", "yes"]:
-        return {"approved": True}
-    else:
-        return {"approved": False, "feedback": answer}
+    answer = input("Approve? [y = approve, q = abort, or feedback text] > ").strip()
+    match answer.lower():
+        case "y" | "yes":
+            return Approve()
+        case "q" | "quit":
+            return Abort()
+        case _:
+            return Revise(answer)
 
 
-def auto_approval(payload: dict[str, Any]) -> InterruptDecision:
-    """Approve the validate interrupt when it reports no errors; otherwise reject it with the errors as feedback."""
-    errors = payload["errors"]
-    if not errors:
-        return {"approved": True}
-    return {
-        "approved": False,
-        "feedback": "please address errors: " + "; ".join(errors),
-    }
+def auto_approval(payload: dict[str, Any]) -> ReviewDecision:
+    """Approve a model without errors; abort when errors remain.
+
+    Validate interrupts with errors only after its retries are spent, so
+    another revision would repeat them.
+    """
+    return Abort() if payload["errors"] else Approve()
 
 
 def print_final_messages(state: dict[str, Any], n: int = 5) -> None:
